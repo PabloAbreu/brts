@@ -1,0 +1,385 @@
+package org.brts.lowlevel.mkv;
+
+import org.brts.common.exception.BrtException;
+import org.brts.common.m2ts.M2tsWriter;
+import org.brts.common.m2ts.model.M2tsChapter;
+import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.mkv.MkvDemuxer;
+import org.brts.common.mkv.MkvSourceMediaParser;
+import org.brts.common.mkv.SourceMediaInfo;
+import org.brts.common.model.StreamCodingType;
+import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.model.mpls.*;
+import org.brts.lowlevel.pgs.PgsGenerator;
+import org.brts.lowlevel.pgs.PgsRenderConfig;
+import org.brts.lowlevel.writer.ClipInfoWriter;
+import org.brts.lowlevel.writer.MoviePlaylistWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.*;
+
+/**
+ * Converts an MKV file into a Blu-ray clip triplet: M2TS + CLPI + MPLS.
+ * <p>
+ * Pipeline:
+ * <ol>
+ *   <li>Parse MKV metadata ({@link MkvSourceMediaParser})</li>
+ *   <li>Validate Blu-ray compatibility ({@link BlurayCompatibilityValidator})</li>
+ *   <li>Demux MKV into elementary streams ({@link MkvDemuxer})</li>
+ *   <li>Convert text subtitles to PGS where needed ({@link PgsGenerator})</li>
+ *   <li>Build an {@link M2tsDescriptor} and write M2TS + CLPI ({@link M2tsWriter}, {@link ClipInfoWriter})</li>
+ *   <li>Build and write MPLS ({@link MoviePlaylistWriter})</li>
+ * </ol>
+ */
+public class MkvToPlaylistConverter {
+
+    private static final Logger log = LoggerFactory.getLogger(MkvToPlaylistConverter.class);
+
+    // Blu-ray conventional PID ranges
+    private static final int VIDEO_PID_BASE = 0x1011; // 4113
+    private static final int AUDIO_PID_BASE = 0x1100; // 4352
+    private static final int PGS_PID_BASE   = 0x1200; // 4608
+
+    /**
+     * Configuration for the conversion.
+     */
+    @lombok.Data
+    @lombok.AllArgsConstructor
+    public static class Config {
+        private final Path mkvFile;
+        private final Path outputDir;
+        private final String clipName;
+        private Set<Integer> audioTrackFilter;
+        private Set<Integer> subtitleTrackFilter;
+        private PgsRenderConfig pgsConfig;
+        
+        public Config(Path mkvFile, Path outputDir, String clipName) {
+            this(mkvFile, outputDir, clipName, null, null, null);
+        }
+    }
+
+    /**
+     * Result of the conversion.
+     */
+    public record Result(Path m2tsFile, Path clpiFile, Path mplsFile) {}
+
+    /**
+     * Runs the full MKV-to-playlist conversion pipeline.
+     *
+     * @param config conversion configuration
+     * @return paths to the generated files
+     * @throws IOException  on I/O error
+     * @throws BrtException if any stream is incompatible with Blu-ray
+     */
+    public Result convert(Config config) throws IOException {
+        Path mkvFile   = config.getMkvFile();
+        Path outputDir = config.getOutputDir();
+        String clipName = config.getClipName();
+
+        // 1. Parse MKV metadata
+        log.info("Parsing MKV: {}", mkvFile);
+        MkvSourceMediaParser parser = new MkvSourceMediaParser();
+        SourceMediaInfo mediaInfo = parser.parse(mkvFile);
+
+        // 2. Apply track filters
+        List<SourceMediaInfo.SourceTrack> selectedTracks = filterTracks(mediaInfo, config);
+
+        // 3. Validate Blu-ray compatibility
+        log.info("Validating Blu-ray compatibility for {} tracks", selectedTracks.size());
+        BlurayCompatibilityValidator validator = new BlurayCompatibilityValidator();
+        SourceMediaInfo filteredInfo = new SourceMediaInfo();
+        filteredInfo.setSourcePath(mediaInfo.getSourcePath());
+        filteredInfo.setDurationMs(mediaInfo.getDurationMs());
+        filteredInfo.setTracks(selectedTracks);
+        List<BlurayCompatibilityValidator.TrackValidation> validations = validator.validateOrThrow(filteredInfo);
+
+        // 4. Determine which tracks need PGS conversion
+        Set<Integer> textSubTrackNos = new HashSet<>();
+        for (BlurayCompatibilityValidator.TrackValidation tv : validations) {
+            if (tv.needsConversion()) {
+                textSubTrackNos.add(tv.trackNumber());
+            }
+        }
+
+        // 5. Determine the set of tracks to demux
+        Set<Integer> demuxTrackNos = new LinkedHashSet<>();
+        for (SourceMediaInfo.SourceTrack t : selectedTracks) {
+            demuxTrackNos.add(t.getTrackNumber());
+        }
+
+        // 6. Demux MKV
+        Path workDir = outputDir.resolve(".mkv_work_" + clipName);
+        log.info("Demuxing MKV to {}", workDir);
+        MkvDemuxer demuxer = new MkvDemuxer();
+        Map<Integer, Path> demuxedFiles = demuxer.demux(mkvFile, workDir, demuxTrackNos);
+
+        // 7. Convert text subtitles to PGS
+        PgsRenderConfig pgsConfig = config.getPgsConfig() != null
+                ? config.getPgsConfig()
+                : new PgsRenderConfig();
+        PgsGenerator pgsGenerator = new PgsGenerator(pgsConfig);
+
+        Map<Integer, Path> pgsConvertedFiles = new HashMap<>();
+        for (int trackNo : textSubTrackNos) {
+            Path textSubFile = demuxedFiles.get(trackNo);
+            if (textSubFile == null) {
+                log.warn("Text subtitle track {} was not demuxed, skipping conversion", trackNo);
+                continue;
+            }
+            Path pgsFile = workDir.resolve("track_" + trackNo + ".pgs");
+            log.info("Converting text subtitle track {} to PGS: {} → {}", trackNo, textSubFile, pgsFile);
+            pgsGenerator.generate(textSubFile, pgsFile);
+            pgsConvertedFiles.put(trackNo, pgsFile);
+        }
+
+        // 8. Build M2tsDescriptor
+        M2tsDescriptor descriptor = buildDescriptor(clipName, selectedTracks,
+                demuxedFiles, pgsConvertedFiles, textSubTrackNos);
+
+        // 9. Write M2TS
+        Path streamDir = outputDir.resolve("STREAM");
+        Path m2tsPath = streamDir.resolve(clipName + ".m2ts");
+        log.info("Writing M2TS: {}", m2tsPath);
+        M2tsWriter m2tsWriter = new M2tsWriter();
+        m2tsWriter.write(descriptor, m2tsPath);
+
+        // 10. Write CLPI
+        Path clipinfDir = outputDir.resolve("CLIPINF");
+        Path clpiPath = clipinfDir.resolve(clipName + ".clpi");
+        log.info("Writing CLPI: {}", clpiPath);
+        ClipInfo clipInfo = m2tsWriter.buildClipInfo(descriptor, clipName);
+        enrichClipInfo(clipInfo, selectedTracks, descriptor);
+        new ClipInfoWriter().write(clipInfo, clpiPath);
+
+        // 11. Write MPLS
+        Path playlistDir = outputDir.resolve("PLAYLIST");
+        Path mplsPath = playlistDir.resolve(clipName + ".mpls");
+        log.info("Writing MPLS: {}", mplsPath);
+        MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, descriptor, mediaInfo.getDurationMs());
+        new MoviePlaylistWriter().write(playlist, mplsPath);
+
+        log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}",
+                m2tsPath, clpiPath, mplsPath);
+
+        return new Result(m2tsPath, clpiPath, mplsPath);
+    }
+
+    // ── Track filtering ─────────────────────────────────────────────────────
+
+    private List<SourceMediaInfo.SourceTrack> filterTracks(
+            SourceMediaInfo info, Config config) {
+
+        List<SourceMediaInfo.SourceTrack> result = new ArrayList<>();
+        for (SourceMediaInfo.SourceTrack track : info.getTracks()) {
+            StreamCodingType ct = track.getCodingType();
+
+            if (ct.isVideo()) {
+                result.add(track);
+            } else if (ct.isAudio()) {
+                if (config.getAudioTrackFilter() == null
+                        || config.getAudioTrackFilter().contains(track.getTrackNumber())) {
+                    result.add(track);
+                } else {
+                    log.debug("Skipping audio track {} (not in filter)", track.getTrackNumber());
+                }
+            } else if (ct.isSubtitle() || ct == StreamCodingType.TEXT_SUBTITLE) {
+                if (config.getSubtitleTrackFilter() == null
+                        || config.getSubtitleTrackFilter().contains(track.getTrackNumber())) {
+                    result.add(track);
+                } else {
+                    log.debug("Skipping subtitle track {} (not in filter)", track.getTrackNumber());
+                }
+            }
+        }
+
+        // Ensure at least one video track
+        boolean hasVideo = result.stream().anyMatch(t -> t.getCodingType().isVideo());
+        if (!hasVideo) {
+            throw new BrtException("No video track found in the MKV file");
+        }
+
+        return result;
+    }
+
+    // ── M2tsDescriptor builder ──────────────────────────────────────────────
+
+    private M2tsDescriptor buildDescriptor(
+            String clipName,
+            List<SourceMediaInfo.SourceTrack> tracks,
+            Map<Integer, Path> demuxedFiles,
+            Map<Integer, Path> pgsConvertedFiles,
+            Set<Integer> textSubTrackNos) {
+
+        M2tsDescriptor desc = new M2tsDescriptor();
+        desc.setOutputName(clipName);
+
+        List<M2tsDescriptor.StreamEntry> entries = new ArrayList<>();
+        int videoIdx = 0, audioIdx = 0, subIdx = 0;
+
+        for (SourceMediaInfo.SourceTrack track : tracks) {
+            StreamCodingType ct = track.getCodingType();
+            M2tsDescriptor.StreamEntry entry = new M2tsDescriptor.StreamEntry();
+
+            int trackNo = track.getTrackNumber();
+
+            // Determine the ES file to use
+            if (textSubTrackNos.contains(trackNo)) {
+                // Use converted PGS file
+                Path pgsFile = pgsConvertedFiles.get(trackNo);
+                if (pgsFile == null) continue;
+                entry.setFile(pgsFile.toAbsolutePath().toString());
+                entry.setStreamTypeByte(StreamCodingType.PRESENTATION_GRAPHICS.getCodingTypeByte());
+                entry.setPid(PGS_PID_BASE + subIdx++);
+            } else {
+                Path esFile = demuxedFiles.get(trackNo);
+                if (esFile == null) continue;
+                entry.setFile(esFile.toAbsolutePath().toString());
+                entry.setStreamTypeByte(ct.getCodingTypeByte());
+
+                if (ct.isVideo()) {
+                    entry.setPid(VIDEO_PID_BASE + videoIdx++);
+                    if (track.getFrameRateFps() != null) {
+                        entry.setFrameRateFps(track.getFrameRateFps());
+                    }
+                } else if (ct.isAudio()) {
+                    entry.setPid(AUDIO_PID_BASE + audioIdx++);
+                    entry.setChannels(track.getChannels());
+                    entry.setSampleRateHz(track.getSampleRateHz());
+                    entry.setBitrateKbps(track.getBitrateKbps());
+                } else if (ct == StreamCodingType.PRESENTATION_GRAPHICS) {
+                    entry.setPid(PGS_PID_BASE + subIdx++);
+                }
+            }
+
+            entry.setLanguage(track.getLanguage());
+            entries.add(entry);
+        }
+
+        desc.setStreams(entries);
+
+        // Single chapter at position 0
+        M2tsChapter ch = new M2tsChapter();
+        ch.setIndex(0);
+        ch.setPtsTicks(0);
+        desc.setChapters(List.of(ch));
+
+        return desc;
+    }
+
+    // ── ClipInfo enrichment ─────────────────────────────────────────────────
+
+    private void enrichClipInfo(ClipInfo clipInfo,
+                                List<SourceMediaInfo.SourceTrack> tracks,
+                                M2tsDescriptor descriptor) {
+        // Map PID → source track for enrichment
+        Map<Integer, SourceMediaInfo.SourceTrack> pidToSource = new HashMap<>();
+        List<M2tsDescriptor.StreamEntry> entries = descriptor.getStreams();
+        int trackIdx = 0;
+        for (SourceMediaInfo.SourceTrack st : tracks) {
+            if (trackIdx < entries.size()) {
+                pidToSource.put(entries.get(trackIdx).getPid(), st);
+                trackIdx++;
+            }
+        }
+
+        for (var cs : clipInfo.getStreams()) {
+            SourceMediaInfo.SourceTrack st = pidToSource.get(cs.getPid());
+            if (st == null) continue;
+
+            if (cs.getCodingType() != null && cs.getCodingType().isVideo()) {
+                cs.setVideoFormat(deriveVideoFormat(st));
+                cs.setFrameRate(deriveFrameRateCode(st));
+                cs.setAspectRatio(3); // 16:9
+            } else if (cs.getCodingType() != null && cs.getCodingType().isAudio()) {
+                cs.setAudioChannelLayout(deriveChannelLayout(st));
+                cs.setSampleRate(deriveSampleRateCode(st));
+            }
+        }
+    }
+
+    private int deriveVideoFormat(SourceMediaInfo.SourceTrack track) {
+        Integer h = track.getHeightPixels();
+        if (h == null) return 6; // default 1080p
+        if (h <= 480) return 1;  // 480i
+        if (h <= 576) return 2;  // 576i
+        if (h <= 720) return 5;  // 720p
+        if (h <= 1080) return 6; // 1080p
+        return 6; // fallback 1080p
+    }
+
+    private int deriveFrameRateCode(SourceMediaInfo.SourceTrack track) {
+        Double fps = track.getFrameRateFps();
+        if (fps == null) return 1; // default 23.976
+        if (fps < 24.5) return 1;  // 23.976
+        if (fps < 25.5) return 3;  // 25
+        if (fps < 30.5) return 4;  // 29.97
+        if (fps < 51.0) return 6;  // 50
+        return 7;                  // 59.94
+    }
+
+    private int deriveChannelLayout(SourceMediaInfo.SourceTrack track) {
+        Integer ch = track.getChannels();
+        if (ch == null) return 3; // stereo
+        if (ch <= 1) return 1;    // mono
+        if (ch <= 2) return 3;    // stereo
+        if (ch <= 6) return 6;    // 5.1
+        return 12;                // 7.1
+    }
+
+    private int deriveSampleRateCode(SourceMediaInfo.SourceTrack track) {
+        Integer sr = track.getSampleRateHz();
+        if (sr == null) return 1;       // 48 kHz
+        if (sr <= 48000) return 1;      // 48 kHz
+        if (sr <= 96000) return 4;      // 96 kHz
+        return 5;                       // 192 kHz
+    }
+
+    // ── MPLS builder ────────────────────────────────────────────────────────
+
+    private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo,
+                                        M2tsDescriptor descriptor, long durationMs) {
+        MoviePlaylist playlist = new MoviePlaylist();
+        playlist.setPlaylistName(clipName);
+        playlist.setMenu(false);
+
+        long durationTicks = durationMs * 90; // 90 kHz
+        long inTime = 0;
+        long outTime = durationTicks;
+
+        // PlayItem
+        PlayItem playItem = new PlayItem();
+        playItem.setClipName(clipName);
+        playItem.setConnectionCondition(1);
+        playItem.setInTimeTicks(inTime);
+        playItem.setOutTimeTicks(outTime);
+
+        // Build stream table from the CLPI streams
+        List<PlayItemStream> streams = new ArrayList<>();
+        for (var cs : clipInfo.getStreams()) {
+            PlayItemStream pis = new PlayItemStream();
+            pis.setPid(cs.getPid());
+            pis.setCodingType(cs.getCodingType());
+            pis.setLanguage(cs.getLanguage());
+            pis.setVideoFormat(cs.getVideoFormat());
+            pis.setFrameRate(cs.getFrameRate());
+            pis.setAudioChannelLayout(cs.getAudioChannelLayout());
+            pis.setSampleRate(cs.getSampleRate());
+            streams.add(pis);
+        }
+        playItem.setStreams(streams);
+        playlist.setPlayItems(List.of(playItem));
+
+        // Chapter mark at start
+        PlayMark mark = new PlayMark();
+        mark.setMarkType(0x01);
+        mark.setPlayItemRef(0);
+        mark.setMarkTimeTicks(inTime);
+        mark.setEntryEsPid(0xFFFF);
+        playlist.setPlayMarks(List.of(mark));
+
+        return playlist;
+    }
+}

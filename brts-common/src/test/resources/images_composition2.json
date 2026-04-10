@@ -1,0 +1,45 @@
+{
+    "constants": {
+        "menu_x": 1400
+    },
+    "baseImageId" : "video",
+    "images": [
+        {
+            "imageId": "video",
+            "videoPath": "samples/PB/BDMV/STREAM/00617.m2ts"
+        },
+        {
+            "imageId": "im2",
+            "sourcePath": "brt-common/src/test/resources/rectangle.jpg"
+        }
+    ],
+    "compositions": [ {
+        "imageId": "im2", 
+        "topLeft" : { "x": 200, "y": 200 },
+        "opacity": "${frameNumber / 100.0}",
+        "rotation": {
+            "angle": "10"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 200 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.15}"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 500 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.3}"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 800 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.45}"
+        }
+    }]
+}
