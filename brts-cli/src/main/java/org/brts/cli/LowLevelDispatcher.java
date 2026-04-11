@@ -19,42 +19,42 @@ import org.brts.cli.low.RleConverterCli;
  */
 public class LowLevelDispatcher {
 
-    private final LevelDispatcher dispatcher;
+	private final LevelDispatcher dispatcher;
 
-    public LowLevelDispatcher() {
-        dispatcher = new LevelDispatcher("low");
-        dispatcher
-            .register(new ClipInfoCli.Parse())
-            .register(new ClipInfoCli.Write())
-            .register(new ClipRegenCli.Regen())
-            .register(new PlaylistCli.Parse())
-            .register(new PlaylistCli.Write())
-            .register(new PlaylistCli.FindPlaylist())
-            .register(new IndexBdmvCli.Parse())
-            .register(new IndexBdmvCli.Write())
-            .register(new MovieObjectsCli.Parse())
-            .register(new MovieObjectsCli.Write())
-            .register(new BdjoCli.Parse())
-            .register(new BdjoCli.Write())
-            .register(new MkvCli.Info())
-            .register(new M2tsCli.Info())
-            .register(new M2tsCli.Extract())
-            .register(new M2tsCli.Create())
-            .register(new M2tsCli.Dump())
-            .register(new M2tsCli.IgsDemux())
-            .register(new M2tsCli.IgsMux())
-            .register(new PgsCli.Create())
-            .register(new RleConverterCli.Convert())
-            .register(new PlaylistToMkvCli.Extract())
-            .register(new MkvToPlaylistCli.Convert())
-            .register(new NavSimulCli.Simul());
-    }
+	public LowLevelDispatcher() {
+		dispatcher = new LevelDispatcher("low");
+		dispatcher.register(new ClipInfoCli.Parse())
+			.register(new ClipInfoCli.Write())
+			.register(new ClipRegenCli.Regen())
+			.register(new PlaylistCli.Parse())
+			.register(new PlaylistCli.Write())
+			.register(new PlaylistCli.FindPlaylist())
+			.register(new IndexBdmvCli.Parse())
+			.register(new IndexBdmvCli.Write())
+			.register(new MovieObjectsCli.Parse())
+			.register(new MovieObjectsCli.Write())
+			.register(new BdjoCli.Parse())
+			.register(new BdjoCli.Write())
+			.register(new MkvCli.Info())
+			.register(new M2tsCli.Info())
+			.register(new M2tsCli.Extract())
+			.register(new M2tsCli.Create())
+			.register(new M2tsCli.Dump())
+			.register(new M2tsCli.IgsDemux())
+			.register(new M2tsCli.IgsMux())
+			.register(new PgsCli.Create())
+			.register(new RleConverterCli.Convert())
+			.register(new PlaylistToMkvCli.Extract())
+			.register(new MkvToPlaylistCli.Convert())
+			.register(new NavSimulCli.Simul());
+	}
 
-    public LevelDispatcher getLevelDispatcher() {
-        return dispatcher;
-    }
+	public LevelDispatcher getLevelDispatcher() {
+		return dispatcher;
+	}
 
-    public void dispatch(String[] args) throws Exception {
-        dispatcher.dispatch(args);
-    }
+	public void dispatch(String[] args) throws Exception {
+		dispatcher.dispatch(args);
+	}
+
 }

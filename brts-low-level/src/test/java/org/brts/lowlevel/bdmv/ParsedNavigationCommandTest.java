@@ -10,298 +10,296 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class ParsedNavigationCommandTest {
 
-    // ── Factory: fromRaw ↔ toRaw roundtrip ──────────────────────────────────
+	// ── Factory: fromRaw ↔ toRaw roundtrip ──────────────────────────────────
 
-    @Test
-    void fromRaw_toRaw_roundtrip() {
-        // PLAY_PL with IMM_OP1: opcode=0x22800000, op1=5, op2=0
-        byte[] original = new byte[12];
-        writeU32(original, 0, 0x22800000L);
-        writeU32(original, 4, 5L);
-        writeU32(original, 8, 0L);
+	@Test
+	void fromRaw_toRaw_roundtrip() {
+		// PLAY_PL with IMM_OP1: opcode=0x22800000, op1=5, op2=0
+		byte[] original = new byte[12];
+		writeU32(original, 0, 0x22800000L);
+		writeU32(original, 4, 5L);
+		writeU32(original, 8, 0L);
 
-        ParsedNavigationCommand parsed = ParsedNavigationCommand.fromRaw(original);
-        byte[] roundTripped = parsed.toRaw();
+		ParsedNavigationCommand parsed = ParsedNavigationCommand.fromRaw(original);
+		byte[] roundTripped = parsed.toRaw();
 
-        assertThat(roundTripped).isEqualTo(original);
-    }
+		assertThat(roundTripped).isEqualTo(original);
+	}
 
-    @Test
-    void fromRaw_rejectsShortArray() {
-        assertThatThrownBy(() -> ParsedNavigationCommand.fromRaw(new byte[8]))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("12 bytes");
-    }
+	@Test
+	void fromRaw_rejectsShortArray() {
+		assertThatThrownBy(() -> ParsedNavigationCommand.fromRaw(new byte[8]))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessageContaining("12 bytes");
+	}
 
-    @Test
-    void fromRaw_rejectsNull() {
-        assertThatThrownBy(() -> ParsedNavigationCommand.fromRaw(null))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
+	@Test
+	void fromRaw_rejectsNull() {
+		assertThatThrownBy(() -> ParsedNavigationCommand.fromRaw(null)).isInstanceOf(IllegalArgumentException.class);
+	}
 
-    // ── Factory: of ─────────────────────────────────────────────────────────
+	// ── Factory: of ─────────────────────────────────────────────────────────
 
-    @Test
-    void of_storesFieldsCorrectly() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0x22800000L, 42L, 7L);
-        assertThat(cmd.getOpcode()).isEqualTo(0x22800000L);
-        assertThat(cmd.getOperand1()).isEqualTo(42L);
-        assertThat(cmd.getOperand2()).isEqualTo(7L);
-    }
+	@Test
+	void of_storesFieldsCorrectly() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0x22800000L, 42L, 7L);
+		assertThat(cmd.getOpcode()).isEqualTo(0x22800000L);
+		assertThat(cmd.getOperand1()).isEqualTo(42L);
+		assertThat(cmd.getOperand2()).isEqualTo(7L);
+	}
 
-    // ── Factory: compile ────────────────────────────────────────────────────
+	// ── Factory: compile ────────────────────────────────────────────────────
 
-    @Test
-    void compile_setsCorrectOpcode() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 100, true, 0, false);
-        long expected = NavigationCommandCompiler.compile("PLAY_PL", true, false);
-        assertThat(cmd.getOpcode()).isEqualTo(expected);
-        assertThat(cmd.getOperand1()).isEqualTo(100L);
-        assertThat(cmd.getOperand2()).isEqualTo(0L);
-    }
+	@Test
+	void compile_setsCorrectOpcode() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 100, true, 0, false);
+		long expected = NavigationCommandCompiler.compile("PLAY_PL", true, false);
+		assertThat(cmd.getOpcode()).isEqualTo(expected);
+		assertThat(cmd.getOperand1()).isEqualTo(100L);
+		assertThat(cmd.getOperand2()).isEqualTo(0L);
+	}
 
-    @Test
-    void compile_withEnum_setsCorrectOpcode() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile(
-                NavigationCommandMnemonic.MOVE, 5, false, 42, true);
-        assertThat(cmd.getMnemonic()).isEqualTo(NavigationCommandMnemonic.MOVE);
-        assertThat(cmd.isOp1Immediate()).isFalse();
-        assertThat(cmd.isOp2Immediate()).isTrue();
-    }
+	@Test
+	void compile_withEnum_setsCorrectOpcode() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, 5, false, 42,
+				true);
+		assertThat(cmd.getMnemonic()).isEqualTo(NavigationCommandMnemonic.MOVE);
+		assertThat(cmd.isOp1Immediate()).isFalse();
+		assertThat(cmd.isOp2Immediate()).isTrue();
+	}
 
-    // ── Mnemonic accessors ──────────────────────────────────────────────────
+	// ── Mnemonic accessors ──────────────────────────────────────────────────
 
-    @Test
-    void getMnemonic_knownOpcode() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("JUMP_TITLE", 1, true, 0, false);
-        assertThat(cmd.getMnemonic()).isEqualTo(NavigationCommandMnemonic.JUMP_TITLE);
-        assertThat(cmd.getMnemonicString()).isEqualTo("JUMP_TITLE");
-    }
+	@Test
+	void getMnemonic_knownOpcode() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("JUMP_TITLE", 1, true, 0, false);
+		assertThat(cmd.getMnemonic()).isEqualTo(NavigationCommandMnemonic.JUMP_TITLE);
+		assertThat(cmd.getMnemonicString()).isEqualTo("JUMP_TITLE");
+	}
 
-    @Test
-    void getMnemonic_unknownOpcode_returnsNull() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0xFFFF_FFFFL, 0, 0);
-        assertThat(cmd.getMnemonic()).isNull();
-        assertThat(cmd.getMnemonicString()).startsWith("GRP");
-    }
+	@Test
+	void getMnemonic_unknownOpcode_returnsNull() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0xFFFF_FFFFL, 0, 0);
+		assertThat(cmd.getMnemonic()).isNull();
+		assertThat(cmd.getMnemonicString()).startsWith("GRP");
+	}
 
-    // ── Operand count ───────────────────────────────────────────────────────
+	// ── Operand count ───────────────────────────────────────────────────────
 
-    @Test
-    void getOperandCount_fromCompiledOpcode() {
-        ParsedNavigationCommand cmd0 = ParsedNavigationCommand.compile("NOP", 0, false, 0, false);
-        ParsedNavigationCommand cmd1 = ParsedNavigationCommand.compile("PLAY_PL", 1, true, 0, false);
-        ParsedNavigationCommand cmd2 = ParsedNavigationCommand.compile("MOVE", 0, false, 0, false);
+	@Test
+	void getOperandCount_fromCompiledOpcode() {
+		ParsedNavigationCommand cmd0 = ParsedNavigationCommand.compile("NOP", 0, false, 0, false);
+		ParsedNavigationCommand cmd1 = ParsedNavigationCommand.compile("PLAY_PL", 1, true, 0, false);
+		ParsedNavigationCommand cmd2 = ParsedNavigationCommand.compile("MOVE", 0, false, 0, false);
 
-        assertThat(cmd0.getOperandCount()).isEqualTo(0);
-        assertThat(cmd1.getOperandCount()).isEqualTo(1);
-        assertThat(cmd2.getOperandCount()).isEqualTo(2);
-    }
+		assertThat(cmd0.getOperandCount()).isEqualTo(0);
+		assertThat(cmd1.getOperandCount()).isEqualTo(1);
+		assertThat(cmd2.getOperandCount()).isEqualTo(2);
+	}
 
-    // ── Immediate flag accessors ────────────────────────────────────────────
+	// ── Immediate flag accessors ────────────────────────────────────────────
 
-    @Test
-    void isOp1Immediate_trueWhenFlagSet() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 5, true, 0, false);
-        assertThat(cmd.isOp1Immediate()).isTrue();
-        assertThat(cmd.isOp2Immediate()).isFalse();
-    }
+	@Test
+	void isOp1Immediate_trueWhenFlagSet() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 5, true, 0, false);
+		assertThat(cmd.isOp1Immediate()).isTrue();
+		assertThat(cmd.isOp2Immediate()).isFalse();
+	}
 
-    @Test
-    void isOp2Immediate_trueWhenFlagSet() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, true);
-        assertThat(cmd.isOp1Immediate()).isFalse();
-        assertThat(cmd.isOp2Immediate()).isTrue();
-    }
+	@Test
+	void isOp2Immediate_trueWhenFlagSet() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, true);
+		assertThat(cmd.isOp1Immediate()).isFalse();
+		assertThat(cmd.isOp2Immediate()).isTrue();
+	}
 
-    @Test
-    void bothImmediate() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("ADD", 100, true, 200, true);
-        assertThat(cmd.isOp1Immediate()).isTrue();
-        assertThat(cmd.isOp2Immediate()).isTrue();
-    }
+	@Test
+	void bothImmediate() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("ADD", 100, true, 200, true);
+		assertThat(cmd.isOp1Immediate()).isTrue();
+		assertThat(cmd.isOp2Immediate()).isTrue();
+	}
 
-    @Test
-    void neitherImmediate() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 5, false, 10, false);
-        assertThat(cmd.isOp1Immediate()).isFalse();
-        assertThat(cmd.isOp2Immediate()).isFalse();
-    }
+	@Test
+	void neitherImmediate() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 5, false, 10, false);
+		assertThat(cmd.isOp1Immediate()).isFalse();
+		assertThat(cmd.isOp2Immediate()).isFalse();
+	}
 
-    // ── OperandKind ─────────────────────────────────────────────────────────
+	// ── OperandKind ─────────────────────────────────────────────────────────
 
-    @Test
-    void operandKind_immediate() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 42, true, 99, true);
-        assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.IMMEDIATE);
-        assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.IMMEDIATE);
-    }
+	@Test
+	void operandKind_immediate() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 42, true, 99, true);
+		assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.IMMEDIATE);
+		assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.IMMEDIATE);
+	}
 
-    @Test
-    void operandKind_gpr() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 5, false, 10, false);
-        assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.GPR);
-        assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.GPR);
-    }
+	@Test
+	void operandKind_gpr() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 5, false, 10, false);
+		assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.GPR);
+		assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.GPR);
+	}
 
-    @Test
-    void operandKind_psr() {
-        long psr4 = 0x80000004L;
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, psr4, false);
-        assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.GPR);
-        assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.PSR);
-    }
+	@Test
+	void operandKind_psr() {
+		long psr4 = 0x80000004L;
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, psr4, false);
+		assertThat(cmd.getOp1Kind()).isEqualTo(OperandKind.GPR);
+		assertThat(cmd.getOp2Kind()).isEqualTo(OperandKind.PSR);
+	}
 
-    // ── Register index ──────────────────────────────────────────────────────
+	// ── Register index ──────────────────────────────────────────────────────
 
-    @Test
-    void registerIndex_gpr() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 123, false, 456, false);
-        assertThat(cmd.getOp1RegisterIndex()).isEqualTo(123);
-        assertThat(cmd.getOp2RegisterIndex()).isEqualTo(456);
-    }
+	@Test
+	void registerIndex_gpr() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 123, false, 456, false);
+		assertThat(cmd.getOp1RegisterIndex()).isEqualTo(123);
+		assertThat(cmd.getOp2RegisterIndex()).isEqualTo(456);
+	}
 
-    @Test
-    void registerIndex_psr() {
-        long psr31 = 0x8000001FL;
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", psr31, false, 0, false);
-        assertThat(cmd.getOp1RegisterIndex()).isEqualTo(31);
-    }
+	@Test
+	void registerIndex_psr() {
+		long psr31 = 0x8000001FL;
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", psr31, false, 0, false);
+		assertThat(cmd.getOp1RegisterIndex()).isEqualTo(31);
+	}
 
-    @Test
-    void registerIndex_throwsForImmediate() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 42, true, 0, false);
-        assertThatThrownBy(cmd::getOp1RegisterIndex)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("immediate");
-    }
+	@Test
+	void registerIndex_throwsForImmediate() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 42, true, 0, false);
+		assertThatThrownBy(cmd::getOp1RegisterIndex).isInstanceOf(IllegalStateException.class)
+			.hasMessageContaining("immediate");
+	}
 
-    // ── Heuristic bug fix: describe uses opcode flags, not value heuristics ─
+	// ── Heuristic bug fix: describe uses opcode flags, not value heuristics ─
 
-    @Test
-    void describe_immediateValueLessThanFFF_notMisidentifiedAsGPR() {
-        // This was the heuristic bug: MOVE GPR[0], 42 where op2=42 is immediate
-        // Old decompiler would show "GPR[0] ← GPR[42]"
-        // New behavior should show "GPR[0] ← 42"
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, true);
-        assertThat(cmd.describe()).isEqualTo("GPR[0] ← 42");
-    }
+	@Test
+	void describe_immediateValueLessThanFFF_notMisidentifiedAsGPR() {
+		// This was the heuristic bug: MOVE GPR[0], 42 where op2=42 is immediate
+		// Old decompiler would show "GPR[0] ← GPR[42]"
+		// New behavior should show "GPR[0] ← 42"
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, true);
+		assertThat(cmd.describe()).isEqualTo("GPR[0] ← 42");
+	}
 
-    @Test
-    void describe_immediateValueWithBit31Set_notMisidentifiedAsPSR() {
-        // Immediate value 0x80000004 should show as literal, not PSR4
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 0x80000004L, true);
-        assertThat(cmd.describe()).isEqualTo("GPR[0] ← " + 0x80000004L);
-    }
+	@Test
+	void describe_immediateValueWithBit31Set_notMisidentifiedAsPSR() {
+		// Immediate value 0x80000004 should show as literal, not PSR4
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 0x80000004L, true);
+		assertThat(cmd.describe()).isEqualTo("GPR[0] ← " + 0x80000004L);
+	}
 
-    @Test
-    void describe_registerValueLessThanFFF_correctlyIdentifiedAsGPR() {
-        // When NOT immediate, value 42 should be GPR[42]
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, false);
-        assertThat(cmd.describe()).isEqualTo("GPR[0] ← GPR[42]");
-    }
+	@Test
+	void describe_registerValueLessThanFFF_correctlyIdentifiedAsGPR() {
+		// When NOT immediate, value 42 should be GPR[42]
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 42, false);
+		assertThat(cmd.describe()).isEqualTo("GPR[0] ← GPR[42]");
+	}
 
-    @Test
-    void describe_registerValueWithBit31Set_correctlyIdentifiedAsPSR() {
-        // When NOT immediate, value 0x80000004 should be PSR4
-        long psr4 = 0x80000004L;
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, psr4, false);
-        assertThat(cmd.describe()).contains("PSR4");
-    }
+	@Test
+	void describe_registerValueWithBit31Set_correctlyIdentifiedAsPSR() {
+		// When NOT immediate, value 0x80000004 should be PSR4
+		long psr4 = 0x80000004L;
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, psr4, false);
+		assertThat(cmd.describe()).contains("PSR4");
+	}
 
-    // ── describe() various command types ────────────────────────────────────
+	// ── describe() various command types ────────────────────────────────────
 
-    @Test
-    void describe_noOperandCommands() {
-        assertThat(ParsedNavigationCommand.compile("NOP", 0, false, 0, false).describe())
-                .isEqualTo("No operation");
-        assertThat(ParsedNavigationCommand.compile("BREAK", 0, false, 0, false).describe())
-                .isEqualTo("Break out of program");
-    }
+	@Test
+	void describe_noOperandCommands() {
+		assertThat(ParsedNavigationCommand.compile("NOP", 0, false, 0, false).describe()).isEqualTo("No operation");
+		assertThat(ParsedNavigationCommand.compile("BREAK", 0, false, 0, false).describe())
+			.isEqualTo("Break out of program");
+	}
 
-    @Test
-    void describe_playPl() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 500, true, 0, false);
-        assertThat(cmd.describe()).isEqualTo("Play playlist 500");
-    }
+	@Test
+	void describe_playPl() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 500, true, 0, false);
+		assertThat(cmd.describe()).isEqualTo("Play playlist 500");
+	}
 
-    @Test
-    void describe_playPlPi() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL_PI", 100, true, 3, true);
-        assertThat(cmd.describe()).isEqualTo("Play playlist 100, play item 3");
-    }
+	@Test
+	void describe_playPlPi() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL_PI", 100, true, 3, true);
+		assertThat(cmd.describe()).isEqualTo("Play playlist 100, play item 3");
+	}
 
-    @Test
-    void describe_jumpTitle() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("JUMP_TITLE", 2, true, 0, false);
-        assertThat(cmd.describe()).isEqualTo("Jump to title 2");
-    }
+	@Test
+	void describe_jumpTitle() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("JUMP_TITLE", 2, true, 0, false);
+		assertThat(cmd.describe()).isEqualTo("Jump to title 2");
+	}
 
-    @Test
-    void describe_comparison() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("EQ", 5, false, 100, true);
-        assertThat(cmd.describe()).isEqualTo("If GPR[5] == 100");
-    }
+	@Test
+	void describe_comparison() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("EQ", 5, false, 100, true);
+		assertThat(cmd.describe()).isEqualTo("If GPR[5] == 100");
+	}
 
-    @Test
-    void describe_unknownOpcode() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0xFFFF_FFFFL, 42, 7);
-        assertThat(cmd.describe()).contains("Unknown command");
-        assertThat(cmd.describe()).contains("0x");
-    }
+	@Test
+	void describe_unknownOpcode() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.of(0xFFFF_FFFFL, 42, 7);
+		assertThat(cmd.describe()).contains("Unknown command");
+		assertThat(cmd.describe()).contains("0x");
+	}
 
-    // ── describeOperand ─────────────────────────────────────────────────────
+	// ── describeOperand ─────────────────────────────────────────────────────
 
-    @Test
-    void describeOperand1_immediate() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 999, true, 0, false);
-        assertThat(cmd.describeOperand1()).isEqualTo("999");
-    }
+	@Test
+	void describeOperand1_immediate() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 999, true, 0, false);
+		assertThat(cmd.describeOperand1()).isEqualTo("999");
+	}
 
-    @Test
-    void describeOperand2_gpr() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 77, false);
-        assertThat(cmd.describeOperand2()).isEqualTo("GPR[77]");
-    }
+	@Test
+	void describeOperand2_gpr() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 0, false, 77, false);
+		assertThat(cmd.describeOperand2()).isEqualTo("GPR[77]");
+	}
 
-    @Test
-    void describeOperand1_psr() {
-        long psr1 = 0x80000001L;
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", psr1, false, 0, false);
-        assertThat(cmd.describeOperand1()).contains("PSR1");
-    }
+	@Test
+	void describeOperand1_psr() {
+		long psr1 = 0x80000001L;
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", psr1, false, 0, false);
+		assertThat(cmd.describeOperand1()).contains("PSR1");
+	}
 
-    // ── equals / hashCode ───────────────────────────────────────────────────
+	// ── equals / hashCode ───────────────────────────────────────────────────
 
-    @Test
-    void equals_sameValues() {
-        ParsedNavigationCommand a = ParsedNavigationCommand.of(0x22800000L, 5, 0);
-        ParsedNavigationCommand b = ParsedNavigationCommand.of(0x22800000L, 5, 0);
-        assertThat(a).isEqualTo(b);
-        assertThat(a.hashCode()).isEqualTo(b.hashCode());
-    }
+	@Test
+	void equals_sameValues() {
+		ParsedNavigationCommand a = ParsedNavigationCommand.of(0x22800000L, 5, 0);
+		ParsedNavigationCommand b = ParsedNavigationCommand.of(0x22800000L, 5, 0);
+		assertThat(a).isEqualTo(b);
+		assertThat(a.hashCode()).isEqualTo(b.hashCode());
+	}
 
-    @Test
-    void equals_differentOpcode() {
-        ParsedNavigationCommand a = ParsedNavigationCommand.of(0x22800000L, 5, 0);
-        ParsedNavigationCommand b = ParsedNavigationCommand.of(0x22800001L, 5, 0);
-        assertThat(a).isNotEqualTo(b);
-    }
+	@Test
+	void equals_differentOpcode() {
+		ParsedNavigationCommand a = ParsedNavigationCommand.of(0x22800000L, 5, 0);
+		ParsedNavigationCommand b = ParsedNavigationCommand.of(0x22800001L, 5, 0);
+		assertThat(a).isNotEqualTo(b);
+	}
 
-    // ── toString ────────────────────────────────────────────────────────────
+	// ── toString ────────────────────────────────────────────────────────────
 
-    @Test
-    void toString_matchesDescribe() {
-        ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 1, true, 0, false);
-        assertThat(cmd.toString()).isEqualTo(cmd.describe());
-    }
+	@Test
+	void toString_matchesDescribe() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 1, true, 0, false);
+		assertThat(cmd.toString()).isEqualTo(cmd.describe());
+	}
 
-    // ── Helper ──────────────────────────────────────────────────────────────
+	// ── Helper ──────────────────────────────────────────────────────────────
 
-    private static void writeU32(byte[] data, int offset, long value) {
-        data[offset]     = (byte) ((value >> 24) & 0xFF);
-        data[offset + 1] = (byte) ((value >> 16) & 0xFF);
-        data[offset + 2] = (byte) ((value >> 8) & 0xFF);
-        data[offset + 3] = (byte) (value & 0xFF);
-    }
+	private static void writeU32(byte[] data, int offset, long value) {
+		data[offset] = (byte) ((value >> 24) & 0xFF);
+		data[offset + 1] = (byte) ((value >> 16) & 0xFF);
+		data[offset + 2] = (byte) ((value >> 8) & 0xFF);
+		data[offset + 3] = (byte) (value & 0xFF);
+	}
+
 }

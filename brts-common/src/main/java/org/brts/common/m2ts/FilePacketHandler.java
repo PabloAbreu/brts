@@ -19,15 +19,14 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link M2tsPacketHandler} that writes each PID to a separate file on disk.
  * <p>
- * PES headers are stripped: when a packet carries the Payload Unit Start
- * Indicator and begins with the {@code 00 00 01} PES start-code, the PES
- * header is skipped and only the elementary stream payload is written.
+ * PES headers are stripped: when a packet carries the Payload Unit Start Indicator and
+ * begins with the {@code 00 00 01} PES start-code, the PES header is skipped and only the
+ * elementary stream payload is written.
  * <p>
- * Output files are named {@code <outputDir>/pid_<hex>.&lt;ext&gt;} where
- * the extension is derived from the stream's coding type.
+ * Output files are named {@code <outputDir>/pid_<hex>.&lt;ext&gt;} where the extension is
+ * derived from the stream's coding type.
  *
- * <h2>Usage</h2>
- * <pre>{@code
+ * <h2>Usage</h2> <pre>{@code
  * M2tsInfo info = new M2tsParser().parse(inputPath);
  * Set<Integer> pidFilter = Set.of(4113, 4352);
  * try (FilePacketHandler handler = new FilePacketHandler(info, outputDir, pidFilter)) {
@@ -37,107 +36,108 @@ import org.slf4j.LoggerFactory;
  */
 public class FilePacketHandler implements M2tsPacketHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(FilePacketHandler.class);
+	private static final Logger log = LoggerFactory.getLogger(FilePacketHandler.class);
 
-    private final Map<Integer, OutputStream> pidToStream = new LinkedHashMap<>();
-    private final Map<Integer, String> pidToFile = new LinkedHashMap<>();
+	private final Map<Integer, OutputStream> pidToStream = new LinkedHashMap<>();
 
-    /**
-     * Creates a file-per-PID handler.
-     *
-     * @param info      stream metadata (for extension lookup)
-     * @param outputDir directory where elementary stream files are written
-     * @param pidFilter only these PIDs are opened; {@code null} or empty = all
-     * @throws IOException on I/O error creating output files
-     */
-    public FilePacketHandler(M2tsInfo info, Path outputDir, Set<Integer> pidFilter) throws IOException {
-        Files.createDirectories(outputDir);
+	private final Map<Integer, String> pidToFile = new LinkedHashMap<>();
 
-        List<M2tsStreamInfo> streams = info.getStreams() != null ? info.getStreams() : List.of();
-        for (M2tsStreamInfo s : streams) {
-            if (pidFilter != null && !pidFilter.isEmpty() && !pidFilter.contains(s.getPid()))
-                continue;
-            String ext = extensionFor(s);
-            Path outFile = outputDir.resolve(String.format("pid_%04x.%s", s.getPid(), ext));
-            pidToStream.put(s.getPid(), new BufferedOutputStream(Files.newOutputStream(outFile)));
-            pidToFile.put(s.getPid(), outFile.toString());
-            log.debug("  PID 0x{} → {}", Integer.toHexString(s.getPid()), outFile.getFileName());
-        }
-    }
+	/**
+	 * Creates a file-per-PID handler.
+	 * @param info stream metadata (for extension lookup)
+	 * @param outputDir directory where elementary stream files are written
+	 * @param pidFilter only these PIDs are opened; {@code null} or empty = all
+	 * @throws IOException on I/O error creating output files
+	 */
+	public FilePacketHandler(M2tsInfo info, Path outputDir, Set<Integer> pidFilter) throws IOException {
+		Files.createDirectories(outputDir);
 
-    @Override
-    public void onPayload(int pid, byte[] payload, int offset, int length,
-                          boolean payloadUnitStart, long packetIndex, long ats) throws IOException {
+		List<M2tsStreamInfo> streams = info.getStreams() != null ? info.getStreams() : List.of();
+		for (M2tsStreamInfo s : streams) {
+			if (pidFilter != null && !pidFilter.isEmpty() && !pidFilter.contains(s.getPid()))
+				continue;
+			String ext = extensionFor(s);
+			Path outFile = outputDir.resolve(String.format("pid_%04x.%s", s.getPid(), ext));
+			pidToStream.put(s.getPid(), new BufferedOutputStream(Files.newOutputStream(outFile)));
+			pidToFile.put(s.getPid(), outFile.toString());
+			log.debug("  PID 0x{} → {}", Integer.toHexString(s.getPid()), outFile.getFileName());
+		}
+	}
 
-        OutputStream out = pidToStream.get(pid);
-        if (out == null)
-            return;
+	@Override
+	public void onPayload(int pid, byte[] payload, int offset, int length, boolean payloadUnitStart, long packetIndex,
+			long ats) throws IOException {
 
-        int payloadOff = offset;
-        int payloadLen = length;
+		OutputStream out = pidToStream.get(pid);
+		if (out == null)
+			return;
 
-        // Strip PES header only on packets with Payload Unit Start Indicator.
-        // The 00 00 01 pattern also appears as MPEG-2 start codes inside
-        // elementary stream data (slice headers, etc.) and must NOT be stripped there.
-        if (payloadUnitStart && payloadLen > 8
-                && payload[payloadOff] == 0x00
-                && payload[payloadOff + 1] == 0x00
-                && payload[payloadOff + 2] == 0x01) {
-            int pesHeaderLen = (payload[payloadOff + 8] & 0xFF) + 9;
-            payloadOff += pesHeaderLen;
-            payloadLen = length - (payloadOff - offset);
+		int payloadOff = offset;
+		int payloadLen = length;
 
-            if (payloadLen <= 0)
-                return;
-        }
+		// Strip PES header only on packets with Payload Unit Start Indicator.
+		// The 00 00 01 pattern also appears as MPEG-2 start codes inside
+		// elementary stream data (slice headers, etc.) and must NOT be stripped there.
+		if (payloadUnitStart && payloadLen > 8 && payload[payloadOff] == 0x00 && payload[payloadOff + 1] == 0x00
+				&& payload[payloadOff + 2] == 0x01) {
+			int pesHeaderLen = (payload[payloadOff + 8] & 0xFF) + 9;
+			payloadOff += pesHeaderLen;
+			payloadLen = length - (payloadOff - offset);
 
-        out.write(payload, payloadOff, payloadLen);
-    }
+			if (payloadLen <= 0)
+				return;
+		}
 
-    @Override
-    public void close() throws IOException {
-        IOException firstError = null;
-        for (OutputStream os : pidToStream.values()) {
-            try {
-                os.close();
-            } catch (IOException e) {
-                if (firstError == null) firstError = e;
-            }
-        }
-        for (Map.Entry<Integer, String> e : pidToFile.entrySet()) {
-            log.info("  Extracted PID 0x{} → {}", Integer.toHexString(e.getKey()), e.getValue());
-        }
-        if (firstError != null)
-            throw firstError;
-    }
+		out.write(payload, payloadOff, payloadLen);
+	}
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+	@Override
+	public void close() throws IOException {
+		IOException firstError = null;
+		for (OutputStream os : pidToStream.values()) {
+			try {
+				os.close();
+			}
+			catch (IOException e) {
+				if (firstError == null)
+					firstError = e;
+			}
+		}
+		for (Map.Entry<Integer, String> e : pidToFile.entrySet()) {
+			log.info("  Extracted PID 0x{} → {}", Integer.toHexString(e.getKey()), e.getValue());
+		}
+		if (firstError != null)
+			throw firstError;
+	}
 
-    /** Returns the set of output file paths created by this handler. */
-    public Map<Integer, String> getOutputFiles() {
-        return Collections.unmodifiableMap(pidToFile);
-    }
+	// -------------------------------------------------------------------------
+	// Helpers
+	// -------------------------------------------------------------------------
 
-    private String extensionFor(M2tsStreamInfo s) {
-        if (s.getCodingType() == null)
-            return "bin";
-        return switch (s.getCodingType()) {
-            case H264_AVC -> "h264";
-            case H265_HEVC -> "h265";
-            case MPEG2_VIDEO -> "m2v";
-            case VC1 -> "vc1";
-            case LPCM -> "lpcm";
-            case DOLBY_AC3 -> "ac3";
-            case DOLBY_AC3_PLUS -> "eac3";
-            case DOLBY_TRUEHD -> "thd";
-            case DTS -> "dts";
-            case DTS_HD -> "dtshd";
-            case DTS_HD_MASTER_AUDIO -> "dtsma";
-            case PRESENTATION_GRAPHICS -> "pgs";
-            case INTERACTIVE_GRAPHICS -> "igs";
-            case TEXT_SUBTITLE -> "txt";
-        };
-    }
+	/** Returns the set of output file paths created by this handler. */
+	public Map<Integer, String> getOutputFiles() {
+		return Collections.unmodifiableMap(pidToFile);
+	}
+
+	private String extensionFor(M2tsStreamInfo s) {
+		if (s.getCodingType() == null)
+			return "bin";
+		return switch (s.getCodingType()) {
+			case H264_AVC -> "h264";
+			case H265_HEVC -> "h265";
+			case MPEG2_VIDEO -> "m2v";
+			case VC1 -> "vc1";
+			case LPCM -> "lpcm";
+			case DOLBY_AC3 -> "ac3";
+			case DOLBY_AC3_PLUS -> "eac3";
+			case DOLBY_TRUEHD -> "thd";
+			case DTS -> "dts";
+			case DTS_HD -> "dtshd";
+			case DTS_HD_MASTER_AUDIO -> "dtsma";
+			case PRESENTATION_GRAPHICS -> "pgs";
+			case INTERACTIVE_GRAPHICS -> "igs";
+			case TEXT_SUBTITLE -> "txt";
+		};
+	}
+
 }

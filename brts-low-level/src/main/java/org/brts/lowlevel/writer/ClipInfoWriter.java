@@ -14,21 +14,20 @@ import org.brts.lowlevel.model.clpi.EpMap;
 /**
  * Writer for CLPI (Clip Information) binary files.
  * <p>
- * Generates a standards-compliant {@code XXXXX.clpi} file from a
- * {@link ClipInfo} model. The output is compatible with players that implement
- * the Blu-ray Read-Only spec v2.x/3.x.
+ * Generates a standards-compliant {@code XXXXX.clpi} file from a {@link ClipInfo} model.
+ * The output is compatible with players that implement the Blu-ray Read-Only spec
+ * v2.x/3.x.
  * <p>
- * Header layout (40 bytes):
- * <pre>
+ * Header layout (40 bytes): <pre>
  *   4 magic ("HDMV") + 4 version ("0200")
  *   5×4 offsets (SequenceInfo, ProgramInfo, CPI, ClipMark, ExtData)
  *   12 reserved bytes
- * </pre>
- * The ClipInfo section always starts immediately at byte 40.
+ * </pre> The ClipInfo section always starts immediately at byte 40.
  */
 public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 	private static final String MAGIC = "HDMV";
+
 	private static final String VERSION = "0200";
 
 	/** Fixed header size: 8 magic/version + 20 offsets + 12 reserved. */
@@ -111,9 +110,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		long startPts45 = m.getTsRecordingStartPts() != null ? m.getTsRecordingStartPts().getTicks() / 2 : 0;
 		long endPts45 = m.getTsRecordingEndPts() != null ? m.getTsRecordingEndPts().getTicks() / 2 : 0;
 		wi.writeShort(0x1001); // pcr_pid (standard default)
-		wi.writeInt(0);         // spn_stc_start
+		wi.writeInt(0); // spn_stc_start
 		wi.writeInt(startPts45); // presentation_start_time (45 kHz)
-		wi.writeInt(endPts45);   // presentation_end_time (45 kHz)
+		wi.writeInt(endPts45); // presentation_end_time (45 kHz)
 
 		w.writeInt(inner.size());
 		w.writeBytes(inner.toByteArray());
@@ -147,14 +146,16 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 				wi.writeByte((vf << 4) | fr);
 				wi.writeByte((s.getAspectRatio() != null ? s.getAspectRatio() : 0) << 4);
 				wi.writePadding(streamInfoSize - 3);
-			} else if (s.getCodingType().isAudio()) {
+			}
+			else if (s.getCodingType().isAudio()) {
 				int ch = (s.getAudioChannelLayout() != null ? s.getAudioChannelLayout() : 0);
 				int sr = (s.getSampleRate() != null ? s.getSampleRate() : 0);
 				wi.writeByte((ch << 4) | sr);
 				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
 				wi.writePadding(streamInfoSize - 5);
-			} else {
+			}
+			else {
 				int offset = 1;
 				if (s.getCodingType() == org.brts.common.model.StreamCodingType.TEXT_SUBTITLE) {
 					offset = 0;
@@ -187,7 +188,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeShort(0x0001); // type = 1 (EP_map)
 
 		// After this 2-byte type field, the EP_map starts. Offsets in stream headers
-		// are relative to the start of this EP_map block (i.e., right after the type field).
+		// are relative to the start of this EP_map block (i.e., right after the type
+		// field).
 		// We track the ep_map content separately so we know the offset base.
 		List<EpMap.EpMapStream> streams = m.getEpMap().getStreams();
 
@@ -213,7 +215,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			streamFineCounts.add(new int[] { entries.size() });
 		}
 
-		// Calculate stream offsets (relative to ep_map start = right after the 2-byte type field)
+		// Calculate stream offsets (relative to ep_map start = right after the 2-byte
+		// type field)
 		int currentStreamOffset = streamHeadersSize;
 		for (int i = 0; i < streams.size(); i++) {
 			EpMap.EpMapStream eps = streams.get(i);
@@ -223,9 +226,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 			wi.writeShort(eps.getPid());
 
-			// Pack: 10 reserved + 4 ep_stream_type + 16 num_coarse + 2 high_fine = 32 bits
-			long block1 = ((long) (eps.getEpType() & 0x0F) << 18)
-					| ((long) (numCoarse & 0xFFFF) << 2)
+			// Pack: 10 reserved + 4 ep_stream_type + 16 num_coarse + 2 high_fine = 32
+			// bits
+			long block1 = ((long) (eps.getEpType() & 0x0F) << 18) | ((long) (numCoarse & 0xFFFF) << 2)
 					| ((numFine >> 16) & 0x3);
 			wi.writeInt(block1);
 			// 16 low bits of num_fine
@@ -247,8 +250,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	}
 
 	/**
-	 * Builds the binary EP_map data block for one stream (coarse + fine entries).
-	 * Layout: fine_start_offset (4 bytes) + coarse entries + fine entries.
+	 * Builds the binary EP_map data block for one stream (coarse + fine entries). Layout:
+	 * fine_start_offset (4 bytes) + coarse entries + fine entries.
 	 */
 	private byte[] buildEpMapStreamData(List<EpMap.EpMapEntry> entries) throws IOException {
 		if (entries.isEmpty()) {
@@ -258,8 +261,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		}
 
 		// Decompose into coarse/fine
-		List<int[]> coarseList = new ArrayList<>(); // [ref_fine_id, pts_coarse, spn_coarse]
-		List<int[]> fineList = new ArrayList<>();    // [block: 1+3+11+17 = 32 bits]
+		List<int[]> coarseList = new ArrayList<>(); // [ref_fine_id, pts_coarse,
+													// spn_coarse]
+		List<int[]> fineList = new ArrayList<>(); // [block: 1+3+11+17 = 32 bits]
 
 		int prevCoarsePtsKey = -1;
 		long prevCoarseSpnKey = -1;
@@ -283,10 +287,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			// Fine entry
 			int ptsEpFine = (int) ((pts45 >> 8) & 0x7FF);
 			int spnEpFine = (int) (spn & 0x1FFFF);
-			int fineBlock = ((e.isAngleChangePoint() ? 1 : 0) << 31)
-					| ((e.getIEndPositionOffset() & 0x07) << 28)
-					| ((ptsEpFine & 0x7FF) << 17)
-					| (spnEpFine & 0x1FFFF);
+			int fineBlock = ((e.isAngleChangePoint() ? 1 : 0) << 31) | ((e.getIEndPositionOffset() & 0x07) << 28)
+					| ((ptsEpFine & 0x7FF) << 17) | (spnEpFine & 0x1FFFF);
 			fineList.add(new int[] { fineBlock });
 		}
 
@@ -314,7 +316,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 	/** Computes the number of coarse entries for a set of EP entries. */
 	private int[] computeCoarseFineCounts(List<EpMap.EpMapEntry> entries) {
-		if (entries.isEmpty()) return new int[] { 0 };
+		if (entries.isEmpty())
+			return new int[] { 0 };
 
 		int count = 0;
 		int prevCoarsePtsKey = -1;
@@ -340,4 +343,5 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		w.writeShort(0); // num_clip_mark = 0
 		return buf.toByteArray();
 	}
+
 }

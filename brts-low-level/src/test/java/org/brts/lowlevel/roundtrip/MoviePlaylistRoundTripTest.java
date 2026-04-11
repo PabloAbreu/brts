@@ -13,307 +13,301 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Round-trip test for MPLS (Movie Playlist) binary format.
- * Writes a {@link MoviePlaylist} to bytes, re-parses, and asserts field-level consistency.
+ * Round-trip test for MPLS (Movie Playlist) binary format. Writes a {@link MoviePlaylist}
+ * to bytes, re-parses, and asserts field-level consistency.
  */
 class MoviePlaylistRoundTripTest {
 
-    private final MoviePlaylistWriter writer = new MoviePlaylistWriter();
-    private final MoviePlaylistParser parser = new MoviePlaylistParser();
+	private final MoviePlaylistWriter writer = new MoviePlaylistWriter();
 
-    // -------------------------------------------------------------------------
-    // Tests
-    // -------------------------------------------------------------------------
+	private final MoviePlaylistParser parser = new MoviePlaylistParser();
 
-    @Test
-    void roundTrip_singlePlayItem_basicFieldsPreserved() throws Exception {
-        MoviePlaylist original = buildSimplePlaylist();
+	// -------------------------------------------------------------------------
+	// Tests
+	// -------------------------------------------------------------------------
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_singlePlayItem_basicFieldsPreserved() throws Exception {
+		MoviePlaylist original = buildSimplePlaylist();
 
-        assertThat(reparsed.getPlayItems()).hasSize(1);
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-        PlayItem item = reparsed.getPlayItems().get(0);
-        assertThat(item.getClipName()).isEqualTo("00001");
-        assertThat(item.getInTimeTicks()).isEqualTo(0L);
-        assertThat(item.getOutTimeTicks()).isEqualTo(8_100_000L);
-        assertThat(item.getConnectionCondition()).isEqualTo(1);
-    }
+		assertThat(reparsed.getPlayItems()).hasSize(1);
 
-    @Test
-    void roundTrip_playItemStreams_videoAndAudioPreserved() throws Exception {
-        MoviePlaylist original = buildSimplePlaylist();
+		PlayItem item = reparsed.getPlayItems().get(0);
+		assertThat(item.getClipName()).isEqualTo("00001");
+		assertThat(item.getInTimeTicks()).isEqualTo(0L);
+		assertThat(item.getOutTimeTicks()).isEqualTo(8_100_000L);
+		assertThat(item.getConnectionCondition()).isEqualTo(1);
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_playItemStreams_videoAndAudioPreserved() throws Exception {
+		MoviePlaylist original = buildSimplePlaylist();
 
-        List<PlayItemStream> streams = reparsed.getPlayItems().get(0).getStreams();
-        assertThat(streams).hasSize(2);
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-        PlayItemStream video = streams.stream()
-                .filter(s -> s.getCodingType().isVideo()).findFirst().orElseThrow();
-        assertThat(video.getPid()).isEqualTo(0x1011);
-        assertThat(video.getCodingType()).isEqualTo(StreamCodingType.H264_AVC);
-        assertThat(video.getVideoFormat()).isEqualTo(0x06); // 1080p
-        assertThat(video.getFrameRate()).isEqualTo(0x04);   // 30000/1001
+		List<PlayItemStream> streams = reparsed.getPlayItems().get(0).getStreams();
+		assertThat(streams).hasSize(2);
 
-        PlayItemStream audio = streams.stream()
-                .filter(s -> s.getCodingType().isAudio()).findFirst().orElseThrow();
-        assertThat(audio.getPid()).isEqualTo(0x1100);
-        assertThat(audio.getCodingType()).isEqualTo(StreamCodingType.DOLBY_TRUEHD);
-        assertThat(audio.getAudioChannelLayout()).isEqualTo(0x06); // multi-channel
-        assertThat(audio.getSampleRate()).isEqualTo(0x01);         // 48 kHz
-        assertThat(audio.getLanguage()).isEqualTo("eng");
-    }
+		PlayItemStream video = streams.stream().filter(s -> s.getCodingType().isVideo()).findFirst().orElseThrow();
+		assertThat(video.getPid()).isEqualTo(0x1011);
+		assertThat(video.getCodingType()).isEqualTo(StreamCodingType.H264_AVC);
+		assertThat(video.getVideoFormat()).isEqualTo(0x06); // 1080p
+		assertThat(video.getFrameRate()).isEqualTo(0x04); // 30000/1001
 
-    @Test
-    void roundTrip_multipleChapterMarks_allPreserved() throws Exception {
-        MoviePlaylist original = buildSimplePlaylist();
+		PlayItemStream audio = streams.stream().filter(s -> s.getCodingType().isAudio()).findFirst().orElseThrow();
+		assertThat(audio.getPid()).isEqualTo(0x1100);
+		assertThat(audio.getCodingType()).isEqualTo(StreamCodingType.DOLBY_TRUEHD);
+		assertThat(audio.getAudioChannelLayout()).isEqualTo(0x06); // multi-channel
+		assertThat(audio.getSampleRate()).isEqualTo(0x01); // 48 kHz
+		assertThat(audio.getLanguage()).isEqualTo("eng");
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_multipleChapterMarks_allPreserved() throws Exception {
+		MoviePlaylist original = buildSimplePlaylist();
 
-        List<PlayMark> marks = reparsed.getPlayMarks();
-        assertThat(marks).hasSize(3);
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-        assertThat(marks.get(0).getMarkType()).isEqualTo(0x01);
-        assertThat(marks.get(0).getMarkTimeTicks()).isEqualTo(0L);
-        assertThat(marks.get(0).getPlayItemRef()).isEqualTo(0);
+		List<PlayMark> marks = reparsed.getPlayMarks();
+		assertThat(marks).hasSize(3);
 
-        assertThat(marks.get(1).getMarkTimeTicks()).isEqualTo(2_700_000L);
-        assertThat(marks.get(2).getMarkTimeTicks()).isEqualTo(5_400_000L);
-        assertThat(marks.get(2).getEntryEsPid()).isEqualTo(0x1011);
-    }
+		assertThat(marks.get(0).getMarkType()).isEqualTo(0x01);
+		assertThat(marks.get(0).getMarkTimeTicks()).isEqualTo(0L);
+		assertThat(marks.get(0).getPlayItemRef()).isEqualTo(0);
 
-    @Test
-    void roundTrip_multiplePlayItems_allClipNamesPreserved() throws Exception {
-        MoviePlaylist original = buildMultiItemPlaylist();
+		assertThat(marks.get(1).getMarkTimeTicks()).isEqualTo(2_700_000L);
+		assertThat(marks.get(2).getMarkTimeTicks()).isEqualTo(5_400_000L);
+		assertThat(marks.get(2).getEntryEsPid()).isEqualTo(0x1011);
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_multiplePlayItems_allClipNamesPreserved() throws Exception {
+		MoviePlaylist original = buildMultiItemPlaylist();
 
-        assertThat(reparsed.getPlayItems()).hasSize(3);
-        assertThat(reparsed.getPlayItems().get(0).getClipName()).isEqualTo("00001");
-        assertThat(reparsed.getPlayItems().get(1).getClipName()).isEqualTo("00002");
-        assertThat(reparsed.getPlayItems().get(2).getClipName()).isEqualTo("00003");
-    }
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    @Test
-    void roundTrip_subtitleStream_languagePreserved() throws Exception {
-        MoviePlaylist original = buildPlaylistWithSubtitle();
+		assertThat(reparsed.getPlayItems()).hasSize(3);
+		assertThat(reparsed.getPlayItems().get(0).getClipName()).isEqualTo("00001");
+		assertThat(reparsed.getPlayItems().get(1).getClipName()).isEqualTo("00002");
+		assertThat(reparsed.getPlayItems().get(2).getClipName()).isEqualTo("00003");
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_subtitleStream_languagePreserved() throws Exception {
+		MoviePlaylist original = buildPlaylistWithSubtitle();
 
-        List<PlayItemStream> streams = reparsed.getPlayItems().get(0).getStreams();
-        PlayItemStream pg = streams.stream()
-                .filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
-                .findFirst().orElseThrow();
-        assertThat(pg.getPid()).isEqualTo(0x1200);
-        assertThat(pg.getLanguage()).isEqualTo("fra");
-    }
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    @Test
-    void roundTrip_emptyPlaylist_noExceptions() throws Exception {
-        MoviePlaylist original = new MoviePlaylist();
-        original.setPlaylistName("00002");
-        original.setPlayItems(List.of());
-        original.setSubPaths(List.of());
-        original.setPlayMarks(List.of());
+		List<PlayItemStream> streams = reparsed.getPlayItems().get(0).getStreams();
+		PlayItemStream pg = streams.stream()
+			.filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
+			.findFirst()
+			.orElseThrow();
+		assertThat(pg.getPid()).isEqualTo(0x1200);
+		assertThat(pg.getLanguage()).isEqualTo("fra");
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void roundTrip_emptyPlaylist_noExceptions() throws Exception {
+		MoviePlaylist original = new MoviePlaylist();
+		original.setPlaylistName("00002");
+		original.setPlayItems(List.of());
+		original.setSubPaths(List.of());
+		original.setPlayMarks(List.of());
 
-        assertThat(reparsed.getPlayItems()).isEmpty();
-        assertThat(reparsed.getPlayMarks()).isEmpty();
-    }
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    // ─── Menu detection tests ───────────────────────────────────────────────
+		assertThat(reparsed.getPlayItems()).isEmpty();
+		assertThat(reparsed.getPlayMarks()).isEmpty();
+	}
 
-    @Test
-    void menuDetection_igStream_flaggedAsMenu() throws Exception {
-        PlayItemStream video = new PlayItemStream();
-        video.setPid(0x1011);
-        video.setCodingType(StreamCodingType.H264_AVC);
-        video.setVideoFormat(0x06);
-        video.setFrameRate(0x04);
+	// ─── Menu detection tests ───────────────────────────────────────────────
 
-        PlayItemStream ig = new PlayItemStream();
-        ig.setPid(0x1400);
-        ig.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
-        ig.setLanguage("eng");
+	@Test
+	void menuDetection_igStream_flaggedAsMenu() throws Exception {
+		PlayItemStream video = new PlayItemStream();
+		video.setPid(0x1011);
+		video.setCodingType(StreamCodingType.H264_AVC);
+		video.setVideoFormat(0x06);
+		video.setFrameRate(0x04);
 
-        PlayItem item = new PlayItem();
-        item.setClipName("00001");
-        item.setConnectionCondition(1);
-        item.setInTimeTicks(0L);
-        item.setOutTimeTicks(900_000L);
-        item.setStreams(List.of(video, ig));
+		PlayItemStream ig = new PlayItemStream();
+		ig.setPid(0x1400);
+		ig.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
+		ig.setLanguage("eng");
 
-        MoviePlaylist pl = new MoviePlaylist();
-        pl.setPlaylistName("00800");
-        pl.setPlayItems(List.of(item));
-        pl.setSubPaths(List.of());
-        pl.setPlayMarks(List.of());
+		PlayItem item = new PlayItem();
+		item.setClipName("00001");
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(0L);
+		item.setOutTimeTicks(900_000L);
+		item.setStreams(List.of(video, ig));
 
-        byte[] bytes = writeToBytes(pl);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00800");
+		pl.setPlayItems(List.of(item));
+		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of());
 
-        assertThat(reparsed.isMenu()).isTrue();
-    }
+		byte[] bytes = writeToBytes(pl);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    @Test
-    void menuDetection_noIgStream_notFlaggedAsMenu() throws Exception {
-        MoviePlaylist original = buildSimplePlaylist();
+		assertThat(reparsed.isMenu()).isTrue();
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void menuDetection_noIgStream_notFlaggedAsMenu() throws Exception {
+		MoviePlaylist original = buildSimplePlaylist();
 
-        assertThat(reparsed.isMenu()).isFalse();
-    }
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    @Test
-    void menuDetection_repeatedClips_flaggedAsMenu() throws Exception {
-        // 5 play-items all referencing the same clip → ≥80 % repetition → menu
-        MoviePlaylist pl = new MoviePlaylist();
-        pl.setPlaylistName("00900");
-        pl.setPlayItems(List.of(
-            simpleItem("00001", 0L, 900_000L),
-            simpleItem("00001", 0L, 900_000L),
-            simpleItem("00001", 0L, 900_000L),
-            simpleItem("00001", 0L, 900_000L),
-            simpleItem("00001", 0L, 900_000L)
-        ));
-        pl.setSubPaths(List.of());
-        pl.setPlayMarks(List.of());
+		assertThat(reparsed.isMenu()).isFalse();
+	}
 
-        byte[] bytes = writeToBytes(pl);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void menuDetection_repeatedClips_flaggedAsMenu() throws Exception {
+		// 5 play-items all referencing the same clip → ≥80 % repetition → menu
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00900");
+		pl.setPlayItems(List.of(simpleItem("00001", 0L, 900_000L), simpleItem("00001", 0L, 900_000L),
+				simpleItem("00001", 0L, 900_000L), simpleItem("00001", 0L, 900_000L),
+				simpleItem("00001", 0L, 900_000L)));
+		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of());
 
-        assertThat(reparsed.isMenu()).isTrue();
-    }
+		byte[] bytes = writeToBytes(pl);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    @Test
-    void menuDetection_distinctClips_notFlaggedAsMenu() throws Exception {
-        MoviePlaylist original = buildMultiItemPlaylist(); // 3 distinct clips
+		assertThat(reparsed.isMenu()).isTrue();
+	}
 
-        byte[] bytes = writeToBytes(original);
-        MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+	@Test
+	void menuDetection_distinctClips_notFlaggedAsMenu() throws Exception {
+		MoviePlaylist original = buildMultiItemPlaylist(); // 3 distinct clips
 
-        assertThat(reparsed.isMenu()).isFalse();
-    }
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
-    // -------------------------------------------------------------------------
-    // Builders
-    // -------------------------------------------------------------------------
+		assertThat(reparsed.isMenu()).isFalse();
+	}
 
-    private MoviePlaylist buildSimplePlaylist() {
-        PlayItemStream video = new PlayItemStream();
-        video.setPid(0x1011);
-        video.setCodingType(StreamCodingType.H264_AVC);
-        video.setVideoFormat(0x06);
-        video.setFrameRate(0x04);
+	// -------------------------------------------------------------------------
+	// Builders
+	// -------------------------------------------------------------------------
 
-        PlayItemStream audio = new PlayItemStream();
-        audio.setPid(0x1100);
-        audio.setCodingType(StreamCodingType.DOLBY_TRUEHD);
-        audio.setAudioChannelLayout(0x06);
-        audio.setSampleRate(0x01);
-        audio.setLanguage("eng");
+	private MoviePlaylist buildSimplePlaylist() {
+		PlayItemStream video = new PlayItemStream();
+		video.setPid(0x1011);
+		video.setCodingType(StreamCodingType.H264_AVC);
+		video.setVideoFormat(0x06);
+		video.setFrameRate(0x04);
 
-        PlayItem item = new PlayItem();
-        item.setClipName("00001");
-        item.setConnectionCondition(1);
-        item.setInTimeTicks(0L);
-        item.setOutTimeTicks(8_100_000L);
-        item.setStreams(List.of(video, audio));
+		PlayItemStream audio = new PlayItemStream();
+		audio.setPid(0x1100);
+		audio.setCodingType(StreamCodingType.DOLBY_TRUEHD);
+		audio.setAudioChannelLayout(0x06);
+		audio.setSampleRate(0x01);
+		audio.setLanguage("eng");
 
-        PlayMark m0 = mark(0, 0L,         0xFFFF);
-        PlayMark m1 = mark(0, 2_700_000L, 0xFFFF);
-        PlayMark m2 = mark(0, 5_400_000L, 0x1011);
+		PlayItem item = new PlayItem();
+		item.setClipName("00001");
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(0L);
+		item.setOutTimeTicks(8_100_000L);
+		item.setStreams(List.of(video, audio));
 
-        MoviePlaylist pl = new MoviePlaylist();
-        pl.setPlaylistName("00001");
-        pl.setPlayItems(List.of(item));
-        pl.setSubPaths(List.of());
-        pl.setPlayMarks(List.of(m0, m1, m2));
-        return pl;
-    }
+		PlayMark m0 = mark(0, 0L, 0xFFFF);
+		PlayMark m1 = mark(0, 2_700_000L, 0xFFFF);
+		PlayMark m2 = mark(0, 5_400_000L, 0x1011);
 
-    private MoviePlaylist buildMultiItemPlaylist() {
-        MoviePlaylist pl = new MoviePlaylist();
-        pl.setPlaylistName("00002");
-        pl.setPlayItems(List.of(
-            simpleItem("00001", 0L,         5_400_000L),
-            simpleItem("00002", 5_400_000L, 10_800_000L),
-            simpleItem("00003", 0L,         3_600_000L)
-        ));
-        pl.setSubPaths(List.of());
-        pl.setPlayMarks(List.of());
-        return pl;
-    }
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00001");
+		pl.setPlayItems(List.of(item));
+		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of(m0, m1, m2));
+		return pl;
+	}
 
-    private MoviePlaylist buildPlaylistWithSubtitle() {
-        PlayItemStream video = new PlayItemStream();
-        video.setPid(0x1011);
-        video.setCodingType(StreamCodingType.H264_AVC);
-        video.setVideoFormat(0x06);
-        video.setFrameRate(0x04);
+	private MoviePlaylist buildMultiItemPlaylist() {
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00002");
+		pl.setPlayItems(List.of(simpleItem("00001", 0L, 5_400_000L), simpleItem("00002", 5_400_000L, 10_800_000L),
+				simpleItem("00003", 0L, 3_600_000L)));
+		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of());
+		return pl;
+	}
 
-        PlayItemStream pg = new PlayItemStream();
-        pg.setPid(0x1200);
-        pg.setCodingType(StreamCodingType.PRESENTATION_GRAPHICS);
-        pg.setLanguage("fra");
+	private MoviePlaylist buildPlaylistWithSubtitle() {
+		PlayItemStream video = new PlayItemStream();
+		video.setPid(0x1011);
+		video.setCodingType(StreamCodingType.H264_AVC);
+		video.setVideoFormat(0x06);
+		video.setFrameRate(0x04);
 
-        PlayItem item = new PlayItem();
-        item.setClipName("00001");
-        item.setConnectionCondition(1);
-        item.setInTimeTicks(0L);
-        item.setOutTimeTicks(8_100_000L);
-        item.setStreams(List.of(video, pg));
+		PlayItemStream pg = new PlayItemStream();
+		pg.setPid(0x1200);
+		pg.setCodingType(StreamCodingType.PRESENTATION_GRAPHICS);
+		pg.setLanguage("fra");
 
-        MoviePlaylist pl = new MoviePlaylist();
-        pl.setPlaylistName("00003");
-        pl.setPlayItems(List.of(item));
-        pl.setSubPaths(List.of());
-        pl.setPlayMarks(List.of());
-        return pl;
-    }
+		PlayItem item = new PlayItem();
+		item.setClipName("00001");
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(0L);
+		item.setOutTimeTicks(8_100_000L);
+		item.setStreams(List.of(video, pg));
 
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00003");
+		pl.setPlayItems(List.of(item));
+		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of());
+		return pl;
+	}
 
-    private PlayItem simpleItem(String clipName, long inTicks, long outTicks) {
-        PlayItemStream video = new PlayItemStream();
-        video.setPid(0x1011);
-        video.setCodingType(StreamCodingType.H264_AVC);
-        video.setVideoFormat(0x06);
-        video.setFrameRate(0x04);
+	// -------------------------------------------------------------------------
+	// Helpers
+	// -------------------------------------------------------------------------
 
-        PlayItem item = new PlayItem();
-        item.setClipName(clipName);
-        item.setConnectionCondition(1);
-        item.setInTimeTicks(inTicks);
-        item.setOutTimeTicks(outTicks);
-        item.setStreams(List.of(video));
-        return item;
-    }
+	private PlayItem simpleItem(String clipName, long inTicks, long outTicks) {
+		PlayItemStream video = new PlayItemStream();
+		video.setPid(0x1011);
+		video.setCodingType(StreamCodingType.H264_AVC);
+		video.setVideoFormat(0x06);
+		video.setFrameRate(0x04);
 
-    private PlayMark mark(int playItemRef, long ticks, int esPid) {
-        PlayMark m = new PlayMark();
-        m.setMarkType(0x01);
-        m.setPlayItemRef(playItemRef);
-        m.setMarkTimeTicks(ticks);
-        m.setEntryEsPid(esPid);
-        m.setDurationTicks(0);
-        return m;
-    }
+		PlayItem item = new PlayItem();
+		item.setClipName(clipName);
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(inTicks);
+		item.setOutTimeTicks(outTicks);
+		item.setStreams(List.of(video));
+		return item;
+	}
 
-    private byte[] writeToBytes(MoviePlaylist pl) throws Exception {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writer.write(pl, out);
-        return out.toByteArray();
-    }
+	private PlayMark mark(int playItemRef, long ticks, int esPid) {
+		PlayMark m = new PlayMark();
+		m.setMarkType(0x01);
+		m.setPlayItemRef(playItemRef);
+		m.setMarkTimeTicks(ticks);
+		m.setEntryEsPid(esPid);
+		m.setDurationTicks(0);
+		return m;
+	}
+
+	private byte[] writeToBytes(MoviePlaylist pl) throws Exception {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		writer.write(pl, out);
+		return out.toByteArray();
+	}
+
 }

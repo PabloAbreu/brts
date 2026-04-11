@@ -1,11 +1,11 @@
 package org.brts.common.mkv;
 
-import lombok.Getter;
-import lombok.Setter;
+import java.util.List;
+
 import org.brts.common.model.StreamCodingType;
 
-import java.nio.ByteBuffer;
-import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Abstract representation of the tracks found in a source media container (MKV, etc.).
@@ -15,42 +15,48 @@ import java.util.List;
 @Setter
 public class SourceMediaInfo {
 
-    /** Path to the source file. */
-    private String sourcePath;
+	/** Path to the source file. */
+	private String sourcePath;
 
-    /** Duration of the media in milliseconds. */
-    private long durationMs;
+	/** Duration of the media in milliseconds. */
+	private long durationMs;
 
-    private List<SourceTrack> tracks;
+	private List<SourceTrack> tracks;
 
-    // -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
 
-    /** Describes a single track within the source container. */
-    @Getter
-    @Setter
-    public static class SourceTrack {
+	/** Describes a single track within the source container. */
+	@Getter
+	@Setter
+	public static class SourceTrack {
 
-        /** Track number as reported by the container (1-based in MKV). */
-        private int trackNumber;
+		/** Track number as reported by the container (1-based in MKV). */
+		private int trackNumber;
 
-        private StreamCodingType codingType;
+		private StreamCodingType codingType;
 
-        // --- Video ---
-        private Integer widthPixels;
-        private Integer heightPixels;
-        private Double frameRateFps;
+		// --- Video ---
+		private Integer widthPixels;
 
-        // --- Audio ---
-        private Integer channels;
-        private Integer sampleRateHz;
-        private Integer bitrateKbps;
-        private String language;
+		private Integer heightPixels;
 
-        // --- Subtitle ---
-        private String subtitleFormat; // e.g. "ASS", "SRT", "PGS"
+		private Double frameRateFps;
 
-        /** Codec private data (e.g. AVCDecoderConfigurationRecord for H.264). */
-        private byte[] codecPrivate;
-    }
+		// --- Audio ---
+		private Integer channels;
+
+		private Integer sampleRateHz;
+
+		private Integer bitrateKbps;
+
+		private String language;
+
+		// --- Subtitle ---
+		private String subtitleFormat; // e.g. "ASS", "SRT", "PGS"
+
+		/** Codec private data (e.g. AVCDecoderConfigurationRecord for H.264). */
+		private byte[] codecPrivate;
+
+	}
+
 }
-

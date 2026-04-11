@@ -26,13 +26,16 @@ import lombok.extern.slf4j.Slf4j;
 public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 	private static final String MAGIC = "HDMV";
+
 	private static final String VERSION_300 = "0300";
+
 	private static final String VERSION_200 = "0200";
 
 	/**
-	 * Absolute byte offset where the ClipInfo section always starts
-	 * (8 bytes magic/version + 20 bytes offsets + 12 bytes reserved).
+	 * Absolute byte offset where the ClipInfo section always starts (8 bytes
+	 * magic/version + 20 bytes offsets + 12 bytes reserved).
 	 */
+	@SuppressWarnings("unused")
 	private static final int CLIP_INFO_START = 40;
 
 	@Override
@@ -93,7 +96,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 		clipInfo.setNumSourcePackets(numSourcePackets);
 
 		// Skip the rest of ClipInfo section (128 reserved bytes, ts_type_info, etc.)
-		long clipInfoContentRead = 2 + 1 + 1 + 4 + 4 + 4; // 16 bytes read after section length
+		long clipInfoContentRead = 2 + 1 + 1 + 4 + 4 + 4; // 16 bytes read after section
+															// length
 		r.skip(clipInfoSectionLength - clipInfoContentRead);
 
 		// --- SequenceInfo section ---
@@ -141,7 +145,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				int pcrPid = r.readUnsignedShort();
 				long spnStcStart = r.readUnsignedInt();
 				long presentationStartTime = r.readUnsignedInt(); // 45 kHz
-				long presentationEndTime = r.readUnsignedInt();   // 45 kHz
+				long presentationEndTime = r.readUnsignedInt(); // 45 kHz
 				log.debug("  stc_seq[{}.{}]: start={}({}s), end={}({}s)", a, s, presentationStartTime,
 						presentationStartTime / 45000.0, presentationEndTime, presentationEndTime / 45000.0);
 				if (a == 0 && s == 0) {
@@ -150,7 +154,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				lastEnd = presentationEndTime;
 			}
 		}
-		clipInfo.setTsRecordingStartPts(Timestamp.ofTicks(firstStart * 2)); // 45 kHz → 90 kHz
+		clipInfo.setTsRecordingStartPts(Timestamp.ofTicks(firstStart * 2)); // 45 kHz → 90
+																			// kHz
 		clipInfo.setTsRecordingEndPts(Timestamp.ofTicks(lastEnd * 2));
 		clipInfo.setDuration(Timestamp.ofTicks((lastEnd - firstStart) * 2));
 	}
@@ -173,8 +178,9 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 			int programMapPid = r.readUnsignedShort();
 			int numStreams = r.readUnsignedByte();
 			int numGroups = r.readUnsignedByte();
-			log.debug("readProgramInfo.prog {}. spnProgramSequenceBegin is {}. programMapPid is {}. numStreams is {}. numGroups is {}", p,
-					spnProgramSequenceBegin, programMapPid, numStreams, numGroups);
+			log.debug(
+					"readProgramInfo.prog {}. spnProgramSequenceBegin is {}. programMapPid is {}. numStreams is {}. numGroups is {}",
+					p, spnProgramSequenceBegin, programMapPid, numStreams, numGroups);
 
 			for (int s = 0; s < numStreams; s++) {
 				ClipStream stream = new ClipStream();
@@ -186,7 +192,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				StreamCodingType codingType;
 				try {
 					codingType = StreamCodingType.fromByte(codingTypeByte);
-				} catch (IllegalArgumentException e) {
+				}
+				catch (IllegalArgumentException e) {
 					r.skip(streamInfoSize - 1);
 					all.add(stream);
 					continue;
@@ -200,13 +207,15 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 					int ar = r.readUnsignedByte();
 					stream.setAspectRatio((ar >> 4) & 0x0F);
 					r.skip(streamInfoSize - 3); // reserved
-				} else if (codingType.isAudio()) {
+				}
+				else if (codingType.isAudio()) {
 					int channelSample = r.readUnsignedByte();
 					stream.setAudioChannelLayout((channelSample >> 4) & 0x0F);
 					stream.setSampleRate(channelSample & 0x0F);
 					stream.setLanguage(r.readAscii(3));
 					r.skip(streamInfoSize - 5); // reserved
-				} else if (codingType.isSubtitle() || codingType.isMenu()) {
+				}
+				else if (codingType.isSubtitle() || codingType.isMenu()) {
 					int offset = 1;
 					if (codingType == StreamCodingType.TEXT_SUBTITLE) {
 						offset = 0;
@@ -252,7 +261,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 		for (int i = 0; i < numStreamPidEntries; i++) {
 			pids[i] = r.readUnsignedShort();
-			// 10 reserved + 4 ep_stream_type + 16 num_coarse + 2 high bits num_fine = 32 bits
+			// 10 reserved + 4 ep_stream_type + 16 num_coarse + 2 high bits num_fine = 32
+			// bits
 			long block1 = r.readUnsignedInt();
 			epStreamTypes[i] = (int) ((block1 >> 18) & 0x0F);
 			numCoarseArr[i] = (int) ((block1 >> 2) & 0xFFFF);
@@ -281,12 +291,13 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 			long fineStartOffset = r.readUnsignedInt();
 
 			// Read coarse entries (8 bytes each: 18+14 bits = 32 bits + 32 bits SPN)
-			int[][] coarseData = new int[numCoarseArr[i]][3]; // [refFineId, ptsCoarse, spnCoarse]
+			int[][] coarseData = new int[numCoarseArr[i]][3]; // [refFineId, ptsCoarse,
+																// spnCoarse]
 			for (int c = 0; c < numCoarseArr[i]; c++) {
 				long cBlock = r.readUnsignedInt();
 				coarseData[c][0] = (int) ((cBlock >> 14) & 0x3FFFF); // ref_ep_fine_id
-				coarseData[c][1] = (int) (cBlock & 0x3FFF);          // pts_ep (14 bits)
-				coarseData[c][2] = (int) r.readUnsignedInt();         // spn_ep (32 bits)
+				coarseData[c][1] = (int) (cBlock & 0x3FFF); // pts_ep (14 bits)
+				coarseData[c][2] = (int) r.readUnsignedInt(); // spn_ep (32 bits)
 			}
 
 			// Seek to fine entries
@@ -330,4 +341,5 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 		epMap.setStreams(epStreams);
 		return epMap;
 	}
+
 }

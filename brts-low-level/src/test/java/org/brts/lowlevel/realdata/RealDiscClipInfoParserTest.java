@@ -18,9 +18,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * Integration tests against real CLPI files from a physical Blu-ray disc.
  * <p>
- * All tests use the sample disc at {@code samples/PB/BDMV/CLIPINF/}. Tests are
- * skipped if the sample directory is not present (e.g. on a CI agent that does
- * not have the disc files checked out).
+ * All tests use the sample disc at {@code samples/PB/BDMV/CLIPINF/}. Tests are skipped if
+ * the sample directory is not present (e.g. on a CI agent that does not have the disc
+ * files checked out).
  */
 class RealDiscClipInfoParserTest {
 
@@ -31,7 +31,8 @@ class RealDiscClipInfoParserTest {
 
 	@BeforeAll
 	static void requireSampleData() {
-		assumeThat(Files.isDirectory(CLIPINF)).as("sample disc data must be present at " + CLIPINF.toAbsolutePath()).isTrue();
+		assumeThat(Files.isDirectory(CLIPINF)).as("sample disc data must be present at " + CLIPINF.toAbsolutePath())
+			.isTrue();
 	}
 
 	// ------------------------------------------------------------------
@@ -48,8 +49,8 @@ class RealDiscClipInfoParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Each of the most structurally varied CLPI files parses without throwing. File
-	 * sizes range from 324 B (minimal) to 39 KB (00705.clpi with large EP map).
+	 * Each of the most structurally varied CLPI files parses without throwing. File sizes
+	 * range from 324 B (minimal) to 39 KB (00705.clpi with large EP map).
 	 */
 	@ParameterizedTest(name = "{0}.clpi parses without exception")
 	@ValueSource(strings = {
@@ -75,8 +76,8 @@ class RealDiscClipInfoParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * All CLPI files on this disc carry version "0200". The parser accepts both
-	 * "0200" and "0300" — this verifies the disc is v2.
+	 * All CLPI files on this disc carry version "0200". The parser accepts both "0200"
+	 * and "0300" — this verifies the disc is v2.
 	 */
 	@Test
 	void version_isHdmv0200() throws IOException {
@@ -182,23 +183,25 @@ class RealDiscClipInfoParserTest {
 	void timing_startIsLessThanEnd(String clipName) throws IOException {
 		ClipInfo info = parse(clipName);
 
-		assertThat(info.getTsRecordingStartPts().getTicks()).as("startPts must be non-negative in %s.clpi", clipName).isGreaterThanOrEqualTo(0L);
+		assertThat(info.getTsRecordingStartPts().getTicks()).as("startPts must be non-negative in %s.clpi", clipName)
+			.isGreaterThanOrEqualTo(0L);
 
 		assertThat(info.getTsRecordingEndPts().getTicks()).as("endPts must be > startPts in %s.clpi", clipName)
-				.isGreaterThan(info.getTsRecordingStartPts().getTicks());
+			.isGreaterThan(info.getTsRecordingStartPts().getTicks());
 
 		assertThat(info.getDuration().getTicks()).as("duration must be positive in %s.clpi", clipName).isPositive();
 	}
 
 	/**
-	 * startPts90 is 1,048,560 (= raw 524,280 × 2 from SequenceInfo) for most clips
-	 * on this disc.
+	 * startPts90 is 1,048,560 (= raw 524,280 × 2 from SequenceInfo) for most clips on
+	 * this disc.
 	 */
 	@ParameterizedTest(name = "{0}.clpi: startPts90 == 1048560")
 	@ValueSource(strings = { "00165", "00248", "00281", "00572", "00616", "00617", "00662", "00726", "00753" })
 	void timing_startPts_isCommonValue(String clipName) throws IOException {
 		ClipInfo info = parse(clipName);
-		assertThat(info.getTsRecordingStartPts().getTicks()).as("startPts90 in %s.clpi", clipName).isEqualTo(1_048_560L);
+		assertThat(info.getTsRecordingStartPts().getTicks()).as("startPts90 in %s.clpi", clipName)
+			.isEqualTo(1_048_560L);
 	}
 
 	// ------------------------------------------------------------------
@@ -206,9 +209,9 @@ class RealDiscClipInfoParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Some clips (00258, 00736, 00748) have a non-zero stream count in ProgramInfo
-	 * but use coding type {@code 0x00} (a placeholder). The parser must not throw
-	 * and must return a non-null stream list.
+	 * Some clips (00258, 00736, 00748) have a non-zero stream count in ProgramInfo but
+	 * use coding type {@code 0x00} (a placeholder). The parser must not throw and must
+	 * return a non-null stream list.
 	 */
 	@ParameterizedTest(name = "{0}.clpi: parses clips with placeholder 0x00 coding type")
 	@ValueSource(strings = { "00258", "00736", "00748" })
@@ -238,8 +241,8 @@ class RealDiscClipInfoParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Every single CLPI file on the disc parses without an exception. This is a
-	 * safety net catching any files not covered by the named tests above.
+	 * Every single CLPI file on the disc parses without an exception. This is a safety
+	 * net catching any files not covered by the named tests above.
 	 */
 	@Test
 	void allClpiFilesOnDiscParseSuccessfully() throws IOException {
@@ -249,11 +252,14 @@ class RealDiscClipInfoParserTest {
 				if (path.getFileName().toString().endsWith(".clpi")) {
 					ClipInfo info = parser.parse(path);
 					assertThat(info).as("ClipInfo parsed from %s", path.getFileName()).isNotNull();
-					assertThat(info.getTsRecordingStartPts().getTicks()).as("startPts non-negative in %s", path.getFileName()).isGreaterThanOrEqualTo(0L);
+					assertThat(info.getTsRecordingStartPts().getTicks())
+						.as("startPts non-negative in %s", path.getFileName())
+						.isGreaterThanOrEqualTo(0L);
 					count++;
 				}
 			}
 		}
 		assertThat(count).as("at least one CLPI file must have been tested").isPositive();
 	}
+
 }

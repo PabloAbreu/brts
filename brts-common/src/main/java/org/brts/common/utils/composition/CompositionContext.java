@@ -7,20 +7,23 @@ import org.brts.common.utils.expressions.Expression;
 
 /** Run-time context and source for images. */
 public interface CompositionContext {
-    int getFrameNumber();
 
-    Object eval(Expression expression);
+	int getFrameNumber();
 
-    Path resolvePath(Path relativePath);
+	Object eval(Expression expression);
 
-    default double evalNumeric(Expression expression) {
-        Object value = eval(expression);
-        if (value instanceof Number) {
-            return ((Number) value).doubleValue();
-        } else if (value == null)
-            return 0;
-        else {
-            return new BigDecimal(value.toString()).doubleValue();
-        }
-    }
+	Path resolvePath(Path relativePath);
+
+	default double evalNumeric(Expression expression) {
+		Object value = eval(expression);
+		if (value instanceof Number) {
+			return ((Number) value).doubleValue();
+		}
+		else if (value == null)
+			return 0;
+		else {
+			return new BigDecimal(value.toString()).doubleValue();
+		}
+	}
+
 }

@@ -8,8 +8,7 @@ import lombok.Setter;
  * <p>
  * Each audio item corresponds to one audio stream the user can select.
  *
- * <h2>Example</h2>
- * <pre>{@code
+ * <h2>Example</h2> <pre>{@code
  * {
  *   "description": "English DTS-HD",
  *   "streamNumber": 1,
@@ -21,9 +20,10 @@ import lombok.Setter;
 @Setter
 public class AudioMenuItem extends MenuItem {
 
-    /**
-     * 1-based audio stream number.
-     * Maps to PSR1 (primary audio stream number) in Blu-ray navigation.
-     */
-    private int streamNumber;
+	/**
+	 * 1-based audio stream number. Maps to PSR1 (primary audio stream number) in Blu-ray
+	 * navigation.
+	 */
+	private int streamNumber;
+
 }

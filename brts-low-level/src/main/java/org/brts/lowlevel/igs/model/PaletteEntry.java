@@ -11,14 +11,20 @@ import lombok.ToString;
 @Setter
 @ToString
 public class PaletteEntry {
-    /** Index in the palette (0–255). */
-    private int entryId;
-    /** Luminance. */
-    private int y;
-    /** Chroma red. */
-    private int cr;
-    /** Chroma blue. */
-    private int cb;
-    /** Transparency (0 = fully transparent, 255 = fully opaque). */
-    private int alpha;
+
+	/** Index in the palette (0–255). */
+	private int entryId;
+
+	/** Luminance. */
+	private int y;
+
+	/** Chroma red. */
+	private int cr;
+
+	/** Chroma blue. */
+	private int cb;
+
+	/** Transparency (0 = fully transparent, 255 = fully opaque). */
+	private int alpha;
+
 }

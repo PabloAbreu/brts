@@ -10,6 +10,9 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ExpressionImpl<T> implements Expression {
-    private T value;
-    private String expression;
+
+	private T value;
+
+	private String expression;
+
 }

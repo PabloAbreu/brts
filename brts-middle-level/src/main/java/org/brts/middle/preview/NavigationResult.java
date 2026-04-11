@@ -10,22 +10,27 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class NavigationResult {
 
-    public enum Type {
-        /** Nothing happened (e.g. no neighbour). */
-        NONE,
-        /** Selection moved to a different button. */
-        SELECTION_CHANGED,
-        /** A button was activated (Enter pressed). */
-        ACTIVATED,
-        /** Page changed. */
-        PAGE_CHANGED
-    }
+	public enum Type {
 
-    private final Type type;
-    private final int buttonOrPageId;
-    private final String description;
+		/** Nothing happened (e.g. no neighbour). */
+		NONE,
+		/** Selection moved to a different button. */
+		SELECTION_CHANGED,
+		/** A button was activated (Enter pressed). */
+		ACTIVATED,
+		/** Page changed. */
+		PAGE_CHANGED
 
-    public static NavigationResult none(String reason) {
-        return new NavigationResult(Type.NONE, -1, reason);
-    }
+	}
+
+	private final Type type;
+
+	private final int buttonOrPageId;
+
+	private final String description;
+
+	public static NavigationResult none(String reason) {
+		return new NavigationResult(Type.NONE, -1, reason);
+	}
+
 }

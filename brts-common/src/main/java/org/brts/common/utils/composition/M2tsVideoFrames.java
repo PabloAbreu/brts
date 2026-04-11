@@ -48,226 +48,232 @@ import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 
 /**
- * {@link VideoFrames} implementation that decodes frames from an M2TS file
- * using bytedeco/FFmpeg.
+ * {@link VideoFrames} implementation that decodes frames from an M2TS file using
+ * bytedeco/FFmpeg.
  * <p>
- * Frames are decoded sequentially on demand. An LRU cache avoids redundant
- * decoding when the same frame number is requested repeatedly.
+ * Frames are decoded sequentially on demand. An LRU cache avoids redundant decoding when
+ * the same frame number is requested repeatedly.
  */
 public class M2tsVideoFrames implements VideoFrames {
 
-    private static final int CACHE_CAPACITY = 300;
+	private static final int CACHE_CAPACITY = 300;
 
-    private final AVFormatContext formatCtx;
-    private final AVCodecContext codecCtx;
-    private final int videoStreamIndex;
-    private final int frameCount;
+	private final AVFormatContext formatCtx;
 
-    private SwsContext swsCtx;
-    private int currentFrameIndex = -1;
+	private final AVCodecContext codecCtx;
 
-    private final LinkedHashMap<Integer, BufferedImage> cache =
-            new LinkedHashMap<>(16, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<Integer, BufferedImage> eldest) {
-                    return size() > CACHE_CAPACITY;
-                }
-            };
+	private final int videoStreamIndex;
 
-    public M2tsVideoFrames(Path m2tsPath) throws IOException {
-        // 1. Parse M2TS to find first H264_AVC stream PID
-        M2tsParser parser = new M2tsParser();
-        M2tsInfo info = parser.parse(m2tsPath);
-        int pid = info.getStreams().stream()
-                .filter(s -> s.getCodingType() == StreamCodingType.H264_AVC)
-                .findFirst()
-                .map(M2tsStreamInfo::getPid)
-                .orElseThrow(() -> new IOException("No H264_AVC stream found in " + m2tsPath));
+	private final int frameCount;
 
-        // 2. Open file with FFmpeg
-        formatCtx = new AVFormatContext(null);
-        int ret = avformat_open_input(formatCtx, m2tsPath.toString(), null, null);
-        if (ret < 0) {
-            throw new IOException("avformat_open_input failed: " + ret);
-        }
+	private SwsContext swsCtx;
 
-        ret = avformat_find_stream_info(formatCtx, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
-        if (ret < 0) {
-            avformat_close_input(formatCtx);
-            throw new IOException("avformat_find_stream_info failed: " + ret);
-        }
+	private int currentFrameIndex = -1;
 
-        // 3. Find the video stream matching the PID, fall back to first H264 stream
-        int streamIdx = -1;
-        for (int i = 0; i < formatCtx.nb_streams(); i++) {
-            AVStream stream = formatCtx.streams(i);
-            if (stream.id() == pid) {
-                streamIdx = i;
-                break;
-            }
-        }
-        if (streamIdx < 0) {
-            // Fallback: first video stream with H264 codec
-            for (int i = 0; i < formatCtx.nb_streams(); i++) {
-                AVStream stream = formatCtx.streams(i);
-                if (stream.codecpar().codec_id() == AV_CODEC_ID_H264) {
-                    streamIdx = i;
-                    break;
-                }
-            }
-        }
-        if (streamIdx < 0) {
-            avformat_close_input(formatCtx);
-            throw new IOException("Could not locate video stream for PID " + pid);
-        }
-        this.videoStreamIndex = streamIdx;
+	private final LinkedHashMap<Integer, BufferedImage> cache = new LinkedHashMap<>(16, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<Integer, BufferedImage> eldest) {
+			return size() > CACHE_CAPACITY;
+		}
+	};
 
-        // 4. Open codec
-        AVStream videoStream = formatCtx.streams(videoStreamIndex);
-        var codec = avcodec_find_decoder(videoStream.codecpar().codec_id());
-        if (codec == null) {
-            avformat_close_input(formatCtx);
-            throw new IOException("Could not find decoder for codec id " + videoStream.codecpar().codec_id());
-        }
-        codecCtx = avcodec_alloc_context3(codec);
-        avcodec_parameters_to_context(codecCtx, videoStream.codecpar());
-        ret = avcodec_open2(codecCtx, codec, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
-        if (ret < 0) {
-            avcodec_free_context(codecCtx);
-            avformat_close_input(formatCtx);
-            throw new IOException("avcodec_open2 failed: " + ret);
-        }
+	public M2tsVideoFrames(Path m2tsPath) throws IOException {
+		// 1. Parse M2TS to find first H264_AVC stream PID
+		M2tsParser parser = new M2tsParser();
+		M2tsInfo info = parser.parse(m2tsPath);
+		int pid = info.getStreams()
+			.stream()
+			.filter(s -> s.getCodingType() == StreamCodingType.H264_AVC)
+			.findFirst()
+			.map(M2tsStreamInfo::getPid)
+			.orElseThrow(() -> new IOException("No H264_AVC stream found in " + m2tsPath));
 
-        // 5. Estimate frame count
-        long nb = videoStream.nb_frames();
-        if (nb > 0) {
-            this.frameCount = (int) nb;
-        } else {
-            double duration = videoStream.duration() * av_q2d(videoStream.time_base());
-            double fps = av_q2d(videoStream.r_frame_rate());
-            if (duration > 0 && fps > 0) {
-                this.frameCount = (int) (duration * fps);
-            } else {
-                this.frameCount = -1;
-            }
-        }
-    }
+		// 2. Open file with FFmpeg
+		formatCtx = new AVFormatContext(null);
+		int ret = avformat_open_input(formatCtx, m2tsPath.toString(), null, null);
+		if (ret < 0) {
+			throw new IOException("avformat_open_input failed: " + ret);
+		}
 
-    @Override
-    public int getFrameCount() {
-        return frameCount;
-    }
+		ret = avformat_find_stream_info(formatCtx, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
+		if (ret < 0) {
+			avformat_close_input(formatCtx);
+			throw new IOException("avformat_find_stream_info failed: " + ret);
+		}
 
-    @Override
-    public BufferedImage getFrame(int frameNumber) {
-        BufferedImage cached = cache.get(frameNumber);
-        if (cached != null) {
-            return cached;
-        }
+		// 3. Find the video stream matching the PID, fall back to first H264 stream
+		int streamIdx = -1;
+		for (int i = 0; i < formatCtx.nb_streams(); i++) {
+			AVStream stream = formatCtx.streams(i);
+			if (stream.id() == pid) {
+				streamIdx = i;
+				break;
+			}
+		}
+		if (streamIdx < 0) {
+			// Fallback: first video stream with H264 codec
+			for (int i = 0; i < formatCtx.nb_streams(); i++) {
+				AVStream stream = formatCtx.streams(i);
+				if (stream.codecpar().codec_id() == AV_CODEC_ID_H264) {
+					streamIdx = i;
+					break;
+				}
+			}
+		}
+		if (streamIdx < 0) {
+			avformat_close_input(formatCtx);
+			throw new IOException("Could not locate video stream for PID " + pid);
+		}
+		this.videoStreamIndex = streamIdx;
 
-        try {
-            // Backward seek if needed
-            if (frameNumber <= currentFrameIndex) {
-                AVStream stream = formatCtx.streams(videoStreamIndex);
-                av_seek_frame(formatCtx, videoStreamIndex, stream.start_time(), AVSEEK_FLAG_BACKWARD);
-                avcodec_flush_buffers(codecCtx);
-                currentFrameIndex = -1;
-            }
+		// 4. Open codec
+		AVStream videoStream = formatCtx.streams(videoStreamIndex);
+		var codec = avcodec_find_decoder(videoStream.codecpar().codec_id());
+		if (codec == null) {
+			avformat_close_input(formatCtx);
+			throw new IOException("Could not find decoder for codec id " + videoStream.codecpar().codec_id());
+		}
+		codecCtx = avcodec_alloc_context3(codec);
+		avcodec_parameters_to_context(codecCtx, videoStream.codecpar());
+		ret = avcodec_open2(codecCtx, codec, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
+		if (ret < 0) {
+			avcodec_free_context(codecCtx);
+			avformat_close_input(formatCtx);
+			throw new IOException("avcodec_open2 failed: " + ret);
+		}
 
-            AVPacket packet = av_packet_alloc();
-            AVFrame frame = av_frame_alloc();
-            try {
-                while (av_read_frame(formatCtx, packet) >= 0) {
-                    if (packet.stream_index() != videoStreamIndex) {
-                        av_packet_unref(packet);
-                        continue;
-                    }
+		// 5. Estimate frame count
+		long nb = videoStream.nb_frames();
+		if (nb > 0) {
+			this.frameCount = (int) nb;
+		}
+		else {
+			double duration = videoStream.duration() * av_q2d(videoStream.time_base());
+			double fps = av_q2d(videoStream.r_frame_rate());
+			if (duration > 0 && fps > 0) {
+				this.frameCount = (int) (duration * fps);
+			}
+			else {
+				this.frameCount = -1;
+			}
+		}
+	}
 
-                    int sendRet = avcodec_send_packet(codecCtx, packet);
-                    av_packet_unref(packet);
-                    if (sendRet < 0) {
-                        continue;
-                    }
+	@Override
+	public int getFrameCount() {
+		return frameCount;
+	}
 
-                    while (avcodec_receive_frame(codecCtx, frame) >= 0) {
-                        currentFrameIndex++;
-                        if (currentFrameIndex == frameNumber) {
-                            BufferedImage image = convertFrameToImage(frame);
-                            cache.put(frameNumber, image);
-                            return image;
-                        }
-                    }
-                }
+	@Override
+	public BufferedImage getFrame(int frameNumber) {
+		BufferedImage cached = cache.get(frameNumber);
+		if (cached != null) {
+			return cached;
+		}
 
-                // Flush remaining frames from the decoder
-                avcodec_send_packet(codecCtx, (AVPacket) null);
-                while (avcodec_receive_frame(codecCtx, frame) >= 0) {
-                    currentFrameIndex++;
-                    if (currentFrameIndex == frameNumber) {
-                        BufferedImage image = convertFrameToImage(frame);
-                        cache.put(frameNumber, image);
-                        return image;
-                    }
-                }
-            } finally {
-                av_frame_free(frame);
-                av_packet_free(packet);
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to decode frame " + frameNumber, e);
-        }
+		try {
+			// Backward seek if needed
+			if (frameNumber <= currentFrameIndex) {
+				AVStream stream = formatCtx.streams(videoStreamIndex);
+				av_seek_frame(formatCtx, videoStreamIndex, stream.start_time(), AVSEEK_FLAG_BACKWARD);
+				avcodec_flush_buffers(codecCtx);
+				currentFrameIndex = -1;
+			}
 
-        return null;
-    }
+			AVPacket packet = av_packet_alloc();
+			AVFrame frame = av_frame_alloc();
+			try {
+				while (av_read_frame(formatCtx, packet) >= 0) {
+					if (packet.stream_index() != videoStreamIndex) {
+						av_packet_unref(packet);
+						continue;
+					}
 
-    private BufferedImage convertFrameToImage(AVFrame frame) {
-        int width = frame.width();
-        int height = frame.height();
+					int sendRet = avcodec_send_packet(codecCtx, packet);
+					av_packet_unref(packet);
+					if (sendRet < 0) {
+						continue;
+					}
 
-        if (swsCtx == null) {
-            swsCtx = sws_getContext(
-                    width, height, frame.format(),
-                    width, height, AV_PIX_FMT_BGR24,
-                    SWS_BILINEAR, null, null, (double[]) null);
-        }
+					while (avcodec_receive_frame(codecCtx, frame) >= 0) {
+						currentFrameIndex++;
+						if (currentFrameIndex == frameNumber) {
+							BufferedImage image = convertFrameToImage(frame);
+							cache.put(frameNumber, image);
+							return image;
+						}
+					}
+				}
 
-        AVFrame bgrFrame = av_frame_alloc();
-        bgrFrame.format(AV_PIX_FMT_BGR24);
-        bgrFrame.width(width);
-        bgrFrame.height(height);
-        av_frame_get_buffer(bgrFrame, 0);
+				// Flush remaining frames from the decoder
+				avcodec_send_packet(codecCtx, (AVPacket) null);
+				while (avcodec_receive_frame(codecCtx, frame) >= 0) {
+					currentFrameIndex++;
+					if (currentFrameIndex == frameNumber) {
+						BufferedImage image = convertFrameToImage(frame);
+						cache.put(frameNumber, image);
+						return image;
+					}
+				}
+			}
+			finally {
+				av_frame_free(frame);
+				av_packet_free(packet);
+			}
+		}
+		catch (Exception e) {
+			throw new RuntimeException("Failed to decode frame " + frameNumber, e);
+		}
 
-        sws_scale(swsCtx,
-                frame.data(), frame.linesize(), 0, height,
-                bgrFrame.data(), bgrFrame.linesize());
+		return null;
+	}
 
-        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-        byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+	private BufferedImage convertFrameToImage(AVFrame frame) {
+		int width = frame.width();
+		int height = frame.height();
 
-        int linesize = bgrFrame.linesize(0);
-        ByteBuffer buffer = bgrFrame.data(0).position(0).capacity((long) linesize * height).asByteBuffer();
-        if (linesize == width * 3) {
-            buffer.get(pixels);
-        } else {
-            // Handle padding in each row
-            for (int y = 0; y < height; y++) {
-                buffer.position(y * linesize);
-                buffer.get(pixels, y * width * 3, width * 3);
-            }
-        }
+		if (swsCtx == null) {
+			swsCtx = sws_getContext(width, height, frame.format(), width, height, AV_PIX_FMT_BGR24, SWS_BILINEAR, null,
+					null, (double[]) null);
+		}
 
-        av_frame_free(bgrFrame);
-        return image;
-    }
+		AVFrame bgrFrame = av_frame_alloc();
+		bgrFrame.format(AV_PIX_FMT_BGR24);
+		bgrFrame.width(width);
+		bgrFrame.height(height);
+		av_frame_get_buffer(bgrFrame, 0);
 
-    @Override
-    public void close() {
-        if (swsCtx != null) {
-            sws_freeContext(swsCtx);
-            swsCtx = null;
-        }
-        avcodec_free_context(codecCtx);
-        avformat_close_input(formatCtx);
-        cache.clear();
-    }
+		sws_scale(swsCtx, frame.data(), frame.linesize(), 0, height, bgrFrame.data(), bgrFrame.linesize());
+
+		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
+		byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
+
+		int linesize = bgrFrame.linesize(0);
+		ByteBuffer buffer = bgrFrame.data(0).position(0).capacity((long) linesize * height).asByteBuffer();
+		if (linesize == width * 3) {
+			buffer.get(pixels);
+		}
+		else {
+			// Handle padding in each row
+			for (int y = 0; y < height; y++) {
+				buffer.position(y * linesize);
+				buffer.get(pixels, y * width * 3, width * 3);
+			}
+		}
+
+		av_frame_free(bgrFrame);
+		return image;
+	}
+
+	@Override
+	public void close() {
+		if (swsCtx != null) {
+			sws_freeContext(swsCtx);
+			swsCtx = null;
+		}
+		avcodec_free_context(codecCtx);
+		avformat_close_input(formatCtx);
+		cache.clear();
+	}
+
 }

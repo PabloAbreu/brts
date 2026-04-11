@@ -15,79 +15,88 @@ import org.kohsuke.args4j.Option;
  * <p>
  * Sub-commands:
  * <ul>
- * <li><b>clip-parse</b>: parse a {@code .clpi} binary file → JSON
- * descriptor</li>
- * <li><b>clip-write</b>: generate a {@code .clpi} binary from a JSON
- * descriptor</li>
+ * <li><b>clip-parse</b>: parse a {@code .clpi} binary file → JSON descriptor</li>
+ * <li><b>clip-write</b>: generate a {@code .clpi} binary from a JSON descriptor</li>
  * </ul>
  */
 public class ClipInfoCli {
 
-    // -------------------------------------------------------------------------
-    // Parse command
-    // -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
+	// Parse command
+	// -------------------------------------------------------------------------
 
-    public static class ParseOptions {
-        @Option(name = "--input", required = true, usage = "Path to the .clpi file to parse")
-        File input;
+	public static class ParseOptions {
 
-        @Option(name = "--output", usage = "Output JSON file path (default: stdout)")
-        File output;
-    }
+		@Option(name = "--input", required = true, usage = "Path to the .clpi file to parse")
+		File input;
 
-    public static class Parse extends FeatureRunner<ParseOptions> {
-        @Override
-        public String getCommandName() {
-            return "clip-parse";
-        }
+		@Option(name = "--output", usage = "Output JSON file path (default: stdout)")
+		File output;
 
-        @Override
-        public String getDescription() {
-            return "Parse a .clpi binary file to JSON";
-        }
+	}
 
-        @Override
-        protected void execute(ParseOptions opts) throws Exception {
-            ClipInfo clipInfo = new ClipInfoParser().parse(opts.input.toPath());
-            writeJson(opts.output, clipInfo);
-            if (opts.output != null) {
-                System.out.println("Parsed CLPI → " + opts.output);
-            }
-        }
-    }
+	public static class Parse extends FeatureRunner<ParseOptions> {
 
-    // -------------------------------------------------------------------------
-    // Write command
-    // -------------------------------------------------------------------------
+		@Override
+		public String getCommandName() {
+			return "clip-parse";
+		}
 
-    public static class WriteOptions {
-        // @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
-        // File descriptor;
-        @JsonInputOption(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
-        ClipInfo descriptor;
+		@Override
+		public String getDescription() {
+			return "Parse a .clpi binary file to JSON";
+		}
 
-        @Option(name = "--output", required = true, usage = "Output directory (BDMV/CLIPINF/ recommended)")
-        File outputDir;
-    }
+		@Override
+		protected void execute(ParseOptions opts) throws Exception {
+			ClipInfo clipInfo = new ClipInfoParser().parse(opts.input.toPath());
+			writeJson(opts.output, clipInfo);
+			if (opts.output != null) {
+				System.out.println("Parsed CLPI → " + opts.output);
+			}
+		}
 
-    public static class Write extends FeatureRunner<WriteOptions> {
-        @Override
-        public String getCommandName() {
-            return "clip-write";
-        }
+	}
 
-        @Override
-        public String getDescription() {
-            return "Generate a .clpi binary from a JSON descriptor";
-        }
+	// -------------------------------------------------------------------------
+	// Write command
+	// -------------------------------------------------------------------------
 
-        @Override
-        protected void execute(WriteOptions opts) throws Exception {
-            ClipInfo clipInfo = opts.descriptor;// loadJson(opts.descriptor, ClipInfo.class);
-            ClipInfoWriter writer = new ClipInfoWriter();
-            Path outputPath = opts.outputDir.toPath().resolve(clipInfo.getClipName() + ".clpi");
-            writer.write(clipInfo, outputPath);
-            System.out.println("Wrote CLPI → " + outputPath);
-        }
-    }
+	public static class WriteOptions {
+
+		// @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON
+		// descriptor")
+		// File descriptor;
+		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
+		ClipInfo descriptor;
+
+		@Option(name = "--output", required = true, usage = "Output directory (BDMV/CLIPINF/ recommended)")
+		File outputDir;
+
+	}
+
+	public static class Write extends FeatureRunner<WriteOptions> {
+
+		@Override
+		public String getCommandName() {
+			return "clip-write";
+		}
+
+		@Override
+		public String getDescription() {
+			return "Generate a .clpi binary from a JSON descriptor";
+		}
+
+		@Override
+		protected void execute(WriteOptions opts) throws Exception {
+			ClipInfo clipInfo = opts.descriptor;// loadJson(opts.descriptor,
+												// ClipInfo.class);
+			ClipInfoWriter writer = new ClipInfoWriter();
+			Path outputPath = opts.outputDir.toPath().resolve(clipInfo.getClipName() + ".clpi");
+			writer.write(clipInfo, outputPath);
+			System.out.println("Wrote CLPI → " + outputPath);
+		}
+
+	}
+
 }

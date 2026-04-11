@@ -14,8 +14,11 @@ import java.util.List;
 @Setter
 @ToString
 public class IgsWindowDefinition {
-    /** PTS from the PES header (90 kHz ticks). */
-    private long pts;
-    /** Windows defined in this segment. */
-    private List<IgsWindow> windows = new ArrayList<>();
+
+	/** PTS from the PES header (90 kHz ticks). */
+	private long pts;
+
+	/** Windows defined in this segment. */
+	private List<IgsWindow> windows = new ArrayList<>();
+
 }

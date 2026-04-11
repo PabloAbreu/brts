@@ -5,9 +5,10 @@ package org.brts.middle.scan;
  */
 public enum DiscContentType {
 
-    /** A single feature film (possibly with alternate / director's cuts). */
-    MOVIE,
+	/** A single feature film (possibly with alternate / director's cuts). */
+	MOVIE,
 
-    /** A collection of TV-series episodes of roughly similar duration. */
-    TV_SERIES
+	/** A collection of TV-series episodes of roughly similar duration. */
+	TV_SERIES
+
 }

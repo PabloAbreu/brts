@@ -1,27 +1,26 @@
 package org.brts.middle.orchestration;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.brts.common.json.JsonMapperFactory;
-import org.brts.lowlevel.descriptor.ClipDescriptor;
-import org.brts.lowlevel.descriptor.PlaylistDescriptor;
-import org.brts.middle.api.SimpleTitleBuilder;
-import org.brts.middle.descriptor.DiscDescriptor;
-import org.brts.middle.descriptor.TitleDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.json.JsonMapperFactory;
+import org.brts.middle.api.SimpleTitleBuilder;
+import org.brts.middle.descriptor.DiscDescriptor;
+import org.brts.middle.descriptor.TitleDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
- * Middle-level orchestrator: processes a {@link DiscDescriptor}, builds low-level descriptors
- * for each title, and writes them to an output directory along with an orchestration script.
+ * Middle-level orchestrator: processes a {@link DiscDescriptor}, builds low-level
+ * descriptors for each title, and writes them to an output directory along with an
+ * orchestration script.
  * <p>
- * Output structure:
- * <pre>
+ * Output structure: <pre>
  * &lt;outputDir&gt;/
  *   descriptors/
  *     00001.clip-descriptor.json
@@ -32,65 +31,67 @@ import java.util.List;
  */
 public class MiddleLevelOrchestrator {
 
-    private static final Logger log = LoggerFactory.getLogger(MiddleLevelOrchestrator.class);
+	private static final Logger log = LoggerFactory.getLogger(MiddleLevelOrchestrator.class);
 
-    private final SimpleTitleBuilder titleBuilder;
-    private final ObjectMapper mapper = JsonMapperFactory.get();
+	private final SimpleTitleBuilder titleBuilder;
 
-    public MiddleLevelOrchestrator(SimpleTitleBuilder titleBuilder) {
-        this.titleBuilder = titleBuilder;
-    }
+	private final ObjectMapper mapper = JsonMapperFactory.get();
 
-    /**
-     * Processes the disc descriptor and writes low-level descriptors + orchestration script.
-     *
-     * @param disc      the middle-level disc description
-     * @param outputDir directory where descriptors and the script will be written
-     */
-    public void orchestrate(DiscDescriptor disc, Path outputDir) throws IOException {
-        Path descriptorsDir = outputDir.resolve("descriptors");
-        Files.createDirectories(descriptorsDir);
+	public MiddleLevelOrchestrator(SimpleTitleBuilder titleBuilder) {
+		this.titleBuilder = titleBuilder;
+	}
 
-        List<String> scriptLines = new ArrayList<>();
-        scriptLines.add("#!/usr/bin/env bash");
-        scriptLines.add("# Auto-generated middle-level orchestration script");
-        scriptLines.add("# Run each step in order to produce the low-level Blu-ray files");
-        scriptLines.add("set -euo pipefail");
-        scriptLines.add("");
-        scriptLines.add("BRT_CLI=\"java -jar brt-cli.jar\"");
-        scriptLines.add("");
+	/**
+	 * Processes the disc descriptor and writes low-level descriptors + orchestration
+	 * script.
+	 * @param disc the middle-level disc description
+	 * @param outputDir directory where descriptors and the script will be written
+	 */
+	public void orchestrate(DiscDescriptor disc, Path outputDir) throws IOException {
+		Path descriptorsDir = outputDir.resolve("descriptors");
+		Files.createDirectories(descriptorsDir);
 
-        for (TitleDescriptor title : disc.getTitles()) {
-            SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
+		List<String> scriptLines = new ArrayList<>();
+		scriptLines.add("#!/usr/bin/env bash");
+		scriptLines.add("# Auto-generated middle-level orchestration script");
+		scriptLines.add("# Run each step in order to produce the low-level Blu-ray files");
+		scriptLines.add("set -euo pipefail");
+		scriptLines.add("");
+		scriptLines.add("BRT_CLI=\"java -jar brt-cli.jar\"");
+		scriptLines.add("");
 
-            String clipName     = result.clipDescriptor().getClipName();
-            String clipFile     = clipName + ".clip-descriptor.json";
-            String playlistFile = clipName + ".playlist-descriptor.json";
+		for (TitleDescriptor title : disc.getTitles()) {
+			SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
 
-            // Write JSON descriptors
-            mapper.writeValue(descriptorsDir.resolve(clipFile).toFile(), result.clipDescriptor());
-            mapper.writeValue(descriptorsDir.resolve(playlistFile).toFile(), result.playlistDescriptor());
+			String clipName = result.clipDescriptor().getClipName();
+			String clipFile = clipName + ".clip-descriptor.json";
+			String playlistFile = clipName + ".playlist-descriptor.json";
 
-            log.info("Wrote descriptors for title {}", title.getTitleId());
+			// Write JSON descriptors
+			mapper.writeValue(descriptorsDir.resolve(clipFile).toFile(), result.clipDescriptor());
+			mapper.writeValue(descriptorsDir.resolve(playlistFile).toFile(), result.playlistDescriptor());
 
-            // Emit script lines
-            scriptLines.add("# Title " + title.getTitleId() + " — " + title.getSourceMkv());
-            scriptLines.add("$BRT_CLI low clip-write --descriptor descriptors/" + clipFile);
-            scriptLines.add("$BRT_CLI low playlist-write --descriptor descriptors/" + playlistFile);
-            scriptLines.add("");
-        }
+			log.info("Wrote descriptors for title {}", title.getTitleId());
 
-        // Emit index/movie-object generation step (placeholders)
-        scriptLines.add("# Generate BDMV index and MovieObject");
-        scriptLines.add("$BRT_CLI low index-write --auto");
-        scriptLines.add("$BRT_CLI low movie-objects-write --auto");
-        scriptLines.add("");
-        scriptLines.add("echo \"Done. Check BDMV/ for output.\"");
+			// Emit script lines
+			scriptLines.add("# Title " + title.getTitleId() + " — " + title.getSourceMkv());
+			scriptLines.add("$BRT_CLI low clip-write --descriptor descriptors/" + clipFile);
+			scriptLines.add("$BRT_CLI low playlist-write --descriptor descriptors/" + playlistFile);
+			scriptLines.add("");
+		}
 
-        // Write orchestration script
-        Path scriptPath = outputDir.resolve("orchestrate.sh");
-        Files.writeString(scriptPath, String.join("\n", scriptLines) + "\n");
-        scriptPath.toFile().setExecutable(true);
-        log.info("Wrote orchestration script to {}", scriptPath);
-    }
+		// Emit index/movie-object generation step (placeholders)
+		scriptLines.add("# Generate BDMV index and MovieObject");
+		scriptLines.add("$BRT_CLI low index-write --auto");
+		scriptLines.add("$BRT_CLI low movie-objects-write --auto");
+		scriptLines.add("");
+		scriptLines.add("echo \"Done. Check BDMV/ for output.\"");
+
+		// Write orchestration script
+		Path scriptPath = outputDir.resolve("orchestrate.sh");
+		Files.writeString(scriptPath, String.join("\n", scriptLines) + "\n");
+		scriptPath.toFile().setExecutable(true);
+		log.info("Wrote orchestration script to {}", scriptPath);
+	}
+
 }

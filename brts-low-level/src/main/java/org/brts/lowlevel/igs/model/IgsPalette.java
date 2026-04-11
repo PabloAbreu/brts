@@ -14,12 +14,17 @@ import java.util.List;
 @Setter
 @ToString
 public class IgsPalette {
-    /** PTS from the PES header (90 kHz ticks). */
-    private long pts;
-    /** Palette id (8 bits). */
-    private int id;
-    /** Palette version number (8 bits). */
-    private int version;
-    /** The palette entries present in this segment. */
-    private List<PaletteEntry> entries = new ArrayList<>();
+
+	/** PTS from the PES header (90 kHz ticks). */
+	private long pts;
+
+	/** Palette id (8 bits). */
+	private int id;
+
+	/** Palette version number (8 bits). */
+	private int version;
+
+	/** The palette entries present in this segment. */
+	private List<PaletteEntry> entries = new ArrayList<>();
+
 }

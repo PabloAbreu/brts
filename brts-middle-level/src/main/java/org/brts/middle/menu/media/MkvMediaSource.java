@@ -1,12 +1,5 @@
 package org.brts.middle.menu.media;
 
-import org.brts.common.mkv.MkvDemuxer;
-import org.brts.common.mkv.MkvSourceMediaParser;
-import org.brts.common.mkv.SourceMediaInfo;
-import org.brts.common.model.StreamCodingType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,97 +7,103 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.brts.common.mkv.MkvDemuxer;
+import org.brts.common.mkv.MkvSourceMediaParser;
+import org.brts.common.mkv.SourceMediaInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
- * {@link MediaSource} implementation that extracts elementary streams from
- * an MKV (Matroska) container using the pure-Java {@link MkvDemuxer}.
+ * {@link MediaSource} implementation that extracts elementary streams from an MKV
+ * (Matroska) container using the pure-Java {@link MkvDemuxer}.
  * <p>
  * The extraction is done by:
  * <ol>
- *   <li>Parsing the MKV to discover track metadata</li>
- *   <li>Demuxing the selected video and audio tracks directly in-process</li>
+ * <li>Parsing the MKV to discover track metadata</li>
+ * <li>Demuxing the selected video and audio tracks directly in-process</li>
  * </ol>
  */
 public class MkvMediaSource implements MediaSource {
 
-    private static final Logger log = LoggerFactory.getLogger(MkvMediaSource.class);
+	private static final Logger log = LoggerFactory.getLogger(MkvMediaSource.class);
 
-    private final Path mkvFile;
-    private final Integer videoTrackNumber;
-    private final Integer audioTrackNumber;
+	private final Path mkvFile;
 
-    /**
-     * @param mkvFile          path to the MKV file
-     * @param videoTrackNumber optional: force a specific video track number (null = first video)
-     * @param audioTrackNumber optional: force a specific audio track number (null = first audio)
-     */
-    public MkvMediaSource(Path mkvFile, Integer videoTrackNumber, Integer audioTrackNumber) {
-        this.mkvFile = mkvFile;
-        this.videoTrackNumber = videoTrackNumber;
-        this.audioTrackNumber = audioTrackNumber;
-    }
+	private final Integer videoTrackNumber;
 
-    @Override
-    public ExtractionResult extract(Path workDir) throws IOException {
-        Files.createDirectories(workDir);
+	private final Integer audioTrackNumber;
 
-        // 1. Parse MKV metadata
-        MkvSourceMediaParser parser = new MkvSourceMediaParser();
-        SourceMediaInfo info = parser.parse(mkvFile);
+	/**
+	 * @param mkvFile path to the MKV file
+	 * @param videoTrackNumber optional: force a specific video track number (null = first
+	 * video)
+	 * @param audioTrackNumber optional: force a specific audio track number (null = first
+	 * audio)
+	 */
+	public MkvMediaSource(Path mkvFile, Integer videoTrackNumber, Integer audioTrackNumber) {
+		this.mkvFile = mkvFile;
+		this.videoTrackNumber = videoTrackNumber;
+		this.audioTrackNumber = audioTrackNumber;
+	}
 
-        // 2. Find video and audio tracks
-        SourceMediaInfo.SourceTrack videoTrack = null;
-        SourceMediaInfo.SourceTrack audioTrack = null;
+	@Override
+	public ExtractionResult extract(Path workDir) throws IOException {
+		Files.createDirectories(workDir);
 
-        for (SourceMediaInfo.SourceTrack track : info.getTracks()) {
-            if (track.getCodingType() == null) continue;
+		// 1. Parse MKV metadata
+		MkvSourceMediaParser parser = new MkvSourceMediaParser();
+		SourceMediaInfo info = parser.parse(mkvFile);
 
-            if (track.getCodingType().isVideo() && videoTrack == null) {
-                if (videoTrackNumber == null || track.getTrackNumber() == videoTrackNumber) {
-                    videoTrack = track;
-                }
-            }
-            if (track.getCodingType().isAudio() && audioTrack == null) {
-                if (audioTrackNumber == null || track.getTrackNumber() == audioTrackNumber) {
-                    audioTrack = track;
-                }
-            }
-        }
+		// 2. Find video and audio tracks
+		SourceMediaInfo.SourceTrack videoTrack = null;
+		SourceMediaInfo.SourceTrack audioTrack = null;
 
-        if (videoTrack == null) {
-            throw new IOException("No video track found in " + mkvFile);
-        }
+		for (SourceMediaInfo.SourceTrack track : info.getTracks()) {
+			if (track.getCodingType() == null)
+				continue;
 
-        // 3. Demux the selected tracks using pure-Java MkvDemuxer
-        Set<Integer> trackFilter = new LinkedHashSet<>();
-        trackFilter.add(videoTrack.getTrackNumber());
-        if (audioTrack != null) {
-            trackFilter.add(audioTrack.getTrackNumber());
-        }
+			if (track.getCodingType().isVideo() && videoTrack == null) {
+				if (videoTrackNumber == null || track.getTrackNumber() == videoTrackNumber) {
+					videoTrack = track;
+				}
+			}
+			if (track.getCodingType().isAudio() && audioTrack == null) {
+				if (audioTrackNumber == null || track.getTrackNumber() == audioTrackNumber) {
+					audioTrack = track;
+				}
+			}
+		}
 
-        log.info("Demuxing ES from MKV: {} (tracks {})", mkvFile.getFileName(), trackFilter);
-        MkvDemuxer demuxer = new MkvDemuxer();
-        Map<Integer, Path> demuxed = demuxer.demux(mkvFile, workDir, trackFilter);
+		if (videoTrack == null) {
+			throw new IOException("No video track found in " + mkvFile);
+		}
 
-        Path videoEsFile = demuxed.get(videoTrack.getTrackNumber());
-        if (videoEsFile == null) {
-            throw new IOException("MkvDemuxer did not produce output for video track " + videoTrack.getTrackNumber());
-        }
-        Path audioEsFile = audioTrack != null ? demuxed.get(audioTrack.getTrackNumber()) : null;
+		// 3. Demux the selected tracks using pure-Java MkvDemuxer
+		Set<Integer> trackFilter = new LinkedHashSet<>();
+		trackFilter.add(videoTrack.getTrackNumber());
+		if (audioTrack != null) {
+			trackFilter.add(audioTrack.getTrackNumber());
+		}
 
-        log.info("ES extraction complete: video={}, audio={}",
-                videoEsFile.getFileName(),
-                audioEsFile != null ? audioEsFile.getFileName() : "none");
+		log.info("Demuxing ES from MKV: {} (tracks {})", mkvFile.getFileName(), trackFilter);
+		MkvDemuxer demuxer = new MkvDemuxer();
+		Map<Integer, Path> demuxed = demuxer.demux(mkvFile, workDir, trackFilter);
 
-        return new ExtractionResult(
-                videoEsFile,
-                audioEsFile,
-                videoTrack.getCodingType().getCodingTypeByte(),
-                audioTrack != null ? audioTrack.getCodingType().getCodingTypeByte() : 0,
-                videoTrack.getFrameRateFps(),
-                audioTrack != null ? audioTrack.getLanguage() : null,
-                audioTrack != null ? audioTrack.getSampleRateHz() : null,
-                audioTrack != null ? audioTrack.getBitrateKbps() : null,
-                audioTrack != null ? audioTrack.getChannels() : null
-        );
-    }
+		Path videoEsFile = demuxed.get(videoTrack.getTrackNumber());
+		if (videoEsFile == null) {
+			throw new IOException("MkvDemuxer did not produce output for video track " + videoTrack.getTrackNumber());
+		}
+		Path audioEsFile = audioTrack != null ? demuxed.get(audioTrack.getTrackNumber()) : null;
+
+		log.info("ES extraction complete: video={}, audio={}", videoEsFile.getFileName(),
+				audioEsFile != null ? audioEsFile.getFileName() : "none");
+
+		return new ExtractionResult(videoEsFile, audioEsFile, videoTrack.getCodingType().getCodingTypeByte(),
+				audioTrack != null ? audioTrack.getCodingType().getCodingTypeByte() : 0, videoTrack.getFrameRateFps(),
+				audioTrack != null ? audioTrack.getLanguage() : null,
+				audioTrack != null ? audioTrack.getSampleRateHz() : null,
+				audioTrack != null ? audioTrack.getBitrateKbps() : null,
+				audioTrack != null ? audioTrack.getChannels() : null);
+	}
+
 }

@@ -10,9 +10,9 @@ import java.util.List;
  * <p>
  * Specifies:
  * <ul>
- *   <li>The title to play at first-play (usually a menu or first movie)</li>
- *   <li>The top-menu title reference</li>
- *   <li>A table of all titles (each mapped to a MovieObject or BD-J object)</li>
+ * <li>The title to play at first-play (usually a menu or first movie)</li>
+ * <li>The top-menu title reference</li>
+ * <li>A table of all titles (each mapped to a MovieObject or BD-J object)</li>
  * </ul>
  * <p>
  * Supports both HDMV (MovieObject) and BD-J title entry types.
@@ -21,58 +21,72 @@ import java.util.List;
 @Setter
 public class IndexBdmv {
 
-    /** Disc version string (e.g. "0200", "0300"). */
-    private String version;
+	/** Disc version string (e.g. "0200", "0300"). */
+	private String version;
 
-    /** Disc application type (lower nibble of flags byte; 1 = Blu-ray disc). */
-    private int discApplicationType = 1;
+	/** Disc application type (lower nibble of flags byte; 1 = Blu-ray disc). */
+	private int discApplicationType = 1;
 
-    /** Content provider name (32-byte null-padded string from AppInfoBDMV). May be blank. */
-    private String contentProviderName;
+	/**
+	 * Content provider name (32-byte null-padded string from AppInfoBDMV). May be blank.
+	 */
+	private String contentProviderName;
 
-    /** First-play title. */
-    private TitleEntry firstPlayTitle;
+	/** First-play title. */
+	private TitleEntry firstPlayTitle;
 
-    /** Top-menu title. Null if no top menu is defined. */
-    private TitleEntry topMenuTitle;
+	/** Top-menu title. Null if no top menu is defined. */
+	private TitleEntry topMenuTitle;
 
-    /** All user-accessible titles (index 0 = title 1, etc.). */
-    private List<TitleEntry> titles;
+	/** All user-accessible titles (index 0 = title 1, etc.). */
+	private List<TitleEntry> titles;
 
-    /**
-     * Reference to a MovieObject (HDMV) or BD-J object.
-     * <p>
-     * In the binary format, the object type and access type are packed into the first byte:
-     * bits 7-6 = object_type (1=HDMV, 2=BD-J), bits 5-4 = access_type.
-     * HDMV entries carry a 16-bit {@link #hdmvObjectId}; BD-J entries carry a 5-character
-     * {@link #bdjObjectName} referencing a {@code .bdjo} file.
-     */
-    @Getter
-    @Setter
-    public static class TitleEntry {
+	/**
+	 * Reference to a MovieObject (HDMV) or BD-J object.
+	 * <p>
+	 * In the binary format, the object type and access type are packed into the first
+	 * byte: bits 7-6 = object_type (1=HDMV, 2=BD-J), bits 5-4 = access_type. HDMV entries
+	 * carry a 16-bit {@link #hdmvObjectId}; BD-J entries carry a 5-character
+	 * {@link #bdjObjectName} referencing a {@code .bdjo} file.
+	 */
+	@Getter
+	@Setter
+	public static class TitleEntry {
 
-        /** Object type in the binary format: 1 = HDMV (MovieObject), 2 = BD-J. */
-        private int objectType = 1;
+		/** Object type in the binary format: 1 = HDMV (MovieObject), 2 = BD-J. */
+		private int objectType = 1;
 
-        /**
-         * Access type: 0 = prohibited, 2 = permitted (title button accessible).
-         * Packed into bits 5-4 of the first entry byte.
-         */
-        private int accessType = 0;
+		/**
+		 * Access type: 0 = prohibited, 2 = permitted (title button accessible). Packed
+		 * into bits 5-4 of the first entry byte.
+		 */
+		private int accessType = 0;
 
-        /** Index into {@code MovieObject.bdmv} object table (zero-based). Only used when objectType == 1 (HDMV). */
-        private int hdmvObjectId;
+		/**
+		 * Index into {@code MovieObject.bdmv} object table (zero-based). Only used when
+		 * objectType == 1 (HDMV).
+		 */
+		private int hdmvObjectId;
 
-        /** BD-J object name (5-character ASCII, references a {@code .bdjo} file). Only used when objectType == 2 (BD-J). */
-        private String bdjObjectName;
+		/**
+		 * BD-J object name (5-character ASCII, references a {@code .bdjo} file). Only
+		 * used when objectType == 2 (BD-J).
+		 */
+		private String bdjObjectName;
 
-        /** Raw value of the secondary flags byte (byte 4 of the 12-byte entry). */
-        private int playbackType;
+		/** Raw value of the secondary flags byte (byte 4 of the 12-byte entry). */
+		private int playbackType;
 
-        /** Returns {@code true} if this entry refers to a BD-J application. */
-        public boolean isBdj() { return objectType == 2; }
+		/** Returns {@code true} if this entry refers to a BD-J application. */
+		public boolean isBdj() {
+			return objectType == 2;
+		}
 
-        /** Returns {@code true} if this entry refers to an HDMV MovieObject. */
-        public boolean isHdmv() { return objectType == 1; }
-    }
+		/** Returns {@code true} if this entry refers to an HDMV MovieObject. */
+		public boolean isHdmv() {
+			return objectType == 1;
+		}
+
+	}
+
 }

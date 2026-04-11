@@ -14,69 +14,73 @@ import java.util.List;
  */
 public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 
-    private static final String MAGIC   = "MOBJ";
-    private static final String VERSION = "0300";
+	private static final String MAGIC = "MOBJ";
 
-    @Override
-    public void write(MovieObjects model, OutputStream output) throws IOException {
-        byte[] objSection = buildObjectsSection(model);
+	private static final String VERSION = "0300";
 
-        // Header: 4 + 4 + 2×4 + 24 reserved = 40 bytes
-        int headerSize     = 40;
-        int objectsOffset  = headerSize;
-        int extensionOffset = 0;
+	@Override
+	public void write(MovieObjects model, OutputStream output) throws IOException {
+		byte[] objSection = buildObjectsSection(model);
 
-        BinaryWriter w = new BinaryWriter(output);
-        w.writeAscii(MAGIC);
-        w.writeAscii(VERSION);
-        w.writeInt(objectsOffset);
-        w.writeInt(extensionOffset);
-        w.writePadding(24);
+		// Header: 4 + 4 + 2×4 + 24 reserved = 40 bytes
+		int headerSize = 40;
+		int objectsOffset = headerSize;
+		int extensionOffset = 0;
 
-        w.writeBytes(objSection);
-    }
+		BinaryWriter w = new BinaryWriter(output);
+		w.writeAscii(MAGIC);
+		w.writeAscii(VERSION);
+		w.writeInt(objectsOffset);
+		w.writeInt(extensionOffset);
+		w.writePadding(24);
 
-    private byte[] buildObjectsSection(MovieObjects model) throws IOException {
-        List<MovieObjects.MovieObject> objects = model.getMovieObjects() != null
-                ? model.getMovieObjects() : List.of();
+		w.writeBytes(objSection);
+	}
 
-        ByteArrayOutputStream inner = new ByteArrayOutputStream();
-        org.brts.common.io.BinaryWriter wi = new org.brts.common.io.BinaryWriter(inner);
+	private byte[] buildObjectsSection(MovieObjects model) throws IOException {
+		List<MovieObjects.MovieObject> objects = model.getMovieObjects() != null ? model.getMovieObjects() : List.of();
 
-        wi.writePadding(4); // reserved
-        wi.writeShort(objects.size());
+		ByteArrayOutputStream inner = new ByteArrayOutputStream();
+		org.brts.common.io.BinaryWriter wi = new org.brts.common.io.BinaryWriter(inner);
 
-        for (MovieObjects.MovieObject obj : objects) {
-            List<MovieObjects.NavigationCommand> cmds =
-                    obj.getNavigationCommands() != null ? obj.getNavigationCommands() : List.of();
+		wi.writePadding(4); // reserved
+		wi.writeShort(objects.size());
 
-            // flags byte
-            int flags = 0;
-            if (obj.isResumeIntentionFlag()) flags |= 0x80;
-            if (obj.isMenuCallMask())        flags |= 0x40;
-            if (obj.isTitleSearchMask())     flags |= 0x20;
-            wi.writeByte(flags);
-            wi.writePadding(1); // reserved
-            wi.writeShort(cmds.size()); // number_of_navigation_commands
+		for (MovieObjects.MovieObject obj : objects) {
+			List<MovieObjects.NavigationCommand> cmds = obj.getNavigationCommands() != null
+					? obj.getNavigationCommands() : List.of();
 
-            for (MovieObjects.NavigationCommand cmd : cmds) {
-                // Each command is 12 bytes: 4 opcode + 4 dst operand + 4 src operand
-                if (cmd.getRawOpcode() >= 0) {
-                    wi.writeInt(cmd.getRawOpcode());
-                } else {
-                    throw new IllegalStateException(
-                            "rawOpcode must be set on NavigationCommand before writing. "
-                            + "Use NavigationCommandCompiler.compile() with explicit immediate flags.");
-                }
-                wi.writeInt(cmd.getOperand1());
-                wi.writeInt(cmd.getOperand2());
-            }
-        }
+			// flags byte
+			int flags = 0;
+			if (obj.isResumeIntentionFlag())
+				flags |= 0x80;
+			if (obj.isMenuCallMask())
+				flags |= 0x40;
+			if (obj.isTitleSearchMask())
+				flags |= 0x20;
+			wi.writeByte(flags);
+			wi.writePadding(1); // reserved
+			wi.writeShort(cmds.size()); // number_of_navigation_commands
 
-        ByteArrayOutputStream buf = new ByteArrayOutputStream();
-        BinaryWriter w = new BinaryWriter(buf);
-        w.writeInt(inner.size());
-        w.writeBytes(inner.toByteArray());
-        return buf.toByteArray();
-    }
+			for (MovieObjects.NavigationCommand cmd : cmds) {
+				// Each command is 12 bytes: 4 opcode + 4 dst operand + 4 src operand
+				if (cmd.getRawOpcode() >= 0) {
+					wi.writeInt(cmd.getRawOpcode());
+				}
+				else {
+					throw new IllegalStateException("rawOpcode must be set on NavigationCommand before writing. "
+							+ "Use NavigationCommandCompiler.compile() with explicit immediate flags.");
+				}
+				wi.writeInt(cmd.getOperand1());
+				wi.writeInt(cmd.getOperand2());
+			}
+		}
+
+		ByteArrayOutputStream buf = new ByteArrayOutputStream();
+		BinaryWriter w = new BinaryWriter(buf);
+		w.writeInt(inner.size());
+		w.writeBytes(inner.toByteArray());
+		return buf.toByteArray();
+	}
+
 }

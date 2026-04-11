@@ -5,11 +5,12 @@ package org.brts.common.exception;
  */
 public class WriteException extends BrtException {
 
-    public WriteException(String message) {
-        super(message);
-    }
+	public WriteException(String message) {
+		super(message);
+	}
 
-    public WriteException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public WriteException(String message, Throwable cause) {
+		super(message, cause);
+	}
+
 }

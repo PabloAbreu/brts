@@ -9,8 +9,7 @@ import java.util.List;
 /**
  * JSON descriptor for generating an MPLS (playlist) file.
  * <p>
- * Example {@code 00001.playlist-descriptor.json}:
- * <pre>{@code
+ * Example {@code 00001.playlist-descriptor.json}: <pre>{@code
  * {
  *   "playlistName": "00001",
  *   "playItems": [
@@ -32,41 +31,43 @@ import java.util.List;
 @Setter
 public class PlaylistDescriptor {
 
-    private String playlistName;
+	private String playlistName;
 
-    @JsonProperty("isMenu")
-    private boolean isMenu = false;
+	@JsonProperty("isMenu")
+	private boolean isMenu = false;
 
-    private List<PlayItemDescriptor> playItems;
+	private List<PlayItemDescriptor> playItems;
 
-    private List<ChapterDescriptor> chapters;
+	private List<ChapterDescriptor> chapters;
 
-    // -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
 
-    @Getter
-    @Setter
-    public static class PlayItemDescriptor {
+	@Getter
+	@Setter
+	public static class PlayItemDescriptor {
 
-        private String clipName;
+		private String clipName;
 
-        private long inTimeTicks;
+		private long inTimeTicks;
 
-        private long outTimeTicks;
+		private long outTimeTicks;
 
-        /** PIDs of elementary streams to include in the STN (stream number table). */
-        private List<Integer> streamPids;
-    }
+		/** PIDs of elementary streams to include in the STN (stream number table). */
+		private List<Integer> streamPids;
 
-    // -------------------------------------------------------------------------
+	}
 
-    @Getter
-    @Setter
-    public static class ChapterDescriptor {
+	// -------------------------------------------------------------------------
 
-        private int playItemRef;
+	@Getter
+	@Setter
+	public static class ChapterDescriptor {
 
-        /** Chapter mark time in 90 kHz ticks. */
-        private long markTimeTicks;
-    }
+		private int playItemRef;
+
+		/** Chapter mark time in 90 kHz ticks. */
+		private long markTimeTicks;
+
+	}
+
 }
-

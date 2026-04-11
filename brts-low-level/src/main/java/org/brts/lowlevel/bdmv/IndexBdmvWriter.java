@@ -14,18 +14,17 @@ import java.util.List;
 /**
  * Writer for {@code BDMV/index.bdmv}.
  * <p>
- * The version written is taken from {@link IndexBdmv#getVersion()}; if {@code null} or blank,
- * {@code "0300"} is used as a safe default (broadest BD-ROM compatibility).
+ * The version written is taken from {@link IndexBdmv#getVersion()}; if {@code null} or
+ * blank, {@code "0300"} is used as a safe default (broadest BD-ROM compatibility).
  * <p>
  * Version-specific constraints enforced at write time:
  * <ul>
- *   <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are not supported
- *       and will cause a {@link WriteException}.</li>
- *   <li>{@code "0200"} / {@code "0300"} — both HDMV and BD-J entries are accepted.</li>
+ * <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are not
+ * supported and will cause a {@link WriteException}.</li>
+ * <li>{@code "0200"} / {@code "0300"} — both HDMV and BD-J entries are accepted.</li>
  * </ul>
  * <p>
- * Binary layout written (big-endian throughout):
- * <pre>
+ * Binary layout written (big-endian throughout): <pre>
  * Header (40 bytes):
  *   magic                     : 4 bytes  ("INDX")
  *   version                   : 4 bytes  (from model, e.g. "0300")
@@ -59,167 +58,172 @@ import java.util.List;
  */
 public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 
-    private static final String MAGIC           = "INDX";
-    private static final String DEFAULT_VERSION = "0300";
+	private static final String MAGIC = "INDX";
 
-    /** Versions that support BD-J title entries. */
-    private static final java.util.Set<String> BDJ_CAPABLE_VERSIONS =
-            java.util.Set.of("0200", "0300");
+	private static final String DEFAULT_VERSION = "0300";
 
-    /** Fixed offset of the IndexTable section (header + AppInfoBDMV = 40 + 38 = 78). */
-    private static final int INDEX_TABLE_ADDR = 0x4e;
+	/** Versions that support BD-J title entries. */
+	private static final java.util.Set<String> BDJ_CAPABLE_VERSIONS = java.util.Set.of("0200", "0300");
 
-    /** Fixed body length of the AppInfoBDMV section. */
-    private static final int APP_INFO_BODY_LEN = 34;
+	/** Fixed offset of the IndexTable section (header + AppInfoBDMV = 40 + 38 = 78). */
+	private static final int INDEX_TABLE_ADDR = 0x4e;
 
-    /** Fixed length of a content_provider_name field. */
-    private static final int PROVIDER_NAME_LEN = 32;
+	/** Fixed body length of the AppInfoBDMV section. */
+	private static final int APP_INFO_BODY_LEN = 34;
 
-    /** Number of bytes in each title entry. */
-    private static final int ENTRY_SIZE = 12;
+	/** Fixed length of a content_provider_name field. */
+	private static final int PROVIDER_NAME_LEN = 32;
 
-    @Override
-    public void write(IndexBdmv model, OutputStream output) throws IOException {
-        String version = resolveVersion(model);
-        validate(model, version);
+	/** Number of bytes in each title entry. */
+	private static final int ENTRY_SIZE = 12;
 
-        byte[] appInfo    = buildAppInfoSection(model);
-        byte[] indexTable = buildIndexTableSection(model);
+	@Override
+	public void write(IndexBdmv model, OutputStream output) throws IOException {
+		String version = resolveVersion(model);
+		validate(model, version);
 
-        // BinaryWriter wraps the caller's OutputStream — do not close it here.
-        @SuppressWarnings("resource")
-        BinaryWriter w = new BinaryWriter(output);
+		byte[] appInfo = buildAppInfoSection(model);
+		byte[] indexTable = buildIndexTableSection(model);
 
-        // ---- Header (40 bytes) ----
-        w.writeAscii(MAGIC);
-        w.writeAscii(version);
-        w.writeInt(INDEX_TABLE_ADDR);
-        w.writeInt(0);       // ExtensionDataStartAddress = 0 (no extension)
-        w.writePadding(24);  // reserved
+		// BinaryWriter wraps the caller's OutputStream — do not close it here.
+		@SuppressWarnings("resource")
+		BinaryWriter w = new BinaryWriter(output);
 
-        // ---- AppInfoBDMV section (38 bytes) ----
-        w.writeBytes(appInfo);
+		// ---- Header (40 bytes) ----
+		w.writeAscii(MAGIC);
+		w.writeAscii(version);
+		w.writeInt(INDEX_TABLE_ADDR);
+		w.writeInt(0); // ExtensionDataStartAddress = 0 (no extension)
+		w.writePadding(24); // reserved
 
-        // ---- IndexTable section ----
-        w.writeBytes(indexTable);
-    }
+		// ---- AppInfoBDMV section (38 bytes) ----
+		w.writeBytes(appInfo);
 
-    // -------------------------------------------------------------------------
-    // Internal helpers
-    // -------------------------------------------------------------------------
+		// ---- IndexTable section ----
+		w.writeBytes(indexTable);
+	}
 
-    private String resolveVersion(IndexBdmv model) {
-        String v = model.getVersion();
-        return (v != null && !v.isBlank()) ? v : DEFAULT_VERSION;
-    }
+	// -------------------------------------------------------------------------
+	// Internal helpers
+	// -------------------------------------------------------------------------
 
-    /**
-     * Validates that the model is compatible with the target version.
-     * Throws {@link WriteException} if an incompatible combination is found.
-     */
-    private void validate(IndexBdmv model, String version) throws IOException {
-        if (BDJ_CAPABLE_VERSIONS.contains(version)) {
-            return; // all entry types allowed
-        }
-        // For version "0100" (AVCHD) and any unknown/future version, BD-J is not supported.
-        List<IndexBdmv.TitleEntry> all = new java.util.ArrayList<>();
-        if (model.getFirstPlayTitle() != null) all.add(model.getFirstPlayTitle());
-        if (model.getTopMenuTitle()   != null) all.add(model.getTopMenuTitle());
-        if (model.getTitles()         != null) all.addAll(model.getTitles());
+	private String resolveVersion(IndexBdmv model) {
+		String v = model.getVersion();
+		return (v != null && !v.isBlank()) ? v : DEFAULT_VERSION;
+	}
 
-        for (IndexBdmv.TitleEntry entry : all) {
-            if (entry.isBdj()) {
-                throw new WriteException(
-                        "Version '" + version + "' does not support BD-J title entries " +
-                        "(objectType=2, bdjObjectName='" + entry.getBdjObjectName() + "'). " +
-                        "Use version '0200' or '0300' for BD-J discs.");
-            }
-        }
-    }
+	/**
+	 * Validates that the model is compatible with the target version. Throws
+	 * {@link WriteException} if an incompatible combination is found.
+	 */
+	private void validate(IndexBdmv model, String version) throws IOException {
+		if (BDJ_CAPABLE_VERSIONS.contains(version)) {
+			return; // all entry types allowed
+		}
+		// For version "0100" (AVCHD) and any unknown/future version, BD-J is not
+		// supported.
+		List<IndexBdmv.TitleEntry> all = new java.util.ArrayList<>();
+		if (model.getFirstPlayTitle() != null)
+			all.add(model.getFirstPlayTitle());
+		if (model.getTopMenuTitle() != null)
+			all.add(model.getTopMenuTitle());
+		if (model.getTitles() != null)
+			all.addAll(model.getTitles());
 
-    /**
-     * Builds the 38-byte AppInfoBDMV section:
-     * section_length(4) + reserved(1) + flags(1) + content_provider_name(32).
-     */
-    private byte[] buildAppInfoSection(IndexBdmv model) throws IOException {
-        ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + APP_INFO_BODY_LEN);
-        try (BinaryWriter w = new BinaryWriter(buf)) {
+		for (IndexBdmv.TitleEntry entry : all) {
+			if (entry.isBdj()) {
+				throw new WriteException("Version '" + version + "' does not support BD-J title entries "
+						+ "(objectType=2, bdjObjectName='" + entry.getBdjObjectName() + "'). "
+						+ "Use version '0200' or '0300' for BD-J discs.");
+			}
+		}
+	}
 
-        w.writeInt(APP_INFO_BODY_LEN);   // section_length = 34
-        w.writePadding(1);               // reserved
-        w.writeByte(0);                  // flags (initial_output_mode=0, content_exist=0)
+	/**
+	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) + flags(1)
+	 * + content_provider_name(32).
+	 */
+	private byte[] buildAppInfoSection(IndexBdmv model) throws IOException {
+		ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + APP_INFO_BODY_LEN);
+		try (BinaryWriter w = new BinaryWriter(buf)) {
 
-        // content_provider_name: up to 32 ASCII bytes, null-padded
-        String name = model.getContentProviderName();
-        byte[] nameBytes = (name != null) ? name.getBytes(StandardCharsets.US_ASCII) : new byte[0];
-        int writeLen = Math.min(nameBytes.length, PROVIDER_NAME_LEN);
-        for (int i = 0; i < writeLen; i++) w.writeByte(nameBytes[i] & 0xFF);
-        w.writePadding(PROVIDER_NAME_LEN - writeLen);
+			w.writeInt(APP_INFO_BODY_LEN); // section_length = 34
+			w.writePadding(1); // reserved
+			w.writeByte(0); // flags (initial_output_mode=0, content_exist=0)
 
-        } // end try
-        return buf.toByteArray();
-    }
+			// content_provider_name: up to 32 ASCII bytes, null-padded
+			String name = model.getContentProviderName();
+			byte[] nameBytes = (name != null) ? name.getBytes(StandardCharsets.US_ASCII) : new byte[0];
+			int writeLen = Math.min(nameBytes.length, PROVIDER_NAME_LEN);
+			for (int i = 0; i < writeLen; i++)
+				w.writeByte(nameBytes[i] & 0xFF);
+			w.writePadding(PROVIDER_NAME_LEN - writeLen);
 
-    /**
-     * Builds the IndexTable section (4-byte length prefix + body).
-     */
-    private byte[] buildIndexTableSection(IndexBdmv model) throws IOException {
-        ByteArrayOutputStream inner = new ByteArrayOutputStream();
-        try (BinaryWriter wi = new BinaryWriter(inner)) {
+		} // end try
+		return buf.toByteArray();
+	}
 
-        writeTitleEntry(wi, model.getFirstPlayTitle());
-        writeTitleEntry(wi, model.getTopMenuTitle());
+	/**
+	 * Builds the IndexTable section (4-byte length prefix + body).
+	 */
+	private byte[] buildIndexTableSection(IndexBdmv model) throws IOException {
+		ByteArrayOutputStream inner = new ByteArrayOutputStream();
+		try (BinaryWriter wi = new BinaryWriter(inner)) {
 
-        List<IndexBdmv.TitleEntry> titles = model.getTitles() != null ? model.getTitles() : List.of();
-        wi.writeShort(titles.size());
-        for (IndexBdmv.TitleEntry t : titles) {
-            writeTitleEntry(wi, t);
-        }
+			writeTitleEntry(wi, model.getFirstPlayTitle());
+			writeTitleEntry(wi, model.getTopMenuTitle());
 
-        } // end try
+			List<IndexBdmv.TitleEntry> titles = model.getTitles() != null ? model.getTitles() : List.of();
+			wi.writeShort(titles.size());
+			for (IndexBdmv.TitleEntry t : titles) {
+				writeTitleEntry(wi, t);
+			}
 
-        ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + inner.size());
-        try (BinaryWriter w = new BinaryWriter(buf)) {
-        w.writeInt(inner.size());
-        w.writeBytes(inner.toByteArray());
-        } // end try
-        return buf.toByteArray();
-    }
+		} // end try
 
-    /**
-     * Writes a single 12-byte title entry.
-     * A {@code null} entry is written as 12 zero bytes (reserved / no-object slot).
-     */
-    private void writeTitleEntry(BinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
-        if (entry == null) {
-            w.writePadding(ENTRY_SIZE);
-            return;
-        }
+		ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + inner.size());
+		try (BinaryWriter w = new BinaryWriter(buf)) {
+			w.writeInt(inner.size());
+			w.writeBytes(inner.toByteArray());
+		} // end try
+		return buf.toByteArray();
+	}
 
-        // byte 0: object_type(2 bits:7-6) | access_type(2 bits:5-4) | reserved(4)
-        int flagByte = ((entry.getObjectType() & 0x03) << 6)
-                     | ((entry.getAccessType() & 0x03) << 4);
-        w.writeByte(flagByte);
-        w.writePadding(3);  // bytes 1-3 reserved
+	/**
+	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12 zero
+	 * bytes (reserved / no-object slot).
+	 */
+	private void writeTitleEntry(BinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
+		if (entry == null) {
+			w.writePadding(ENTRY_SIZE);
+			return;
+		}
 
-        // byte 4: playback_type(2 bits:7-6) | reserved(6)
-        w.writeByte((entry.getPlaybackType() & 0x03) << 6);
-        w.writePadding(1);  // byte 5 reserved
+		// byte 0: object_type(2 bits:7-6) | access_type(2 bits:5-4) | reserved(4)
+		int flagByte = ((entry.getObjectType() & 0x03) << 6) | ((entry.getAccessType() & 0x03) << 4);
+		w.writeByte(flagByte);
+		w.writePadding(3); // bytes 1-3 reserved
 
-        // bytes 6-10: type-specific payload (5 bytes)
-        if (entry.isBdj()) {
-            // 5-char BD-J object name, space-padded on the right if shorter
-            String name = entry.getBdjObjectName() != null ? entry.getBdjObjectName() : "";
-            byte[] nameBytes = name.getBytes(StandardCharsets.US_ASCII);
-            for (int i = 0; i < 5; i++) {
-                w.writeByte(i < nameBytes.length ? nameBytes[i] & 0xFF : ' ');
-            }
-        } else {
-            // HDMV: hdmv_object_id (2 bytes big-endian) + 3 reserved bytes
-            w.writeShort(entry.getHdmvObjectId());
-            w.writePadding(3);
-        }
+		// byte 4: playback_type(2 bits:7-6) | reserved(6)
+		w.writeByte((entry.getPlaybackType() & 0x03) << 6);
+		w.writePadding(1); // byte 5 reserved
 
-        w.writePadding(1);  // byte 11 reserved
-    }
+		// bytes 6-10: type-specific payload (5 bytes)
+		if (entry.isBdj()) {
+			// 5-char BD-J object name, space-padded on the right if shorter
+			String name = entry.getBdjObjectName() != null ? entry.getBdjObjectName() : "";
+			byte[] nameBytes = name.getBytes(StandardCharsets.US_ASCII);
+			for (int i = 0; i < 5; i++) {
+				w.writeByte(i < nameBytes.length ? nameBytes[i] & 0xFF : ' ');
+			}
+		}
+		else {
+			// HDMV: hdmv_object_id (2 bytes big-endian) + 3 reserved bytes
+			w.writeShort(entry.getHdmvObjectId());
+			w.writePadding(3);
+		}
+
+		w.writePadding(1); // byte 11 reserved
+	}
+
 }

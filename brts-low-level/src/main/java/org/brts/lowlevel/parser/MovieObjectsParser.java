@@ -13,12 +13,10 @@ import java.util.List;
 /**
  * Parser for {@code BDMV/MovieObject.bdmv}.
  * <p>
- * Reads the binary format produced by
- * {@link org.brts.lowlevel.bdmv.MovieObjectsWriter MovieObjectsWriter} and
- * returns a populated {@link MovieObjects} model.
+ * Reads the binary format produced by {@link org.brts.lowlevel.bdmv.MovieObjectsWriter
+ * MovieObjectsWriter} and returns a populated {@link MovieObjects} model.
  * <p>
- * Binary layout (all integers big-endian):
- * <pre>
+ * Binary layout (all integers big-endian): <pre>
  * File header (40 bytes):
  *   magic                       : 4 bytes  ("MOBJ")
  *   version                     : 4 bytes  ("0200" or "0300")
@@ -42,86 +40,89 @@ import java.util.List;
  */
 public class MovieObjectsParser implements BinaryParser<MovieObjects> {
 
-    private static final String MAGIC       = "MOBJ";
-    private static final String VERSION_200 = "0200";
-    private static final String VERSION_300 = "0300";
+	private static final String MAGIC = "MOBJ";
 
-    @Override
-    public MovieObjects parse(InputStream input) throws IOException {
-        try (BinaryReader r = new BinaryReader(input)) {
-            return readMovieObjects(r);
-        }
-    }
+	private static final String VERSION_200 = "0200";
 
-    private MovieObjects readMovieObjects(BinaryReader r) throws IOException {
-        // ---- File header (40 bytes) ----
-        String magic = r.readAscii(4);
-        if (!MAGIC.equals(magic)) {
-            throw new ParseException(
-                    "Not a MovieObject.bdmv file: expected magic '" + MAGIC + "', got '" + magic + "'");
-        }
-        String version = r.readAscii(4);
-        if (!VERSION_200.equals(version) && !VERSION_300.equals(version)) {
-            throw new ParseException("Unsupported MovieObject.bdmv version: '" + version + "'");
-        }
+	private static final String VERSION_300 = "0300";
 
-        long objectsStartAddress    = r.readUnsignedInt();
-        long extensionStartAddress  = r.readUnsignedInt(); // may be 0
-        r.skip(24); // reserved — total header is 40 bytes
+	@Override
+	public MovieObjects parse(InputStream input) throws IOException {
+		try (BinaryReader r = new BinaryReader(input)) {
+			return readMovieObjects(r);
+		}
+	}
 
-        // ---- Seek to MovieObjects section ----
-        long pos = r.getPosition();
-        if (objectsStartAddress > pos) {
-            r.skip(objectsStartAddress - pos);
-        }
+	private MovieObjects readMovieObjects(BinaryReader r) throws IOException {
+		// ---- File header (40 bytes) ----
+		String magic = r.readAscii(4);
+		if (!MAGIC.equals(magic)) {
+			throw new ParseException(
+					"Not a MovieObject.bdmv file: expected magic '" + MAGIC + "', got '" + magic + "'");
+		}
+		String version = r.readAscii(4);
+		if (!VERSION_200.equals(version) && !VERSION_300.equals(version)) {
+			throw new ParseException("Unsupported MovieObject.bdmv version: '" + version + "'");
+		}
 
-        // ---- MovieObjects section ----
-        long sectionLength = r.readUnsignedInt(); // length of the body that follows
-        r.skip(4); // reserved
-        int numObjects = r.readUnsignedShort();
+		long objectsStartAddress = r.readUnsignedInt();
+		long extensionStartAddress = r.readUnsignedInt(); // may be 0
+		r.skip(24); // reserved — total header is 40 bytes
 
-        List<MovieObjects.MovieObject> objs = new ArrayList<>(numObjects);
-        for (int i = 0; i < numObjects; i++) {
-            objs.add(readObject(r));
-        }
+		// ---- Seek to MovieObjects section ----
+		long pos = r.getPosition();
+		if (objectsStartAddress > pos) {
+			r.skip(objectsStartAddress - pos);
+		}
 
-        MovieObjects mo = new MovieObjects();
-        mo.setMovieObjects(objs);
-        return mo;
-    }
+		// ---- MovieObjects section ----
+		long sectionLength = r.readUnsignedInt(); // length of the body that follows
+		r.skip(4); // reserved
+		int numObjects = r.readUnsignedShort();
 
-    /**
-     * Reads a single movie object: 1-byte flags, 1 byte reserved,
-     * 2-byte command count, then 12 bytes per command.
-     */
-    private MovieObjects.MovieObject readObject(BinaryReader r) throws IOException {
-        int flagsByte = r.readUnsignedByte();
-        r.skip(1); // reserved
+		List<MovieObjects.MovieObject> objs = new ArrayList<>(numObjects);
+		for (int i = 0; i < numObjects; i++) {
+			objs.add(readObject(r));
+		}
 
-        int numCommands = r.readUnsignedShort();
+		MovieObjects mo = new MovieObjects();
+		mo.setMovieObjects(objs);
+		return mo;
+	}
 
-        MovieObjects.MovieObject obj = new MovieObjects.MovieObject();
-        obj.setResumeIntentionFlag((flagsByte & 0x80) != 0);
-        obj.setMenuCallMask((flagsByte & 0x40) != 0);
-        obj.setTitleSearchMask((flagsByte & 0x20) != 0);
+	/**
+	 * Reads a single movie object: 1-byte flags, 1 byte reserved, 2-byte command count,
+	 * then 12 bytes per command.
+	 */
+	private MovieObjects.MovieObject readObject(BinaryReader r) throws IOException {
+		int flagsByte = r.readUnsignedByte();
+		r.skip(1); // reserved
 
-        List<MovieObjects.NavigationCommand> cmds = new ArrayList<>(numCommands);
-        for (int c = 0; c < numCommands; c++) {
-            cmds.add(readCommand(r));
-        }
-        obj.setNavigationCommands(cmds);
-        return obj;
-    }
+		int numCommands = r.readUnsignedShort();
 
-    /**
-     * Reads a single 12-byte navigation command (opcode + two operands).
-     */
-    private MovieObjects.NavigationCommand readCommand(BinaryReader r) throws IOException {
-        long opcode = r.readUnsignedInt();
-        long op1    = r.readUnsignedInt();
-        long op2    = r.readUnsignedInt();
+		MovieObjects.MovieObject obj = new MovieObjects.MovieObject();
+		obj.setResumeIntentionFlag((flagsByte & 0x80) != 0);
+		obj.setMenuCallMask((flagsByte & 0x40) != 0);
+		obj.setTitleSearchMask((flagsByte & 0x20) != 0);
 
-        ParsedNavigationCommand parsed = ParsedNavigationCommand.of(opcode, op1, op2);
-        return MovieObjects.NavigationCommand.fromParsed(parsed);
-    }
+		List<MovieObjects.NavigationCommand> cmds = new ArrayList<>(numCommands);
+		for (int c = 0; c < numCommands; c++) {
+			cmds.add(readCommand(r));
+		}
+		obj.setNavigationCommands(cmds);
+		return obj;
+	}
+
+	/**
+	 * Reads a single 12-byte navigation command (opcode + two operands).
+	 */
+	private MovieObjects.NavigationCommand readCommand(BinaryReader r) throws IOException {
+		long opcode = r.readUnsignedInt();
+		long op1 = r.readUnsignedInt();
+		long op2 = r.readUnsignedInt();
+
+		ParsedNavigationCommand parsed = ParsedNavigationCommand.of(opcode, op1, op2);
+		return MovieObjects.NavigationCommand.fromParsed(parsed);
+	}
+
 }

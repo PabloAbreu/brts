@@ -16,44 +16,60 @@ import java.io.File;
  */
 public class HighLevelCli {
 
-    static class BuildOptions {
-        @Option(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
-        File descriptor;
+	static class BuildOptions {
 
-        @Option(name = "--output", required = true, usage = "Output directory")
-        File outputDir;
-    }
+		@Option(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
+		File descriptor;
 
-    public static class Build extends FeatureRunner<BuildOptions> {
-        @Override public String getCommandName() { return "build"; }
-        @Override public String getDescription() { return "Build a Blu-ray disc from a high-level template descriptor"; }
-        @Override protected BuildOptions createOptions() { return new BuildOptions(); }
+		@Option(name = "--output", required = true, usage = "Output directory")
+		File outputDir;
 
-        @Override
-        protected void execute(BuildOptions opts) throws Exception {
-            HighLevelDiscDescriptor descriptor = loadJson(opts.descriptor, HighLevelDiscDescriptor.class);
+	}
 
-            SimpleTitleBuilder titleBuilder   = new SimpleTitleBuilder(new MkvSourceMediaParser());
-            MiddleLevelOrchestrator middleOrch = new MiddleLevelOrchestrator(titleBuilder);
-            HighLevelOrchestrator highOrch     = new HighLevelOrchestrator(middleOrch);
+	public static class Build extends FeatureRunner<BuildOptions> {
 
-            highOrch.orchestrate(descriptor, opts.outputDir.toPath());
-            System.out.println("High-level orchestration complete. Check " + opts.outputDir);
-        }
-    }
+		@Override
+		public String getCommandName() {
+			return "build";
+		}
 
-    private static final LevelDispatcher dispatcher;
+		@Override
+		public String getDescription() {
+			return "Build a Blu-ray disc from a high-level template descriptor";
+		}
 
-    static {
-        dispatcher = new LevelDispatcher("high");
-        dispatcher.register(new Build());
-    }
+		@Override
+		protected BuildOptions createOptions() {
+			return new BuildOptions();
+		}
 
-    public static LevelDispatcher getLevelDispatcher() {
-        return dispatcher;
-    }
+		@Override
+		protected void execute(BuildOptions opts) throws Exception {
+			HighLevelDiscDescriptor descriptor = loadJson(opts.descriptor, HighLevelDiscDescriptor.class);
 
-    public static void main(String[] args) throws Exception {
-        dispatcher.dispatch(args);
-    }
+			SimpleTitleBuilder titleBuilder = new SimpleTitleBuilder(new MkvSourceMediaParser());
+			MiddleLevelOrchestrator middleOrch = new MiddleLevelOrchestrator(titleBuilder);
+			HighLevelOrchestrator highOrch = new HighLevelOrchestrator(middleOrch);
+
+			highOrch.orchestrate(descriptor, opts.outputDir.toPath());
+			System.out.println("High-level orchestration complete. Check " + opts.outputDir);
+		}
+
+	}
+
+	private static final LevelDispatcher dispatcher;
+
+	static {
+		dispatcher = new LevelDispatcher("high");
+		dispatcher.register(new Build());
+	}
+
+	public static LevelDispatcher getLevelDispatcher() {
+		return dispatcher;
+	}
+
+	public static void main(String[] args) throws Exception {
+		dispatcher.dispatch(args);
+	}
+
 }

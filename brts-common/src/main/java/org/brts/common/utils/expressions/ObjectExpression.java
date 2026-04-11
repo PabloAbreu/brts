@@ -10,14 +10,17 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ObjectExpression implements Expression {
-    private Object value;
-    private String expression;
 
-    public static ObjectExpression of(Object value) {
-        return new ObjectExpression(value, null);
-    }
+	private Object value;
 
-    public static ObjectExpression expr(String expression) {
-        return new ObjectExpression(null, expression);
-    }
+	private String expression;
+
+	public static ObjectExpression of(Object value) {
+		return new ObjectExpression(value, null);
+	}
+
+	public static ObjectExpression expr(String expression) {
+		return new ObjectExpression(null, expression);
+	}
+
 }

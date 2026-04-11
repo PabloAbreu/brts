@@ -11,8 +11,7 @@ import java.util.Map;
 /**
  * Root CLI dispatcher for the BRTStool suite.
  * <p>
- * Usage:
- * <pre>
+ * Usage: <pre>
  *   brt-cli.jar &lt;level&gt; &lt;command&gt; [options]
  *
  *   Levels:
@@ -28,46 +27,49 @@ import java.util.Map;
  */
 public class BrtsMain {
 
-    private static final Logger log = LoggerFactory.getLogger(BrtsMain.class);
+	private static final Logger log = LoggerFactory.getLogger(BrtsMain.class);
 
-    private static final Map<String, LevelDispatcher> levels = new LinkedHashMap<>();
+	private static final Map<String, LevelDispatcher> levels = new LinkedHashMap<>();
 
-    static {
-        levels.put("low",  new LowLevelDispatcher().getLevelDispatcher());
-        levels.put("mid",  MiddleLevelCli.getLevelDispatcher());
-        levels.put("high", HighLevelCli.getLevelDispatcher());
-    }
+	static {
+		levels.put("low", new LowLevelDispatcher().getLevelDispatcher());
+		levels.put("mid", MiddleLevelCli.getLevelDispatcher());
+		levels.put("high", HighLevelCli.getLevelDispatcher());
+	}
 
-    public static void main(String[] args) {
-        if (args.length < 1) {
-            printUsage();
-            System.exit(1);
-        }
-        String level = args[0].toLowerCase();
-        String[] rest = java.util.Arrays.copyOfRange(args, 1, args.length);
+	public static void main(String[] args) {
+		if (args.length < 1) {
+			printUsage();
+			System.exit(1);
+		}
+		String level = args[0].toLowerCase();
+		String[] rest = java.util.Arrays.copyOfRange(args, 1, args.length);
 
-        try {
-            LevelDispatcher dispatcher = levels.get(level);
-            if (dispatcher != null) {
-                dispatcher.dispatch(rest);
-            } else {
-                System.err.println("Unknown level: " + level);
-                printUsage();
-                System.exit(1);
-            }
-        } catch (Exception e) {
-            log.error("Fatal error: {}", e.getMessage(), e);
-            System.exit(2);
-        }
-    }
+		try {
+			LevelDispatcher dispatcher = levels.get(level);
+			if (dispatcher != null) {
+				dispatcher.dispatch(rest);
+			}
+			else {
+				System.err.println("Unknown level: " + level);
+				printUsage();
+				System.exit(1);
+			}
+		}
+		catch (Exception e) {
+			log.error("Fatal error: {}", e.getMessage(), e);
+			System.exit(2);
+		}
+	}
 
-    private static void printUsage() {
-        System.out.println("BRTS — Blu-ray Tools Suite");
-        System.out.println("Usage: brts-cli.jar <level> <command> [options]");
-        System.out.println();
-        for (var entry : levels.entrySet()) {
-            entry.getValue().printHelp(System.out);
-        }
-        System.out.println("Run 'brts-cli.jar <level> <command> --help' for command-specific options.");
-    }
+	private static void printUsage() {
+		System.out.println("BRTS — Blu-ray Tools Suite");
+		System.out.println("Usage: brts-cli.jar <level> <command> [options]");
+		System.out.println();
+		for (var entry : levels.entrySet()) {
+			entry.getValue().printHelp(System.out);
+		}
+		System.out.println("Run 'brts-cli.jar <level> <command> --help' for command-specific options.");
+	}
+
 }

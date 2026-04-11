@@ -18,73 +18,87 @@ import java.io.FileInputStream;
  */
 public class FindFirstPlaylistCli {
 
-    static class Options {
-        @Option(name = "--bdmv-dir", required = true,
-                usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
-        File bdmvDir;
+	static class Options {
 
-        @Option(name = "--start-title",
-                usage = "Title number to start from (1-based; default: first-play title)")
-        Integer startTitle;
+		@Option(name = "--bdmv-dir", required = true,
+				usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
+		File bdmvDir;
 
-        @Option(name = "--start-object",
-                usage = "Movie object index to start from (0-based; overrides --start-title)")
-        Integer startObject;
+		@Option(name = "--start-title", usage = "Title number to start from (1-based; default: first-play title)")
+		Integer startTitle;
 
-        @Option(name = "--output",
-                usage = "Output JSON file (default: stdout)")
-        File output;
+		@Option(name = "--start-object", usage = "Movie object index to start from (0-based; overrides --start-title)")
+		Integer startObject;
 
-        @Option(name = "--max-depth",
-                usage = "Maximum number of object transitions (default: 100)")
-        Integer maxDepth;
-    }
+		@Option(name = "--output", usage = "Output JSON file (default: stdout)")
+		File output;
 
-    public static class Run extends FeatureRunner<Options> {
-        @Override public String getCommandName() { return "find-first-playlist"; }
-        @Override public String getDescription() { return "Find the first playlist played via HDMV navigation chain"; }
-        @Override protected Options createOptions() { return new Options(); }
+		@Option(name = "--max-depth", usage = "Maximum number of object transitions (default: 100)")
+		Integer maxDepth;
 
-        @Override
-        protected void execute(Options opts) throws Exception {
-            // --- Parse index.bdmv ---
-            File indexFile = new File(opts.bdmvDir, "index.bdmv");
-            if (!indexFile.isFile()) {
-                System.err.println("index.bdmv not found in " + opts.bdmvDir);
-                System.exit(1);
-            }
-            IndexBdmv index;
-            try (FileInputStream fis = new FileInputStream(indexFile)) {
-                index = new IndexBdmvParser().parse(fis);
-            }
+	}
 
-            // --- Parse MovieObject.bdmv ---
-            File mobjFile = new File(opts.bdmvDir, "MovieObject.bdmv");
-            if (!mobjFile.isFile()) {
-                System.err.println("MovieObject.bdmv not found in " + opts.bdmvDir);
-                System.exit(1);
-            }
-            MovieObjects movieObjects;
-            try (FileInputStream fis = new FileInputStream(mobjFile)) {
-                movieObjects = new MovieObjectsParser().parse(fis);
-            }
+	public static class Run extends FeatureRunner<Options> {
 
-            // --- Build config ---
-            FirstPlaylistFinderConfig.FirstPlaylistFinderConfigBuilder cb =
-                    FirstPlaylistFinderConfig.builder();
-            if (opts.startObject != null)  cb.startObjectId(opts.startObject);
-            else if (opts.startTitle != null) cb.startTitleNumber(opts.startTitle);
-            if (opts.maxDepth != null)     cb.maxChainDepth(opts.maxDepth);
+		@Override
+		public String getCommandName() {
+			return "find-first-playlist";
+		}
 
-            // --- Find first playlist ---
-            FirstPlaylistFinder finder = new FirstPlaylistFinder(index, movieObjects);
-            FirstPlaylistResult result = finder.find(cb.build());
+		@Override
+		public String getDescription() {
+			return "Find the first playlist played via HDMV navigation chain";
+		}
 
-            // --- Output ---
-            writeJson(opts.output, result);
-            if (opts.output != null) {
-                System.out.println("Result → " + opts.output);
-            }
-        }
-    }
+		@Override
+		protected Options createOptions() {
+			return new Options();
+		}
+
+		@Override
+		protected void execute(Options opts) throws Exception {
+			// --- Parse index.bdmv ---
+			File indexFile = new File(opts.bdmvDir, "index.bdmv");
+			if (!indexFile.isFile()) {
+				System.err.println("index.bdmv not found in " + opts.bdmvDir);
+				System.exit(1);
+			}
+			IndexBdmv index;
+			try (FileInputStream fis = new FileInputStream(indexFile)) {
+				index = new IndexBdmvParser().parse(fis);
+			}
+
+			// --- Parse MovieObject.bdmv ---
+			File mobjFile = new File(opts.bdmvDir, "MovieObject.bdmv");
+			if (!mobjFile.isFile()) {
+				System.err.println("MovieObject.bdmv not found in " + opts.bdmvDir);
+				System.exit(1);
+			}
+			MovieObjects movieObjects;
+			try (FileInputStream fis = new FileInputStream(mobjFile)) {
+				movieObjects = new MovieObjectsParser().parse(fis);
+			}
+
+			// --- Build config ---
+			FirstPlaylistFinderConfig.FirstPlaylistFinderConfigBuilder cb = FirstPlaylistFinderConfig.builder();
+			if (opts.startObject != null)
+				cb.startObjectId(opts.startObject);
+			else if (opts.startTitle != null)
+				cb.startTitleNumber(opts.startTitle);
+			if (opts.maxDepth != null)
+				cb.maxChainDepth(opts.maxDepth);
+
+			// --- Find first playlist ---
+			FirstPlaylistFinder finder = new FirstPlaylistFinder(index, movieObjects);
+			FirstPlaylistResult result = finder.find(cb.build());
+
+			// --- Output ---
+			writeJson(opts.output, result);
+			if (opts.output != null) {
+				System.out.println("Result → " + opts.output);
+			}
+		}
+
+	}
+
 }

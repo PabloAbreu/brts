@@ -12,23 +12,23 @@ import java.nio.file.Path;
  */
 public interface BlurayFileWriter<T> {
 
-    /**
-     * Serialises {@code model} to the given {@link OutputStream}.
-     *
-     * @param model  the model to write
-     * @param output the destination stream; the caller is responsible for closing it.
-     * @throws org.brts.common.exception.WriteException on any I/O or validation error
-     */
-    void write(T model, OutputStream output) throws IOException;
+	/**
+	 * Serialises {@code model} to the given {@link OutputStream}.
+	 * @param model the model to write
+	 * @param output the destination stream; the caller is responsible for closing it.
+	 * @throws org.brts.common.exception.WriteException on any I/O or validation error
+	 */
+	void write(T model, OutputStream output) throws IOException;
 
-    /**
-     * Convenience method — creates (or overwrites) the file at {@code path}
-     * and delegates to {@link #write(Object, OutputStream)}.
-     */
-    default void write(T model, Path path) throws IOException {
-        Files.createDirectories(path.getParent());
-        try (var out = Files.newOutputStream(path)) {
-            write(model, out);
-        }
-    }
+	/**
+	 * Convenience method — creates (or overwrites) the file at {@code path} and delegates
+	 * to {@link #write(Object, OutputStream)}.
+	 */
+	default void write(T model, Path path) throws IOException {
+		Files.createDirectories(path.getParent());
+		try (var out = Files.newOutputStream(path)) {
+			write(model, out);
+		}
+	}
+
 }

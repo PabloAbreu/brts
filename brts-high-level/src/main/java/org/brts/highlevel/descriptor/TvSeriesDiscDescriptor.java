@@ -10,8 +10,7 @@ import java.util.List;
  * <p>
  * Supports glob patterns or an explicit file list to auto-include episodes.
  * <p>
- * Example {@code series-disc.json}:
- * <pre>{@code
+ * Example {@code series-disc.json}: <pre>{@code
  * {
  *   "templateType": "TV_SERIES",
  *   "discTitle": "My Series — Season 1",
@@ -29,30 +28,29 @@ import java.util.List;
 @Setter
 public class TvSeriesDiscDescriptor extends HighLevelDiscDescriptor {
 
-    private String seriesName;
+	private String seriesName;
 
-    private int seasonNumber;
+	private int seasonNumber;
 
-    /**
-     * Glob pattern to discover episode MKV files.
-     * Files are sorted alphabetically; this order determines episode numbering.
-     * Mutually exclusive with {@link #episodeFiles}.
-     */
-    private String episodesGlob;
+	/**
+	 * Glob pattern to discover episode MKV files. Files are sorted alphabetically; this
+	 * order determines episode numbering. Mutually exclusive with {@link #episodeFiles}.
+	 */
+	private String episodesGlob;
 
-    /**
-     * Explicit ordered list of episode MKV file paths.
-     * Takes precedence over {@link #episodesGlob} if both are specified.
-     */
-    private List<String> episodeFiles;
+	/**
+	 * Explicit ordered list of episode MKV file paths. Takes precedence over
+	 * {@link #episodesGlob} if both are specified.
+	 */
+	private List<String> episodeFiles;
 
-    /** Audio languages to include from each episode (ISO 639-2). */
-    private List<String> audioLanguages;
+	/** Audio languages to include from each episode (ISO 639-2). */
+	private List<String> audioLanguages;
 
-    /** Subtitle (PG) languages to include from each episode (ISO 639-2). */
-    private List<String> subtitleLanguages;
+	/** Subtitle (PG) languages to include from each episode (ISO 639-2). */
+	private List<String> subtitleLanguages;
 
-    /** If true, an episode-selection menu is auto-generated. */
-    private boolean generateEpisodeMenu = true;
+	/** If true, an episode-selection menu is auto-generated. */
+	private boolean generateEpisodeMenu = true;
+
 }
-

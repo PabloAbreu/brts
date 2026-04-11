@@ -16,57 +16,70 @@ import java.nio.file.Path;
  */
 public class ClipRegenCli {
 
-    static class RegenOptions {
+	static class RegenOptions {
 
-        @Option(name = "--input", required = true,
-                usage = "Path to the source .m2ts file to parse")
-        File input;
+		@Option(name = "--input", required = true, usage = "Path to the source .m2ts file to parse")
+		File input;
 
-        @Option(name = "--output", required = true,
-                usage = "Output directory for the generated .clpi file (BDMV/CLIPINF/ recommended)")
-        File outputDir;
+		@Option(name = "--output", required = true,
+				usage = "Output directory for the generated .clpi file (BDMV/CLIPINF/ recommended)")
+		File outputDir;
 
-        @Option(name = "--clip-name",
-                usage = "5-digit clip name without extension (default: input file basename without extension)")
-        String clipName;
+		@Option(name = "--clip-name",
+				usage = "5-digit clip name without extension (default: input file basename without extension)")
+		String clipName;
 
-        @Option(name = "--json",
-                usage = "Also write the ClipInfo model as a JSON sidecar file alongside the .clpi")
-        boolean writeJson;
-    }
+		@Option(name = "--json", usage = "Also write the ClipInfo model as a JSON sidecar file alongside the .clpi")
+		boolean writeJson;
 
-    public static class Regen extends FeatureRunner<RegenOptions> {
-        @Override public String getCommandName() { return "clpi-regen"; }
-        @Override public String getDescription() { return "Regenerate a CLPI file from an M2TS stream"; }
-        @Override protected RegenOptions createOptions() { return new RegenOptions(); }
+	}
 
-        @Override
-        protected void execute(RegenOptions opts) throws Exception {
-            Path inputPath = opts.input.toPath();
-            String clipName = resolveClipName(opts);
+	public static class Regen extends FeatureRunner<RegenOptions> {
 
-            ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(inputPath, clipName);
+		@Override
+		public String getCommandName() {
+			return "clpi-regen";
+		}
 
-            Path outputDir = opts.outputDir.toPath();
-            Path clpiPath = outputDir.resolve(clipName + ".clpi");
-            new ClipInfoWriter().write(clipInfo, clpiPath);
-            System.out.println("CLPI generated → " + clpiPath);
+		@Override
+		public String getDescription() {
+			return "Regenerate a CLPI file from an M2TS stream";
+		}
 
-            if (opts.writeJson) {
-                Path jsonPath = outputDir.resolve(clipName + ".clpi.json");
-                ObjectMapper mapper = JsonMapperFactory.get();
-                mapper.writerWithDefaultPrettyPrinter().writeValue(jsonPath.toFile(), clipInfo);
-                System.out.println("CLPI JSON sidecar → " + jsonPath);
-            }
-        }
-    }
+		@Override
+		protected RegenOptions createOptions() {
+			return new RegenOptions();
+		}
 
-    private static String resolveClipName(RegenOptions opts) {
-        if (opts.clipName != null && !opts.clipName.isBlank()) {
-            return opts.clipName;
-        }
-        String fileName = opts.input.getName();
-        int dot = fileName.lastIndexOf('.');
-        return dot > 0 ? fileName.substring(0, dot) : fileName;
-    }
+		@Override
+		protected void execute(RegenOptions opts) throws Exception {
+			Path inputPath = opts.input.toPath();
+			String clipName = resolveClipName(opts);
+
+			ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(inputPath, clipName);
+
+			Path outputDir = opts.outputDir.toPath();
+			Path clpiPath = outputDir.resolve(clipName + ".clpi");
+			new ClipInfoWriter().write(clipInfo, clpiPath);
+			System.out.println("CLPI generated → " + clpiPath);
+
+			if (opts.writeJson) {
+				Path jsonPath = outputDir.resolve(clipName + ".clpi.json");
+				ObjectMapper mapper = JsonMapperFactory.get();
+				mapper.writerWithDefaultPrettyPrinter().writeValue(jsonPath.toFile(), clipInfo);
+				System.out.println("CLPI JSON sidecar → " + jsonPath);
+			}
+		}
+
+	}
+
+	private static String resolveClipName(RegenOptions opts) {
+		if (opts.clipName != null && !opts.clipName.isBlank()) {
+			return opts.clipName;
+		}
+		String fileName = opts.input.getName();
+		int dot = fileName.lastIndexOf('.');
+		return dot > 0 ? fileName.substring(0, dot) : fileName;
+	}
+
 }

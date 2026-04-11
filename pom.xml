@@ -11,9 +11,10 @@
 
 	<name>BRTS - Blu-ray Tools Suite</name>
 	<description>
-        A suite of tools to author Blu-rays: generate compliant Blu-ray folder structures
-        with all needed files from MKV sources and structured descriptors.
-    </description>
+		A suite of tools to author Blu-rays: generate compliant Blu-ray folder
+		structures
+		with all needed files from MKV sources and structured descriptors.
+	</description>
 
 	<modules>
 		<module>brts-common</module>
@@ -215,5 +216,19 @@
 				</plugin>
 			</plugins>
 		</pluginManagement>
+		<plugins>
+			<plugin>
+				<groupId>io.spring.javaformat</groupId>
+				<artifactId>spring-javaformat-maven-plugin</artifactId>
+				<version>0.0.47</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>validate</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
 	</build>
 </project>
