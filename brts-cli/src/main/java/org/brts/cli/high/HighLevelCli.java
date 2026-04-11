@@ -16,7 +16,7 @@ import java.io.File;
  */
 public class HighLevelCli {
 
-	static class BuildOptions {
+	public static class BuildOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
 		File descriptor;
@@ -36,11 +36,6 @@ public class HighLevelCli {
 		@Override
 		public String getDescription() {
 			return "Build a Blu-ray disc from a high-level template descriptor";
-		}
-
-		@Override
-		protected BuildOptions createOptions() {
-			return new BuildOptions();
 		}
 
 		@Override
