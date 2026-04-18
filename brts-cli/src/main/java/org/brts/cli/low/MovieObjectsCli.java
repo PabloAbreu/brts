@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 
 import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.bdmv.MovieObjectsWriter;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.parser.MovieObjectsParser;
@@ -26,7 +27,7 @@ public class MovieObjectsCli {
 	// Parse command: binary MovieObject.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	static class ParseOptions {
+	public static class ParseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary MovieObject.bdmv file to parse")
 		File input;
@@ -49,11 +50,6 @@ public class MovieObjectsCli {
 		}
 
 		@Override
-		protected ParseOptions createOptions() {
-			return new ParseOptions();
-		}
-
-		@Override
 		protected void execute(ParseOptions opts) throws Exception {
 			MovieObjects mobj = new MovieObjectsParser().parse(opts.input.toPath());
 			if (opts.output != null && opts.output.getParentFile() != null) {
@@ -71,10 +67,11 @@ public class MovieObjectsCli {
 	// Write command: JSON → binary MovieObject.bdmv
 	// -------------------------------------------------------------------------
 
-	static class WriteOptions {
+	public static class WriteOptions {
 
-		@Option(name = "--input", required = true, usage = "Path to the JSON model file (as produced by mobj-parse)")
-		File input;
+		@JsonInputOption(name = "--input", required = true,
+				usage = "Path to the JSON model file (as produced by mobj-parse)")
+		MovieObjects input;
 
 		@Option(name = "--output", required = true, usage = "Output path for the generated MovieObject.bdmv file")
 		File output;
@@ -94,20 +91,17 @@ public class MovieObjectsCli {
 		}
 
 		@Override
-		protected WriteOptions createOptions() {
-			return new WriteOptions();
-		}
-
-		@Override
 		protected void execute(WriteOptions opts) throws Exception {
-			MovieObjects mobj = loadJson(opts.input, MovieObjects.class);
-			if (opts.output.getParentFile() != null) {
-				opts.output.getParentFile().mkdirs();
+			File dest = opts.output;
+			if (dest.isDirectory())
+				dest = new File(dest, "MovieObject.bdmv");
+			else if (dest.getParentFile() != null) {
+				dest.getParentFile().mkdirs();
 			}
-			try (OutputStream out = new FileOutputStream(opts.output)) {
-				new MovieObjectsWriter().write(mobj, out);
+			try (OutputStream out = new FileOutputStream(dest)) {
+				new MovieObjectsWriter().write(opts.input, out);
 			}
-			System.out.println("Wrote MovieObject.bdmv → " + opts.output);
+			System.out.println("Wrote MovieObject.bdmv → " + dest);
 		}
 
 	}

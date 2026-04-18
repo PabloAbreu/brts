@@ -19,7 +19,7 @@ import java.nio.file.Path;
  */
 public class MkvCli {
 
-	static class InfoOptions {
+	public static class InfoOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV file to inspect")
 		File input;
@@ -39,11 +39,6 @@ public class MkvCli {
 		@Override
 		public String getDescription() {
 			return "Inspect an MKV file and emit track metadata as JSON";
-		}
-
-		@Override
-		protected InfoOptions createOptions() {
-			return new InfoOptions();
 		}
 
 		@Override

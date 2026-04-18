@@ -39,6 +39,8 @@
 		<junit.version>5.11.0</junit.version>
 		<mockito.version>5.12.0</mockito.version>
 		<assertj.version>3.26.3</assertj.version>
+		<ffmpeg.version>8.0.1-1.5.13</ffmpeg.version>
+		<ffmpeg.platform>linux-x86_64</ffmpeg.platform>
 
 		<!-- Plugin versions -->
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -122,7 +124,13 @@
 			<dependency>
 				<groupId>org.bytedeco</groupId>
 				<artifactId>ffmpeg</artifactId>
-				<version>8.0.1-1.5.13</version>
+				<version>${ffmpeg.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bytedeco</groupId>
+				<artifactId>ffmpeg</artifactId>
+				<version>${ffmpeg.version}</version>
+				<classifier>${ffmpeg.platform}</classifier>
 			</dependency>
 
 			<dependency>

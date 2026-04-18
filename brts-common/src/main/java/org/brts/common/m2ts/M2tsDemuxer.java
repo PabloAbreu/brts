@@ -128,6 +128,9 @@ public class M2tsDemuxer {
 				if (adaptCtrl == 2) {
 					// adaptation field only, no payload
 					packetIndex++;
+					if (pid == info.getPcrPid()) {
+						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
+					}
 					continue;
 				}
 				if (adaptCtrl == 3) {

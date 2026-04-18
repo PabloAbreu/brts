@@ -25,7 +25,7 @@ public class BdjoCli {
 	// Parse command: binary .bdjo → JSON
 	// -------------------------------------------------------------------------
 
-	static class ParseOptions {
+	public static class ParseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary .bdjo file to parse")
 		File input;
@@ -45,11 +45,6 @@ public class BdjoCli {
 		@Override
 		public String getDescription() {
 			return "Parse a binary .bdjo file to JSON";
-		}
-
-		@Override
-		protected ParseOptions createOptions() {
-			return new ParseOptions();
 		}
 
 		@Override

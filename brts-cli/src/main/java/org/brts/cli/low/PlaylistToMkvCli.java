@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 public class PlaylistToMkvCli {
 
-	static class Options {
+	public static class Options {
 
 		@Option(name = "--playlist", required = true, usage = "Path to the .mpls playlist file")
 		File playlist;
@@ -47,11 +47,6 @@ public class PlaylistToMkvCli {
 		@Override
 		public String getDescription() {
 			return "Extract a Blu-ray playlist to an MKV container";
-		}
-
-		@Override
-		protected Options createOptions() {
-			return new Options();
 		}
 
 		@Override

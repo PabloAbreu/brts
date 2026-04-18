@@ -11,6 +11,7 @@ import java.util.Map;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -314,7 +315,8 @@ public class M2tsParser {
 			int descEnd = pos + 5 + esInfoLen;
 			log.debug("Stream " + esPid + ". esInfoLen " + esInfoLen);
 			if (esInfoLen > 0) {
-				log.debug("descriptors hex bytes " + bytesToHex(sp, descPos, Math.min(esInfoLen, sp.length - descPos)));
+				log.debug("descriptors hex bytes "
+						+ StringUtils.bytesToHex(sp, descPos, Math.min(esInfoLen, sp.length - descPos)));
 			}
 			while (descPos + 1 < descEnd && descPos + 1 < sp.length) {
 				int descTag = sp[descPos] & 0xFF;
@@ -450,14 +452,6 @@ public class M2tsParser {
 		return result;
 	}
 
-	private String bytesToHex(byte[] bytes, int offset, int length) {
-		StringBuilder sb = new StringBuilder();
-		for (int i = offset; i < offset + length && i < bytes.length; i++) {
-			sb.append(String.format("%02X ", bytes[i]));
-		}
-		return sb.toString().trim();
-	}
-
 	// -------------------------------------------------------------------------
 	// PCR extraction
 	// -------------------------------------------------------------------------
@@ -466,14 +460,14 @@ public class M2tsParser {
 	 * Extracts the 27 MHz PCR value from a TS packet's adaptation field. Returns -1 if no
 	 * PCR is present.
 	 */
-	private long extractPcr(byte[] sp) {
-		int tsOff = 4;
+	public static long extractPcr(byte[] sp) {
+		final int tsOff = 4;
 		int b3 = sp[tsOff + 3] & 0xFF;
 		int adaptCtrl = (b3 >> 4) & 0x03;
 		if (adaptCtrl != 2 && adaptCtrl != 3)
 			return -1;
 
-		int afOff = tsOff + 4;
+		final int afOff = tsOff + 4;
 		int afLen = sp[afOff] & 0xFF;
 		if (afLen < 7)
 			return -1; // need at least 7 bytes for adaptation field with PCR

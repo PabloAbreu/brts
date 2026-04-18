@@ -14,7 +14,7 @@ import java.nio.file.Path;
  */
 public class RleConverterCli {
 
-	static class Options {
+	public static class Options {
 
 		@Option(name = "--input", required = true,
 				usage = "Path to a demuxed IGS directory (with igs_manifest.json) or a single .rle file")
@@ -46,11 +46,6 @@ public class RleConverterCli {
 		@Override
 		public String getDescription() {
 			return "Convert IGS RLE bitmaps to PNG images";
-		}
-
-		@Override
-		protected Options createOptions() {
-			return new Options();
 		}
 
 		@Override

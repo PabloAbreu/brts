@@ -19,6 +19,9 @@ public interface M2tsPacketHandler extends AutoCloseable {
 
 	/**
 	 * Called for every demuxed payload chunk belonging to a tracked PID.
+	 *
+	 * Note that for PCR packets, the payload buffer is the full TS packet and offset will
+	 * be zero.
 	 * @param pid the PID of the elementary stream
 	 * @param payload buffer containing the raw ES bytes (not the full TS packet)
 	 * @param offset start offset within {@code payload}

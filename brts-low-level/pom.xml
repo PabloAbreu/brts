@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -11,12 +13,13 @@
 	<artifactId>brts-low-level</artifactId>
 	<name>BRTS - Low-Level</name>
 	<description>
-        Low-level parsers and writers for all Blu-ray binary file types:
-        M2TS (MPEG-2 Transport Stream), CLPI (Clip Information), MPLS (Movie Playlist),
-        BDMV structure files (index.bdmv, MovieObject.bdmv, backup copies),
-        and meta/certificate placeholders.
-        Also contains the MKV input abstraction layer.
-    </description>
+		Low-level parsers and writers for all Blu-ray binary file types:
+		M2TS (MPEG-2 Transport Stream), CLPI (Clip Information), MPLS (Movie
+		Playlist),
+		BDMV structure files (index.bdmv, MovieObject.bdmv, backup copies),
+		and meta/certificate placeholders.
+		Also contains the MKV input abstraction layer.
+	</description>
 
 	<dependencies>
 		<dependency>
@@ -31,10 +34,6 @@
 		<dependency>
 			<groupId>org.brts</groupId>
 			<artifactId>jebml</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>ffmpeg</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>

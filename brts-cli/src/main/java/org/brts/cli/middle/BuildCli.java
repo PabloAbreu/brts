@@ -10,16 +10,37 @@ import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
 import org.kohsuke.args4j.Option;
 
+import lombok.Getter;
+import lombok.Setter;
+
+/**
+ * Build a disc.
+ */
 public class BuildCli {
-	public static class BuildOptions {
-		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the middle-level disc JSON descriptor")
+
+	@Getter
+	@Setter
+	public static class BaseOptions {
+
+		@Option(name = "--error-details", required = false, hidden = true,
+				usage = "Shows more detailed errors. This option should be put first.")
+		boolean errorDetails;
+
+	}
+
+	public static class BuildOptions extends BaseOptions {
+
+		@JsonInputOption(name = "--descriptor", required = true,
+				usage = "Path to the middle-level disc JSON descriptor")
 		DiscDescriptor descriptor;
 
 		@Option(name = "--output", required = true, usage = "Output directory for low-level descriptors and script")
 		File outputDir;
+
 	}
 
 	public static class Run extends FeatureRunner<BuildOptions> {
+
 		@Override
 		public String getCommandName() {
 			return "build";
@@ -38,5 +59,7 @@ public class BuildCli {
 
 			System.out.println("Middle-level orchestration complete. Check " + opts.outputDir);
 		}
+
 	}
+
 }

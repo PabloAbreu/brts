@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
 import org.brts.common.m2ts.M2tsParser;
@@ -53,6 +54,8 @@ public class M2tsClpiRegenBuilder {
 
 		// Phase 1 – stream metadata from PAT/PMT
 		M2tsInfo info = new M2tsParser().parse(m2tsPath);
+		log.debug("M2TS stream info: {}",
+				JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
 
 		M2tsStreamInfo videoStream = findFirstVideoStream(info);
 		if (videoStream == null) {
@@ -105,12 +108,26 @@ public class M2tsClpiRegenBuilder {
 
 		Set<Integer> filter = new HashSet<>();
 		filter.add(videoPid);
+		filter.add(info.getPcrPid());
+		// reset PCR and re-calculate from scratch during the EP scan
+		// since the M2tsInfo holds only results for a 50000 packets scan.
+		info.setFirstPcr27MHz(-1);
+		info.setLastPcr27MHz(-1);
 
 		new M2tsDemuxer().demux(path, info, new M2tsPacketHandler() {
 
 			@Override
 			public void onPayload(int pid, byte[] sp, int offset, int length, boolean payloadUnitStart,
 					long packetIndex, long ats) {
+
+				if (pid == info.getPcrPid()) {
+					long pcr = M2tsParser.extractPcr(sp);
+					if (pcr != -1) {
+						if (info.getFirstPcr27MHz() < 0)
+							info.setFirstPcr27MHz(pcr);
+						info.setLastPcr27MHz(pcr);
+					}
+				}
 				if (!payloadUnitStart)
 					return;
 				// Need at least 14 bytes: 3 start-code + stream_id + 2 length +
@@ -175,6 +192,7 @@ public class M2tsClpiRegenBuilder {
 		// Prefer PTS extracted from PES headers; fall back to PCR-derived values.
 		long firstPts;
 		long lastPts;
+		log.debug("PES PTS range: [{} .. {}]", scan.firstPts, scan.lastPts);
 		if (scan.firstPts >= 0 && scan.lastPts >= 0) {
 			firstPts = scan.firstPts;
 			lastPts = scan.lastPts;
@@ -194,6 +212,11 @@ public class M2tsClpiRegenBuilder {
 		clip.setDuration(Timestamp.ofTicks(Math.max(0L, lastPts - firstPts)));
 
 		clip.setStreams(buildClipStreams(info.getStreams()));
+
+		clip.setNumSourcePackets(info.getTotalPackets());
+		// TODO find what this should be
+		// real-life values seem to often be 6000000
+		clip.setTsRecordingRate(6_000_000);
 
 		// EP map — one stream entry for the primary video PID
 		if (videoStream != null && !scan.entries.isEmpty()) {

@@ -21,7 +21,7 @@ import java.util.List;
  */
 public class PlaylistCli {
 
-	static class ParseOptions {
+	public static class ParseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .mpls file to parse")
 		File input;
@@ -44,11 +44,6 @@ public class PlaylistCli {
 		}
 
 		@Override
-		protected ParseOptions createOptions() {
-			return new ParseOptions();
-		}
-
-		@Override
 		protected void execute(ParseOptions opts) throws Exception {
 			MoviePlaylist playlist = new MoviePlaylistParser().parse(opts.input.toPath());
 			writeJson(opts.output, playlist);
@@ -59,7 +54,7 @@ public class PlaylistCli {
 
 	}
 
-	static class WriteOptions {
+	public static class WriteOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
 		File descriptor;
@@ -79,11 +74,6 @@ public class PlaylistCli {
 		@Override
 		public String getDescription() {
 			return "Generate a .mpls binary from a JSON descriptor";
-		}
-
-		@Override
-		protected WriteOptions createOptions() {
-			return new WriteOptions();
 		}
 
 		@Override

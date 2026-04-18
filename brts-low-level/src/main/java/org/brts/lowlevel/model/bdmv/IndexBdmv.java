@@ -74,7 +74,11 @@ public class IndexBdmv {
 		 */
 		private String bdjObjectName;
 
-		/** Raw value of the secondary flags byte (byte 4 of the 12-byte entry). */
+		/**
+		 * Raw value of the secondary flags byte (byte 4 of the 12-byte entry). 0: HDMV
+		 * movie, 1: HDMV interactive, 2: BD-J movie, 3: BD-J interactive.
+		 *
+		 */
 		private int playbackType;
 
 		/** Returns {@code true} if this entry refers to a BD-J application. */

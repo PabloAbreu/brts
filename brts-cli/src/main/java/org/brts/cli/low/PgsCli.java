@@ -12,7 +12,7 @@ import java.io.File;
  */
 public class PgsCli {
 
-	static class CreateOptions {
+	public static class CreateOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the subtitle file (.srt, .ssa, .ass)")
 		File input;
@@ -60,11 +60,6 @@ public class PgsCli {
 		@Override
 		public String getDescription() {
 			return "Generate a PGS subtitle stream from SRT/SSA/ASS";
-		}
-
-		@Override
-		protected CreateOptions createOptions() {
-			return new CreateOptions();
 		}
 
 		@Override

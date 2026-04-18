@@ -1,6 +1,18 @@
 package org.brts.lowlevel.mkv;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.brts.common.exception.BrtException;
+import org.brts.common.m2ts.M2tsClipWriter;
+import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
@@ -9,17 +21,17 @@ import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.model.clpi.ClipInfo;
-import org.brts.lowlevel.model.mpls.*;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.model.mpls.PlayItem;
+import org.brts.lowlevel.model.mpls.PlayItemStream;
+import org.brts.lowlevel.model.mpls.PlayMark;
+import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.lowlevel.pgs.PgsGenerator;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.*;
 
 /**
  * Converts an MKV file into a Blu-ray clip triplet: M2TS + CLPI + MPLS.
@@ -147,22 +159,19 @@ public class MkvToPlaylistConverter {
 		M2tsDescriptor descriptor = buildDescriptor(clipName, selectedTracks, demuxedFiles, pgsConvertedFiles,
 				textSubTrackNos);
 
-		// 9. Write M2TS
+		// 9. Write M2TS+CLPI
 		Path streamDir = outputDir.resolve("STREAM");
 		Path m2tsPath = streamDir.resolve(clipName + ".m2ts");
-		log.info("Writing M2TS: {}", m2tsPath);
-		M2tsWriter m2tsWriter = new M2tsWriter();
-		m2tsWriter.write(descriptor, m2tsPath);
 
-		// 10. Write CLPI
 		Path clipinfDir = outputDir.resolve("CLIPINF");
 		Path clpiPath = clipinfDir.resolve(clipName + ".clpi");
-		log.info("Writing CLPI: {}", clpiPath);
-		ClipInfo clipInfo = m2tsWriter.buildClipInfo(descriptor, clipName);
-		enrichClipInfo(clipInfo, selectedTracks, descriptor);
-		new ClipInfoWriter().write(clipInfo, clpiPath);
 
-		// 11. Write MPLS
+		M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
+		writer.write(descriptor, m2tsPath, clpiPath);
+
+		ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
+
+		// 10. Write MPLS
 		Path playlistDir = outputDir.resolve("PLAYLIST");
 		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
@@ -170,7 +179,7 @@ public class MkvToPlaylistConverter {
 		new MoviePlaylistWriter().write(playlist, mplsPath);
 
 		log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}", m2tsPath, clpiPath, mplsPath);
-
+		workDir.toFile().deleteOnExit(); // clean up demuxed files on JVM exit
 		return new Result(m2tsPath, clpiPath, mplsPath);
 	}
 

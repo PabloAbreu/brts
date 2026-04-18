@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public class NavSimulCli {
 
-	static class Options {
+	public static class Options {
 
 		@Option(name = "--input", required = true, usage = "JSON file containing an array of NavigationCommand objects")
 		File input;
@@ -40,11 +40,6 @@ public class NavSimulCli {
 		@Override
 		public String getDescription() {
 			return "Simulate HDMV navigation commands with virtual registers";
-		}
-
-		@Override
-		protected Options createOptions() {
-			return new Options();
 		}
 
 		@Override

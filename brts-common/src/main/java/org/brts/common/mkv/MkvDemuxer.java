@@ -1,5 +1,6 @@
 package org.brts.common.mkv;
 
+import org.brts.common.utils.StringUtils;
 import org.ebml.io.FileDataSource;
 import org.ebml.matroska.MatroskaFile;
 import org.ebml.matroska.MatroskaFileFrame;
@@ -26,7 +27,9 @@ import java.util.*;
  * For other codecs (audio, HEVC, PGS, text subtitles), raw frame data is written
  * sequentially.
  * <p>
- * Usage: <pre>{@code
+ * Usage:
+ *
+ * <pre>{@code
  * MkvDemuxer demuxer = new MkvDemuxer();
  * Map<Integer, Path> files = demuxer.demux(mkvPath, outputDir);
  * // files maps track number → extracted ES file path
@@ -112,6 +115,16 @@ public class MkvDemuxer {
 					if ("V_MPEG4/ISO/AVC".equals(t.getCodecID())) {
 						writeAvcParameterSets(t.getCodecPrivate(), os);
 					}
+					else if (t.getCodecID().startsWith("S_TEXT/") && t.getCodecPrivate() != null
+							&& t.getCodecPrivate().hasRemaining()) {
+						byte[] buf = new byte[t.getCodecPrivate().remaining()];
+						t.getCodecPrivate().get(buf);
+						os.write(buf);
+					}
+					else
+						log.debug("Demuxing track {} (codec={}, ext={}) → {} . codec private data :\n {}", trackNo,
+								t.getCodecID(), ext, outFile.getFileName(),
+								StringUtils.bytesToHex(t.getCodecPrivate()));
 				}
 
 				// Read all frames
@@ -120,18 +133,42 @@ public class MkvDemuxer {
 				while ((frame = mkv.getNextFrame()) != null) {
 					int trackNo = frame.getTrackNo();
 					OutputStream os = outputs.get(trackNo);
-					if (os == null)
+					if (os == null) {
+						log.trace("Skipping frame for track {} (not in filter)", trackNo);
 						continue;
+					}
 
 					ByteBuffer data = frame.getData();
 					if (data == null || !data.hasRemaining())
 						continue;
 
 					MatroskaFileTrack track = trackMap.get(trackNo);
-					if (track != null && "V_MPEG4/ISO/AVC".equals(track.getCodecID())) {
+					String codecID = track.getCodecID();
+					if ("V_MPEG4/ISO/AVC".equals(codecID)) {
 						// Convert length-prefixed NALUs to Annex B
 						int nalLenSize = nalLengthSizeMap.getOrDefault(trackNo, 4);
 						writeAnnexBFrame(data, nalLenSize, os);
+					}
+					else if (codecID.equals("S_TEXT/ASS") || codecID.equals("S_TEXT/SSA")) {
+						// Text subtitles: write raw UTF-8 text
+						byte[] buf = new byte[data.remaining()];
+						data.get(buf);
+						if (!StringUtils.startsWith(buf, SSA_DIALOGUE)) {
+							os.write(SSA_DIALOGUE);
+							int pos = StringUtils.pos(buf, (byte) ',', 2);
+							os.write('0');
+							os.write(',');
+							long start = frame.getTimecode();
+							long end = start + frame.getDuration();
+							os.write(timestampFrom(start).getBytes());
+							os.write(',');
+							os.write(timestampFrom(end).getBytes());
+							os.write(buf, pos, buf.length - pos);
+							os.write('\n');
+						}
+						else {
+							os.write(buf);
+						}
 					}
 					else {
 						// Raw copy
@@ -153,6 +190,18 @@ public class MkvDemuxer {
 
 		return result;
 	}
+
+	private String timestampFrom(long timecode) {
+		long totalSeconds = timecode / 1000;
+		long hours = totalSeconds / 3600;
+		long minutes = (totalSeconds % 3600) / 60;
+		long seconds = totalSeconds % 60;
+		long milliseconds = timecode % 1000;
+		milliseconds = milliseconds / 10;// displayed with 2 digits, so convert
+		return String.format("%d:%02d:%02d.%02d", hours, minutes, seconds, milliseconds);
+	}
+
+	private static final byte[] SSA_DIALOGUE = "Dialogue: ".getBytes();
 
 	/**
 	 * Writes SPS and PPS NAL units from the AVCDecoderConfigurationRecord (codec private

@@ -23,6 +23,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * This code was created by IA to mux ES into m2ts. But the result is still not playable.
+ * It needs to be fixed to support IGS muxing along with video.
+ *
+ *
  * Creates an M2TS (Blu-ray 192-byte source packet) file from a set of elementary stream
  * (ES) files on disk and a list of chapter timestamps.
  *

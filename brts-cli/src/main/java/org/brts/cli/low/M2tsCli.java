@@ -37,7 +37,7 @@ public class M2tsCli {
 	// m2ts-info
 	// =========================================================================
 
-	static class InfoOptions {
+	public static class InfoOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to inspect")
 		File input;
@@ -60,11 +60,6 @@ public class M2tsCli {
 		}
 
 		@Override
-		protected InfoOptions createOptions() {
-			return new InfoOptions();
-		}
-
-		@Override
 		protected void execute(InfoOptions opts) throws Exception {
 			M2tsInfo info = new M2tsParser().parse(opts.input.toPath());
 			writeJson(opts.output, info);
@@ -79,7 +74,7 @@ public class M2tsCli {
 	// m2ts-extract
 	// =========================================================================
 
-	static class ExtractOptions {
+	public static class ExtractOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts source file")
 		File input;
@@ -105,11 +100,6 @@ public class M2tsCli {
 		@Override
 		public String getDescription() {
 			return "Demux elementary streams from an M2TS file";
-		}
-
-		@Override
-		protected ExtractOptions createOptions() {
-			return new ExtractOptions();
 		}
 
 		@Override
@@ -155,7 +145,7 @@ public class M2tsCli {
 	// igs-demux
 	// =========================================================================
 
-	static class IgsDemuxOptions {
+	public static class IgsDemuxOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a raw .igs elementary stream file")
 		File input;
@@ -178,11 +168,6 @@ public class M2tsCli {
 		}
 
 		@Override
-		protected IgsDemuxOptions createOptions() {
-			return new IgsDemuxOptions();
-		}
-
-		@Override
 		protected void execute(IgsDemuxOptions opts) throws Exception {
 			new IgsDemuxer().demux(opts.input.toPath(), opts.outputDir.toPath());
 			System.out.println("IGS demux complete → " + opts.outputDir);
@@ -194,7 +179,7 @@ public class M2tsCli {
 	// igs-mux
 	// =========================================================================
 
-	static class IgsMuxOptions {
+	public static class IgsMuxOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json)")
 		File inputDir;
@@ -217,11 +202,6 @@ public class M2tsCli {
 		}
 
 		@Override
-		protected IgsMuxOptions createOptions() {
-			return new IgsMuxOptions();
-		}
-
-		@Override
 		protected void execute(IgsMuxOptions opts) throws Exception {
 			new IgsMuxer().mux(opts.inputDir.toPath(), opts.output.toPath());
 			System.out.println("IGS mux complete → " + opts.output);
@@ -233,7 +213,7 @@ public class M2tsCli {
 	// m2ts-create
 	// =========================================================================
 
-	static class CreateOptions {
+	public static class CreateOptions {
 
 		@Option(name = "--descriptor", required = true,
 				usage = "Path to the .m2ts-descriptor.json file describing the mux")
@@ -258,11 +238,6 @@ public class M2tsCli {
 		@Override
 		public String getDescription() {
 			return "Mux elementary streams into a new M2TS file with matching CLPI";
-		}
-
-		@Override
-		protected CreateOptions createOptions() {
-			return new CreateOptions();
 		}
 
 		@Override
@@ -297,7 +272,7 @@ public class M2tsCli {
 	// m2ts-dump
 	// =========================================================================
 
-	static class DumpOptions {
+	public static class DumpOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to dump")
 		File input;
@@ -326,11 +301,6 @@ public class M2tsCli {
 		@Override
 		public String getDescription() {
 			return "Dump M2TS packet information for debugging";
-		}
-
-		@Override
-		protected DumpOptions createOptions() {
-			return new DumpOptions();
 		}
 
 		@Override
@@ -451,14 +421,6 @@ public class M2tsCli {
 			return ((long) (data[offset] & 0x0E) << 29) | ((data[offset + 1] & 0xFF) << 22)
 					| ((data[offset + 2] & 0xFE) << 14) | ((data[offset + 3] & 0xFF) << 7)
 					| ((data[offset + 4] & 0xFE) >> 1);
-		}
-
-		private String bytesToHex(byte[] bytes, int offset, int length) {
-			StringBuilder sb = new StringBuilder();
-			for (int i = offset; i < offset + length; i++) {
-				sb.append(String.format("%02X ", bytes[i]));
-			}
-			return sb.toString().trim();
 		}
 
 		@Override

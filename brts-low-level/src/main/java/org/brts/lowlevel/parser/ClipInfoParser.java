@@ -73,12 +73,12 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 		long extensionOffset = r.readUnsignedInt();
 		// 12 reserved bytes after the offsets
 		r.skip(12);
-		log.debug("sequenceInfoOffset=0x{}, programInfoOffset=0x{}, cpiOffset=0x{}", hex(sequenceInfoOffset),
-				hex(programInfoOffset), hex(cpiOffset));
 
 		// --- ClipInfo section (always at byte 40) ---
 		ClipInfo clipInfo = new ClipInfo();
 		long clipInfoSectionLength = r.readUnsignedInt();
+		log.debug("sequenceInfoOffset={}, programInfoOffset={}, cpiOffset={}, clipInfoSectionLength={}",
+				hex(sequenceInfoOffset), hex(programInfoOffset), hex(cpiOffset), hex(clipInfoSectionLength));
 		r.skip(2); // reserved
 
 		int clipStreamType = r.readUnsignedByte();
@@ -185,7 +185,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 			for (int s = 0; s < numStreams; s++) {
 				ClipStream stream = new ClipStream();
 				stream.setPid(r.readUnsignedShort());
-				log.debug("readProgramInfo.stream# {}. PID {}", s, hex(stream.getPid()));
+				log.debug("readProgramInfo.stream# {}. PID {}, pos={}", s, hex(stream.getPid()), hex(r.getPosition()));
 				int streamInfoSize = r.readUnsignedByte();
 
 				int codingTypeByte = r.readUnsignedByte();
@@ -273,8 +273,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 			// ep_map_stream_start_addr (relative to ep_map_pos)
 			long relAddr = r.readUnsignedInt();
 			epStreamStartAddrs[i] = relAddr + epMapPos;
-			log.debug("CPI stream[{}]: pid=0x{}, type={}, coarse={}, fine={}, addr=0x{}", i, hex(pids[i]),
-					epStreamTypes[i], numCoarseArr[i], numFineArr[i], hex(epStreamStartAddrs[i]));
+			log.debug("CPI stream[{}]: pid={}, type={}, coarse={}, fine={}, addr={}", i, hex(pids[i]), epStreamTypes[i],
+					numCoarseArr[i], numFineArr[i], hex(epStreamStartAddrs[i]));
 		}
 
 		// Parse each stream's coarse/fine entries

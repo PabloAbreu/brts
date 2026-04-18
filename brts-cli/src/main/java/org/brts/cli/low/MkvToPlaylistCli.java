@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
  */
 public class MkvToPlaylistCli {
 
-	static class ConvertOptions {
+	public static class ConvertOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV source file")
 		File input;
@@ -61,11 +61,6 @@ public class MkvToPlaylistCli {
 		@Override
 		public String getDescription() {
 			return "Convert an MKV file to Blu-ray M2TS/CLPI/MPLS";
-		}
-
-		@Override
-		protected ConvertOptions createOptions() {
-			return new ConvertOptions();
 		}
 
 		@Override

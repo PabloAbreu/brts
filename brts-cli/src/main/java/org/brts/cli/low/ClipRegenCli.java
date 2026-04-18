@@ -16,7 +16,7 @@ import java.nio.file.Path;
  */
 public class ClipRegenCli {
 
-	static class RegenOptions {
+	public static class RegenOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the source .m2ts file to parse")
 		File input;
@@ -44,11 +44,6 @@ public class ClipRegenCli {
 		@Override
 		public String getDescription() {
 			return "Regenerate a CLPI file from an M2TS stream";
-		}
-
-		@Override
-		protected RegenOptions createOptions() {
-			return new RegenOptions();
 		}
 
 		@Override

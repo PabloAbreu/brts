@@ -1,0 +1,23 @@
+{
+  "clipName": "00001",
+  "sourceMkv": "/path/to/movie.mkv",
+  "tracks": [
+    {
+      "mkvTrackNumber": 1,
+      "targetPid": 4113,
+      "includeInPlaylist": true
+    },
+    {
+      "mkvTrackNumber": 2,
+      "targetPid": 4352,
+      "language": "eng",
+      "includeInPlaylist": true
+    },
+    {
+      "mkvTrackNumber": 3,
+      "targetPid": 4608,
+      "language": "eng",
+      "includeInPlaylist": true
+    }
+  ]
+}

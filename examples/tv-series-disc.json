@@ -1,0 +1,11 @@
+{
+  "templateType": "TV_SERIES",
+  "discTitle": "My Series — Season 1",
+  "outputDirectory": "/tmp/my-series-s01",
+  "seriesName": "My Series",
+  "seasonNumber": 1,
+  "episodesGlob": "/path/to/season1/*.mkv",
+  "audioLanguages": ["eng"],
+  "subtitleLanguages": ["eng", "fra"],
+  "generateEpisodeMenu": true
+}

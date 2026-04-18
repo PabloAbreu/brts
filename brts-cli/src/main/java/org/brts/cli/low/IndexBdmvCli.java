@@ -1,6 +1,7 @@
 package org.brts.cli.low;
 
 import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.bdmv.IndexBdmvWriter;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.parser.IndexBdmvParser;
@@ -25,7 +26,7 @@ public class IndexBdmvCli {
 	// Parse command: binary index.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	static class ParseOptions {
+	public static class ParseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary index.bdmv file to parse")
 		File input;
@@ -48,11 +49,6 @@ public class IndexBdmvCli {
 		}
 
 		@Override
-		protected ParseOptions createOptions() {
-			return new ParseOptions();
-		}
-
-		@Override
 		protected void execute(ParseOptions opts) throws Exception {
 			IndexBdmv index = new IndexBdmvParser().parse(opts.input.toPath());
 			if (opts.output != null) {
@@ -72,10 +68,11 @@ public class IndexBdmvCli {
 	// Write command: JSON → binary index.bdmv
 	// -------------------------------------------------------------------------
 
-	static class WriteOptions {
+	public static class WriteOptions {
 
-		@Option(name = "--input", required = true, usage = "Path to the JSON model file (as produced by index-parse)")
-		File input;
+		@JsonInputOption(name = "--input", required = true,
+				usage = "Path to the JSON model file (as produced by index-parse)")
+		IndexBdmv input;
 
 		@Option(name = "--output", required = true, usage = "Output path for the generated index.bdmv file")
 		File output;
@@ -95,20 +92,17 @@ public class IndexBdmvCli {
 		}
 
 		@Override
-		protected WriteOptions createOptions() {
-			return new WriteOptions();
-		}
-
-		@Override
 		protected void execute(WriteOptions opts) throws Exception {
-			IndexBdmv index = loadJson(opts.input, IndexBdmv.class);
-			if (opts.output.getParentFile() != null) {
-				opts.output.getParentFile().mkdirs();
+			File dest = opts.output;
+			if (dest.isDirectory())
+				dest = new File(dest, "index.bdmv");
+			else if (dest.getParentFile() != null) {
+				dest.getParentFile().mkdirs();
 			}
-			try (OutputStream out = new FileOutputStream(opts.output)) {
-				new IndexBdmvWriter().write(index, out);
+			try (OutputStream out = new FileOutputStream(dest)) {
+				new IndexBdmvWriter().write(opts.input, out);
 			}
-			System.out.println("Wrote index.bdmv → " + opts.output);
+			System.out.println("Wrote index.bdmv → " + dest);
 		}
 
 	}

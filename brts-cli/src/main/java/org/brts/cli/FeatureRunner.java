@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+import org.brts.cli.middle.BuildCli.BaseOptions;
 import org.brts.common.json.JsonMapperFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -108,10 +109,25 @@ public abstract class FeatureRunner<O> {
 		catch (CmdLineException e) {
 			System.err.println(getCommandName() + ": " + e.getMessage());
 			printUsage(System.err);
+			if (opts instanceof BaseOptions bopt)
+				if (bopt.isErrorDetails()) {
+					System.err.println(getCommandName() + " failed. Details:\n");
+					e.printStackTrace();
+				}
 			System.exit(1);
 		}
 
-		execute(opts);
+		try {
+			execute(opts);
+		}
+		catch (Exception e) {
+			if (opts instanceof BaseOptions bopt)
+				if (bopt.isErrorDetails()) {
+					System.err.println(getCommandName() + " failed. Details:\n");
+					e.printStackTrace();
+				}
+			throw e;
+		}
 	}
 
 	private static class FeatureRunnerCmdLineParser extends CmdLineParser {

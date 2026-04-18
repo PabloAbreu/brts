@@ -2,6 +2,7 @@ package org.brts.common.io;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 /**
  * Writes big-endian binary data to an OutputStream. All Blu-ray binary structures use
@@ -52,6 +53,14 @@ public class BinaryWriter implements AutoCloseable {
 		position += count;
 	}
 
+	/** Writes {@code count} bytes (padding with a particular byte). */
+	public void writePadding(int count, int fill) throws IOException {
+		byte[] b = new byte[count];
+		Arrays.fill(b, (byte) fill);
+		out.write(b);
+		position += count;
+	}
+
 	/** Returns the number of bytes written so far. */
 	public long getPosition() {
 		return position;
@@ -60,6 +69,15 @@ public class BinaryWriter implements AutoCloseable {
 	@Override
 	public void close() throws IOException {
 		out.close();
+	}
+
+	public void padToFour() throws IOException {
+		// pad result to 4-byte boundary if needed (not sure if this is actually
+		// required,
+		// but seems to be the pattern in real files)
+		if (getPosition() % 4 != 0) {
+			writePadding(4 - (int) (getPosition() % 4));
+		}
 	}
 
 }

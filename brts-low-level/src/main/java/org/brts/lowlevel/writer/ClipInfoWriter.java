@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.common.io.BinaryWriter;
+import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.clpi.EpMap;
@@ -41,13 +42,14 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		byte[] programSection = buildProgramInfoSection(model);
 		byte[] cpiSection = buildCpiSection(model);
 		byte[] clipMarkSection = buildClipMarkSection();
+		byte[] extensionSection = buildExtensionSection();
 
 		int clipInfoEnd = HEADER_SIZE + clipInfoSection.length;
 		int sequenceOffset = clipInfoEnd;
 		int programOffset = sequenceOffset + sequenceSection.length;
 		int cpiOffset = programOffset + programSection.length;
 		int clipMarkOffset = cpiOffset + cpiSection.length;
-		int extensionOffset = 0; // not used
+		int extensionOffset = clipMarkOffset + clipMarkSection.length;
 
 		BinaryWriter w = new BinaryWriter(output);
 
@@ -66,6 +68,11 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		w.writeBytes(programSection);
 		w.writeBytes(cpiSection);
 		w.writeBytes(clipMarkSection);
+		w.writeBytes(extensionSection);
+	}
+
+	private byte[] buildExtensionSection() {
+		return new byte[4]; // empty extension section (just length=0 ?)
 	}
 
 	// -------------------------------------------------------------------------
@@ -86,8 +93,11 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeInt(m.getTsRecordingRate());
 		wi.writeInt(m.getNumSourcePackets());
 		wi.writePadding(128); // 128 reserved bytes
-		// ts_type_info_block: just write length=0
-		wi.writeShort(0);
+		// ts_type_info_block
+		wi.writeShort(30);// length=30
+		wi.writeByte(0x80);// no clue what that is
+		wi.writeAscii("HDMV");// always seems to be there
+		wi.writePadding(25);// up to 32 bytes total for ts_type_info_block with length
 
 		w.writeInt(inner.size()); // section length
 		w.writeBytes(inner.toByteArray());
@@ -116,6 +126,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 		w.writeInt(inner.size());
 		w.writeBytes(inner.toByteArray());
+
+		w.padToFour();
 		return buf.toByteArray();
 	}
 
@@ -129,23 +141,30 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeByte(1); // num_program = 1
 
 		// For each program:
-		wi.writeInt(0); // spn_program_sequence_begin
+		wi.writeInt(0); // spn_program_sequence_begin (always 0 = file start ?)
 		wi.writeShort(0x0100); // program_map_PID = 256
 		List<ClipStream> streams = m.getStreams() != null ? m.getStreams() : List.of();
 		wi.writeByte(streams.size());
-		wi.writeByte(0); // num_groups
+		wi.writeByte(0); // num_groups (what is that ?)
 
 		for (ClipStream s : streams) {
 			wi.writeShort(s.getPid());
-			int streamInfoSize = 15;
+			int streamInfoSize = 21;// seen in actual files
+			// codingType + payload + 12 '0' + 4 0
 			wi.writeByte(streamInfoSize);
+
 			wi.writeByte(s.getCodingType().getCodingTypeByte());
 			if (s.getCodingType().isVideo()) {
+				// does not manage HEVC for now
 				int vf = (s.getVideoFormat() != null ? s.getVideoFormat() : 0);
 				int fr = (s.getFrameRate() != null ? s.getFrameRate() : 0);
 				wi.writeByte((vf << 4) | fr);
+				// we ignore the "OCFlag", whatever that is
 				wi.writeByte((s.getAspectRatio() != null ? s.getAspectRatio() : 0) << 4);
-				wi.writePadding(streamInfoSize - 3);
+				wi.writeShort(0);// 17 bits reserved, counting the last 1 from the
+									// previous byte
+				// pad with '0' and 4 zeroes (seen in actual files, not sure if
+				// required or just reserved)
 			}
 			else if (s.getCodingType().isAudio()) {
 				int ch = (s.getAudioChannelLayout() != null ? s.getAudioChannelLayout() : 0);
@@ -153,22 +172,29 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 				wi.writeByte((ch << 4) | sr);
 				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
-				wi.writePadding(streamInfoSize - 5);
 			}
-			else {
-				int offset = 1;
-				if (s.getCodingType() == org.brts.common.model.StreamCodingType.TEXT_SUBTITLE) {
-					offset = 0;
-					wi.writeByte(s.getCharacterCode() != null ? s.getCharacterCode() : 0);
-				}
+			// never seen that in real files
+			else if (s.getCodingType() == StreamCodingType.TEXT_SUBTITLE) {
+				wi.writeByte(s.getCharacterCode() != null ? s.getCharacterCode() : 0);
 				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
-				wi.writePadding(streamInfoSize - 5 + offset); // reserved
 			}
+			else /*
+					 * if (s.getCodingType()== StreamCodingType.PRESENTATION_GRAPHICS ||
+					 * s.getCodingType() == StreamCodingType.INTERACTIVE_GRAPHICS)
+					 */ {
+				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
+				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
+				wi.writeByte(0);// found in real files, not sure what it is (null
+								// terminator ?)
+			}
+			wi.writePadding(streamInfoSize - 9, '0');
+			wi.writePadding(4);
 		}
 
 		w.writeInt(inner.size());
 		w.writeBytes(inner.toByteArray());
+		w.padToFour();
 		return buf.toByteArray();
 	}
 
@@ -339,8 +365,10 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	private byte[] buildClipMarkSection() throws IOException {
 		ByteArrayOutputStream buf = new ByteArrayOutputStream();
 		BinaryWriter w = new BinaryWriter(buf);
-		w.writeInt(2); // section length = 2
-		w.writeShort(0); // num_clip_mark = 0
+		w.writeInt(0);// found in real files
+		// or maybe it could be more complicated:
+		// w.writeInt(2); // section length = 2
+		// w.writeShort(0); // num_clip_mark = 0
 		return buf.toByteArray();
 	}
 

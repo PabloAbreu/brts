@@ -30,6 +30,8 @@ public class DiscDescriptor {
 
 	private String discName;
 
+	private String outputFolder;// for the BD
+
 	/** If true, a top menu object will be generated (requires menu title config). */
 	private boolean hasTopMenu = false;
 

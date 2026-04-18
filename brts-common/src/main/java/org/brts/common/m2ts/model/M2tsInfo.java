@@ -2,6 +2,7 @@ package org.brts.common.m2ts.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 import java.util.List;
 
@@ -13,6 +14,7 @@ import java.util.List;
  */
 @Getter
 @Setter
+@ToString
 public class M2tsInfo {
 
 	/** Absolute path to the parsed file. */
@@ -69,7 +71,9 @@ public class M2tsInfo {
 	 * Duration derived from first/last PCR, converted to milliseconds. Returns {@code -1}
 	 * if PCR data is not available.
 	 */
-	public long getDurationMs() {
+	@Deprecated
+	// because of wrap-around, this will never work as is
+	public long __getDurationMs() {
 		if (firstPcr27MHz < 0 || lastPcr27MHz < 0)
 			return -1;
 		long deltaTicks = lastPcr27MHz - firstPcr27MHz;
