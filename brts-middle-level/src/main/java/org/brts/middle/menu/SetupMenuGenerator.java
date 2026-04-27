@@ -1,24 +1,28 @@
 package org.brts.middle.menu;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.brts.common.json.JsonMapperFactory;
-import org.brts.common.m2ts.M2tsWriter;
-import org.brts.common.m2ts.model.M2tsDescriptor;
-import org.brts.common.model.StreamCodingType;
-import org.brts.lowlevel.igs.IgsMuxer;
-import org.brts.lowlevel.igs.model.IgsDisplaySet;
-import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
-import org.brts.middle.menu.media.MediaSource;
-import org.brts.middle.menu.media.MediaSourceFactory;
-import org.brts.middle.pid.PidAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.M2tsClipWriter;
+import org.brts.common.m2ts.M2tsClipWriterFactory;
+import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.model.StreamCodingType;
+import org.brts.lowlevel.igs.IgsMuxer;
+import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.writer.MoviePlaylistWriter;
+import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
+import org.brts.middle.menu.media.MediaSource;
+import org.brts.middle.menu.media.MediaSourceFactory;
+import org.brts.middle.pid.PidAllocator;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Top-level orchestrator for setup menu M2TS generation.
@@ -32,26 +36,10 @@ import java.util.List;
  * <li>Mux video + audio + IGS into an M2TS file</li>
  * </ol>
  */
+@Slf4j
 public class SetupMenuGenerator {
 
-	private static final Logger log = LoggerFactory.getLogger(SetupMenuGenerator.class);
-
 	private final ObjectMapper mapper = JsonMapperFactory.get();
-
-	/**
-	 * Generates a setup menu M2TS from a JSON descriptor file.
-	 * @param descriptorFile path to the setup menu JSON descriptor
-	 * @param outputDir directory where the output M2TS (and intermediate files) will be
-	 * written
-	 * @throws IOException on I/O or generation error
-	 */
-	public void generate(Path descriptorFile, Path outputDir) throws IOException {
-		log.info("Generating setup menu from descriptor: {}", descriptorFile);
-
-		SetupMenuDescriptor descriptor = mapper.readValue(descriptorFile.toFile(), SetupMenuDescriptor.class);
-
-		generate(descriptor, outputDir);
-	}
 
 	/**
 	 * Generates a setup menu M2TS from an in-memory descriptor.
@@ -61,14 +49,28 @@ public class SetupMenuGenerator {
 	 */
 	public void generate(SetupMenuDescriptor descriptor, Path outputDir) throws IOException {
 		Files.createDirectories(outputDir);
+		Path bdmv = outputDir;
+		if (!bdmv.endsWith("BDMV"))
+			bdmv = outputDir.resolve("BDMV");
 		Path workDir = outputDir.resolve("work");
 		Files.createDirectories(workDir);
 
 		// ── 1. Extract background media ─────────────────────────────────────
 
+		Path bgDir = outputDir.resolve("bg");
+		Files.createDirectories(bgDir);
 		MediaSource mediaSource = MediaSourceFactory.create(descriptor.getBackgroundMedia());
-		MediaSource.ExtractionResult extraction = mediaSource.extract(workDir);
+		MediaSource.ExtractionResult extraction = mediaSource.extract(bgDir);
 		log.info("Background media extracted: video={}, audio={}", extraction.videoEsFile(), extraction.audioEsFile());
+		MediaSource.ExtractionResult introExtraction = null;
+		if (descriptor.getBackgroundIntroMedia() != null) {
+			Path introDir = outputDir.resolve("intro");
+			Files.createDirectories(introDir);
+			MediaSource introSource = MediaSourceFactory.create(descriptor.getBackgroundIntroMedia());
+			introExtraction = introSource.extract(introDir);
+			log.info("Background intro media extracted: video={}, audio={}", introExtraction.videoEsFile(),
+					introExtraction.audioEsFile());
+		}
 
 		// ── 2. Build IGS ────────────────────────────────────────────────────
 
@@ -83,12 +85,78 @@ public class SetupMenuGenerator {
 		Files.write(igsEsFile, igsEs);
 		log.info("IGS ES written: {} bytes → {}", igsEs.length, igsEsFile);
 
-		// ── 4. Build M2TS descriptor ────────────────────────────────────────
+		// ── 4. Build M2TS descriptors and mux ───────────────────────────────────────
 
 		PidAllocator pids = new PidAllocator();
+		muxIntoM2ts(extraction, pids, descriptor.getOutputName(), bdmv);
+		muxIntoM2ts(introExtraction, pids, descriptor.getOutputIntroName(), bdmv);
+
+		muxMenu(igsEsFile, pids, descriptor.getOutputMenuName(), bdmv);
+
+		// ── 5. Playlist with intro, loop on background, menu ────────────────────────
+
+		generatePlaylist(descriptor.getOutputIntroName(), descriptor.getOutputName(), descriptor.getOutputMenuName(),
+				descriptor.getOutputPlaylistName(), bdmv);
+	}
+
+	/**
+	 * Generates the mpls playlist file that references the intro, menu, and background
+	 * M2TS files.
+	 * @param outputIntroName
+	 * @param outputName
+	 * @param outputMenuName
+	 * @param bdmv
+	 * @throws IOException
+	 */
+	private void generatePlaylist(String outputIntroName, String outputName, String outputMenuName,
+			String outputPlaylistName, Path bdmv) throws IOException {
+		Path playlistDir = bdmv.resolve("PLAYLIST");
+		Files.createDirectories(playlistDir);
+		Path playlistPath = playlistDir.resolve(outputPlaylistName + ".mpls");
+		MoviePlaylistWriter playlistWriter = new MoviePlaylistWriter();
+		MoviePlaylist playlist = new MoviePlaylist();
+		playlist.setMenu(true);
+		playlist.setPlaylistName(outputPlaylistName);// in fact unused
+		// TODO videos, menu
+		playlistWriter.write(playlist, playlistPath);
+	}
+
+	private void muxMenu(Path igsStreamPath, PidAllocator pids, String outputName, Path bdmv) throws IOException {
 
 		M2tsDescriptor m2tsDesc = new M2tsDescriptor();
-		m2tsDesc.setOutputName(descriptor.getOutputName());
+		List<M2tsDescriptor.StreamEntry> streams = new ArrayList<>();
+		// IGS stream
+		M2tsDescriptor.StreamEntry igsStream = new M2tsDescriptor.StreamEntry();
+		igsStream.setFile(igsStreamPath.toAbsolutePath().toString());
+		igsStream.setPid(pids.allocate(StreamCodingType.INTERACTIVE_GRAPHICS));
+		igsStream.setStreamTypeByte(StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte());
+		streams.add(igsStream);
+
+		m2tsDesc.setStreams(streams);
+		mux(m2tsDesc, outputName, bdmv);
+
+	}
+
+	private void mux(M2tsDescriptor m2tsDesc, String outputName, Path bdmv) throws IOException {
+
+		Path stream = bdmv.resolve("STREAM");
+		Files.createDirectories(stream);
+		Path clipDir = bdmv.resolve("CLIPINF");
+		Files.createDirectories(clipDir);
+		Path m2tsOutput = stream.resolve(outputName + ".m2ts");
+		Path clpiOutput = clipDir.resolve(outputName + ".clpi");
+
+		M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
+		writer.write(m2tsDesc, m2tsOutput, clpiOutput);
+		Path descOutPath = bdmv.resolve(outputName + ".m2ts-descriptor.json");
+		mapper.writerWithDefaultPrettyPrinter().writeValue(descOutPath.toFile(), m2tsDesc);
+	}
+
+	private void muxIntoM2ts(MediaSource.ExtractionResult extraction, PidAllocator pids, String outputName, Path bdmv)
+			throws IOException {
+
+		M2tsDescriptor m2tsDesc = new M2tsDescriptor();
+		m2tsDesc.setOutputName(outputName);
 
 		List<M2tsDescriptor.StreamEntry> streams = new ArrayList<>();
 
@@ -115,30 +183,7 @@ public class SetupMenuGenerator {
 				audioStream.setChannels(extraction.audioChannels());
 			streams.add(audioStream);
 		}
-
-		// IGS stream
-		M2tsDescriptor.StreamEntry igsStream = new M2tsDescriptor.StreamEntry();
-		igsStream.setFile(igsEsFile.toAbsolutePath().toString());
-		igsStream.setPid(pids.allocate(StreamCodingType.INTERACTIVE_GRAPHICS));
-		igsStream.setStreamTypeByte(StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte());
-		streams.add(igsStream);
-
-		m2tsDesc.setStreams(streams);
-
-		// ── 5. Mux into M2TS ───────────────────────────────────────────────
-
-		String outputName = descriptor.getOutputName();
-		Path m2tsOutput = outputDir.resolve(outputName + ".m2ts");
-
-		M2tsWriter writer = new M2tsWriter();
-		writer.write(m2tsDesc, m2tsOutput);
-
-		log.info("Setup menu M2TS generated: {}", m2tsOutput);
-
-		// Optionally write the M2TS descriptor for reference
-		Path descOutPath = outputDir.resolve(outputName + ".m2ts-descriptor.json");
-		mapper.writerWithDefaultPrettyPrinter().writeValue(descOutPath.toFile(), m2tsDesc);
-		log.info("M2TS descriptor written: {}", descOutPath);
+		mux(m2tsDesc, outputName, bdmv);
 	}
 
 }

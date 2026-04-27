@@ -12,16 +12,22 @@ import java.util.List;
  * <p>
  * The descriptor references:
  * <ul>
+ * <li>An intro background media source (video + audio)</li>
  * <li>A background media source (video + audio)</li>
  * <li>Screen dimensions</li>
  * <li>Global text style defaults</li>
  * <li>Menu item categories: audio, subtitles, misc navigation</li>
  * </ul>
  *
- * <h2>Example</h2> <pre>{@code
+ * The intro is played once, then the menu loops with the background media.
+ *
+ * <h2>Example</h2>
+ *
+ * <pre>{@code
  * {
  *   "screenWidth": 1920,
  *   "screenHeight": 1080,
+ *   "backgroundIntroMedia": { "type": "MKV", "file": "/path/to/bg_intro.mkv" },
  *   "backgroundMedia": { "type": "MKV", "file": "/path/to/bg.mkv" },
  *   "globalStyle": { "fontName": "SansSerif", "fontSize": 28, ... },
  *   "audioItems": [ ... ],
@@ -42,6 +48,9 @@ public class SetupMenuDescriptor {
 	/** Screen height in pixels (default: 1080). */
 	private int screenHeight = 1080;
 
+	/** Background introduction media source descriptor. */
+	private BackgroundMediaDescriptor backgroundIntroMedia;
+
 	/** Background media source descriptor. */
 	private BackgroundMediaDescriptor backgroundMedia;
 
@@ -58,8 +67,32 @@ public class SetupMenuDescriptor {
 	private List<MiscMenuItem> miscItems = new ArrayList<>();
 
 	/**
-	 * Base name for the output M2TS file (5 digits, no extension). E.g. "00800".
+	 * Base name for the output M2TS file for intro (5 digits, no extension). E.g.
+	 * "00800".
 	 */
-	private String outputName = "00800";
+	private String outputIntroName = "00800";
+
+	/**
+	 * Base name for the output M2TS file (5 digits, no extension). E.g. "00801".
+	 */
+	private String outputName = "00801";
+
+	/**
+	 * Base name for the output out-of-mux IGS M2TS file (5 digits, no extension). E.g.
+	 * "00802".
+	 */
+	private String outputMenuName = "00802";
+
+	/**
+	 * Whether to mux the menu into the same M2TS file as the background.
+	 *
+	 * Unsupported for now : always out of mux.
+	 */
+	private boolean inMux = false;
+
+	/**
+	 * Base name for the output playlist file (5 digits, no extension). E.g. "00800".
+	 */
+	private String outputPlaylistName = "00800";
 
 }

@@ -127,10 +127,11 @@ public class M2tsDemuxer {
 				int payloadOff = 4 + 4; // skip 4-byte tp_extra + 4-byte TS header
 				if (adaptCtrl == 2) {
 					// adaptation field only, no payload
-					packetIndex++;
 					if (pid == info.getPcrPid()) {
+						// FIXME call that for PCR in other cases too
 						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
 					}
+					packetIndex++;
 					continue;
 				}
 				if (adaptCtrl == 3) {
@@ -152,7 +153,9 @@ public class M2tsDemuxer {
 
 				boolean payloadUnitStart = (b1 & 0x40) != 0;
 				int payloadLen = SOURCE_PACKET_SIZE - payloadOff;
-
+				if (pid == 0x1400) {
+					log.debug("Payload starts with {} at packet {}", sp[payloadOff], packetIndex);
+				}
 				handler.onPayload(pid, sp, payloadOff, payloadLen, payloadUnitStart, packetIndex, ats);
 
 				packetIndex++;

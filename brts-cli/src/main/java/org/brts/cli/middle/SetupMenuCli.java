@@ -1,7 +1,9 @@
 package org.brts.cli.middle;
 
 import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
 import org.brts.middle.menu.SetupMenuGenerator;
+import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
 import org.kohsuke.args4j.Option;
 
 import java.io.File;
@@ -11,10 +13,10 @@ import java.io.File;
  */
 public class SetupMenuCli {
 
-	static class Options {
+	public static class Options {
 
-		@Option(name = "--descriptor", required = true, usage = "Path to the setup menu JSON descriptor")
-		File descriptor;
+		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the setup menu JSON descriptor")
+		SetupMenuDescriptor descriptor;
 
 		@Option(name = "--output", required = true,
 				usage = "Output directory for the generated M2TS and intermediate files")
@@ -35,17 +37,12 @@ public class SetupMenuCli {
 		}
 
 		@Override
-		protected Options createOptions() {
-			return new Options();
-		}
-
-		@Override
 		protected void execute(Options opts) throws Exception {
 			System.out.println("Generating setup menu from: " + opts.descriptor);
 			System.out.println("Output directory: " + opts.outputDir);
 
 			SetupMenuGenerator generator = new SetupMenuGenerator();
-			generator.generate(opts.descriptor.toPath(), opts.outputDir.toPath());
+			generator.generate(opts.descriptor, opts.outputDir.toPath());
 
 			System.out.println("Setup menu generation complete. Check " + opts.outputDir);
 		}

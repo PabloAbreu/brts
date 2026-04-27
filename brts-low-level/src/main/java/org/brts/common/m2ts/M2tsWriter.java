@@ -24,7 +24,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * This code was created by IA to mux ES into m2ts. But the result is still not playable.
- * It needs to be fixed to support IGS muxing along with video.
+ * It needs to be fixed to support IGS muxing along with video. Padding is also not
+ * working correctly, which causes the output file to be (a lot) larger than expected. The
+ * code is left here for reference and future work.
  *
  *
  * Creates an M2TS (Blu-ray 192-byte source packet) file from a set of elementary stream
@@ -97,8 +99,9 @@ public class M2tsWriter {
 
 	// HDMV private_stream_1 (0xBD) sub-stream IDs
 	// Blu-ray spec: first byte of the PES data payload identifies the sub-stream type.
-	static final int SUBSTREAM_ID_IG = 0x20; // first IGS sub-stream
-	static final int SUBSTREAM_ID_PG = 0x00; // first PGS sub-stream
+	// same value as IgsSegmentType.IG_COMPOSITION
+	static final int SUBSTREAM_ID_IG = 0x18; // first IGS sub-stream
+	static final int SUBSTREAM_ID_PG = 0x20; // first PGS sub-stream
 	static final int SUBSTREAM_ID_AUDIO_PRIVATE = 0x80; // first private audio
 														// (AC3/DTS/LPCM)
 
@@ -640,7 +643,9 @@ public class M2tsWriter {
 		boolean hasDts = dts90 != null;
 		int headerLen = hasDts ? 19 : 14;
 		// For stream_id 0xBD, prepend 1-byte sub-stream id inside the payload.
-		boolean needSubstreamId = (streamId == 0xBD);
+		// ID_IG is already in the input stream as the first byte of the payload, so no
+		// need to prepend it again.
+		boolean needSubstreamId = (streamId == 0xBD) && substreamId != M2tsWriter.SUBSTREAM_ID_IG;
 		int pesDataLen = needSubstreamId ? 1 + payload.length : payload.length;
 		byte[] pes = new byte[headerLen + pesDataLen];
 		// start code prefix

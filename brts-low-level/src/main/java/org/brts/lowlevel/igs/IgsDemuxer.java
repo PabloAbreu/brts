@@ -1,16 +1,24 @@
 package org.brts.lowlevel.igs;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.brts.common.json.JsonMapperFactory;
-import org.brts.lowlevel.igs.model.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.brts.common.json.JsonMapperFactory;
+import org.brts.lowlevel.igs.model.IgsCompositionSegment;
+import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.igs.model.IgsObject;
+import org.brts.lowlevel.igs.model.IgsPalette;
+import org.brts.lowlevel.igs.model.IgsRawSegment;
+import org.brts.lowlevel.igs.model.IgsWindowDefinition;
+import org.brts.lowlevel.igs.model.SequenceDescriptor;
+import org.brts.lowlevel.igs.model.VideoDescriptor;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * IGS Demuxer — extracts the contents of a raw IGS elementary stream into a structured
@@ -36,9 +44,8 @@ import java.util.List;
  *
  * This output can be fed back into {@link IgsMuxer} for a faithful round-trip.
  */
+@Slf4j
 public class IgsDemuxer {
-
-	private static final Logger log = LoggerFactory.getLogger(IgsDemuxer.class);
 
 	private final IgsParser parser = new IgsParser();
 

@@ -156,21 +156,21 @@ class ParsedNavigationCommandTest {
 	@Test
 	void registerIndex_gpr() {
 		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", 123, false, 456, false);
-		assertThat(cmd.getOp1RegisterIndex()).isEqualTo(123);
-		assertThat(cmd.getOp2RegisterIndex()).isEqualTo(456);
+		assertThat(cmd.computeOp1RegisterIndex()).isEqualTo(123);
+		assertThat(cmd.computeOp2RegisterIndex()).isEqualTo(456);
 	}
 
 	@Test
 	void registerIndex_psr() {
 		long psr31 = 0x8000001FL;
 		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("MOVE", psr31, false, 0, false);
-		assertThat(cmd.getOp1RegisterIndex()).isEqualTo(31);
+		assertThat(cmd.computeOp1RegisterIndex()).isEqualTo(31);
 	}
 
 	@Test
 	void registerIndex_throwsForImmediate() {
 		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 42, true, 0, false);
-		assertThatThrownBy(cmd::getOp1RegisterIndex).isInstanceOf(IllegalStateException.class)
+		assertThatThrownBy(cmd::computeOp1RegisterIndex).isInstanceOf(IllegalStateException.class)
 			.hasMessageContaining("immediate");
 	}
 

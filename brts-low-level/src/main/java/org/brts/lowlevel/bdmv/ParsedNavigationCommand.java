@@ -188,7 +188,7 @@ public final class ParsedNavigationCommand {
 	 * bits 6:0. For GPR: bits 11:0.
 	 * @throws IllegalStateException if operand 1 is an immediate value
 	 */
-	public int getOp1RegisterIndex() {
+	public int computeOp1RegisterIndex() {
 		return registerIndex(getOp1Kind(), operand1, 1);
 	}
 
@@ -197,7 +197,7 @@ public final class ParsedNavigationCommand {
 	 * bits 6:0. For GPR: bits 11:0.
 	 * @throws IllegalStateException if operand 2 is an immediate value
 	 */
-	public int getOp2RegisterIndex() {
+	public int computeOp2RegisterIndex() {
 		return registerIndex(getOp2Kind(), operand2, 2);
 	}
 

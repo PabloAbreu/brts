@@ -77,10 +77,12 @@ public class MiddleLevelOrchestrator {
 		scriptLines.add("#!/usr/bin/env bash");
 		scriptLines.add("# Auto-generated middle-level orchestration script");
 		scriptLines.add("# Run each step in order to produce the low-level Blu-ray files");
+		scriptLines.add(
+				"# 'java' must be in your PATH, and the BRTS CLI JAR must be at $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar");
 		scriptLines.add("set -euo pipefail");
 		scriptLines.add("");
 		scriptLines.add(
-				"BRTS_CLI=\"java -Dtsmuxer.binary=/home/pulco/tools/tsMuxer_2.7.0/tsMuxeR -jar /home/pulco/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar\"");
+				"BRTS_CLI=\"java -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar\"");
 		scriptLines.add("");
 
 		IndexBdmv index = new IndexBdmv();

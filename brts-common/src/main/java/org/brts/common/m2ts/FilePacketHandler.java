@@ -13,6 +13,7 @@ import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,7 +84,11 @@ public class FilePacketHandler implements M2tsPacketHandler {
 			int pesHeaderLen = (payload[payloadOff + 8] & 0xFF) + 9;
 			payloadOff += pesHeaderLen;
 			payloadLen = length - (payloadOff - offset);
-
+			if (pid == 0x1400) {
+				log.debug(" PES header of {} bytes stripped, payload now {} bytes", pesHeaderLen, payloadLen);
+				// then print bytes of payload for debugging
+				log.debug("  Payload start: {}", StringUtils.bytesToHex(payload, payloadOff, payloadLen));
+			}
 			if (payloadLen <= 0)
 				return;
 		}

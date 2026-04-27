@@ -8,12 +8,15 @@ import java.util.List;
 
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.utils.ProcessUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
+
+	private static final String TSMUXER_BINARY = "tsmuxer.binary";
 
 	private static String ptsToTimeString(long ptsTicks) {
 		long milliseconds = ptsTicks / 90;
@@ -28,6 +31,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 	@Override
 	public void write(M2tsDescriptor descriptor, Path m2tsPath, Path clipPath) throws IOException {
 		// create process to run tsMuxeR CLI
+		// same params as in tsMuxerGUI
 		final StringBuilder metaFilecontents = new StringBuilder(
 				"MUXOPT --no-pcr-on-video-pid --new-audio-pes --blu-ray --vbr --vbv-len=500");
 		List<M2tsChapter> chapters = descriptor.getChapters();
@@ -91,11 +95,17 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		};
 	}
 
-	public static String resolveTsMuxeRBinary() {
-		String tsmuxer = System.getProperty("tsmuxer.binary");
-		if (tsmuxer == null)
-			throw new IllegalStateException(
-					"System property 'tsmuxer.binary' is not set. Please set it to the path of the tsMuxeR CLI binary.");
+	static String resolveTsMuxeRBinary() {
+		String error = "";
+		String tsmuxer = BrtsFileConfig.getInstance().getProperty(TSMUXER_BINARY);
+		if (tsmuxer == null) {
+			error += "Property 'tsmuxer.binary' is not set. Please set it to the path of the tsMuxeR CLI binary.";
+			tsmuxer = ProcessUtils.findFullPath("tsMuxeR");
+		}
+		if (tsmuxer == null) {
+			error += " tsMuxeR binary not found in system PATH either.";
+			throw new IllegalStateException(error);
+		}
 		File tsmuxerFile = new File(tsmuxer);
 		if (!tsmuxerFile.exists() || !tsmuxerFile.isFile() || !tsmuxerFile.canExecute()) {
 			throw new IllegalStateException(
@@ -104,7 +114,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		return tsmuxer;
 	}
 
-	public static boolean isTsMuxeRAvailable() {
+	static boolean isTsMuxeRAvailable() {
 		try {
 			resolveTsMuxeRBinary();
 			return true;
