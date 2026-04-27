@@ -22,3 +22,4 @@ target
 external_references
 samples
 test_output
+.cached_classpath
