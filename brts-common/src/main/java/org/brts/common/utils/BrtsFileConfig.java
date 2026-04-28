@@ -2,7 +2,10 @@ package org.brts.common.utils;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -20,9 +23,9 @@ public class BrtsFileConfig {
 
 	private static final String DEFAULT_CONFIG_PATH = "/etc/default/brts.conf";
 
-	private static final String USER_CONFIG_PATH = System.getProperty("user.home") + "/.brts/brts.conf";
+	private final String USER_CONFIG_PATH = System.getProperty("user.home") + "/.brts/brts.conf";
 
-	private static final String OVERRIDEN_CONFIG_PATH = System.getProperty("brts.conf");
+	private final String OVERRIDEN_CONFIG_PATH = System.getProperty("brts.conf");
 
 	protected BrtsFileConfig() {
 		// load properties from three sources, in order.
@@ -37,7 +40,7 @@ public class BrtsFileConfig {
 		loadFromFile(OVERRIDEN_CONFIG_PATH);
 		resolveEnvironmentVariables();
 		resolveSystemProperties();
-		log.info("Final config properties: {}", resolvedProperties);
+		log.debug("Final config properties: {}", resolvedProperties);
 	}
 
 	/**
@@ -64,18 +67,20 @@ public class BrtsFileConfig {
 	}
 
 	private void loadFromFile(String path) {
+		if (path == null || path.isBlank())
+			return;
 		try {
 			try (var stream = new FileInputStream(path)) {
 				Properties properties = new Properties();
 				properties.load(stream);
 				properties.stringPropertyNames().forEach(key -> addProperty(key, properties.getProperty(key), path));
-				log.info("Loaded config from {}", path);
+				log.debug("Loaded config from {}", path);
 			} catch (FileNotFoundException e) {
-				log.debug("No config found at {}. Error is " + path, e.getMessage());
+				log.debug("No config found '{}'", e.getMessage());
 			}
 		} catch (Exception e) {
 			// (error when closing the stream ?)
-			log.trace("Error loading config from file: " + path, e);
+			log.debug("Error loading config from file: {}", path, e);
 		}
 	}
 
@@ -107,10 +112,19 @@ public class BrtsFileConfig {
 		});
 	}
 
+	public List<Entry> getAllProperties() {
+		// deep copy of entries too to prevent external modification of their values
+		List<Entry> copy = new ArrayList<>();
+		for (Map.Entry<String, Entry> e : resolvedProperties.entrySet())
+			copy.add(e.getValue().clone());
+		Collections.sort(copy, (a, b) -> a.getKey().compareTo(b.getKey()));
+		return copy;
+	}
+
 	@Getter
 	@Setter
 	@ToString
-	public static class Entry {
+	public static class Entry implements Cloneable {
 
 		private final String key;
 
@@ -132,6 +146,12 @@ public class BrtsFileConfig {
 			this.overridden = true;
 		}
 
+		public Entry clone() {
+			try {
+				return (Entry) super.clone();
+			} catch (CloneNotSupportedException e) {
+				throw new AssertionError(); // Can't happen
+			}
+		}
 	}
-
 }

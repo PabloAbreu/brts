@@ -55,6 +55,7 @@
 					<archive>
 						<manifest>
 							<mainClass>org.brts.cli.BrtsMain</mainClass>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 						</manifest>
 					</archive>
 					<descriptorRefs>

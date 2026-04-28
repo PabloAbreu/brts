@@ -154,8 +154,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				lastEnd = presentationEndTime;
 			}
 		}
-		clipInfo.setTsRecordingStartPts(Timestamp.ofTicks(firstStart * 2)); // 45 kHz → 90
-																			// kHz
+		clipInfo.setTsRecordingStartPts(Timestamp.ofTicks(firstStart * 2)); // 45 kHz → 90 kHz
 		clipInfo.setTsRecordingEndPts(Timestamp.ofTicks(lastEnd * 2));
 		clipInfo.setDuration(Timestamp.ofTicks((lastEnd - firstStart) * 2));
 	}

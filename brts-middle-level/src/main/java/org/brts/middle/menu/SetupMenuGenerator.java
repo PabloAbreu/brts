@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
  * <li>Extract video + audio ES from the background media</li>
  * <li>Build the IGS display set (buttons, navigation, RLE images)</li>
  * <li>Encode the IGS to a raw elementary stream file</li>
- * <li>Mux video + audio + IGS into an M2TS file</li>
+ * <li>Mux video + audio + IGS into M2TS files</li>
  * </ol>
  */
 @Slf4j

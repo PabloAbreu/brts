@@ -1,6 +1,7 @@
 package org.brts.cli;
 
 import org.brts.cli.low.BdjoCli;
+import org.brts.cli.low.BrtsInfoCli;
 import org.brts.cli.low.ClipInfoCli;
 import org.brts.cli.low.ClipRegenCli;
 import org.brts.cli.low.DiscCli;
@@ -33,7 +34,7 @@ public class LowLevelDispatcher {
 				.register(new M2tsCli.Create()).register(new M2tsCli.Dump()).register(new M2tsCli.IgsDemux())
 				.register(new M2tsCli.IgsMux()).register(new PgsCli.Create()).register(new RleConverterCli.Convert())
 				.register(new PlaylistToMkvCli.Extract()).register(new MkvToPlaylistCli.Convert())
-				.register(new NavSimulCli.Simul()).register(new DiscCli.Create());
+				.register(new BrtsInfoCli.Info()).register(new NavSimulCli.Simul()).register(new DiscCli.Create());
 	}
 
 	public LevelDispatcher getLevelDispatcher() {
