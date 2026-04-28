@@ -2,15 +2,19 @@ package org.brts.common.utils;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class BrtsFileConfig {
 
-	private final Properties properties = new Properties();
+	private final Map<String, Entry> resolvedProperties = new HashMap<>();
 
 	private static final @Getter BrtsFileConfig instance = new BrtsFileConfig();
 
@@ -31,7 +35,9 @@ public class BrtsFileConfig {
 		loadFromFile(DEFAULT_CONFIG_PATH);
 		loadFromFile(USER_CONFIG_PATH);
 		loadFromFile(OVERRIDEN_CONFIG_PATH);
-		log.info("Final config properties: {}", properties);
+		resolveEnvironmentVariables();
+		resolveSystemProperties();
+		log.info("Final config properties: {}", resolvedProperties);
 	}
 
 	/**
@@ -51,12 +57,8 @@ public class BrtsFileConfig {
 		if (key == null || key.isBlank()) {
 			throw new IllegalArgumentException("Property key cannot be null or blank");
 		}
-		String val = System.getProperty(key);
-		if (val == null)
-			val = getEnvVarName(key);
-		if (val == null)
-			val = properties.getProperty(key);
-		return val;
+		Entry entry = resolvedProperties.get(key);
+		return entry != null ? entry.getValue() : null;
 	}
 
 	private static String getEnvVarName(String propertyKey) {
@@ -66,7 +68,9 @@ public class BrtsFileConfig {
 	private void loadFromFile(String path) {
 		try {
 			try (var stream = new FileInputStream(path)) {
+				Properties properties = new Properties();
 				properties.load(stream);
+				properties.stringPropertyNames().forEach(key -> addProperty(key, properties.getProperty(key), path));
 				log.info("Loaded config from {}", path);
 			}
 			catch (FileNotFoundException e) {
@@ -77,6 +81,61 @@ public class BrtsFileConfig {
 			// (error when closing the stream ?)
 			log.trace("Error loading config from file: " + path, e);
 		}
+	}
+
+	private void resolveEnvironmentVariables() {
+		for (String key : resolvedProperties.keySet()) {
+			String envVarName = getEnvVarName(key);
+			String envValue = System.getenv(envVarName);
+			if (envValue != null)
+				addProperty(key, envValue, "env var " + envVarName);
+		}
+	}
+
+	private void resolveSystemProperties() {
+		for (String key : resolvedProperties.keySet()) {
+			String systemValue = System.getProperty(key);
+			if (systemValue != null)
+				addProperty(key, systemValue, "system property");
+		}
+	}
+
+	private void addProperty(String key, String value, String origin) {
+		resolvedProperties.compute(key, (k, existing) -> {
+			if (existing == null)
+				return new Entry(k, value, origin);
+			else {
+				existing.update(value, origin);
+				return existing;
+			}
+		});
+	}
+
+	@Getter
+	@Setter
+	@ToString
+	public static class Entry {
+
+		private final String key;
+
+		private String value;
+
+		private String origin;
+
+		private boolean overridden = false;
+
+		public Entry(String key, String value, String origin) {
+			this.key = key;
+			this.value = value;
+			this.origin = origin;
+		}
+
+		public void update(String newValue, String newOrigin) {
+			this.value = newValue;
+			this.origin = newOrigin;
+			this.overridden = true;
+		}
+
 	}
 
 }
