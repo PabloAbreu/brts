@@ -57,8 +57,8 @@ public class NavSimulCli {
 				for (var entry : raw.entrySet()) {
 					String key = entry.getKey().trim();
 					if (!key.toUpperCase().startsWith("PSR")) {
-						System.err
-							.println("nav-simul: invalid PSR key '" + key + "' — expected format PSR<N>, e.g. PSR4");
+						System.err.println(
+								"nav-simul: invalid PSR key '" + key + "' — expected format PSR<N>, e.g. PSR4");
 						System.exit(1);
 					}
 					int idx = Integer.parseInt(key.substring(3));
@@ -71,8 +71,7 @@ public class NavSimulCli {
 			SimulationResult result;
 			try {
 				result = simulator.run();
-			}
-			catch (NavigationCommandSimulator.SimulationException e) {
+			} catch (NavigationCommandSimulator.SimulationException e) {
 				System.err.println("nav-simul: simulation error — " + e.getMessage());
 				System.exit(1);
 				return;

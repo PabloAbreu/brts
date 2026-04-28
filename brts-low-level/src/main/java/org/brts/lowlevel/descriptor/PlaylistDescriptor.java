@@ -9,7 +9,9 @@ import java.util.List;
 /**
  * JSON descriptor for generating an MPLS (playlist) file.
  * <p>
- * Example {@code 00001.playlist-descriptor.json}: <pre>{@code
+ * Example {@code 00001.playlist-descriptor.json}:
+ *
+ * <pre>{@code
  * {
  *   "playlistName": "00001",
  *   "playItems": [

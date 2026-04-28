@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Button Overlap Group (BOG) — a set of mutually exclusive buttons. Only one button in a
- * BOG is valid (visible) at a time.
+ * Button Overlap Group (BOG) — a set of mutually exclusive buttons. Only one button in a BOG is valid (visible) at a
+ * time.
  */
 @Getter
 @Setter

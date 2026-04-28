@@ -48,7 +48,8 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 
 		for (MovieObjects.MovieObject obj : objects) {
 			List<MovieObjects.NavigationCommand> cmds = obj.getNavigationCommands() != null
-					? obj.getNavigationCommands() : List.of();
+					? obj.getNavigationCommands()
+					: List.of();
 
 			// flags byte
 			int flags = 0;
@@ -66,8 +67,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 				// Each command is 12 bytes: 4 opcode + 4 dst operand + 4 src operand
 				if (cmd.getRawOpcode() >= 0) {
 					wi.writeInt(cmd.getRawOpcode());
-				}
-				else {
+				} else {
 					throw new IllegalStateException("rawOpcode must be set on NavigationCommand before writing. "
 							+ "Use NavigationCommandCompiler.compile() with explicit immediate flags.");
 				}

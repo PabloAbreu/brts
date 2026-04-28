@@ -43,8 +43,8 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		// TODO manage timeshift
 		descriptor.getStreams().forEach(stream -> {
 			metaFilecontents
-				.append(String.format("\n%s, \"%s\", lang=%s", translateCodecToTsMuxer(stream.getStreamTypeByte()),
-						stream.getFile(), stream.getLanguage() != null ? stream.getLanguage() : "und"));
+					.append(String.format("\n%s, \"%s\", lang=%s", translateCodecToTsMuxer(stream.getStreamTypeByte()),
+							stream.getFile(), stream.getLanguage() != null ? stream.getLanguage() : "und"));
 		});
 
 		Path muxOpts = Files.createTempFile("meta_file", "_for_ts_muxer");
@@ -75,8 +75,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 			Files.move(generatedClpi, clipPath);
 			workDir.toFile().deleteOnExit();
 			muxOpts.toFile().deleteOnExit();
-		}
-		catch (InterruptedException e) {
+		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			log.error("tsMuxeR process was interrupted", e);
 			e.printStackTrace();
@@ -85,13 +84,13 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 
 	private static String translateCodecToTsMuxer(int streamTypeByte) {
 		return switch (streamTypeByte) {
-			case 0x1B -> "V_MPEG4/ISO/AVC"; // H.264
-			case 0x24 -> "V_MPEG4/ISO/HEVC"; // H.265
-			case 0x06 -> "A_AC3"; // AC-3
-			case 0x81 -> "A_AC3"; // E-AC-3
-			case 0x90 -> "S_HDMV/PGS"; // subs
-			default -> throw new IllegalArgumentException(
-					String.format("Unsupported stream type byte: 0x%02X", streamTypeByte));
+		case 0x1B -> "V_MPEG4/ISO/AVC"; // H.264
+		case 0x24 -> "V_MPEG4/ISO/HEVC"; // H.265
+		case 0x06 -> "A_AC3"; // AC-3
+		case 0x81 -> "A_AC3"; // E-AC-3
+		case 0x90 -> "S_HDMV/PGS"; // subs
+		default ->
+			throw new IllegalArgumentException(String.format("Unsupported stream type byte: 0x%02X", streamTypeByte));
 		};
 	}
 
@@ -118,8 +117,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		try {
 			resolveTsMuxeRBinary();
 			return true;
-		}
-		catch (IllegalStateException e) {
+		} catch (IllegalStateException e) {
 			log.warn("tsMuxeR binary not available: {}", e.getMessage());
 			return false;
 		}

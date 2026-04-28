@@ -13,13 +13,11 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 /**
- * Renders button images for the three IGS button states (normal, selected, activated)
- * using Java2D {@link Graphics2D}.
+ * Renders button images for the three IGS button states (normal, selected, activated) using Java2D {@link Graphics2D}.
  * <p>
  * Each button is rendered as a combination of:
  * <ul>
- * <li>An optional background shape (rectangle / rounded rectangle) with configurable
- * alpha</li>
+ * <li>An optional background shape (rectangle / rounded rectangle) with configurable alpha</li>
  * <li>Text label with font, colour, optional shadow and outline</li>
  * <li>An optional icon (loaded from a B&amp;W PNG, colourised per state)</li>
  * </ul>
@@ -41,11 +39,11 @@ public class ButtonImageRenderer {
 	/**
 	 * Result of rendering a single button's three state images.
 	 *
-	 * @param normal normal (idle) state image
-	 * @param selected selected (focused) state image
+	 * @param normal    normal (idle) state image
+	 * @param selected  selected (focused) state image
 	 * @param activated activated (pressed) state image
-	 * @param width common width of all three images
-	 * @param height common height of all three images
+	 * @param width     common width of all three images
+	 * @param height    common height of all three images
 	 */
 	public record ButtonImages(BufferedImage normal, BufferedImage selected, BufferedImage activated, int width,
 			int height) {
@@ -53,9 +51,9 @@ public class ButtonImageRenderer {
 
 	/**
 	 * Renders a text-only button in all three states.
-	 * @param text the label text
-	 * @param style the fully-resolved text style (call {@link TextStyle#withDefaults()}
-	 * first)
+	 *
+	 * @param text  the label text
+	 * @param style the fully-resolved text style (call {@link TextStyle#withDefaults()} first)
 	 * @return the rendered button images
 	 */
 	public static ButtonImages renderTextButton(String text, TextStyle style) {
@@ -64,9 +62,10 @@ public class ButtonImageRenderer {
 
 	/**
 	 * Renders a button with optional icon and text.
-	 * @param text the label text (may be null if icon-only)
+	 *
+	 * @param text     the label text (may be null if icon-only)
 	 * @param iconPath path to a B&amp;W PNG icon (may be null if text-only)
-	 * @param style the fully-resolved text style
+	 * @param style    the fully-resolved text style
 	 * @return the rendered button images
 	 */
 	public static ButtonImages renderButton(String text, Path iconPath, TextStyle style) {
@@ -75,8 +74,7 @@ public class ButtonImageRenderer {
 		if (iconPath != null) {
 			try {
 				iconBw = ImageIO.read(iconPath.toFile());
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				log.warn("Failed to load icon {}: {}", iconPath, e.getMessage());
 			}
 		}
@@ -194,19 +192,19 @@ public class ButtonImageRenderer {
 		g.setColor(new Color(bgColor, true));
 
 		switch (style.getBackgroundShape()) {
-			case RECTANGLE -> g.fillRect(0, 0, width, height);
-			case ROUNDED_RECTANGLE -> {
-				int r = style.getCornerRadius();
-				g.fill(new RoundRectangle2D.Double(0, 0, width, height, r, r));
-			}
-			default -> {
-				/* NONE — handled above */ }
+		case RECTANGLE -> g.fillRect(0, 0, width, height);
+		case ROUNDED_RECTANGLE -> {
+			int r = style.getCornerRadius();
+			g.fill(new RoundRectangle2D.Double(0, 0, width, height, r, r));
+		}
+		default -> {
+			/* NONE — handled above */ }
 		}
 	}
 
 	/**
-	 * Colourises a black-and-white icon: white pixels get the target colour, black pixels
-	 * remain transparent. Intermediate greys are alpha-blended.
+	 * Colourises a black-and-white icon: white pixels get the target colour, black pixels remain transparent.
+	 * Intermediate greys are alpha-blended.
 	 */
 	private static BufferedImage colouriseIcon(BufferedImage bwIcon, int targetW, int targetH, int targetColorArgb) {
 		// Scale icon

@@ -20,13 +20,11 @@ import org.brts.lowlevel.pgs.model.PgsDisplaySet;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Encodes PGS (Presentation Graphic Stream) display sets into raw elementary stream
- * bytes.
+ * Encodes PGS (Presentation Graphic Stream) display sets into raw elementary stream bytes.
  * <p>
- * PGS shares its binary format for PDS, ODS, WDS, and END segments with IGS; only the
- * composition segment differs (PCS = 0x16 vs ICS = 0x18). This muxer reuses the encoding
- * logic from {@link org.brts.lowlevel.igs.IgsMuxer} for the shared segment types and adds
- * PCS encoding.
+ * PGS shares its binary format for PDS, ODS, WDS, and END segments with IGS; only the composition segment differs (PCS
+ * = 0x16 vs ICS = 0x18). This muxer reuses the encoding logic from {@link org.brts.lowlevel.igs.IgsMuxer} for the
+ * shared segment types and adds PCS encoding.
  *
  * <h2>Segment ordering per display set</h2>
  * <ol>
@@ -41,8 +39,8 @@ import lombok.extern.slf4j.Slf4j;
 public class PgsMuxer {
 
 	/**
-	 * Encodes a fully populated {@link PgsDisplaySet} into raw PGS elementary stream
-	 * bytes.
+	 * Encodes a fully populated {@link PgsDisplaySet} into raw PGS elementary stream bytes.
+	 *
 	 * @param displaySet the in-memory display set to encode
 	 * @return raw PGS ES bytes
 	 * @throws IOException on encoding error
@@ -91,7 +89,9 @@ public class PgsMuxer {
 	/**
 	 * Encodes a Presentation Composition Segment body.
 	 * <p>
-	 * Binary layout: <pre>
+	 * Binary layout:
+	 *
+	 * <pre>
 	 *   VideoDescriptor      : width(16) + height(16) + frameRate(4) + pad(4)  = 5 bytes
 	 *   CompositionDescriptor: number(16) + state(2) + pad(6)                  = 3 bytes
 	 *   paletteUpdateFlag    : 1 byte (0x80 = true, 0x00 = false)
@@ -240,11 +240,10 @@ public class PgsMuxer {
 	// ── Binary helpers ──────────────────────────────────────────────────────
 
 	/**
-	 * Writes a segment: 2-byte "PG" magic + PTS(32) + DTS(32) + 1-byte type + 2-byte BE
-	 * length + data.
+	 * Writes a segment: 2-byte "PG" magic + PTS(32) + DTS(32) + 1-byte type + 2-byte BE length + data.
 	 * <p>
-	 * Note: In raw PGS ES files each segment is prefixed with the PES-like header "PG" +
-	 * PTS + DTS. When PTS/DTS are not set we default to 0.
+	 * Note: In raw PGS ES files each segment is prefixed with the PES-like header "PG" + PTS + DTS. When PTS/DTS are
+	 * not set we default to 0.
 	 */
 	private void writeSegment(OutputStream out, IgsSegmentType type, byte[] data) throws IOException {
 		// PG header (like PES encapsulation for raw .sup files)
@@ -282,8 +281,7 @@ public class PgsMuxer {
 	}
 
 	/**
-	 * Encodes a complete display set to the output stream with PTS in each segment's PG
-	 * header.
+	 * Encodes a complete display set to the output stream with PTS in each segment's PG header.
 	 */
 	public void writeDisplaySet(OutputStream out, PgsDisplaySet displaySet, long pts) throws IOException {
 		long dts = 0; // DTS is typically 0 for PGS

@@ -14,8 +14,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Round-trip test for {@code MovieObject.bdmv}. Writes via {@link MovieObjectsWriter},
- * re-parses via {@link MovieObjectsParser}, and verifies the model is preserved.
+ * Round-trip test for {@code MovieObject.bdmv}. Writes via {@link MovieObjectsWriter}, re-parses via
+ * {@link MovieObjectsParser}, and verifies the model is preserved.
  */
 class MovieObjectsRoundTripTest {
 

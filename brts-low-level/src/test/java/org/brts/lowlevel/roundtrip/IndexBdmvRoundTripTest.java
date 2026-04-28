@@ -15,9 +15,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Round-trip tests for {@code index.bdmv}: write via {@link IndexBdmvWriter}, re-parse
- * via {@link IndexBdmvParser}, and verify the model is preserved. Also covers
- * version-specific validation rules.
+ * Round-trip tests for {@code index.bdmv}: write via {@link IndexBdmvWriter}, re-parse via {@link IndexBdmvParser}, and
+ * verify the model is preserved. Also covers version-specific validation rules.
  */
 class IndexBdmvRoundTripTest {
 
@@ -177,9 +176,8 @@ class IndexBdmvRoundTripTest {
 	@Test
 	void version0100_rejectsFirstPlayBdj() {
 		IndexBdmv bdj = buildBdjIndex("0100");
-		assertThatThrownBy(() -> writeToBytes(bdj)).isInstanceOf(WriteException.class)
-			.hasMessageContaining("0100")
-			.hasMessageContaining("BD-J");
+		assertThatThrownBy(() -> writeToBytes(bdj)).isInstanceOf(WriteException.class).hasMessageContaining("0100")
+				.hasMessageContaining("BD-J");
 	}
 
 	@Test

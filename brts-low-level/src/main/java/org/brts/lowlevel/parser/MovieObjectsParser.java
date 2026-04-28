@@ -13,10 +13,12 @@ import java.util.List;
 /**
  * Parser for {@code BDMV/MovieObject.bdmv}.
  * <p>
- * Reads the binary format produced by {@link org.brts.lowlevel.bdmv.MovieObjectsWriter
- * MovieObjectsWriter} and returns a populated {@link MovieObjects} model.
+ * Reads the binary format produced by {@link org.brts.lowlevel.bdmv.MovieObjectsWriter MovieObjectsWriter} and returns
+ * a populated {@link MovieObjects} model.
  * <p>
- * Binary layout (all integers big-endian): <pre>
+ * Binary layout (all integers big-endian):
+ *
+ * <pre>
  * File header (40 bytes):
  *   magic                       : 4 bytes  ("MOBJ")
  *   version                     : 4 bytes  ("0200" or "0300")
@@ -91,8 +93,7 @@ public class MovieObjectsParser implements BinaryParser<MovieObjects> {
 	}
 
 	/**
-	 * Reads a single movie object: 1-byte flags, 1 byte reserved, 2-byte command count,
-	 * then 12 bytes per command.
+	 * Reads a single movie object: 1-byte flags, 1 byte reserved, 2-byte command count, then 12 bytes per command.
 	 */
 	private MovieObjects.MovieObject readObject(BinaryReader r) throws IOException {
 		int flagsByte = r.readUnsignedByte();

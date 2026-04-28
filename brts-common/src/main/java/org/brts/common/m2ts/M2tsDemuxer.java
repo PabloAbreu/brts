@@ -16,20 +16,18 @@ import org.slf4j.LoggerFactory;
 /**
  * Core MPEG-2 Transport Stream demultiplexer for Blu-ray M2TS files.
  * <p>
- * Reads 192-byte source packets, strips the 4-byte {@code TP_extra_header} and the TS
- * header / adaptation field, and delivers raw PES-payload bytes to an
- * {@link M2tsPacketHandler}.
+ * Reads 192-byte source packets, strips the 4-byte {@code TP_extra_header} and the TS header / adaptation field, and
+ * delivers raw PES-payload bytes to an {@link M2tsPacketHandler}.
  * <p>
- * The demuxer itself is stateless with respect to <em>output</em> — all output decisions
- * are made by the handler. This allows the same demuxing logic to drive file-per-PID
- * extraction, MKV muxing, or any other consumer.
+ * The demuxer itself is stateless with respect to <em>output</em> — all output decisions are made by the handler. This
+ * allows the same demuxing logic to drive file-per-PID extraction, MKV muxing, or any other consumer.
  *
  * <h2>Usage</h2>
  *
  * <pre>{@code
  * M2tsInfo info = new M2tsParser().parse(inputPath);
  * try (FilePacketHandler handler = new FilePacketHandler(info, outputDir, pidFilter)) {
- *     new M2tsDemuxer().demux(inputPath, info, handler, pidFilter);
+ * 	new M2tsDemuxer().demux(inputPath, info, handler, pidFilter);
  * }
  * }</pre>
  */
@@ -43,13 +41,14 @@ public class M2tsDemuxer {
 	private static final int SYNC_BYTE = 0x47;
 
 	/**
-	 * Demuxes the M2TS file at {@code source}, delivering payload bytes for every packet
-	 * whose PID is in {@code pidFilter} to the given {@code handler}.
-	 * @param source path to the M2TS source file
-	 * @param info stream metadata (from {@link M2tsParser})
-	 * @param handler receives the raw payload bytes per PID
-	 * @param pidFilter only these PIDs are delivered; pass {@code null} or empty to
-	 * deliver all PIDs present in {@code info}
+	 * Demuxes the M2TS file at {@code source}, delivering payload bytes for every packet whose PID is in
+	 * {@code pidFilter} to the given {@code handler}.
+	 *
+	 * @param source    path to the M2TS source file
+	 * @param info      stream metadata (from {@link M2tsParser})
+	 * @param handler   receives the raw payload bytes per PID
+	 * @param pidFilter only these PIDs are delivered; pass {@code null} or empty to deliver all PIDs present in
+	 *                  {@code info}
 	 * @throws IOException on I/O error
 	 */
 	public void demux(Path source, M2tsInfo info, M2tsPacketHandler handler, Set<Integer> pidFilter)
@@ -59,16 +58,15 @@ public class M2tsDemuxer {
 
 	/**
 	 * Demuxes a range of packets from the M2TS file at {@code source}.
-	 * @param source path to the M2TS source file
-	 * @param info stream metadata (from {@link M2tsParser})
-	 * @param handler receives the raw payload bytes per PID
-	 * @param pidFilter only these PIDs are delivered; pass {@code null} or empty to
-	 * deliver all PIDs present in {@code info}
+	 *
+	 * @param source      path to the M2TS source file
+	 * @param info        stream metadata (from {@link M2tsParser})
+	 * @param handler     receives the raw payload bytes per PID
+	 * @param pidFilter   only these PIDs are delivered; pass {@code null} or empty to deliver all PIDs present in
+	 *                    {@code info}
 	 * @param startPacket first packet to process (0-based, inclusive)
-	 * @param stopPacket last packet to process (inclusive); pass {@code -1} to process
-	 * until end-of-file
-	 * @param keepTables if true, PAT/PMT/PCR PIDs are included, unless {@code pidFilter}
-	 * is set
+	 * @param stopPacket  last packet to process (inclusive); pass {@code -1} to process until end-of-file
+	 * @param keepTables  if true, PAT/PMT/PCR PIDs are included, unless {@code pidFilter} is set
 	 * @throws IOException on I/O error
 	 */
 	public void demux(Path source, M2tsInfo info, M2tsPacketHandler handler, Set<Integer> pidFilter, long startPacket,

@@ -3,10 +3,9 @@ package org.brts.lowlevel.bdmv;
 /**
  * Describes the kind of a 32-bit operand in an HDMV navigation command.
  * <p>
- * When the opcode's immediate flag for an operand is set, the operand is an
- * {@link #IMMEDIATE} literal value. When the flag is clear, the operand is a register
- * reference — either a {@link #GPR} (General Purpose Register) or a {@link #PSR} (Player
- * Status Register), distinguished by bit 31 of the operand value.
+ * When the opcode's immediate flag for an operand is set, the operand is an {@link #IMMEDIATE} literal value. When the
+ * flag is clear, the operand is a register reference — either a {@link #GPR} (General Purpose Register) or a
+ * {@link #PSR} (Player Status Register), distinguished by bit 31 of the operand value.
  */
 public enum OperandKind {
 

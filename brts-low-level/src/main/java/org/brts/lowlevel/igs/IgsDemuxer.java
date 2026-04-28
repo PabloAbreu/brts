@@ -21,8 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * IGS Demuxer — extracts the contents of a raw IGS elementary stream into a structured
- * sub-folder.
+ * IGS Demuxer — extracts the contents of a raw IGS elementary stream into a structured sub-folder.
  * <p>
  * For each display set the demuxer writes:
  * <ul>
@@ -30,7 +29,9 @@ import lombok.extern.slf4j.Slf4j;
  * <li>One {@code .rle} file per ODS containing the raw RLE-compressed bitmap.</li>
  * </ul>
  * <p>
- * The output folder structure: <pre>
+ * The output folder structure:
+ *
+ * <pre>
  * &lt;outputDir&gt;/
  *   igs_manifest.json           — top-level manifest (display set count, video descriptor)
  *   ds_0000/
@@ -53,7 +54,8 @@ public class IgsDemuxer {
 
 	/**
 	 * Demuxes the raw .igs file into the given output directory.
-	 * @param igsFile path to the raw .igs elementary stream file
+	 *
+	 * @param igsFile   path to the raw .igs elementary stream file
 	 * @param outputDir target directory (will be created if it doesn't exist)
 	 * @return the parsed display sets (for further processing if needed)
 	 * @throws IOException on I/O error

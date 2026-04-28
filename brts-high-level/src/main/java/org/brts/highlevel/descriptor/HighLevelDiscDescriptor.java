@@ -28,8 +28,7 @@ public abstract class HighLevelDiscDescriptor {
 	private String outputDirectory;
 
 	/**
-	 * If true, the high-level step only generates middle-level descriptors without
-	 * running them.
+	 * If true, the high-level step only generates middle-level descriptors without running them.
 	 */
 	private boolean dryRun = false;
 

@@ -5,12 +5,14 @@ import lombok.Getter;
 /**
  * Enumeration of all HDMV navigation command mnemonics and their 32-bit opcode values.
  * <p>
- * Reference: Blu-ray Disc Read-Only Format Part 3, Section 10 (HDMV Navigation Command
- * Set). Verified against libbluray (hdmv_insn.h, mobj_parse.c, mobj_data.h).
+ * Reference: Blu-ray Disc Read-Only Format Part 3, Section 10 (HDMV Navigation Command Set). Verified against libbluray
+ * (hdmv_insn.h, mobj_parse.c, mobj_data.h).
  * <p>
  * This enum serves as the single source of truth for all supported navigation commands.
  * <p>
- * 32-bit instruction word layout (MSB first): <pre>
+ * 32-bit instruction word layout (MSB first):
+ *
+ * <pre>
  * Bits 31-29: OperandCount  (3 bits)  — number of operands (0, 1, or 2)
  * Bits 28-27: CommandGroup   (2 bits)  — 0=BRANCH, 1=COMPARE, 2=SET
  * Bits 26-24: CommandSubGroup(3 bits)
@@ -22,9 +24,10 @@ import lombok.Getter;
  * Bits 11-8:  CompareOption  (4 bits)
  * Bits  7-5:  reserved
  * Bits  4-0:  SetOption      (5 bits)
- * </pre> The {@link #opcode} field stores the base opcode <em>without</em> OperandCount
- * (bits 31-29) and <em>without</em> immediate flags (bits 23-22). These are added by the
- * compiler and stripped by the decompiler.
+ * </pre>
+ *
+ * The {@link #opcode} field stores the base opcode <em>without</em> OperandCount (bits 31-29) and <em>without</em>
+ * immediate flags (bits 23-22). These are added by the compiler and stripped by the decompiler.
  */
 @Getter
 public enum NavigationCommandMnemonic {
@@ -114,9 +117,8 @@ public enum NavigationCommandMnemonic {
 	private final String mnemonic;
 
 	/**
-	 * Base opcode value (without OperandCount in bits 31-29 and without ImmediateFlags in
-	 * bits 23-22). Encodes CommandGroup, CommandSubGroup, and the relevant option field
-	 * (BranchOption, CompareOption, or SetOption).
+	 * Base opcode value (without OperandCount in bits 31-29 and without ImmediateFlags in bits 23-22). Encodes
+	 * CommandGroup, CommandSubGroup, and the relevant option field (BranchOption, CompareOption, or SetOption).
 	 */
 	private final long opcode;
 
@@ -137,6 +139,7 @@ public enum NavigationCommandMnemonic {
 
 	/**
 	 * Looks up a mnemonic by its string value (case-insensitive).
+	 *
 	 * @param mnemonicStr the mnemonic string to look up
 	 * @return the corresponding NavigationCommandMnemonic enum constant
 	 * @throws IllegalArgumentException if the mnemonic is not found
@@ -154,12 +157,11 @@ public enum NavigationCommandMnemonic {
 	}
 
 	/**
-	 * Looks up a mnemonic by its 32-bit opcode word. The OperandCount (bits 31-29) and
-	 * ImmediateFlags (bits 23-22) are stripped before matching against the base opcode.
-	 * Returns null if no match is found (for unknown opcodes).
+	 * Looks up a mnemonic by its 32-bit opcode word. The OperandCount (bits 31-29) and ImmediateFlags (bits 23-22) are
+	 * stripped before matching against the base opcode. Returns null if no match is found (for unknown opcodes).
+	 *
 	 * @param opcode the full 32-bit opcode (as read from binary)
-	 * @return the corresponding NavigationCommandMnemonic enum constant, or null if not
-	 * found
+	 * @return the corresponding NavigationCommandMnemonic enum constant, or null if not found
 	 */
 	public static NavigationCommandMnemonic fromOpcode(long opcode) {
 		long baseOpcode = opcode & ~VARIABLE_BITS_MASK;

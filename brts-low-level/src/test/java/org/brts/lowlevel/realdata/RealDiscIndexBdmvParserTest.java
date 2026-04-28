@@ -17,22 +17,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
- * Integration tests for {@link IndexBdmvParser} against the real disc sample at
- * {@code samples/PB/BDMV/index.bdmv}.
+ * Integration tests for {@link IndexBdmvParser} against the real disc sample at {@code samples/PB/BDMV/index.bdmv}.
  * <p>
- * All tests are skipped when the sample data is absent (e.g. on a CI agent without the
- * disc files).
+ * All tests are skipped when the sample data is absent (e.g. on a CI agent without the disc files).
  * <p>
  * Disc structure notes verified by binary analysis:
  * <ul>
  * <li>Version {@code "0200"}.</li>
  * <li>AppInfoBDMV contains provider name {@code "Provider Name"}.</li>
- * <li>First-play and top-menu are BD-J entries referencing BDJO files {@code "00002"} and
- * {@code "00000"} respectively.</li>
- * <li>90 title entries: a mix of BD-J (referencing {@code 00000}–{@code 00003} and
- * {@code 12345} BDJO files) and HDMV stubs.</li>
- * <li>All BDJO names referenced in title entries correspond to files actually present
- * under {@code BDMV/BDJO/}.</li>
+ * <li>First-play and top-menu are BD-J entries referencing BDJO files {@code "00002"} and {@code "00000"}
+ * respectively.</li>
+ * <li>90 title entries: a mix of BD-J (referencing {@code 00000}–{@code 00003} and {@code 12345} BDJO files) and HDMV
+ * stubs.</li>
+ * <li>All BDJO names referenced in title entries correspond to files actually present under {@code BDMV/BDJO/}.</li>
  * </ul>
  */
 class RealDiscIndexBdmvParserTest {
@@ -48,8 +45,7 @@ class RealDiscIndexBdmvParserTest {
 	@BeforeAll
 	static void requireSampleData() {
 		assumeThat(Files.isRegularFile(INDEX_FILE))
-			.as("sample disc data must be present at " + INDEX_FILE.toAbsolutePath())
-			.isTrue();
+				.as("sample disc data must be present at " + INDEX_FILE.toAbsolutePath()).isTrue();
 	}
 
 	// ------------------------------------------------------------------
@@ -230,19 +226,17 @@ class RealDiscIndexBdmvParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Every BD-J BDJO name referenced in first-play, top-menu, or any title entry must
-	 * correspond to an actual {@code .bdjo} file present under {@code BDMV/BDJO/}.
+	 * Every BD-J BDJO name referenced in first-play, top-menu, or any title entry must correspond to an actual
+	 * {@code .bdjo} file present under {@code BDMV/BDJO/}.
 	 */
 	@Test
 	void allBdjoNames_haveCorrespondingFileOnDisc() throws IOException {
 		assumeThat(Files.isDirectory(BDJO_DIR)).as("BDJO directory must be present at " + BDJO_DIR.toAbsolutePath())
-			.isTrue();
+				.isTrue();
 
-		Set<String> availableBdjos = Files.list(BDJO_DIR)
-			.map(p -> p.getFileName().toString())
-			.filter(n -> n.endsWith(".bdjo"))
-			.map(n -> n.substring(0, n.length() - 5)) // strip ".bdjo"
-			.collect(Collectors.toSet());
+		Set<String> availableBdjos = Files.list(BDJO_DIR).map(p -> p.getFileName().toString())
+				.filter(n -> n.endsWith(".bdjo")).map(n -> n.substring(0, n.length() - 5)) // strip ".bdjo"
+				.collect(Collectors.toSet());
 
 		IndexBdmv index = parser.parse(INDEX_FILE);
 
@@ -255,36 +249,29 @@ class RealDiscIndexBdmvParserTest {
 			referencedNames.add(index.getTopMenuTitle().getBdjObjectName());
 		}
 		if (index.getTitles() != null) {
-			index.getTitles()
-				.stream()
-				.filter(IndexBdmv.TitleEntry::isBdj)
-				.map(IndexBdmv.TitleEntry::getBdjObjectName)
-				.forEach(referencedNames::add);
+			index.getTitles().stream().filter(IndexBdmv.TitleEntry::isBdj).map(IndexBdmv.TitleEntry::getBdjObjectName)
+					.forEach(referencedNames::add);
 		}
 
 		assertThat(referencedNames).isNotEmpty();
 
 		for (String name : referencedNames) {
 			assertThat(availableBdjos).as("BDJO file '%s.bdjo' referenced in index must exist in BDMV/BDJO/", name)
-				.contains(name);
+					.contains(name);
 		}
 	}
 
 	/**
-	 * The set of BDJO names referenced in the index matches exactly the set of
-	 * {@code .bdjo} files present on the disc — neither references any file that doesn't
-	 * exist, nor are there unreferenced BDJO files.
+	 * The set of BDJO names referenced in the index matches exactly the set of {@code .bdjo} files present on the disc
+	 * — neither references any file that doesn't exist, nor are there unreferenced BDJO files.
 	 */
 	@Test
 	void referencedBdjoNames_matchExactlyFilesOnDisc() throws IOException {
 		assumeThat(Files.isDirectory(BDJO_DIR)).as("BDJO directory must be present at " + BDJO_DIR.toAbsolutePath())
-			.isTrue();
+				.isTrue();
 
-		Set<String> availableBdjos = Files.list(BDJO_DIR)
-			.map(p -> p.getFileName().toString())
-			.filter(n -> n.endsWith(".bdjo"))
-			.map(n -> n.substring(0, n.length() - 5))
-			.collect(Collectors.toSet());
+		Set<String> availableBdjos = Files.list(BDJO_DIR).map(p -> p.getFileName().toString())
+				.filter(n -> n.endsWith(".bdjo")).map(n -> n.substring(0, n.length() - 5)).collect(Collectors.toSet());
 
 		// Expected on this disc: 00000, 00001, 00002, 00003, 12345
 		assertThat(availableBdjos).containsExactlyInAnyOrder("00000", "00001", "00002", "00003", "12345");
@@ -299,11 +286,8 @@ class RealDiscIndexBdmvParserTest {
 			referencedBdjos.add(index.getTopMenuTitle().getBdjObjectName());
 		}
 		if (index.getTitles() != null) {
-			index.getTitles()
-				.stream()
-				.filter(IndexBdmv.TitleEntry::isBdj)
-				.map(IndexBdmv.TitleEntry::getBdjObjectName)
-				.forEach(referencedBdjos::add);
+			index.getTitles().stream().filter(IndexBdmv.TitleEntry::isBdj).map(IndexBdmv.TitleEntry::getBdjObjectName)
+					.forEach(referencedBdjos::add);
 		}
 
 		// Every referenced BDJO must exist on disc

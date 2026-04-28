@@ -7,8 +7,7 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * A PlayItem references one M2TS clip and defines the in/out point within that clip
- * expressed as 90 kHz PTS values.
+ * A PlayItem references one M2TS clip and defines the in/out point within that clip expressed as 90 kHz PTS values.
  */
 @Getter
 @Setter

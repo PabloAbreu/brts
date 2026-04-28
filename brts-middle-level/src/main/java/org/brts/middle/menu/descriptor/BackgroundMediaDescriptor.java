@@ -9,8 +9,8 @@ import lombok.Setter;
 /**
  * Base class for all background media descriptors.
  * <p>
- * Currently only MKV is supported, but this polymorphic base allows future media types
- * (MP4, WAV+PNG, etc.) to be added without breaking the schema.
+ * Currently only MKV is supported, but this polymorphic base allows future media types (MP4, WAV+PNG, etc.) to be added
+ * without breaking the schema.
  */
 @Getter
 @Setter
@@ -20,8 +20,7 @@ import lombok.Setter;
 public abstract class BackgroundMediaDescriptor {
 
 	/**
-	 * Discriminator field — e.g. "MKV". Mapped by Jackson for polymorphic
-	 * deserialization.
+	 * Discriminator field — e.g. "MKV". Mapped by Jackson for polymorphic deserialization.
 	 */
 	private String type;
 

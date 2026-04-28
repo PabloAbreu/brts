@@ -4,8 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * A chapter (mark) within an M2TS clip, used both for MPLS PlayMark generation and for
- * EP_map anchor placement.
+ * A chapter (mark) within an M2TS clip, used both for MPLS PlayMark generation and for EP_map anchor placement.
  */
 @Getter
 @Setter

@@ -11,8 +11,8 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 
 /**
- * Singleton factory providing a pre-configured Jackson {@link ObjectMapper} for all BRT
- * JSON descriptor reading and writing.
+ * Singleton factory providing a pre-configured Jackson {@link ObjectMapper} for all BRT JSON descriptor reading and
+ * writing.
  */
 public final class JsonMapperFactory {
 

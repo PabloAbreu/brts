@@ -13,8 +13,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Round-trip tests for {@code .bdjo}: write via {@link BdjoWriter}, re-parse via
- * {@link BdjoParser}, and verify the model is preserved.
+ * Round-trip tests for {@code .bdjo}: write via {@link BdjoWriter}, re-parse via {@link BdjoParser}, and verify the
+ * model is preserved.
  */
 class BdjoRoundTripTest {
 

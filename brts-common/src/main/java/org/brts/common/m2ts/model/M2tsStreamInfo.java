@@ -9,8 +9,7 @@ import lombok.Setter;
 /**
  * Describes a single elementary stream discovered inside an M2TS file.
  * <p>
- * Populated by {@link org.brts.lowlevel.m2ts.M2tsParser} after scanning the PMT and a few
- * seconds of packet headers.
+ * Populated by {@link org.brts.lowlevel.m2ts.M2tsParser} after scanning the PMT and a few seconds of packet headers.
  */
 @Getter
 @Setter
@@ -20,9 +19,8 @@ public class M2tsStreamInfo implements IStreamInfo {
 	private int pid;
 
 	/**
-	 * ISO 13818-1 stream_type byte from the PMT descriptor. E.g. 0x02=MPEG-2 video,
-	 * 0x1B=H.264, 0x24=HEVC, 0x80=LPCM, 0x81=AC3, 0x82=DTS, 0x83=TrueHD, 0x84=E-AC3,
-	 * 0x85=DTS-HD, 0x86=DTS-MA, 0x90=PGS, 0x92=text subtitle.
+	 * ISO 13818-1 stream_type byte from the PMT descriptor. E.g. 0x02=MPEG-2 video, 0x1B=H.264, 0x24=HEVC, 0x80=LPCM,
+	 * 0x81=AC3, 0x82=DTS, 0x83=TrueHD, 0x84=E-AC3, 0x85=DTS-HD, 0x86=DTS-MA, 0x90=PGS, 0x92=text subtitle.
 	 */
 	private int streamTypeByte;
 

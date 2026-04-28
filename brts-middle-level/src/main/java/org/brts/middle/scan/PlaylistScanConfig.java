@@ -15,16 +15,14 @@ public class PlaylistScanConfig {
 	// ── Movie detection ─────────────────────────────────────────────────────
 
 	/**
-	 * Minimum duration (minutes) for a playlist to be considered a feature film. Default:
-	 * 80 min.
+	 * Minimum duration (minutes) for a playlist to be considered a feature film. Default: 80 min.
 	 */
 	@Builder.Default
 	private double movieMinMinutes = 80.0;
 
 	/**
-	 * When the disc is classified as MOVIE, any playlist whose duration is at least this
-	 * fraction of the longest playlist's duration is considered an interesting alternate
-	 * / director's cut. Default: 0.85 (85 %).
+	 * When the disc is classified as MOVIE, any playlist whose duration is at least this fraction of the longest
+	 * playlist's duration is considered an interesting alternate / director's cut. Default: 0.85 (85 %).
 	 */
 	@Builder.Default
 	private double movieAlternateCutRatio = 0.85;
@@ -32,23 +30,20 @@ public class PlaylistScanConfig {
 	// ── TV-series detection ─────────────────────────────────────────────────
 
 	/**
-	 * Minimum duration (minutes) for a playlist to be considered a TV-series episode.
-	 * Default: 22 min.
+	 * Minimum duration (minutes) for a playlist to be considered a TV-series episode. Default: 22 min.
 	 */
 	@Builder.Default
 	private double episodeMinMinutes = 22.0;
 
 	/**
-	 * Maximum allowed ratio between the longest and shortest candidate episodes. If the
-	 * ratio exceeds this, the candidates are not uniform enough to be auto-detected as a
-	 * series. Default: 2.0.
+	 * Maximum allowed ratio between the longest and shortest candidate episodes. If the ratio exceeds this, the
+	 * candidates are not uniform enough to be auto-detected as a series. Default: 2.0.
 	 */
 	@Builder.Default
 	private double episodeMaxDurationRatio = 2.0;
 
 	/**
-	 * Minimum number of playlists of similar duration to trigger TV-series
-	 * auto-detection. Default: 2.
+	 * Minimum number of playlists of similar duration to trigger TV-series auto-detection. Default: 2.
 	 */
 	@Builder.Default
 	private int episodeMinCount = 2;

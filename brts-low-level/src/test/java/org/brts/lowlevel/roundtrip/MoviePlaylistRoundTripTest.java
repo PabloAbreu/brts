@@ -13,8 +13,8 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Round-trip test for MPLS (Movie Playlist) binary format. Writes a {@link MoviePlaylist}
- * to bytes, re-parses, and asserts field-level consistency.
+ * Round-trip test for MPLS (Movie Playlist) binary format. Writes a {@link MoviePlaylist} to bytes, re-parses, and
+ * asserts field-level consistency.
  */
 class MoviePlaylistRoundTripTest {
 
@@ -106,10 +106,8 @@ class MoviePlaylistRoundTripTest {
 		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
 
 		List<PlayItemStream> streams = reparsed.getPlayItems().get(0).getStreams();
-		PlayItemStream pg = streams.stream()
-			.filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
-			.findFirst()
-			.orElseThrow();
+		PlayItemStream pg = streams.stream().filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
+				.findFirst().orElseThrow();
 		assertThat(pg.getPid()).isEqualTo(0x1200);
 		assertThat(pg.getLanguage()).isEqualTo("fra");
 	}

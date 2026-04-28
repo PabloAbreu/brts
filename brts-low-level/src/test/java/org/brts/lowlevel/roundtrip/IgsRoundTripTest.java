@@ -19,8 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Round-trip tests for the IGS demuxer / muxer pipeline.
  * <p>
- * Builds a synthetic IGS elementary stream in memory, demuxes it to a folder structure,
- * muxes it back to bytes, and verifies byte-level equality with the original.
+ * Builds a synthetic IGS elementary stream in memory, demuxes it to a folder structure, muxes it back to bytes, and
+ * verifies byte-level equality with the original.
  */
 class IgsRoundTripTest {
 
@@ -94,9 +94,9 @@ class IgsRoundTripTest {
 		assertThat(segments.get(0).getType()).isEqualTo(IgsSegmentType.IG_COMPOSITION);
 
 		// Should have: ICS, PDS, WDS, ODS, END
-		assertThat(segments).extracting(IgsRawSegment::getType)
-			.containsExactly(IgsSegmentType.IG_COMPOSITION, IgsSegmentType.PALETTE_DEFINITION,
-					IgsSegmentType.WINDOW_DEFINITION, IgsSegmentType.OBJECT_DEFINITION, IgsSegmentType.END_OF_DISPLAY);
+		assertThat(segments).extracting(IgsRawSegment::getType).containsExactly(IgsSegmentType.IG_COMPOSITION,
+				IgsSegmentType.PALETTE_DEFINITION, IgsSegmentType.WINDOW_DEFINITION, IgsSegmentType.OBJECT_DEFINITION,
+				IgsSegmentType.END_OF_DISPLAY);
 	}
 
 	@Test
@@ -224,8 +224,7 @@ class IgsRoundTripTest {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Builds a minimal valid IGS stream with one display set containing: ICS + PDS + WDS
-	 * + ODS + END.
+	 * Builds a minimal valid IGS stream with one display set containing: ICS + PDS + WDS + ODS + END.
 	 */
 	private byte[] buildSyntheticIgsStream() throws IOException {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();

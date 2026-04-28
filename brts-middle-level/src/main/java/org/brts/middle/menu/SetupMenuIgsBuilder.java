@@ -66,6 +66,7 @@ public class SetupMenuIgsBuilder {
 
 	/**
 	 * Builds the complete display set from the descriptor.
+	 *
 	 * @param descriptor the setup menu descriptor
 	 * @return a fully-populated {@link IgsDisplaySet} ready for encoding
 	 */
@@ -342,9 +343,8 @@ public class SetupMenuIgsBuilder {
 	}
 
 	/**
-	 * Resolves a single directional nav reference. Returns the explicit target button id
-	 * when found, the auto-wired fallback otherwise. Logs a warning for references that
-	 * cannot be resolved.
+	 * Resolves a single directional nav reference. Returns the explicit target button id when found, the auto-wired
+	 * fallback otherwise. Logs a warning for references that cannot be resolved.
 	 */
 	private int resolveNavRef(String ref, int autoValue, Map<String, Integer> idToButtonId, String direction,
 			ButtonRecord source) {
@@ -361,11 +361,10 @@ public class SetupMenuIgsBuilder {
 	// ── Command compilation ─────────────────────────────────────────────────
 
 	/**
-	 * Compiles a SET_STREAM command for audio: writes the audio stream number into PSR1
-	 * (primary audio stream).
+	 * Compiles a SET_STREAM command for audio: writes the audio stream number into PSR1 (primary audio stream).
 	 * <p>
-	 * SET_STREAM's operand1 encodes audio/subtitle/IG stream numbers in a packed 32-bit
-	 * value: bits[31:16] = primary audio (1-based), other bits left zero.
+	 * SET_STREAM's operand1 encodes audio/subtitle/IG stream numbers in a packed 32-bit value: bits[31:16] = primary
+	 * audio (1-based), other bits left zero.
 	 */
 	private List<ParsedNavigationCommand> compileAudioCommand(int streamNumber) {
 		// SET_STREAM: op1 = packed stream numbers
@@ -381,8 +380,7 @@ public class SetupMenuIgsBuilder {
 	}
 
 	/**
-	 * Compiles a SET_STREAM command for subtitles: writes the subtitle stream number into
-	 * PSR2 (PG/subtitle stream).
+	 * Compiles a SET_STREAM command for subtitles: writes the subtitle stream number into PSR2 (PG/subtitle stream).
 	 * <p>
 	 * For subtitle: bits 15..8 encode PG/textST flag + number.
 	 */
@@ -392,8 +390,7 @@ public class SetupMenuIgsBuilder {
 		long op1;
 		if (streamNumber > 0) {
 			op1 = (1L << 15) | ((long) (streamNumber & 0x7F) << 8);
-		}
-		else {
+		} else {
 			op1 = 0; // subtitles off
 		}
 		long op2 = 0;
@@ -406,22 +403,22 @@ public class SetupMenuIgsBuilder {
 	 */
 	private List<ParsedNavigationCommand> compileMiscCommand(MiscMenuItem item) {
 		return switch (item.getType()) {
-			case LAUNCH -> {
-				// PLAY_PL <playlist_number>
-				int playlistNumber = Integer.parseInt(item.getTarget());
-				yield List.of(ParsedNavigationCommand.compile("PLAY_PL", playlistNumber, true, 0, false));
-			}
-			case GO_BACK -> {
-				// JUMP_TITLE <title_number>
-				int titleNumber = item.getTarget() != null ? Integer.parseInt(item.getTarget()) : 0;
-				yield List.of(ParsedNavigationCommand.compile("JUMP_TITLE", titleNumber, true, 0, false));
-			}
-			case POPUP_OFF -> {
-				yield List.of(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false));
-			}
-			case RESUME -> {
-				yield List.of(ParsedNavigationCommand.compile("RESUME", 0, false, 0, false));
-			}
+		case LAUNCH -> {
+			// PLAY_PL <playlist_number>
+			int playlistNumber = Integer.parseInt(item.getTarget());
+			yield List.of(ParsedNavigationCommand.compile("PLAY_PL", playlistNumber, true, 0, false));
+		}
+		case GO_BACK -> {
+			// JUMP_TITLE <title_number>
+			int titleNumber = item.getTarget() != null ? Integer.parseInt(item.getTarget()) : 0;
+			yield List.of(ParsedNavigationCommand.compile("JUMP_TITLE", titleNumber, true, 0, false));
+		}
+		case POPUP_OFF -> {
+			yield List.of(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false));
+		}
+		case RESUME -> {
+			yield List.of(ParsedNavigationCommand.compile("RESUME", 0, false, 0, false));
+		}
 		};
 	}
 

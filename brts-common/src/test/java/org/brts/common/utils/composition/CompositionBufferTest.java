@@ -28,8 +28,7 @@ public class CompositionBufferTest {
 			CompositionBuffer compositionBuffer = makeBuffer("src/test/resources/images_composition.json");
 			BufferedImage result = compositionBuffer.compose();
 			writePng(result, "src/test/resources/composition_result.png");
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -41,8 +40,7 @@ public class CompositionBufferTest {
 				System.out.println("Composition result saved to " + out.getAbsolutePath());
 			else
 				System.err.println("Failed to save composition result to " + out.getAbsolutePath());
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
@@ -53,8 +51,7 @@ public class CompositionBufferTest {
 			CompositionBuffer compositionBuffer = makeBuffer("src/test/resources/images_composition2.json");
 			BufferedImage result = compositionBuffer.compose();
 			writePng(result, "src/test/resources/composition_result2.png");
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}

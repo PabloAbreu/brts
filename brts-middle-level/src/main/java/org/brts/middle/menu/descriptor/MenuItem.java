@@ -7,9 +7,8 @@ import lombok.Setter;
 /**
  * Common base for all setup-menu item types.
  * <p>
- * Consolidates the fields shared by every item: a stable cross-reference id, a
- * human-readable label, an optional per-item style override, and optional explicit D-pad
- * navigation overrides.
+ * Consolidates the fields shared by every item: a stable cross-reference id, a human-readable label, an optional
+ * per-item style override, and optional explicit D-pad navigation overrides.
  */
 @Getter
 @Setter
@@ -17,8 +16,8 @@ import lombok.Setter;
 public abstract class MenuItem {
 
 	/**
-	 * Optional stable identifier for cross-item navigation references. When set, other
-	 * items can reference this button by id in their {@link NavigationRefs}.
+	 * Optional stable identifier for cross-item navigation references. When set, other items can reference this button
+	 * by id in their {@link NavigationRefs}.
 	 */
 	private String id;
 
@@ -33,8 +32,7 @@ public abstract class MenuItem {
 	private TextStyle style;
 
 	/**
-	 * Optional explicit directional navigation overrides. Directions not specified here
-	 * are filled by auto-wiring.
+	 * Optional explicit directional navigation overrides. Directions not specified here are filled by auto-wiring.
 	 */
 	private NavigationRefs nav;
 

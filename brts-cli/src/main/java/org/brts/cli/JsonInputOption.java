@@ -16,15 +16,14 @@ import java.lang.annotation.Target;
  * Instead of writing
  *
  * <pre>
- *      @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
- *      File descriptor;
+ * @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
+ * File descriptor;
  * </pre>
  *
- * and then parsing the JSON file manually in the {@code FeatureRunner.execute()} method,
- * you can write
+ * and then parsing the JSON file manually in the {@code FeatureRunner.execute()} method, you can write
  *
  * <pre>
- *      @JsonInputOption(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
+ * @JsonInputOption(name = "--descriptor", required = true, usage = "Path to the clip JSON descriptor")
  *      ClipInfo clipInfo;
  * </pre>
  */

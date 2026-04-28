@@ -17,15 +17,12 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Demuxes an MKV (Matroska) container into separate elementary stream (ES) files, one per
- * track.
+ * Demuxes an MKV (Matroska) container into separate elementary stream (ES) files, one per track.
  * <p>
- * For H.264 (AVC) tracks stored in MKV's "avcC" codec-private format, the demuxer
- * prepends the SPS/PPS from the codec private data and converts length-prefixed NAL units
- * to Annex B start codes (00 00 00 01).
+ * For H.264 (AVC) tracks stored in MKV's "avcC" codec-private format, the demuxer prepends the SPS/PPS from the codec
+ * private data and converts length-prefixed NAL units to Annex B start codes (00 00 00 01).
  * <p>
- * For other codecs (audio, HEVC, PGS, text subtitles), raw frame data is written
- * sequentially.
+ * For other codecs (audio, HEVC, PGS, text subtitles), raw frame data is written sequentially.
  * <p>
  * Usage:
  *
@@ -43,7 +40,8 @@ public class MkvDemuxer {
 
 	/**
 	 * Demuxes all tracks from the given MKV file into separate ES files.
-	 * @param mkvPath path to the MKV file
+	 *
+	 * @param mkvPath   path to the MKV file
 	 * @param outputDir directory where ES files are written
 	 * @return map from track number to the extracted ES file path
 	 * @throws IOException on I/O error
@@ -54,8 +52,9 @@ public class MkvDemuxer {
 
 	/**
 	 * Demuxes selected tracks from the given MKV file into separate ES files.
-	 * @param mkvPath path to the MKV file
-	 * @param outputDir directory where ES files are written
+	 *
+	 * @param mkvPath     path to the MKV file
+	 * @param outputDir   directory where ES files are written
 	 * @param trackFilter set of track numbers to extract (null = all)
 	 * @return map from track number to the extracted ES file path
 	 * @throws IOException on I/O error
@@ -91,8 +90,7 @@ public class MkvDemuxer {
 							dup.get(); // compat
 							dup.get(); // level
 							nalLengthSizeMap.put(trackNo, (dup.get() & 0x03) + 1);
-						}
-						else {
+						} else {
 							nalLengthSizeMap.put(trackNo, 4);
 						}
 					}
@@ -114,14 +112,12 @@ public class MkvDemuxer {
 					// For H.264 tracks, write SPS/PPS from codec private data first
 					if ("V_MPEG4/ISO/AVC".equals(t.getCodecID())) {
 						writeAvcParameterSets(t.getCodecPrivate(), os);
-					}
-					else if (t.getCodecID().startsWith("S_TEXT/") && t.getCodecPrivate() != null
+					} else if (t.getCodecID().startsWith("S_TEXT/") && t.getCodecPrivate() != null
 							&& t.getCodecPrivate().hasRemaining()) {
 						byte[] buf = new byte[t.getCodecPrivate().remaining()];
 						t.getCodecPrivate().get(buf);
 						os.write(buf);
-					}
-					else
+					} else
 						log.debug("Demuxing track {} (codec={}, ext={}) → {} . codec private data :\n {}", trackNo,
 								t.getCodecID(), ext, outFile.getFileName(),
 								StringUtils.bytesToHex(t.getCodecPrivate()));
@@ -148,8 +144,7 @@ public class MkvDemuxer {
 						// Convert length-prefixed NALUs to Annex B
 						int nalLenSize = nalLengthSizeMap.getOrDefault(trackNo, 4);
 						writeAnnexBFrame(data, nalLenSize, os);
-					}
-					else if (codecID.equals("S_TEXT/ASS") || codecID.equals("S_TEXT/SSA")) {
+					} else if (codecID.equals("S_TEXT/ASS") || codecID.equals("S_TEXT/SSA")) {
 						// Text subtitles: write raw UTF-8 text
 						byte[] buf = new byte[data.remaining()];
 						data.get(buf);
@@ -165,12 +160,10 @@ public class MkvDemuxer {
 							os.write(timestampFrom(end).getBytes());
 							os.write(buf, pos, buf.length - pos);
 							os.write('\n');
-						}
-						else {
+						} else {
 							os.write(buf);
 						}
-					}
-					else {
+					} else {
 						// Raw copy
 						byte[] buf = new byte[data.remaining()];
 						data.get(buf);
@@ -180,8 +173,7 @@ public class MkvDemuxer {
 				}
 
 				log.info("Demuxed {} frames from {} tracks in {}", frameCount, outputs.size(), mkvPath.getFileName());
-			}
-			finally {
+			} finally {
 				for (OutputStream os : outputs.values()) {
 					os.close();
 				}
@@ -204,8 +196,8 @@ public class MkvDemuxer {
 	private static final byte[] SSA_DIALOGUE = "Dialogue: ".getBytes();
 
 	/**
-	 * Writes SPS and PPS NAL units from the AVCDecoderConfigurationRecord (codec private
-	 * data) using Annex B start codes.
+	 * Writes SPS and PPS NAL units from the AVCDecoderConfigurationRecord (codec private data) using Annex B start
+	 * codes.
 	 */
 	private void writeAvcParameterSets(ByteBuffer codecPrivate, OutputStream os) throws IOException {
 		if (codecPrivate == null || codecPrivate.remaining() < 7)
@@ -242,16 +234,15 @@ public class MkvDemuxer {
 	}
 
 	/**
-	 * Converts a length-prefixed NAL unit frame to Annex B format, or passes through data
-	 * that is already in Annex B format (starts with a 3- or 4-byte start code).
+	 * Converts a length-prefixed NAL unit frame to Annex B format, or passes through data that is already in Annex B
+	 * format (starts with a 3- or 4-byte start code).
 	 *
 	 * <p>
-	 * Some MKV files with codec ID {@code V_MPEG4/ISO/AVC} store H.264 data in Annex B
-	 * format (start-code delimited) rather than the spec-mandated AVCC (length-prefixed)
-	 * format. Misidentifying such frames as AVCC leads to near-total data loss: the start
-	 * code {@code 00 00 00 01} is read as nalLen=1, only one byte is written, and the
-	 * following byte (e.g. {@code F0} from the AUD primary_pic_type) produces a negative
-	 * Java int nalLen which triggers the safety break.
+	 * Some MKV files with codec ID {@code V_MPEG4/ISO/AVC} store H.264 data in Annex B format (start-code delimited)
+	 * rather than the spec-mandated AVCC (length-prefixed) format. Misidentifying such frames as AVCC leads to
+	 * near-total data loss: the start code {@code 00 00 00 01} is read as nalLen=1, only one byte is written, and the
+	 * following byte (e.g. {@code F0} from the AUD primary_pic_type) produces a negative Java int nalLen which triggers
+	 * the safety break.
 	 */
 	private void writeAnnexBFrame(ByteBuffer data, int nalLenSize, OutputStream os) throws IOException {
 		ByteBuffer buf = data.duplicate();
@@ -283,8 +274,8 @@ public class MkvDemuxer {
 	}
 
 	/**
-	 * Returns {@code true} if {@code buf} starts with a 3-byte ({@code 00 00 01}) or
-	 * 4-byte ({@code 00 00 00 01}) Annex B start code.
+	 * Returns {@code true} if {@code buf} starts with a 3-byte ({@code 00 00 01}) or 4-byte ({@code 00 00 00 01}) Annex
+	 * B start code.
 	 */
 	private static boolean isAnnexBFormat(ByteBuffer buf) {
 		int pos = buf.position();
@@ -307,22 +298,22 @@ public class MkvDemuxer {
 		if (codecId == null)
 			return "bin";
 		return switch (codecId) {
-			case "V_MPEG4/ISO/AVC" -> "h264";
-			case "V_MPEGH/ISO/HEVC" -> "h265";
-			case "V_MPEG2" -> "m2v";
-			case "V_MS/VFW/FOURCC" -> "vc1";
-			case "A_AC3" -> "ac3";
-			case "A_EAC3" -> "eac3";
-			case "A_TRUEHD" -> "thd";
-			case "A_DTS" -> "dts";
-			case "A_DTS/HD/MA" -> "dtsma";
-			case "A_DTS/HD/HRA" -> "dtshd";
-			case "A_PCM/INT/BIG" -> "lpcm";
-			case "S_HDMV/PGS" -> "pgs";
-			case "S_TEXT/UTF8" -> "srt";
-			case "S_TEXT/ASS" -> "ass";
-			case "S_TEXT/SSA" -> "ssa";
-			default -> "bin";
+		case "V_MPEG4/ISO/AVC" -> "h264";
+		case "V_MPEGH/ISO/HEVC" -> "h265";
+		case "V_MPEG2" -> "m2v";
+		case "V_MS/VFW/FOURCC" -> "vc1";
+		case "A_AC3" -> "ac3";
+		case "A_EAC3" -> "eac3";
+		case "A_TRUEHD" -> "thd";
+		case "A_DTS" -> "dts";
+		case "A_DTS/HD/MA" -> "dtsma";
+		case "A_DTS/HD/HRA" -> "dtshd";
+		case "A_PCM/INT/BIG" -> "lpcm";
+		case "S_HDMV/PGS" -> "pgs";
+		case "S_TEXT/UTF8" -> "srt";
+		case "S_TEXT/ASS" -> "ass";
+		case "S_TEXT/SSA" -> "ssa";
+		default -> "bin";
 		};
 	}
 

@@ -3,8 +3,7 @@ package org.brts.common.m2ts;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Chooses the appropriate {@link M2tsClipWriter} implementation based on the runtime
- * environment.
+ * Chooses the appropriate {@link M2tsClipWriter} implementation based on the runtime environment.
  */
 @Slf4j
 public class M2tsClipWriterFactory {

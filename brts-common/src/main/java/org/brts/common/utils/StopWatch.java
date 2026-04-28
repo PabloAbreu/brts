@@ -33,8 +33,7 @@ public class StopWatch {
 			Object[] params = null;
 			if (args == null || args.length == 0) {
 				params = new Object[] { elapsedMs };
-			}
-			else {
+			} else {
 				params = Arrays.copyOf(args, args.length + 1);
 				params[args.length] = elapsedMs;
 			}

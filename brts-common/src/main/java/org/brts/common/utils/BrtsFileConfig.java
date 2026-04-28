@@ -41,17 +41,15 @@ public class BrtsFileConfig {
 	}
 
 	/**
-	 * Resolves the value of a property by key, returning null if not found. Values are
-	 * looked up in this order
+	 * Resolves the value of a property by key, returning null if not found. Values are looked up in this order
 	 * <ol>
 	 * <li>System properties (e.g. passed via -D on the command line)</li>
 	 * <li>environment variables (e.g. set in the shell or OS environment)</li>
-	 * <li>Properties loaded from config files (in order of loading, with later files
-	 * overriding earlier ones)</li>
+	 * <li>Properties loaded from config files (in order of loading, with later files overriding earlier ones)</li>
 	 * </ol>
+	 *
 	 * @param key the property key to look up
-	 * @return the resolved property value, or null if not found in either loaded
-	 * properties
+	 * @return the resolved property value, or null if not found in either loaded properties
 	 */
 	public String getProperty(String key) {
 		if (key == null || key.isBlank()) {
@@ -72,12 +70,10 @@ public class BrtsFileConfig {
 				properties.load(stream);
 				properties.stringPropertyNames().forEach(key -> addProperty(key, properties.getProperty(key), path));
 				log.info("Loaded config from {}", path);
-			}
-			catch (FileNotFoundException e) {
+			} catch (FileNotFoundException e) {
 				log.debug("No config found at {}. Error is " + path, e.getMessage());
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			// (error when closing the stream ?)
 			log.trace("Error loading config from file: " + path, e);
 		}

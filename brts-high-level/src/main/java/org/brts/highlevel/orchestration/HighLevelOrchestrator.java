@@ -20,10 +20,9 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * High-level orchestrator: reads a {@link HighLevelDiscDescriptor}, selects the
- * appropriate template, expands it to a middle-level {@link DiscDescriptor}, and writes
- * the middle-level JSON descriptors + an orchestration script that calls the middle-level
- * commands.
+ * High-level orchestrator: reads a {@link HighLevelDiscDescriptor}, selects the appropriate template, expands it to a
+ * middle-level {@link DiscDescriptor}, and writes the middle-level JSON descriptors + an orchestration script that
+ * calls the middle-level commands.
  */
 public class HighLevelOrchestrator {
 
@@ -42,8 +41,9 @@ public class HighLevelOrchestrator {
 
 	/**
 	 * Main entry point: expand high-level descriptor → middle-level → write artefacts.
+	 *
 	 * @param descriptor the high-level disc descriptor
-	 * @param outputDir root output directory
+	 * @param outputDir  root output directory
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public void orchestrate(HighLevelDiscDescriptor descriptor, Path outputDir) throws IOException {

@@ -52,9 +52,8 @@ public class ImageUtils {
 															// "placeholder")
 
 	/**
-	 * Creates a "ghost" copy of the given image: every pixel's alpha is multiplied by
-	 * {@link #GHOST_OPACITY}, and a small marker symbol is painted in the bottom-right
-	 * corner to signal the image is synthetic.
+	 * Creates a "ghost" copy of the given image: every pixel's alpha is multiplied by {@link #GHOST_OPACITY}, and a
+	 * small marker symbol is painted in the bottom-right corner to signal the image is synthetic.
 	 */
 	public static BufferedImage createGhostImage(BufferedImage src) {
 		int w = src.getWidth();
@@ -98,17 +97,16 @@ public class ImageUtils {
 	public static BufferedImage create(Path filePath) {
 		try {
 			return ImageIO.read(filePath.toFile());
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			throw new RuntimeException("Failed to load image from path: " + filePath, e);
 		}
 	}
 
 	/**
 	 * Creates a deep copy of the provided BufferedImage.
+	 *
 	 * @param src the source BufferedImage to be copied
-	 * @return a new BufferedImage that is a copy of the source image with ARGB color
-	 * model
+	 * @return a new BufferedImage that is a copy of the source image with ARGB color model
 	 * @throws NullPointerException if src is null
 	 */
 	public static BufferedImage copy(BufferedImage src) {
@@ -122,10 +120,9 @@ public class ImageUtils {
 	}
 
 	/**
-	 * Composes the overlay image onto the background image using the specified transform,
-	 * start point, and opacity.
-	 * @return the resulting composed image (same instance as background, modified in
-	 * place)
+	 * Composes the overlay image onto the background image using the specified transform, start point, and opacity.
+	 *
+	 * @return the resulting composed image (same instance as background, modified in place)
 	 */
 	public static BufferedImage compose(BufferedImage background, BufferedImage overlay, AffineTransform transform,
 			int x, int y, float opacity) {

@@ -13,8 +13,8 @@ import org.brts.lowlevel.model.mpls.PlayMark;
 import org.brts.lowlevel.model.mpls.SubPath;
 
 /**
- * Writer for MPLS (Movie Playlist) binary files. Generates a standards-compliant
- * {@code XXXXX.mpls} from a {@link MoviePlaylist} model.
+ * Writer for MPLS (Movie Playlist) binary files. Generates a standards-compliant {@code XXXXX.mpls} from a
+ * {@link MoviePlaylist} model.
  */
 public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
@@ -136,15 +136,13 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 					int vf = (s.getVideoFormat() != null ? s.getVideoFormat() : 0);
 					int fr = (s.getFrameRate() != null ? s.getFrameRate() : 0);
 					wa.writeByte((vf << 4) | fr);
-				}
-				else if (s.getCodingType().isAudio()) {
+				} else if (s.getCodingType().isAudio()) {
 					int ch = (s.getAudioChannelLayout() != null ? s.getAudioChannelLayout() : 0);
 					int sr = (s.getSampleRate() != null ? s.getSampleRate() : 0);
 					wa.writeByte((ch << 4) | sr);
 					String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 					wa.writeAscii(String.format("%-3s", lang).substring(0, 3));
-				}
-				else {
+				} else {
 					String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 					wa.writeAscii(String.format("%-3s", lang).substring(0, 3));
 				}

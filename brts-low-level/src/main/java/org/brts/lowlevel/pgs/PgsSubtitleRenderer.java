@@ -21,8 +21,7 @@ import org.brts.lowlevel.subtitle.model.SubtitlePosition;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Renders subtitle text into ARGB {@link BufferedImage}s suitable for PGS Object
- * Definition Segments.
+ * Renders subtitle text into ARGB {@link BufferedImage}s suitable for PGS Object Definition Segments.
  * <p>
  * The renderer supports:
  * <ul>
@@ -34,11 +33,9 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <h2>Rendering pipeline</h2>
  * <ol>
- * <li>Strip HTML tags from text and build an {@link AttributedString} with
- * bold/italic/underline ranges.</li>
+ * <li>Strip HTML tags from text and build an {@link AttributedString} with bold/italic/underline ranges.</li>
  * <li>Measure the text bounding box.</li>
- * <li>Draw outline (thick stroke in outline colour) then fill (text colour) for
- * legibility.</li>
+ * <li>Draw outline (thick stroke in outline colour) then fill (text colour) for legibility.</li>
  * </ol>
  *
  * @see PgsRenderConfig
@@ -58,19 +55,17 @@ public class PgsSubtitleRenderer {
 	/**
 	 * Result of rendering a single subtitle cue.
 	 *
-	 * @param image the rendered ARGB bitmap (tightly cropped around the text)
-	 * @param screenX the X coordinate where this image should be placed on the full
-	 * screen
-	 * @param screenY the Y coordinate where this image should be placed on the full
-	 * screen
+	 * @param image   the rendered ARGB bitmap (tightly cropped around the text)
+	 * @param screenX the X coordinate where this image should be placed on the full screen
+	 * @param screenY the Y coordinate where this image should be placed on the full screen
 	 */
 	public record RenderResult(BufferedImage image, int screenX, int screenY) {
 	}
 
 	/**
 	 * Renders a subtitle text into an image and computes its screen position.
-	 * @param text the subtitle text (may contain {@code <b>}, {@code <i>}, {@code <u>}
-	 * tags and newlines)
+	 *
+	 * @param text     the subtitle text (may contain {@code <b>}, {@code <i>}, {@code <u>} tags and newlines)
 	 * @param position per-cue position override, or {@code null} for default
 	 * @return the rendered result
 	 */
@@ -181,8 +176,7 @@ public class PgsSubtitleRenderer {
 		if (position != null && position.isAbsolutePosition()) {
 			screenX = position.getX();
 			screenY = position.getY();
-		}
-		else {
+		} else {
 			int alignment = (position != null) ? position.getAlignment() : 2;
 			int[] pos = computeAlignedPosition(imgWidth, imgHeight, alignment);
 			screenX = pos[0];
@@ -212,17 +206,17 @@ public class PgsSubtitleRenderer {
 		// Horizontal: 1,4,7 = left; 2,5,8 = centre; 3,6,9 = right
 		int hPos = ((alignment - 1) % 3); // 0=left, 1=centre, 2=right
 		switch (hPos) {
-			case 0 -> x = margin;
-			case 2 -> x = sw - margin - imgWidth;
-			default -> x = (sw - imgWidth) / 2;
+		case 0 -> x = margin;
+		case 2 -> x = sw - margin - imgWidth;
+		default -> x = (sw - imgWidth) / 2;
 		}
 
 		// Vertical: 1,2,3 = bottom; 4,5,6 = middle; 7,8,9 = top
 		int vPos = ((alignment - 1) / 3); // 0=bottom, 1=middle, 2=top
 		switch (vPos) {
-			case 2 -> y = (int) (sh * 0.05); // top with small margin
-			case 1 -> y = (sh - imgHeight) / 2; // middle
-			default -> y = (int) (sh * vRatio) - imgHeight; // bottom
+		case 2 -> y = (int) (sh * 0.05); // top with small margin
+		case 1 -> y = (sh - imgHeight) / 2; // middle
+		default -> y = (int) (sh * vRatio) - imgHeight; // bottom
 		}
 
 		return new int[] { x, y };
@@ -253,33 +247,30 @@ public class PgsSubtitleRenderer {
 			int pos = plain.length();
 
 			switch (tag) {
-				case "b" -> {
-					if (!isClose) {
-						boldStart = pos;
-					}
-					else if (boldStart >= 0) {
-						ranges.add(new StyleRange(boldStart, pos, StyleRange.Type.BOLD));
-						boldStart = -1;
-					}
+			case "b" -> {
+				if (!isClose) {
+					boldStart = pos;
+				} else if (boldStart >= 0) {
+					ranges.add(new StyleRange(boldStart, pos, StyleRange.Type.BOLD));
+					boldStart = -1;
 				}
-				case "i" -> {
-					if (!isClose) {
-						italicStart = pos;
-					}
-					else if (italicStart >= 0) {
-						ranges.add(new StyleRange(italicStart, pos, StyleRange.Type.ITALIC));
-						italicStart = -1;
-					}
+			}
+			case "i" -> {
+				if (!isClose) {
+					italicStart = pos;
+				} else if (italicStart >= 0) {
+					ranges.add(new StyleRange(italicStart, pos, StyleRange.Type.ITALIC));
+					italicStart = -1;
 				}
-				case "u" -> {
-					if (!isClose) {
-						underlineStart = pos;
-					}
-					else if (underlineStart >= 0) {
-						ranges.add(new StyleRange(underlineStart, pos, StyleRange.Type.UNDERLINE));
-						underlineStart = -1;
-					}
+			}
+			case "u" -> {
+				if (!isClose) {
+					underlineStart = pos;
+				} else if (underlineStart >= 0) {
+					ranges.add(new StyleRange(underlineStart, pos, StyleRange.Type.UNDERLINE));
+					underlineStart = -1;
 				}
+			}
 			}
 		}
 		// Append remainder
@@ -298,8 +289,8 @@ public class PgsSubtitleRenderer {
 	}
 
 	/**
-	 * Builds an {@link AttributedString} for a single line of text, applying style ranges
-	 * that overlap this line's character range within the full plain text.
+	 * Builds an {@link AttributedString} for a single line of text, applying style ranges that overlap this line's
+	 * character range within the full plain text.
 	 */
 	private AttributedString buildAttributedLine(String line, int lineStartInFull, List<StyleRange> allRanges,
 			Font baseFont) {
@@ -325,15 +316,15 @@ public class PgsSubtitleRenderer {
 			end = Math.min(end, line.length());
 
 			switch (range.type) {
-				case BOLD -> {
-					as.addAttribute(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD, start, end);
-				}
-				case ITALIC -> {
-					as.addAttribute(TextAttribute.POSTURE, TextAttribute.POSTURE_OBLIQUE, start, end);
-				}
-				case UNDERLINE -> {
-					as.addAttribute(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON, start, end);
-				}
+			case BOLD -> {
+				as.addAttribute(TextAttribute.WEIGHT, TextAttribute.WEIGHT_BOLD, start, end);
+			}
+			case ITALIC -> {
+				as.addAttribute(TextAttribute.POSTURE, TextAttribute.POSTURE_OBLIQUE, start, end);
+			}
+			case UNDERLINE -> {
+				as.addAttribute(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON, start, end);
+			}
 			}
 		}
 

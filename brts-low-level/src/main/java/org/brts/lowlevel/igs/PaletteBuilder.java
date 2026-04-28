@@ -7,8 +7,8 @@ import java.awt.image.BufferedImage;
 import java.util.*;
 
 /**
- * Builds an {@link IgsPalette} from one or more ARGB {@link BufferedImage}s by collecting
- * unique colours and quantising down to ≤ 256 entries.
+ * Builds an {@link IgsPalette} from one or more ARGB {@link BufferedImage}s by collecting unique colours and quantising
+ * down to ≤ 256 entries.
  * <p>
  * Also provides colour-space conversion utilities (ARGB ↔ YCbCr BT.709).
  */
@@ -23,8 +23,8 @@ public final class PaletteBuilder {
 	// ── Colour-space conversion ─────────────────────────────────────────────
 
 	/**
-	 * Converts ARGB to YCbCr + alpha (BT.709), the inverse of
-	 * {@link RleConverter#ycbcrToArgb}.
+	 * Converts ARGB to YCbCr + alpha (BT.709), the inverse of {@link RleConverter#ycbcrToArgb}.
+	 *
 	 * @return int[4] = { Y, Cb, Cr, alpha }
 	 */
 	public static int[] argbToYcbcr(int argb) {
@@ -69,10 +69,11 @@ public final class PaletteBuilder {
 	/**
 	 * Builds a palette from the unique colours found across one or more images.
 	 * <p>
-	 * If there are more than 255 unique colours (index 0 is reserved for transparent), a
-	 * simple popularity-based quantisation is used.
+	 * If there are more than 255 unique colours (index 0 is reserved for transparent), a simple popularity-based
+	 * quantisation is used.
+	 *
 	 * @param paletteId the palette id to assign
-	 * @param images one or more ARGB images
+	 * @param images    one or more ARGB images
 	 * @return the palette (with index 0 = fully transparent)
 	 */
 	public static IgsPalette buildFromImages(int paletteId, BufferedImage... images) {
@@ -120,10 +121,11 @@ public final class PaletteBuilder {
 	}
 
 	/**
-	 * Builds a palette from an explicit list of ARGB colours. Index 0 is always
-	 * transparent. The colours are assigned indices 1..N.
+	 * Builds a palette from an explicit list of ARGB colours. Index 0 is always transparent. The colours are assigned
+	 * indices 1..N.
+	 *
 	 * @param paletteId the palette id to assign
-	 * @param colors ARGB colour values (duplicates are ignored)
+	 * @param colors    ARGB colour values (duplicates are ignored)
 	 * @return the palette
 	 */
 	public static IgsPalette buildFromColors(int paletteId, int... colors) {

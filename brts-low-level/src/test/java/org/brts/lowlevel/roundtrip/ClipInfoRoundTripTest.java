@@ -45,19 +45,13 @@ class ClipInfoRoundTripTest {
 
 		// Verify streams
 		assertThat(reparsed.getStreams()).hasSize(original.getStreams().size());
-		ClipStream videoOut = reparsed.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType().isVideo())
-			.findFirst()
-			.orElseThrow();
+		ClipStream videoOut = reparsed.getStreams().stream().filter(s -> s.getCodingType().isVideo()).findFirst()
+				.orElseThrow();
 		assertThat(videoOut.getPid()).isEqualTo(0x1011);
 		assertThat(videoOut.getCodingType()).isEqualTo(StreamCodingType.H264_AVC);
 
-		ClipStream audioOut = reparsed.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType().isAudio())
-			.findFirst()
-			.orElseThrow();
+		ClipStream audioOut = reparsed.getStreams().stream().filter(s -> s.getCodingType().isAudio()).findFirst()
+				.orElseThrow();
 		assertThat(audioOut.getPid()).isEqualTo(0x1100);
 		assertThat(audioOut.getLanguage()).isEqualTo("eng");
 	}

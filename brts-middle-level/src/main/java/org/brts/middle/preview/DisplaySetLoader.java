@@ -19,12 +19,11 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Loads an M2TS file, extracts its IGS (Interactive Graphics Stream), parses the display
- * sets, decodes all RLE objects into images, and builds a {@link DisplaySetPreviewModel}
- * ready for the Swing viewer.
+ * Loads an M2TS file, extracts its IGS (Interactive Graphics Stream), parses the display sets, decodes all RLE objects
+ * into images, and builds a {@link DisplaySetPreviewModel} ready for the Swing viewer.
  * <p>
- * This is the "middle-level" bridge that combines low-level M2TS parsing, IGS parsing,
- * and RLE decoding into a single convenient entry point.
+ * This is the "middle-level" bridge that combines low-level M2TS parsing, IGS parsing, and RLE decoding into a single
+ * convenient entry point.
  */
 public class DisplaySetLoader {
 
@@ -38,6 +37,7 @@ public class DisplaySetLoader {
 
 	/**
 	 * Loads the first IGS display set from the given M2TS file.
+	 *
 	 * @param m2tsFile path to the {@code .m2ts} file
 	 * @return a fully populated preview model
 	 * @throws IOException if parsing fails or no IGS stream is found
@@ -48,7 +48,8 @@ public class DisplaySetLoader {
 
 	/**
 	 * Loads a specific display set (by index) from the given M2TS file.
-	 * @param m2tsFile path to the {@code .m2ts} file
+	 *
+	 * @param m2tsFile        path to the {@code .m2ts} file
 	 * @param displaySetIndex zero-based index of the display set to load
 	 * @return a fully populated preview model
 	 * @throws IOException if parsing fails or no IGS stream is found
@@ -136,8 +137,7 @@ public class DisplaySetLoader {
 		IgsCompositionSegment ics = ds.getCompositionSegment();
 		if (ics != null && ics.getVideoDescriptor() != null) {
 			model.setVideoDescriptor(ics.getVideoDescriptor());
-		}
-		else {
+		} else {
 			// Default to 1920×1080
 			VideoDescriptor vd = new VideoDescriptor();
 			vd.setWidth(1920);
@@ -175,8 +175,7 @@ public class DisplaySetLoader {
 					log.warn("Object {} has invalid dimensions {}×{}, substituting 1×1 placeholder", obj.getId(),
 							obj.getWidth(), obj.getHeight());
 					img = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
-				}
-				else {
+				} else {
 					img = rleConverter.decodeRle(obj.getRleData(), obj.getWidth(), obj.getHeight(), defaultPalette);
 				}
 				model.getObjectImages().put(obj.getId(), img);

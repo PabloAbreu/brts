@@ -16,7 +16,9 @@ import java.util.regex.Pattern;
 /**
  * Parser for SubRip ({@code .srt}) subtitle files.
  * <p>
- * Handles the standard SRT format: <pre>
+ * Handles the standard SRT format:
+ *
+ * <pre>
  *   1
  *   00:00:01,000 --> 00:00:04,000
  *   First subtitle line
@@ -27,11 +29,10 @@ import java.util.regex.Pattern;
  *   Next subtitle
  * </pre>
  *
- * Basic HTML tags ({@code <b>}, {@code <i>}, {@code <u>}) are preserved in the cue text
- * for the renderer to interpret.
+ * Basic HTML tags ({@code <b>}, {@code <i>}, {@code <u>}) are preserved in the cue text for the renderer to interpret.
  * <p>
- * The SSA-style {@code {\anN}} position tag (sometimes found in SRT files) is recognised
- * and converted to a {@link SubtitlePosition}.
+ * The SSA-style {@code {\anN}} position tag (sometimes found in SRT files) is recognised and converted to a
+ * {@link SubtitlePosition}.
  */
 public class SrtParser implements SubtitleParser {
 
@@ -130,7 +131,8 @@ public class SrtParser implements SubtitleParser {
 
 	/**
 	 * Parses HH:MM:SS,mmm groups into milliseconds.
-	 * @param m the matcher positioned at the timestamp
+	 *
+	 * @param m          the matcher positioned at the timestamp
 	 * @param groupStart the group index of the first component (hours)
 	 * @return time in milliseconds
 	 */
@@ -150,8 +152,7 @@ public class SrtParser implements SubtitleParser {
 		try {
 			Integer.parseInt(s);
 			return true;
-		}
-		catch (NumberFormatException e) {
+		} catch (NumberFormatException e) {
 			return false;
 		}
 	}

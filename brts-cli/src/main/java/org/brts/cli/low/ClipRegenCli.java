@@ -21,12 +21,10 @@ public class ClipRegenCli {
 		@Option(name = "--input", required = true, usage = "Path to the source .m2ts file to parse")
 		File input;
 
-		@Option(name = "--output", required = true,
-				usage = "Output directory for the generated .clpi file (BDMV/CLIPINF/ recommended)")
+		@Option(name = "--output", required = true, usage = "Output directory for the generated .clpi file (BDMV/CLIPINF/ recommended)")
 		File outputDir;
 
-		@Option(name = "--clip-name",
-				usage = "5-digit clip name without extension (default: input file basename without extension)")
+		@Option(name = "--clip-name", usage = "5-digit clip name without extension (default: input file basename without extension)")
 		String clipName;
 
 		@Option(name = "--json", usage = "Also write the ClipInfo model as a JSON sidecar file alongside the .clpi")

@@ -8,11 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A complete subtitle track — an ordered list of {@link SubtitleCue}s plus optional
- * metadata from the source format.
+ * A complete subtitle track — an ordered list of {@link SubtitleCue}s plus optional metadata from the source format.
  * <p>
- * This is the common intermediate representation produced by all subtitle parsers,
- * regardless of the source format (SRT, SSA/ASS, etc.).
+ * This is the common intermediate representation produced by all subtitle parsers, regardless of the source format
+ * (SRT, SSA/ASS, etc.).
  */
 @Getter
 @Setter
@@ -32,8 +31,7 @@ public class SubtitleTrack {
 	private List<SubtitleCue> cues = new ArrayList<>();
 
 	/**
-	 * Convenience: total duration of the track in milliseconds (based on the last cue's
-	 * end time).
+	 * Convenience: total duration of the track in milliseconds (based on the last cue's end time).
 	 */
 	public long getDurationMs() {
 		if (cues.isEmpty())

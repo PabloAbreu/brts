@@ -44,10 +44,9 @@ public class IndexBdmv {
 	/**
 	 * Reference to a MovieObject (HDMV) or BD-J object.
 	 * <p>
-	 * In the binary format, the object type and access type are packed into the first
-	 * byte: bits 7-6 = object_type (1=HDMV, 2=BD-J), bits 5-4 = access_type. HDMV entries
-	 * carry a 16-bit {@link #hdmvObjectId}; BD-J entries carry a 5-character
-	 * {@link #bdjObjectName} referencing a {@code .bdjo} file.
+	 * In the binary format, the object type and access type are packed into the first byte: bits 7-6 = object_type
+	 * (1=HDMV, 2=BD-J), bits 5-4 = access_type. HDMV entries carry a 16-bit {@link #hdmvObjectId}; BD-J entries carry a
+	 * 5-character {@link #bdjObjectName} referencing a {@code .bdjo} file.
 	 */
 	@Getter
 	@Setter
@@ -57,26 +56,24 @@ public class IndexBdmv {
 		private int objectType = 1;
 
 		/**
-		 * Access type: 0 = prohibited, 2 = permitted (title button accessible). Packed
-		 * into bits 5-4 of the first entry byte.
+		 * Access type: 0 = prohibited, 2 = permitted (title button accessible). Packed into bits 5-4 of the first entry
+		 * byte.
 		 */
 		private int accessType = 0;
 
 		/**
-		 * Index into {@code MovieObject.bdmv} object table (zero-based). Only used when
-		 * objectType == 1 (HDMV).
+		 * Index into {@code MovieObject.bdmv} object table (zero-based). Only used when objectType == 1 (HDMV).
 		 */
 		private int hdmvObjectId;
 
 		/**
-		 * BD-J object name (5-character ASCII, references a {@code .bdjo} file). Only
-		 * used when objectType == 2 (BD-J).
+		 * BD-J object name (5-character ASCII, references a {@code .bdjo} file). Only used when objectType == 2 (BD-J).
 		 */
 		private String bdjObjectName;
 
 		/**
-		 * Raw value of the secondary flags byte (byte 4 of the 12-byte entry). 0: HDMV
-		 * movie, 1: HDMV interactive, 2: BD-J movie, 3: BD-J interactive.
+		 * Raw value of the secondary flags byte (byte 4 of the 12-byte entry). 0: HDMV movie, 1: HDMV interactive, 2:
+		 * BD-J movie, 3: BD-J interactive.
 		 *
 		 */
 		private int playbackType;

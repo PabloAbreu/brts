@@ -16,12 +16,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Converts IGS RLE-compressed bitmap files (as produced by {@link IgsDemuxer}) into
- * standard image formats (e.g. PNG).
+ * Converts IGS RLE-compressed bitmap files (as produced by {@link IgsDemuxer}) into standard image formats (e.g. PNG).
  * <p>
- * The RLE files are raw PG/IG RLE-encoded bitmaps. Each pixel is a palette index. To
- * produce a viewable image, a palette (from the corresponding {@code display_set.json})
- * is needed to map indices to YCbCr+alpha colours, which are then converted to ARGB.
+ * The RLE files are raw PG/IG RLE-encoded bitmaps. Each pixel is a palette index. To produce a viewable image, a
+ * palette (from the corresponding {@code display_set.json}) is needed to map indices to YCbCr+alpha colours, which are
+ * then converted to ARGB.
  *
  * <h2>RLE encoding (PG/IG Blu-ray spec)</h2>
  * <ul>
@@ -40,10 +39,11 @@ public class RleConverter {
 
 	/**
 	 * Converts a single RLE object file to a PNG image.
-	 * @param rleFile path to the {@code obj_NNNN.rle} file
-	 * @param width image width in pixels (from display_set.json metadata)
-	 * @param height image height in pixels (from display_set.json metadata)
-	 * @param palette the palette to use for colour lookup
+	 *
+	 * @param rleFile    path to the {@code obj_NNNN.rle} file
+	 * @param width      image width in pixels (from display_set.json metadata)
+	 * @param height     image height in pixels (from display_set.json metadata)
+	 * @param palette    the palette to use for colour lookup
 	 * @param outputFile target PNG file path
 	 * @throws IOException on I/O error or invalid RLE data
 	 */
@@ -58,10 +58,11 @@ public class RleConverter {
 
 	/**
 	 * Converts a single RLE object to a PNG, reading raw bytes.
-	 * @param rleData raw RLE bytes
-	 * @param width image width
-	 * @param height image height
-	 * @param palette palette for colour lookup
+	 *
+	 * @param rleData    raw RLE bytes
+	 * @param width      image width
+	 * @param height     image height
+	 * @param palette    palette for colour lookup
 	 * @param outputFile target PNG path
 	 * @throws IOException on I/O error
 	 */
@@ -76,12 +77,12 @@ public class RleConverter {
 	/**
 	 * Converts all RLE objects in a demuxed IGS directory to PNG images.
 	 * <p>
-	 * Walks every {@code ds_NNNN/} sub-directory, reads the {@code display_set.json} for
-	 * object dimensions and palette, and writes one PNG per object next to its RLE file.
-	 * @param igsDir root directory of a demuxed IGS (containing
-	 * {@code igs_manifest.json})
-	 * @param outputDir target directory for PNG files (mirrors structure). If
-	 * {@code null}, PNGs are written alongside the RLE files in the source directory.
+	 * Walks every {@code ds_NNNN/} sub-directory, reads the {@code display_set.json} for object dimensions and palette,
+	 * and writes one PNG per object next to its RLE file.
+	 *
+	 * @param igsDir    root directory of a demuxed IGS (containing {@code igs_manifest.json})
+	 * @param outputDir target directory for PNG files (mirrors structure). If {@code null}, PNGs are written alongside
+	 *                  the RLE files in the source directory.
 	 * @throws IOException on I/O error
 	 */
 	public void convertDirectory(Path igsDir, Path outputDir) throws IOException {
@@ -126,8 +127,7 @@ public class RleConverter {
 				Path pngPath;
 				if (outputDir != null) {
 					pngPath = outputDir.resolve(dsRef.getDirectory()).resolve(pngName);
-				}
-				else {
+				} else {
 					pngPath = dsDir.resolve(pngName);
 				}
 
@@ -142,9 +142,10 @@ public class RleConverter {
 
 	/**
 	 * Decodes PG/IG RLE data into a {@link BufferedImage} using the given palette.
+	 *
 	 * @param rleData raw RLE bytes
-	 * @param width image width
-	 * @param height image height
+	 * @param width   image width
+	 * @param height  image height
 	 * @param palette palette for index→colour mapping
 	 * @return ARGB image
 	 */
@@ -165,8 +166,7 @@ public class RleConverter {
 					img.setRGB(x, y, argbPalette[first]);
 				}
 				x++;
-			}
-			else {
+			} else {
 				// Escape byte — read second byte
 				if (pos >= rleData.length)
 					break;
@@ -174,45 +174,44 @@ public class RleConverter {
 
 				int flag = (second >> 6) & 0x03;
 				switch (flag) {
-					case 0 -> {
-						// 0b00LLLLLL: L pixels of colour 0
-						int len = second & 0x3F;
-						if (len == 0) {
-							// End-of-line
-							x = 0;
-							y++;
-						}
-						else {
-							fillPixels(img, argbPalette[0], x, y, len, width);
-							x += len;
-						}
-					}
-					case 1 -> {
-						// 0b01LLLLLL LLLLLLLL: 14-bit length, colour 0
-						if (pos >= rleData.length)
-							break;
-						int len = ((second & 0x3F) << 8) | (rleData[pos++] & 0xFF);
+				case 0 -> {
+					// 0b00LLLLLL: L pixels of colour 0
+					int len = second & 0x3F;
+					if (len == 0) {
+						// End-of-line
+						x = 0;
+						y++;
+					} else {
 						fillPixels(img, argbPalette[0], x, y, len, width);
 						x += len;
 					}
-					case 2 -> {
-						// 0b10LLLLLL CC: 6-bit length, colour C
-						if (pos >= rleData.length)
-							break;
-						int len = second & 0x3F;
-						int color = rleData[pos++] & 0xFF;
-						fillPixels(img, argbPalette[color], x, y, len, width);
-						x += len;
-					}
-					case 3 -> {
-						// 0b11LLLLLL LLLLLLLL CC: 14-bit length, colour C
-						if (pos + 1 >= rleData.length)
-							break;
-						int len = ((second & 0x3F) << 8) | (rleData[pos++] & 0xFF);
-						int color = rleData[pos++] & 0xFF;
-						fillPixels(img, argbPalette[color], x, y, len, width);
-						x += len;
-					}
+				}
+				case 1 -> {
+					// 0b01LLLLLL LLLLLLLL: 14-bit length, colour 0
+					if (pos >= rleData.length)
+						break;
+					int len = ((second & 0x3F) << 8) | (rleData[pos++] & 0xFF);
+					fillPixels(img, argbPalette[0], x, y, len, width);
+					x += len;
+				}
+				case 2 -> {
+					// 0b10LLLLLL CC: 6-bit length, colour C
+					if (pos >= rleData.length)
+						break;
+					int len = second & 0x3F;
+					int color = rleData[pos++] & 0xFF;
+					fillPixels(img, argbPalette[color], x, y, len, width);
+					x += len;
+				}
+				case 3 -> {
+					// 0b11LLLLLL LLLLLLLL CC: 14-bit length, colour C
+					if (pos + 1 >= rleData.length)
+						break;
+					int len = ((second & 0x3F) << 8) | (rleData[pos++] & 0xFF);
+					int color = rleData[pos++] & 0xFF;
+					fillPixels(img, argbPalette[color], x, y, len, width);
+					x += len;
+				}
 				}
 			}
 		}
@@ -225,8 +224,7 @@ public class RleConverter {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Builds a 256-entry ARGB palette from the IGS palette. Unmapped entries default to
-	 * fully transparent black.
+	 * Builds a 256-entry ARGB palette from the IGS palette. Unmapped entries default to fully transparent black.
 	 */
 	static int[] buildArgbPalette(IgsPalette palette) {
 		int[] argb = new int[256]; // all zeros = transparent black
@@ -243,7 +241,9 @@ public class RleConverter {
 	/**
 	 * Converts YCbCr + alpha to ARGB using BT.709 (Blu-ray standard).
 	 * <p>
-	 * ITU-R BT.709: <pre>
+	 * ITU-R BT.709:
+	 *
+	 * <pre>
 	 *   R = clip(Y + 1.5748 * (Cr - 128))
 	 *   G = clip(Y - 0.1873 * (Cb - 128) - 0.4681 * (Cr - 128))
 	 *   B = clip(Y + 1.8556 * (Cb - 128))

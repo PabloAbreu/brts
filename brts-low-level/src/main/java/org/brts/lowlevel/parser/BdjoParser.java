@@ -14,7 +14,9 @@ import java.util.List;
 /**
  * Parser for {@code BDMV/BDJO/XXXXX.bdjo} — BD-J Object files.
  * <p>
- * Binary layout (all integers big-endian): <pre>
+ * Binary layout (all integers big-endian):
+ *
+ * <pre>
  * File header (48 bytes):
  *   magic                              : 4 bytes  ("BDJO")
  *   version                            : 4 bytes  ("0200")
@@ -25,7 +27,9 @@ import java.util.List;
  *   KeyInterestTableStartAddress       : 4 bytes
  *   FileAccessInfoStartAddress         : 4 bytes
  *   reserved                           : 16 bytes
- * </pre> Sections follow sequentially (addresses are informational).
+ * </pre>
+ *
+ * Sections follow sequentially (addresses are informational).
  * <p>
  * Reference: libbluray {@code bdjo_parse.c}.
  */
@@ -82,7 +86,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the TerminalInfo section. <pre>
+	 * Reads the TerminalInfo section.
+	 *
+	 * <pre>
 	 *   section_length     : 4 bytes
 	 *   default_font       : 5 bytes ASCII
 	 *   flags byte         : initial_havi_config(4 bits) | menu_call_mask(1) | title_search_mask(1) | padding(2)
@@ -114,7 +120,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the AppCacheInfo section. <pre>
+	 * Reads the AppCacheInfo section.
+	 *
+	 * <pre>
 	 *   section_length : 4 bytes
 	 *   num_items      : 1 byte
 	 *   padding        : 1 byte
@@ -159,7 +167,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the AccessiblePlaylists section. <pre>
+	 * Reads the AccessiblePlaylists section.
+	 *
+	 * <pre>
 	 *   section_length               : 4 bytes
 	 *   num_pl(11 bits) | access_to_all(1) | autostart_first(1) | padding(19 bits)  : 4 bytes
 	 *   for each playlist:
@@ -199,7 +209,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the Application Management Table. <pre>
+	 * Reads the Application Management Table.
+	 *
+	 * <pre>
 	 *   section_length : 4 bytes
 	 *   num_apps       : 1 byte
 	 *   padding        : 1 byte
@@ -230,7 +242,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	/**
 	 * Reads a single BD-J application entry.
 	 * <p>
-	 * Reference: libbluray {@code _parse_bdjo_app()}. <pre>
+	 * Reference: libbluray {@code _parse_bdjo_app()}.
+	 *
+	 * <pre>
 	 *   control_code(8) | type(4) | padding(4) | org_id(32) | app_id(16) : 8 bytes
 	 *   descriptor_tag_and_length (10 bytes, skipped)
 	 *   num_profile(4 bits) | padding(12 bits) : 2 bytes
@@ -307,7 +321,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	}
 
 	/**
-	 * Reads the application names block. <pre>
+	 * Reads the application names block.
+	 *
+	 * <pre>
 	 *   data_length(16 bits)
 	 *   for each name: lang(3 bytes) + name_length(1 byte) + name(name_length bytes)
 	 *   word-align padding if data_length is odd
@@ -335,8 +351,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	}
 
 	/**
-	 * Reads a word-aligned length-prefixed string (as in libbluray
-	 * {@code _read_app_string}). <pre>
+	 * Reads a word-aligned length-prefixed string (as in libbluray {@code _read_app_string}).
+	 *
+	 * <pre>
 	 *   length(8 bits) + string(length bytes) + padding(1 byte if length is even)
 	 * </pre>
 	 */
@@ -351,7 +368,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	}
 
 	/**
-	 * Reads the application parameters block. <pre>
+	 * Reads the application parameters block.
+	 *
+	 * <pre>
 	 *   data_length(8 bits)
 	 *   for each param: param_length(8 bits) + param(param_length bytes)
 	 *   word-align padding if data_length is even (i.e. total odd)
@@ -381,7 +400,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the Key Interest Table (4 bytes = 32 bits). <pre>
+	 * Reads the Key Interest Table (4 bytes = 32 bits).
+	 *
+	 * <pre>
 	 *   11 single-bit flags + 21 bits padding
 	 * </pre>
 	 */
@@ -412,7 +433,9 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Reads the File Access Info section. <pre>
+	 * Reads the File Access Info section.
+	 *
+	 * <pre>
 	 *   file_access_length(16 bits) + path(file_access_length bytes)
 	 * </pre>
 	 */

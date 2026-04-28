@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * An IGS button — a clickable menu element with three visual states (normal / selected /
- * activated), four navigation neighbours, and optional navigation commands.
+ * An IGS button — a clickable menu element with three visual states (normal / selected / activated), four navigation
+ * neighbours, and optional navigation commands.
  */
 @Getter
 @Setter

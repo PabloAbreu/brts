@@ -13,12 +13,12 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * IGS Muxer — reassembles extracted IGS resources (from {@link IgsDemuxer}) back into a
- * single raw IGS elementary stream file.
+ * IGS Muxer — reassembles extracted IGS resources (from {@link IgsDemuxer}) back into a single raw IGS elementary
+ * stream file.
  * <p>
- * The muxer reads the manifest and per-display-set JSON + RLE files, re-encodes each
- * segment in binary form, and concatenates them into a single {@code .igs} file identical
- * to what {@link org.brts.common.m2ts.FilePacketHandler} would produce during extraction.
+ * The muxer reads the manifest and per-display-set JSON + RLE files, re-encodes each segment in binary form, and
+ * concatenates them into a single {@code .igs} file identical to what {@link org.brts.common.m2ts.FilePacketHandler}
+ * would produce during extraction.
  *
  * <h2>Segment ordering per display set</h2>
  * <ol>
@@ -37,8 +37,9 @@ public class IgsMuxer {
 
 	/**
 	 * Muxes the extracted IGS folder back into a single raw .igs file.
-	 * @param inputDir directory created by {@link IgsDemuxer} containing
-	 * {@code igs_manifest.json} and per-display-set sub-folders
+	 *
+	 * @param inputDir   directory created by {@link IgsDemuxer} containing {@code igs_manifest.json} and
+	 *                   per-display-set sub-folders
 	 * @param outputFile target .igs file path
 	 * @throws IOException on I/O error
 	 */
@@ -103,10 +104,10 @@ public class IgsMuxer {
 	}
 
 	/**
-	 * Encodes a fully populated {@link IgsDisplaySet} (built in memory) into raw IGS
-	 * elementary stream bytes.
+	 * Encodes a fully populated {@link IgsDisplaySet} (built in memory) into raw IGS elementary stream bytes.
 	 * <p>
 	 * Segment order follows the Blu-ray spec: ICS → PDS → WDS → ODS → END_OF_DISPLAY.
+	 *
 	 * @param displaySet the in-memory display set to encode
 	 * @return raw IGS ES bytes ready to be muxed into an M2TS
 	 * @throws IOException on encoding error

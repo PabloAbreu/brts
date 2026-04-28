@@ -5,8 +5,8 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Interactive Composition Segment (ICS) — the main segment in an IGS display set that
- * defines the menu structure (pages, buttons, navigation).
+ * Interactive Composition Segment (ICS) — the main segment in an IGS display set that defines the menu structure
+ * (pages, buttons, navigation).
  */
 @Getter
 @Setter

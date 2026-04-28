@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A single interactive page in an IGS menu. Each page has its own palette, set of BOGs
- * (button groups), animations, and UO (User Operation) mask.
+ * A single interactive page in an IGS menu. Each page has its own palette, set of BOGs (button groups), animations, and
+ * UO (User Operation) mask.
  */
 @Getter
 @Setter

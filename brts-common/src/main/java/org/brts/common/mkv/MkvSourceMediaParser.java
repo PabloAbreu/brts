@@ -20,8 +20,8 @@ import java.util.List;
 /**
  * MKV (Matroska) implementation of {@link SourceMediaParser} using the jebml library.
  * <p>
- * Extracts track metadata (codec, resolution, frame rate, audio channels, sample rate,
- * language) from the MKV Tracks element without demuxing the frames.
+ * Extracts track metadata (codec, resolution, frame rate, audio channels, sample rate, language) from the MKV Tracks
+ * element without demuxing the frames.
  * <p>
  * Codec mapping from Matroska codec IDs to Blu-ray {@link StreamCodingType}:
  * <ul>
@@ -85,8 +85,7 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 					String codecId = mkvTrack.getCodecID();
 					try {
 						track.setCodingType(mapCodecId(codecId));
-					}
-					catch (ParseException e) {
+					} catch (ParseException e) {
 						log.warn("Track {}: unsupported codec '{}', skipping", mkvTrack.getTrackNo(), codecId);
 						continue;
 					}
@@ -115,8 +114,7 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 						log.debug("Video track {}: codec={}, {}×{}, fps={}", track.getTrackNumber(), codecId,
 								track.getWidthPixels(), track.getHeightPixels(), track.getFrameRateFps());
 
-					}
-					else if (trackType == TrackType.AUDIO) {
+					} else if (trackType == TrackType.AUDIO) {
 						MatroskaAudioTrack audio = mkvTrack.getAudio();
 						if (audio != null) {
 							track.setSampleRateHz((int) audio.getSamplingFrequency());
@@ -127,8 +125,7 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 								codecId, track.getLanguage(), track.getChannels(), track.getSampleRateHz(),
 								track.getBitrateKbps());
 
-					}
-					else if (trackType == TrackType.SUBTITLE) {
+					} else if (trackType == TrackType.SUBTITLE) {
 						// Derive a human-readable subtitle format from the codec ID
 						track.setSubtitleFormat(deriveSubtitleFormat(codecId));
 						log.debug("Subtitle track {}: codec={}, lang={}, format={}", track.getTrackNumber(), codecId,
@@ -154,20 +151,20 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 		if (codecId == null)
 			throw new ParseException("Null codec ID");
 		return switch (codecId) {
-			case "V_MPEG4/ISO/AVC" -> StreamCodingType.H264_AVC;
-			case "V_MPEGH/ISO/HEVC" -> StreamCodingType.H265_HEVC;
-			case "V_MPEG2" -> StreamCodingType.MPEG2_VIDEO;
-			case "V_MS/VFW/FOURCC" -> StreamCodingType.VC1;
-			case "A_AC3" -> StreamCodingType.DOLBY_AC3;
-			case "A_EAC3" -> StreamCodingType.DOLBY_AC3_PLUS;
-			case "A_TRUEHD" -> StreamCodingType.DOLBY_TRUEHD;
-			case "A_DTS" -> StreamCodingType.DTS;
-			case "A_DTS/HD/MA" -> StreamCodingType.DTS_HD_MASTER_AUDIO;
-			case "A_DTS/HD/HRA" -> StreamCodingType.DTS_HD;
-			case "A_PCM/INT/BIG" -> StreamCodingType.LPCM;
-			case "S_HDMV/PGS" -> StreamCodingType.PRESENTATION_GRAPHICS;
-			case "S_TEXT/UTF8", "S_TEXT/ASS" -> StreamCodingType.TEXT_SUBTITLE;
-			default -> throw new ParseException("Unsupported MKV codec ID: " + codecId);
+		case "V_MPEG4/ISO/AVC" -> StreamCodingType.H264_AVC;
+		case "V_MPEGH/ISO/HEVC" -> StreamCodingType.H265_HEVC;
+		case "V_MPEG2" -> StreamCodingType.MPEG2_VIDEO;
+		case "V_MS/VFW/FOURCC" -> StreamCodingType.VC1;
+		case "A_AC3" -> StreamCodingType.DOLBY_AC3;
+		case "A_EAC3" -> StreamCodingType.DOLBY_AC3_PLUS;
+		case "A_TRUEHD" -> StreamCodingType.DOLBY_TRUEHD;
+		case "A_DTS" -> StreamCodingType.DTS;
+		case "A_DTS/HD/MA" -> StreamCodingType.DTS_HD_MASTER_AUDIO;
+		case "A_DTS/HD/HRA" -> StreamCodingType.DTS_HD;
+		case "A_PCM/INT/BIG" -> StreamCodingType.LPCM;
+		case "S_HDMV/PGS" -> StreamCodingType.PRESENTATION_GRAPHICS;
+		case "S_TEXT/UTF8", "S_TEXT/ASS" -> StreamCodingType.TEXT_SUBTITLE;
+		default -> throw new ParseException("Unsupported MKV codec ID: " + codecId);
 		};
 	}
 
@@ -179,12 +176,12 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 		if (codecId == null)
 			return "UNKNOWN";
 		return switch (codecId) {
-			case "S_HDMV/PGS" -> "PGS";
-			case "S_TEXT/UTF8" -> "SRT";
-			case "S_TEXT/ASS" -> "ASS";
-			case "S_TEXT/SSA" -> "SSA";
-			case "S_VOBSUB" -> "VOBSUB";
-			default -> codecId;
+		case "S_HDMV/PGS" -> "PGS";
+		case "S_TEXT/UTF8" -> "SRT";
+		case "S_TEXT/ASS" -> "ASS";
+		case "S_TEXT/SSA" -> "SSA";
+		case "S_VOBSUB" -> "VOBSUB";
+		default -> codecId;
 		};
 	}
 

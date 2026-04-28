@@ -5,8 +5,8 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Composition object reference — maps a graphic object to a window at a specific screen
- * position. Used in both PCS and ICS effect definitions.
+ * Composition object reference — maps a graphic object to a window at a specific screen position. Used in both PCS and
+ * ICS effect definitions.
  */
 @Getter
 @Setter

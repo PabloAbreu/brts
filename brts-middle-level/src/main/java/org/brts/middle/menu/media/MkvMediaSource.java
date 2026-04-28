@@ -14,8 +14,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link MediaSource} implementation that extracts elementary streams from an MKV
- * (Matroska) container using the pure-Java {@link MkvDemuxer}.
+ * {@link MediaSource} implementation that extracts elementary streams from an MKV (Matroska) container using the
+ * pure-Java {@link MkvDemuxer}.
  * <p>
  * The extraction is done by:
  * <ol>
@@ -34,11 +34,9 @@ public class MkvMediaSource implements MediaSource {
 	private final Integer audioTrackNumber;
 
 	/**
-	 * @param mkvFile path to the MKV file
-	 * @param videoTrackNumber optional: force a specific video track number (null = first
-	 * video)
-	 * @param audioTrackNumber optional: force a specific audio track number (null = first
-	 * audio)
+	 * @param mkvFile          path to the MKV file
+	 * @param videoTrackNumber optional: force a specific video track number (null = first video)
+	 * @param audioTrackNumber optional: force a specific audio track number (null = first audio)
 	 */
 	public MkvMediaSource(Path mkvFile, Integer videoTrackNumber, Integer audioTrackNumber) {
 		this.mkvFile = mkvFile;

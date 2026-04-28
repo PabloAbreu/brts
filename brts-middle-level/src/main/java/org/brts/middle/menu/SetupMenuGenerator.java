@@ -54,8 +54,9 @@ public class SetupMenuGenerator {
 
 	/**
 	 * Generates a setup menu M2TS from an in-memory descriptor.
+	 *
 	 * @param descriptor the setup menu descriptor
-	 * @param outputDir directory where output files will be written
+	 * @param outputDir  directory where output files will be written
 	 * @throws IOException on I/O or generation error
 	 */
 	public void generate(SetupMenuDescriptor descriptor, Path outputDir) throws IOException {
@@ -116,8 +117,8 @@ public class SetupMenuGenerator {
 	}
 
 	/**
-	 * Generates the mpls playlist file that references the intro, menu, and background
-	 * M2TS files.
+	 * Generates the mpls playlist file that references the intro, menu, and background M2TS files.
+	 *
 	 * @param outputIntroName
 	 * @param outputName
 	 * @param outputMenuName
@@ -200,8 +201,7 @@ public class SetupMenuGenerator {
 			}
 			log.warn("Missing start/end PTS in {}, using fallback timing [{}, {})", clpiPath,
 					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks());
-		}
-		catch (IOException e) {
+		} catch (IOException e) {
 			log.warn("Could not parse {} for clip {}, using fallback timing [{}, {})", clpiPath, clipName,
 					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks(), e);
 		}

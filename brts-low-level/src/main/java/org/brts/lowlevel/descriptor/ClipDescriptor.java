@@ -8,7 +8,9 @@ import java.util.List;
 /**
  * JSON descriptor for generating a single M2TS + CLPI file pair.
  * <p>
- * Example {@code 00001.clip-descriptor.json}: <pre>{@code
+ * Example {@code 00001.clip-descriptor.json}:
+ *
+ * <pre>{@code
  * {
  *   "clipName": "00001",
  *   "sourceMkv": "/path/to/movie.mkv",

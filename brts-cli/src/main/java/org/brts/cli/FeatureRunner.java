@@ -24,9 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Abstract base class for CLI feature runners.
  * <p>
- * Each concrete subclass represents a single sub-command (e.g. {@code clip-parse},
- * {@code m2ts-info}). It knows how to describe itself for usage output and how to parse
- * its own args4j options bean before delegating to {@link #execute}.
+ * Each concrete subclass represents a single sub-command (e.g. {@code clip-parse}, {@code m2ts-info}). It knows how to
+ * describe itself for usage output and how to parse its own args4j options bean before delegating to {@link #execute}.
  *
  * @param <O> the args4j options-bean type
  */
@@ -74,8 +73,7 @@ public abstract class FeatureRunner<O> {
 								@SuppressWarnings("unchecked")
 								O options = (O) optionsClass.getDeclaredConstructor().newInstance();
 								return options;
-							}
-							catch (Exception e) {
+							} catch (Exception e) {
 								throw new IllegalStateException("Options class must have a no-arg constructor", e);
 							}
 						}
@@ -93,8 +91,8 @@ public abstract class FeatureRunner<O> {
 	private CmdLineParser parser = new FeatureRunnerCmdLineParser(opts);
 
 	/**
-	 * Parses command-line arguments into the options bean and invokes {@link #execute}.
-	 * On parse errors, prints usage to {@code stderr} and exits.
+	 * Parses command-line arguments into the options bean and invokes {@link #execute}. On parse errors, prints usage
+	 * to {@code stderr} and exits.
 	 */
 	public void run(String[] args) throws Exception {
 
@@ -105,8 +103,7 @@ public abstract class FeatureRunner<O> {
 
 		try {
 			parser.parseArgument(args);
-		}
-		catch (CmdLineException e) {
+		} catch (CmdLineException e) {
 			System.err.println(getCommandName() + ": " + e.getMessage());
 			printUsage(System.err);
 			if (opts instanceof BaseOptions bopt)
@@ -119,8 +116,7 @@ public abstract class FeatureRunner<O> {
 
 		try {
 			execute(opts);
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			if (opts instanceof BaseOptions bopt)
 				if (bopt.isErrorDetails()) {
 					System.err.println(getCommandName() + " failed. Details:\n");
@@ -221,8 +217,7 @@ public abstract class FeatureRunner<O> {
 	}
 
 	/**
-	 * Prints the command name, description, and args4j option details to the given
-	 * stream.
+	 * Prints the command name, description, and args4j option details to the given stream.
 	 */
 	public void printUsage(PrintStream out) {
 		out.println("  " + getCommandName() + " — " + getDescription());
@@ -243,15 +238,14 @@ public abstract class FeatureRunner<O> {
 	}
 
 	/**
-	 * Writes {@code value} as JSON. If {@code output} is non-null, writes to that file;
-	 * otherwise pretty-prints to stdout.
+	 * Writes {@code value} as JSON. If {@code output} is non-null, writes to that file; otherwise pretty-prints to
+	 * stdout.
 	 */
 	protected void writeJson(File output, Object value) throws Exception {
 		ObjectMapper mapper = JsonMapperFactory.get();
 		if (output != null) {
 			mapper.writeValue(output, value);
-		}
-		else {
+		} else {
 			System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
 		}
 	}

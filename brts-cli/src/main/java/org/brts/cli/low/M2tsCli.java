@@ -112,11 +112,10 @@ public class M2tsCli {
 
 			Set<Integer> pidFilter = null;
 			if (opts.pids != null && !opts.pids.isBlank()) {
-				pidFilter = Arrays.stream(opts.pids.split(","))
-					.map(String::trim)
-					.map(s -> s.startsWith("0x") || s.startsWith("0X") ? Integer.parseInt(s.substring(2), 16)
-							: Integer.parseInt(s))
-					.collect(Collectors.toCollection(HashSet::new));
+				pidFilter = Arrays.stream(opts.pids.split(",")).map(String::trim)
+						.map(s -> s.startsWith("0x") || s.startsWith("0X") ? Integer.parseInt(s.substring(2), 16)
+								: Integer.parseInt(s))
+						.collect(Collectors.toCollection(HashSet::new));
 			}
 
 			new M2tsExtractor().extract(inputPath, info, outputDir, pidFilter);
@@ -215,8 +214,7 @@ public class M2tsCli {
 
 	public static class CreateOptions {
 
-		@Option(name = "--descriptor", required = true,
-				usage = "Path to the .m2ts-descriptor.json file describing the mux")
+		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
 
 		@Option(name = "--output", required = true, usage = "Output directory for the .m2ts file (e.g. BDMV/STREAM/)")
@@ -343,8 +341,7 @@ public class M2tsCli {
 	}
 
 	/**
-	 * {@link M2tsPacketHandler} that prints a summary line for each group of consecutive
-	 * packets sharing the same PID.
+	 * {@link M2tsPacketHandler} that prints a summary line for each group of consecutive packets sharing the same PID.
 	 */
 	private static class DumpPacketHandler implements M2tsPacketHandler {
 
@@ -392,8 +389,7 @@ public class M2tsCli {
 					pidToStreamInfo.put(pid, s);
 					if (colorIndex < ANSI_COLORS.length) {
 						pidToColor.put(pid, ANSI_COLORS[colorIndex++]);
-					}
-					else {
+					} else {
 						pidToColor.put(pid, DEFAULT_ANSI_COLOR);
 					}
 				}
@@ -447,13 +443,11 @@ public class M2tsCli {
 							groupDts = dts;
 						}
 					}
-				}
-				else {
+				} else {
 					groupPts = -1;
 					groupDts = -1;
 				}
-			}
-			else {
+			} else {
 				groupCount++;
 			}
 			previousPid = pid;
@@ -477,18 +471,14 @@ public class M2tsCli {
 				StreamCodingType codingType = stream.getCodingType();
 				if (codingType != null)
 					streamType = stream.getCategory();
-			}
-			else {
+			} else {
 				if (previousPid == 0) {
 					streamType = "PAT";
-				}
-				else if (previousPid == info.getPmtPid()) {
+				} else if (previousPid == info.getPmtPid()) {
 					streamType = "PMT";
-				}
-				else if (previousPid == info.getPcrPid()) {
+				} else if (previousPid == info.getPcrPid()) {
 					streamType = "PCR";
-				}
-				else if (previousPid == 0x1FFF) {
+				} else if (previousPid == 0x1FFF) {
 					streamType = "NULL";// padding
 				}
 			}

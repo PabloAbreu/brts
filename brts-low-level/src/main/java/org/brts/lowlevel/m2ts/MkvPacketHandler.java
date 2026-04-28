@@ -24,13 +24,12 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * {@link M2tsPacketHandler} that writes demuxed elementary streams into a Matroska (MKV)
- * container using the jebml library.
+ * {@link M2tsPacketHandler} that writes demuxed elementary streams into a Matroska (MKV) container using the jebml
+ * library.
  * <p>
- * Each tracked PID is mapped to an MKV track. The handler accumulates PES payload bytes
- * per PID and flushes a complete <em>access unit</em> (video frame / audio frame /
- * subtitle display set) to the MKV writer whenever a new Payload Unit Start is received
- * for the same PID.
+ * Each tracked PID is mapped to an MKV track. The handler accumulates PES payload bytes per PID and flushes a complete
+ * <em>access unit</em> (video frame / audio frame / subtitle display set) to the MKV writer whenever a new Payload Unit
+ * Start is received for the same PID.
  *
  * <h2>Codec mapping</h2>
  * <ul>
@@ -47,9 +46,11 @@ import java.util.*;
  * <li>Text sub → {@code S_HDMV/TEXTST}</li>
  * </ul>
  *
- * <h2>Usage</h2> <pre>{@code
+ * <h2>Usage</h2>
+ *
+ * <pre>{@code
  * try (MkvPacketHandler handler = new MkvPacketHandler(info, mkvPath, pidFilter)) {
- *     new M2tsDemuxer().demux(m2tsPath, info, handler, pidFilter);
+ * 	new M2tsDemuxer().demux(m2tsPath, info, handler, pidFilter);
  * }
  * }</pre>
  */
@@ -87,8 +88,9 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 
 	/**
 	 * Creates an MKV handler and sets up tracks.
-	 * @param info stream metadata
-	 * @param mkvPath output MKV file path
+	 *
+	 * @param info      stream metadata
+	 * @param mkvPath   output MKV file path
 	 * @param pidFilter PIDs to include; null/empty = all
 	 * @throws IOException on I/O error
 	 */
@@ -190,9 +192,9 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 	}
 
 	/**
-	 * Writes Matroska chapter entries derived from the given playlist marks. Must be
-	 * called after demuxing (so that {@code basePts} is known) and before
-	 * {@link #close()}.
+	 * Writes Matroska chapter entries derived from the given playlist marks. Must be called after demuxing (so that
+	 * {@code basePts} is known) and before {@link #close()}.
+	 *
 	 * @param marks chapter marks from the MPLS playlist
 	 */
 	public void writeChapters(List<PlayMark> marks) {
@@ -268,8 +270,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 			// Set total duration so SegmentInfo contains a Duration element
 			mkvWriter.setDuration(maxTimecodeMs);
 			mkvWriter.close();
-		}
-		finally {
+		} finally {
 			dataWriter.close();
 		}
 		log.info("MKV file written ({} tracks, duration {}ms)", pidToTrackNo.size(), maxTimecodeMs);
@@ -334,8 +335,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 			if (s.getFrameRateFps() != null && s.getFrameRateFps() > 0) {
 				track.setDefaultDuration((long) (1_000_000_000.0 / s.getFrameRateFps()));
 			}
-		}
-		else if (s.getCodingType().isAudio()) {
+		} else if (s.getCodingType().isAudio()) {
 			track.setTrackType(MatroskaFileTrack.TrackType.AUDIO);
 			track.setName(s.getCodingType().name());
 
@@ -343,8 +343,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 			at.setSamplingFrequency(s.getSampleRateHz() != null ? s.getSampleRateHz() : 48000);
 			at.setChannels(s.getChannels() != null ? s.getChannels().shortValue() : (short) 2);
 			track.setAudio(at);
-		}
-		else if (s.getCodingType().isSubtitle()) {
+		} else if (s.getCodingType().isSubtitle()) {
 			track.setTrackType(MatroskaFileTrack.TrackType.SUBTITLE);
 			track.setName("Subtitle");
 
@@ -357,8 +356,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 				vt.setPixelHeight(videoHeight);
 				track.setVideo(vt);
 			}
-		}
-		else {
+		} else {
 			return null; // skip menus etc.
 		}
 
@@ -367,19 +365,19 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 
 	private static String codecIdFor(StreamCodingType ct) {
 		return switch (ct) {
-			case H264_AVC -> "V_MPEG4/ISO/AVC";
-			case H265_HEVC -> "V_MPEGH/ISO/HEVC";
-			case MPEG2_VIDEO -> "V_MPEG2";
-			case VC1 -> "V_MS/VFW/FOURCC";
-			case DOLBY_AC3 -> "A_AC3";
-			case DOLBY_AC3_PLUS -> "A_EAC3";
-			case DOLBY_TRUEHD -> "A_TRUEHD";
-			case DTS -> "A_DTS";
-			case DTS_HD, DTS_HD_MASTER_AUDIO -> "A_DTS";
-			case LPCM -> "A_PCM/INT/BIG";
-			case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";
-			case TEXT_SUBTITLE -> "S_HDMV/TEXTST";
-			case INTERACTIVE_GRAPHICS -> null; // menus not supported
+		case H264_AVC -> "V_MPEG4/ISO/AVC";
+		case H265_HEVC -> "V_MPEGH/ISO/HEVC";
+		case MPEG2_VIDEO -> "V_MPEG2";
+		case VC1 -> "V_MS/VFW/FOURCC";
+		case DOLBY_AC3 -> "A_AC3";
+		case DOLBY_AC3_PLUS -> "A_EAC3";
+		case DOLBY_TRUEHD -> "A_TRUEHD";
+		case DTS -> "A_DTS";
+		case DTS_HD, DTS_HD_MASTER_AUDIO -> "A_DTS";
+		case LPCM -> "A_PCM/INT/BIG";
+		case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";
+		case TEXT_SUBTITLE -> "S_HDMV/TEXTST";
+		case INTERACTIVE_GRAPHICS -> null; // menus not supported
 		};
 	}
 

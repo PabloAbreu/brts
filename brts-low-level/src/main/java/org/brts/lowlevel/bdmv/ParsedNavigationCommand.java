@@ -5,17 +5,18 @@ import java.util.Objects;
 /**
  * Immutable parsed representation of a single HDMV navigation command.
  * <p>
- * Stores the canonical three 32-bit words (opcode + two operands) and provides rich
- * accessors for the instruction fields, operand types, and human-friendly descriptions.
+ * Stores the canonical three 32-bit words (opcode + two operands) and provides rich accessors for the instruction
+ * fields, operand types, and human-friendly descriptions.
  * <p>
- * This is the single authoritative representation for navigation commands, bridging raw
- * binary (12 bytes), symbolic form (mnemonic + operands), and display.
+ * This is the single authoritative representation for navigation commands, bridging raw binary (12 bytes), symbolic
+ * form (mnemonic + operands), and display.
  * <p>
- * Unlike the heuristic-based approach formerly used in
- * {@link NavigationCommandDecompiler}, operand types are determined from the opcode's
- * immediate flags (bits 23 and 22), which is the correct and authoritative source.
+ * Unlike the heuristic-based approach formerly used in {@link NavigationCommandDecompiler}, operand types are
+ * determined from the opcode's immediate flags (bits 23 and 22), which is the correct and authoritative source.
  * <p>
- * 32-bit instruction word layout: <pre>
+ * 32-bit instruction word layout:
+ *
+ * <pre>
  * Bits 31-29: OperandCount  (3 bits)
  * Bits 28-27: CommandGroup   (2 bits)  — 0=BRANCH, 1=COMPARE, 2=SET
  * Bits 26-24: CommandSubGroup(3 bits)
@@ -63,6 +64,7 @@ public final class ParsedNavigationCommand {
 
 	/**
 	 * Creates a parsed command from a 12-byte raw command.
+	 *
 	 * @throws IllegalArgumentException if {@code raw} is null or shorter than 12 bytes
 	 */
 	public static ParsedNavigationCommand fromRaw(byte[] raw) {
@@ -78,13 +80,12 @@ public final class ParsedNavigationCommand {
 
 	/**
 	 * Compiles a command from a symbolic mnemonic and operands.
-	 * @param mnemonic symbolic name (case-insensitive), e.g. "PLAY_PL"
-	 * @param op1 first operand value
-	 * @param op1Immediate true if operand 1 is a literal value, false if register
-	 * reference
-	 * @param op2 second operand value
-	 * @param op2Immediate true if operand 2 is a literal value, false if register
-	 * reference
+	 *
+	 * @param mnemonic     symbolic name (case-insensitive), e.g. "PLAY_PL"
+	 * @param op1          first operand value
+	 * @param op1Immediate true if operand 1 is a literal value, false if register reference
+	 * @param op2          second operand value
+	 * @param op2Immediate true if operand 2 is a literal value, false if register reference
 	 */
 	public static ParsedNavigationCommand compile(String mnemonic, long op1, boolean op1Immediate, long op2,
 			boolean op2Immediate) {
@@ -122,8 +123,7 @@ public final class ParsedNavigationCommand {
 	// ── Instruction field accessors ─────────────────────────────────────────
 
 	/**
-	 * Returns the {@link NavigationCommandMnemonic} for this command, or null if the
-	 * opcode is unknown.
+	 * Returns the {@link NavigationCommandMnemonic} for this command, or null if the opcode is unknown.
 	 */
 	public NavigationCommandMnemonic getMnemonic() {
 		return NavigationCommandMnemonic.fromOpcode(opcode);
@@ -168,24 +168,24 @@ public final class ParsedNavigationCommand {
 	}
 
 	/**
-	 * Returns the {@link OperandKind} of operand 1 by combining the immediate flag (bit
-	 * 23) with the operand value's PSR/GPR encoding.
+	 * Returns the {@link OperandKind} of operand 1 by combining the immediate flag (bit 23) with the operand value's
+	 * PSR/GPR encoding.
 	 */
 	public OperandKind getOp1Kind() {
 		return operandKind(isOp1Immediate(), operand1);
 	}
 
 	/**
-	 * Returns the {@link OperandKind} of operand 2 by combining the immediate flag (bit
-	 * 22) with the operand value's PSR/GPR encoding.
+	 * Returns the {@link OperandKind} of operand 2 by combining the immediate flag (bit 22) with the operand value's
+	 * PSR/GPR encoding.
 	 */
 	public OperandKind getOp2Kind() {
 		return operandKind(isOp2Immediate(), operand2);
 	}
 
 	/**
-	 * Returns the register index for operand 1 when it is a register reference. For PSR:
-	 * bits 6:0. For GPR: bits 11:0.
+	 * Returns the register index for operand 1 when it is a register reference. For PSR: bits 6:0. For GPR: bits 11:0.
+	 *
 	 * @throws IllegalStateException if operand 1 is an immediate value
 	 */
 	public int computeOp1RegisterIndex() {
@@ -193,8 +193,8 @@ public final class ParsedNavigationCommand {
 	}
 
 	/**
-	 * Returns the register index for operand 2 when it is a register reference. For PSR:
-	 * bits 6:0. For GPR: bits 11:0.
+	 * Returns the register index for operand 2 when it is a register reference. For PSR: bits 6:0. For GPR: bits 11:0.
+	 *
 	 * @throws IllegalStateException if operand 2 is an immediate value
 	 */
 	public int computeOp2RegisterIndex() {
@@ -217,8 +217,8 @@ public final class ParsedNavigationCommand {
 	// ── Human-friendly display ──────────────────────────────────────────────
 
 	/**
-	 * Returns a human-friendly description of this command, using the correct immediate
-	 * flags from the opcode (not heuristic-based).
+	 * Returns a human-friendly description of this command, using the correct immediate flags from the opcode (not
+	 * heuristic-based).
 	 */
 	public String describe() {
 		NavigationCommandMnemonic cmd = getMnemonic();
@@ -229,16 +229,14 @@ public final class ParsedNavigationCommand {
 	}
 
 	/**
-	 * Returns a human-friendly description of operand 1, using the immediate flag from
-	 * the opcode.
+	 * Returns a human-friendly description of operand 1, using the immediate flag from the opcode.
 	 */
 	public String describeOperand1() {
 		return describeOperandValue(isOp1Immediate(), operand1);
 	}
 
 	/**
-	 * Returns a human-friendly description of operand 2, using the immediate flag from
-	 * the opcode.
+	 * Returns a human-friendly description of operand 2, using the immediate flag from the opcode.
 	 */
 	public String describeOperand2() {
 		return describeOperandValue(isOp2Immediate(), operand2);
@@ -275,16 +273,15 @@ public final class ParsedNavigationCommand {
 
 	private static int registerIndex(OperandKind kind, long operandValue, int operandNumber) {
 		return switch (kind) {
-			case PSR -> (int) (operandValue & 0x7F);
-			case GPR -> (int) (operandValue & 0xFFF);
-			case IMMEDIATE -> throw new IllegalStateException(
-					"Operand " + operandNumber + " is an immediate value, not a register reference");
+		case PSR -> (int) (operandValue & 0x7F);
+		case GPR -> (int) (operandValue & 0xFFF);
+		case IMMEDIATE -> throw new IllegalStateException(
+				"Operand " + operandNumber + " is an immediate value, not a register reference");
 		};
 	}
 
 	/**
-	 * Describes a 32-bit operand value using the correct immediate flag. Fixes the
-	 * heuristic bug in the old decompiler.
+	 * Describes a 32-bit operand value using the correct immediate flag. Fixes the heuristic bug in the old decompiler.
 	 */
 	private static String describeOperandValue(boolean immediate, long operand) {
 		if (immediate) {
@@ -303,118 +300,117 @@ public final class ParsedNavigationCommand {
 	 */
 	private String formatCommand(NavigationCommandMnemonic cmd) {
 		return switch (cmd) {
-			// No-operand commands
-			case NOP, BREAK, RESUME, TERMINATE_PL, POPUP_OFF, STILL_ON, STILL_OFF -> cmd.getDescription();
+		// No-operand commands
+		case NOP, BREAK, RESUME, TERMINATE_PL, POPUP_OFF, STILL_ON, STILL_OFF -> cmd.getDescription();
 
-			// Single operand: destination or value
-			case GOTO -> "Goto instruction " + describeOperand1();
-			case JUMP_OBJECT -> "Jump to object " + describeOperand1();
-			case JUMP_TITLE -> "Jump to title " + describeOperand1();
-			case LINK_PI -> "Link to play item " + describeOperand1();
-			case LINK_MK -> "Link to playlist mark " + describeOperand1();
-			case ENABLE_BUTTON -> "Enable button " + describeOperand1();
-			case DISABLE_BUTTON -> "Disable button " + describeOperand1();
-			case SET_OUTPUT_MODE -> "Set output mode to " + describeOperand1();
+		// Single operand: destination or value
+		case GOTO -> "Goto instruction " + describeOperand1();
+		case JUMP_OBJECT -> "Jump to object " + describeOperand1();
+		case JUMP_TITLE -> "Jump to title " + describeOperand1();
+		case LINK_PI -> "Link to play item " + describeOperand1();
+		case LINK_MK -> "Link to playlist mark " + describeOperand1();
+		case ENABLE_BUTTON -> "Enable button " + describeOperand1();
+		case DISABLE_BUTTON -> "Disable button " + describeOperand1();
+		case SET_OUTPUT_MODE -> "Set output mode to " + describeOperand1();
 
-			// Two operand branch operations
-			case CALL_OBJECT -> "Call object " + describeOperand1() + " (resume → object " + describeOperand2() + ")";
-			case CALL_TITLE -> "Call title " + describeOperand1() + " (resume → object " + describeOperand2() + ")";
+		// Two operand branch operations
+		case CALL_OBJECT -> "Call object " + describeOperand1() + " (resume → object " + describeOperand2() + ")";
+		case CALL_TITLE -> "Call title " + describeOperand1() + " (resume → object " + describeOperand2() + ")";
 
-			// Two operand register operations
-			case MOVE, SWAP, ADD, SUB, MUL, DIV, MOD, RND, AND, OR, XOR, BITSET, BITCLR, SHL, SHR ->
-				formatBinaryOperation(cmd, describeOperand1(), describeOperand2());
+		// Two operand register operations
+		case MOVE, SWAP, ADD, SUB, MUL, DIV, MOD, RND, AND, OR, XOR, BITSET, BITCLR, SHL, SHR ->
+			formatBinaryOperation(cmd, describeOperand1(), describeOperand2());
 
-			// Comparison operations
-			case BC, EQ, NE, GE, GT, LE, LT -> formatComparison(cmd, describeOperand1(), describeOperand2());
+		// Comparison operations
+		case BC, EQ, NE, GE, GT, LE, LT -> formatComparison(cmd, describeOperand1(), describeOperand2());
 
-			// Play operations
-			case PLAY_PL -> "Play playlist " + describeOperand1();
-			case PLAY_PL_PI -> "Play playlist " + describeOperand1() + ", play item " + describeOperand2();
-			case PLAY_PL_PM -> "Play playlist " + describeOperand1() + ", mark " + describeOperand2();
+		// Play operations
+		case PLAY_PL -> "Play playlist " + describeOperand1();
+		case PLAY_PL_PI -> "Play playlist " + describeOperand1() + ", play item " + describeOperand2();
+		case PLAY_PL_PM -> "Play playlist " + describeOperand1() + ", mark " + describeOperand2();
 
-			// Stream/system operations
-			case SET_STREAM -> "Set stream (param=0x" + Long.toHexString(operand1) + ")";
-			case SET_NV_TIMER -> "Set navigation timer to " + describeOperand1();
-			case SET_BUTTON_PAGE ->
-				"Set button/page (button=" + ((operand1 >> 16) & 0xFFFF) + " page=" + (operand1 & 0xFFFF) + ")";
-			case SET_SEC_STREAM -> "Set secondary stream (param=0x" + Long.toHexString(operand1) + ")";
-			case SET_STREAM_SS -> "Set stereoscopic stream (param=0x" + Long.toHexString(operand1) + ")";
+		// Stream/system operations
+		case SET_STREAM -> "Set stream (param=0x" + Long.toHexString(operand1) + ")";
+		case SET_NV_TIMER -> "Set navigation timer to " + describeOperand1();
+		case SET_BUTTON_PAGE ->
+			"Set button/page (button=" + ((operand1 >> 16) & 0xFFFF) + " page=" + (operand1 & 0xFFFF) + ")";
+		case SET_SEC_STREAM -> "Set secondary stream (param=0x" + Long.toHexString(operand1) + ")";
+		case SET_STREAM_SS -> "Set stereoscopic stream (param=0x" + Long.toHexString(operand1) + ")";
 		};
 	}
 
 	private static String formatBinaryOperation(NavigationCommandMnemonic mnemonic, String dst, String src) {
 		return switch (mnemonic) {
-			case MOVE -> dst + " ← " + src;
-			case SWAP -> dst + " ↔ " + src;
-			case ADD -> dst + " += " + src;
-			case SUB -> dst + " -= " + src;
-			case MUL -> dst + " *= " + src;
-			case DIV -> dst + " /= " + src;
-			case MOD -> dst + " %= " + src;
-			case RND -> dst + " = random(" + src + ")";
-			case AND -> dst + " &= " + src;
-			case OR -> dst + " |= " + src;
-			case XOR -> dst + " ^= " + src;
-			case BITSET -> dst + " bit-set " + src;
-			case BITCLR -> dst + " bit-clear " + src;
-			case SHL -> dst + " <<= " + src;
-			case SHR -> dst + " >>= " + src;
-			default -> dst + " OP " + src;
+		case MOVE -> dst + " ← " + src;
+		case SWAP -> dst + " ↔ " + src;
+		case ADD -> dst + " += " + src;
+		case SUB -> dst + " -= " + src;
+		case MUL -> dst + " *= " + src;
+		case DIV -> dst + " /= " + src;
+		case MOD -> dst + " %= " + src;
+		case RND -> dst + " = random(" + src + ")";
+		case AND -> dst + " &= " + src;
+		case OR -> dst + " |= " + src;
+		case XOR -> dst + " ^= " + src;
+		case BITSET -> dst + " bit-set " + src;
+		case BITCLR -> dst + " bit-clear " + src;
+		case SHL -> dst + " <<= " + src;
+		case SHR -> dst + " >>= " + src;
+		default -> dst + " OP " + src;
 		};
 	}
 
 	private static String formatComparison(NavigationCommandMnemonic mnemonic, String lhs, String rhs) {
 		return switch (mnemonic) {
-			case BC -> "If " + lhs + " bit-check " + rhs;
-			case EQ -> "If " + lhs + " == " + rhs;
-			case NE -> "If " + lhs + " != " + rhs;
-			case GE -> "If " + lhs + " >= " + rhs;
-			case GT -> "If " + lhs + " > " + rhs;
-			case LE -> "If " + lhs + " <= " + rhs;
-			case LT -> "If " + lhs + " < " + rhs;
-			default -> "If " + lhs + " ? " + rhs;
+		case BC -> "If " + lhs + " bit-check " + rhs;
+		case EQ -> "If " + lhs + " == " + rhs;
+		case NE -> "If " + lhs + " != " + rhs;
+		case GE -> "If " + lhs + " >= " + rhs;
+		case GT -> "If " + lhs + " > " + rhs;
+		case LE -> "If " + lhs + " <= " + rhs;
+		case LT -> "If " + lhs + " < " + rhs;
+		default -> "If " + lhs + " ? " + rhs;
 		};
 	}
 
 	/**
-	 * Returns a friendly name for well-known Player Status Registers. Reference:
-	 * libbluray mobj_print.c psr_info[].
+	 * Returns a friendly name for well-known Player Status Registers. Reference: libbluray mobj_print.c psr_info[].
 	 */
 	static String describePsr(int psr) {
 		return switch (psr) {
-			case 0 -> "PSR0(IG stream)";
-			case 1 -> "PSR1(primary audio stream)";
-			case 2 -> "PSR2(PG/subtitle stream)";
-			case 3 -> "PSR3(angle number)";
-			case 4 -> "PSR4(title number)";
-			case 5 -> "PSR5(chapter number)";
-			case 6 -> "PSR6(playlist id)";
-			case 7 -> "PSR7(play item id)";
-			case 8 -> "PSR8(presentation time)";
-			case 9 -> "PSR9(navigation timer)";
-			case 10 -> "PSR10(selected button id)";
-			case 11 -> "PSR11(page id)";
-			case 12 -> "PSR12(user style number)";
-			case 13 -> "PSR13(user age)";
-			case 14 -> "PSR14(secondary audio/video stream)";
-			case 15 -> "PSR15(audio capability)";
-			case 16 -> "PSR16(audio language)";
-			case 17 -> "PSR17(PG/subtitle language)";
-			case 18 -> "PSR18(menu language)";
-			case 19 -> "PSR19(country code)";
-			case 20 -> "PSR20(region code)";
-			case 21 -> "PSR21(output mode preference)";
-			case 22 -> "PSR22(stereoscopic status)";
-			case 23 -> "PSR23(display capability)";
-			case 24 -> "PSR24(3D capability)";
-			case 25 -> "PSR25(UHD capability)";
-			case 26 -> "PSR26(UHD display capability)";
-			case 27 -> "PSR27(HDR preference)";
-			case 28 -> "PSR28(SDR conversion preference)";
-			case 29 -> "PSR29(video capability)";
-			case 30 -> "PSR30(text subtitle capability)";
-			case 31 -> "PSR31(player profile/version)";
-			default -> "PSR" + psr;
+		case 0 -> "PSR0(IG stream)";
+		case 1 -> "PSR1(primary audio stream)";
+		case 2 -> "PSR2(PG/subtitle stream)";
+		case 3 -> "PSR3(angle number)";
+		case 4 -> "PSR4(title number)";
+		case 5 -> "PSR5(chapter number)";
+		case 6 -> "PSR6(playlist id)";
+		case 7 -> "PSR7(play item id)";
+		case 8 -> "PSR8(presentation time)";
+		case 9 -> "PSR9(navigation timer)";
+		case 10 -> "PSR10(selected button id)";
+		case 11 -> "PSR11(page id)";
+		case 12 -> "PSR12(user style number)";
+		case 13 -> "PSR13(user age)";
+		case 14 -> "PSR14(secondary audio/video stream)";
+		case 15 -> "PSR15(audio capability)";
+		case 16 -> "PSR16(audio language)";
+		case 17 -> "PSR17(PG/subtitle language)";
+		case 18 -> "PSR18(menu language)";
+		case 19 -> "PSR19(country code)";
+		case 20 -> "PSR20(region code)";
+		case 21 -> "PSR21(output mode preference)";
+		case 22 -> "PSR22(stereoscopic status)";
+		case 23 -> "PSR23(display capability)";
+		case 24 -> "PSR24(3D capability)";
+		case 25 -> "PSR25(UHD capability)";
+		case 26 -> "PSR26(UHD display capability)";
+		case 27 -> "PSR27(HDR preference)";
+		case 28 -> "PSR28(SDR conversion preference)";
+		case 29 -> "PSR29(video capability)";
+		case 30 -> "PSR30(text subtitle capability)";
+		case 31 -> "PSR31(player profile/version)";
+		default -> "PSR" + psr;
 		};
 	}
 

@@ -21,8 +21,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 /**
- * Generates a complete PGS (Presentation Graphic Stream) elementary stream file from a
- * parsed {@link SubtitleTrack} or directly from a subtitle file.
+ * Generates a complete PGS (Presentation Graphic Stream) elementary stream file from a parsed {@link SubtitleTrack} or
+ * directly from a subtitle file.
  * <p>
  * The generator orchestrates the full pipeline:
  * <ol>
@@ -35,9 +35,8 @@ import java.util.List;
  * <li>Encode all display sets via {@link PgsMuxer} to the output file</li>
  * </ol>
  * <p>
- * The resulting {@code .sup} / {@code .pgs} file can be muxed into an M2TS using the
- * existing {@link org.brts.common.m2ts.M2tsWriter} (which already supports
- * {@code PRESENTATION_GRAPHICS} streams).
+ * The resulting {@code .sup} / {@code .pgs} file can be muxed into an M2TS using the existing
+ * {@link org.brts.common.m2ts.M2tsWriter} (which already supports {@code PRESENTATION_GRAPHICS} streams).
  */
 public class PgsGenerator {
 
@@ -54,8 +53,9 @@ public class PgsGenerator {
 
 	/**
 	 * Generates a PGS file from a subtitle file (SRT, SSA, ASS).
+	 *
 	 * @param subtitleFile path to the source subtitle file
-	 * @param outputFile path for the output PGS elementary stream (.sup)
+	 * @param outputFile   path for the output PGS elementary stream (.sup)
 	 * @throws IOException on I/O or parse error
 	 */
 	public void generate(Path subtitleFile, Path outputFile) throws IOException {
@@ -66,7 +66,8 @@ public class PgsGenerator {
 
 	/**
 	 * Generates a PGS file from a pre-parsed subtitle track.
-	 * @param track the subtitle track
+	 *
+	 * @param track      the subtitle track
 	 * @param outputFile path for the output PGS elementary stream (.sup)
 	 * @throws IOException on I/O error
 	 */
@@ -131,8 +132,7 @@ public class PgsGenerator {
 	// ── Display set builders ────────────────────────────────────────────────
 
 	/**
-	 * Builds a "show" display set that displays a subtitle bitmap. Uses epoch start
-	 * composition state.
+	 * Builds a "show" display set that displays a subtitle bitmap. Uses epoch start composition state.
 	 */
 	private PgsDisplaySet buildShowDisplaySet(int compositionNumber, IgsPalette palette, BufferedImage image,
 			byte[] rleData, int screenX, int screenY) {
@@ -202,8 +202,8 @@ public class PgsGenerator {
 	}
 
 	/**
-	 * Builds a "clear" display set that removes the on-screen subtitle. Uses normal
-	 * composition state with an empty composition object list.
+	 * Builds a "clear" display set that removes the on-screen subtitle. Uses normal composition state with an empty
+	 * composition object list.
 	 */
 	private PgsDisplaySet buildClearDisplaySet(int compositionNumber) {
 		PgsDisplaySet ds = new PgsDisplaySet();

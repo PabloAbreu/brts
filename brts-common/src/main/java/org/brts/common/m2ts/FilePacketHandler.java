@@ -20,18 +20,19 @@ import org.slf4j.LoggerFactory;
 /**
  * {@link M2tsPacketHandler} that writes each PID to a separate file on disk.
  * <p>
- * PES headers are stripped: when a packet carries the Payload Unit Start Indicator and
- * begins with the {@code 00 00 01} PES start-code, the PES header is skipped and only the
- * elementary stream payload is written.
+ * PES headers are stripped: when a packet carries the Payload Unit Start Indicator and begins with the {@code 00 00 01}
+ * PES start-code, the PES header is skipped and only the elementary stream payload is written.
  * <p>
- * Output files are named {@code <outputDir>/pid_<hex>.&lt;ext&gt;} where the extension is
- * derived from the stream's coding type.
+ * Output files are named {@code <outputDir>/pid_<hex>.&lt;ext&gt;} where the extension is derived from the stream's
+ * coding type.
  *
- * <h2>Usage</h2> <pre>{@code
+ * <h2>Usage</h2>
+ *
+ * <pre>{@code
  * M2tsInfo info = new M2tsParser().parse(inputPath);
  * Set<Integer> pidFilter = Set.of(4113, 4352);
  * try (FilePacketHandler handler = new FilePacketHandler(info, outputDir, pidFilter)) {
- *     new M2tsDemuxer().demux(inputPath, info, handler, pidFilter);
+ * 	new M2tsDemuxer().demux(inputPath, info, handler, pidFilter);
  * }
  * }</pre>
  */
@@ -45,7 +46,8 @@ public class FilePacketHandler implements M2tsPacketHandler {
 
 	/**
 	 * Creates a file-per-PID handler.
-	 * @param info stream metadata (for extension lookup)
+	 *
+	 * @param info      stream metadata (for extension lookup)
 	 * @param outputDir directory where elementary stream files are written
 	 * @param pidFilter only these PIDs are opened; {@code null} or empty = all
 	 * @throws IOException on I/O error creating output files
@@ -102,8 +104,7 @@ public class FilePacketHandler implements M2tsPacketHandler {
 		for (OutputStream os : pidToStream.values()) {
 			try {
 				os.close();
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				if (firstError == null)
 					firstError = e;
 			}
@@ -128,20 +129,20 @@ public class FilePacketHandler implements M2tsPacketHandler {
 		if (s.getCodingType() == null)
 			return "bin";
 		return switch (s.getCodingType()) {
-			case H264_AVC -> "h264";
-			case H265_HEVC -> "h265";
-			case MPEG2_VIDEO -> "m2v";
-			case VC1 -> "vc1";
-			case LPCM -> "lpcm";
-			case DOLBY_AC3 -> "ac3";
-			case DOLBY_AC3_PLUS -> "eac3";
-			case DOLBY_TRUEHD -> "thd";
-			case DTS -> "dts";
-			case DTS_HD -> "dtshd";
-			case DTS_HD_MASTER_AUDIO -> "dtsma";
-			case PRESENTATION_GRAPHICS -> "pgs";
-			case INTERACTIVE_GRAPHICS -> "igs";
-			case TEXT_SUBTITLE -> "txt";
+		case H264_AVC -> "h264";
+		case H265_HEVC -> "h265";
+		case MPEG2_VIDEO -> "m2v";
+		case VC1 -> "vc1";
+		case LPCM -> "lpcm";
+		case DOLBY_AC3 -> "ac3";
+		case DOLBY_AC3_PLUS -> "eac3";
+		case DOLBY_TRUEHD -> "thd";
+		case DTS -> "dts";
+		case DTS_HD -> "dtshd";
+		case DTS_HD_MASTER_AUDIO -> "dtsma";
+		case PRESENTATION_GRAPHICS -> "pgs";
+		case INTERACTIVE_GRAPHICS -> "igs";
+		case TEXT_SUBTITLE -> "txt";
 		};
 	}
 

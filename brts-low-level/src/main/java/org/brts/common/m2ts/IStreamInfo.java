@@ -28,12 +28,12 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-			case 1 -> "480i";
-			case 2 -> "480p";
-			case 3 -> "720p";
-			case 4 -> "1080i";
-			case 6 -> "1080p";
-			default -> "unknown video format " + getVideoFormat();
+		case 1 -> "480i";
+		case 2 -> "480p";
+		case 3 -> "720p";
+		case 4 -> "1080i";
+		case 6 -> "1080p";
+		default -> "unknown video format " + getVideoFormat();
 		};
 	}
 
@@ -42,10 +42,10 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-			case 1, 2 -> 720;
-			case 3 -> 1280;
-			case 4, 6 -> 1920;
-			default -> null;
+		case 1, 2 -> 720;
+		case 3 -> 1280;
+		case 4, 6 -> 1920;
+		default -> null;
 		};
 	}
 
@@ -54,10 +54,10 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-			case 1, 2 -> 480;
-			case 3 -> 720;
-			case 4, 6 -> 1080;
-			default -> null;
+		case 1, 2 -> 480;
+		case 3 -> 720;
+		case 4, 6 -> 1080;
+		default -> null;
 		};
 	}
 
@@ -66,10 +66,10 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getFrameRate()) {
-			case 1 -> 23.976;
-			case 2 -> 24.0;
-			case 4 -> 29.97;
-			default -> null;
+		case 1 -> 23.976;
+		case 2 -> 24.0;
+		case 4 -> 29.97;
+		default -> null;
 		};
 	}
 

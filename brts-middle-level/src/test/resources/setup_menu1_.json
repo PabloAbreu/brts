@@ -3,12 +3,12 @@
   "screenHeight": 1080,
   "backgroundMedia": {
     "type": "MKV",
-    "file": "/home/user1/projects/brt/test_output/01638.mkv"
+    "file": "/video/video_work/menu_pb_617.mkv"
   },
   "globalStyle": {
     "fontName": "SansSerif",
-    "fontSize": 28,
-    "fontColor": "#FFFFFF",
+    "fontSize": 10,
+    "fontColor": "#55FFDD",
     "bold": true,
     "italic": false
   },

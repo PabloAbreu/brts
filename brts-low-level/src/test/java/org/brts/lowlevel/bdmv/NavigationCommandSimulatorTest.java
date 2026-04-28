@@ -337,9 +337,8 @@ class NavigationCommandSimulatorTest {
 		long psr10 = 0x8000_000AL; // PSR10
 		List<NavigationCommand> cmds = List.of(cmd("MOVE", 0, REG, psr10, REG));
 
-		assertThatThrownBy(() -> run(cmds)).isInstanceOf(SimulationException.class)
-			.hasMessageContaining("PSR10")
-			.hasMessageContaining("not provided");
+		assertThatThrownBy(() -> run(cmds)).isInstanceOf(SimulationException.class).hasMessageContaining("PSR10")
+				.hasMessageContaining("not provided");
 	}
 
 	// -------------------------------------------------------------------------

@@ -27,12 +27,11 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Interactive Swing window for previewing an IGS display set.
  * <p>
- * The window is freely resizable but enforces the original aspect ratio (e.g. 16:9 for
- * 1920×1080). Arrow keys, Enter, and Page Up/Down are used to navigate the menu,
- * mimicking a Blu-ray remote control.
+ * The window is freely resizable but enforces the original aspect ratio (e.g. 16:9 for 1920×1080). Arrow keys, Enter,
+ * and Page Up/Down are used to navigate the menu, mimicking a Blu-ray remote control.
  * <p>
- * When a button is activated, the navigation commands associated with it are briefly
- * displayed as a semi-transparent overlay at the bottom of the screen.
+ * When a button is activated, the navigation commands associated with it are briefly displayed as a semi-transparent
+ * overlay at the bottom of the screen.
  *
  * <h2>Key bindings</h2>
  * <table>
@@ -132,8 +131,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 				resizing = true;
 				try {
 					enforceAspectRatio();
-				}
-				finally {
+				} finally {
 					resizing = false;
 				}
 			}
@@ -161,8 +159,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 			// Too wide — shrink width to match height
 			newH = contentH;
 			newW = (int) Math.round(contentH * aspectRatio);
-		}
-		else {
+		} else {
 			// Too tall — shrink height to match width
 			newW = contentW;
 			newH = (int) Math.round(contentW / aspectRatio);
@@ -256,8 +253,8 @@ public class DisplaySetPreviewFrame extends JFrame {
 	// ── Public launch helper ────────────────────────────────────────────────
 
 	/**
-	 * Opens the preview window on the EDT. This method blocks the calling thread until
-	 * the window is closed.
+	 * Opens the preview window on the EDT. This method blocks the calling thread until the window is closed.
+	 *
 	 * @param model the fully loaded preview model
 	 */
 	public static void showAndWait(DisplaySetPreviewModel model) {
@@ -282,8 +279,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 		synchronized (lock) {
 			try {
 				lock.wait();
-			}
-			catch (InterruptedException e) {
+			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 			}
 		}

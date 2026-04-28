@@ -16,19 +16,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Integration tests for {@link BdjoParser} against real disc samples at
- * {@code samples/PB/BDMV/BDJO/}.
+ * Integration tests for {@link BdjoParser} against real disc samples at {@code samples/PB/BDMV/BDJO/}.
  * <p>
- * All tests are skipped when the sample data is absent (e.g. on a CI agent without the
- * disc files).
+ * All tests are skipped when the sample data is absent (e.g. on a CI agent without the disc files).
  * <p>
  * Sample disc notes (verified by binary analysis against libbluray structure):
  * <ul>
  * <li>All files are version {@code "0200"}.</li>
- * <li>{@code 00000.bdjo} and {@code 00003.bdjo} have 2 applications: StandardMenuXlet
- * (control_code=2) and TitleBoundXlet (control_code=1).</li>
- * <li>{@code 00001.bdjo} differs from 00000 only in terminal flags and key interest
- * table.</li>
+ * <li>{@code 00000.bdjo} and {@code 00003.bdjo} have 2 applications: StandardMenuXlet (control_code=2) and
+ * TitleBoundXlet (control_code=1).</li>
+ * <li>{@code 00001.bdjo} differs from 00000 only in terminal flags and key interest table.</li>
  * <li>{@code 12345.bdjo} is a minimal BDJO with 0 applications.</li>
  * <li>Organization ID is consistently {@code 0x7FFF0C8E}.</li>
  * </ul>
@@ -48,8 +45,7 @@ class RealDiscBdjoParserTest {
 	@BeforeAll
 	static void requireSampleData() {
 		assumeThat(Files.isRegularFile(BDJO_00000))
-			.as("sample disc data must be present at " + BDJO_00000.toAbsolutePath())
-			.isTrue();
+				.as("sample disc data must be present at " + BDJO_00000.toAbsolutePath()).isTrue();
 	}
 
 	// ------------------------------------------------------------------

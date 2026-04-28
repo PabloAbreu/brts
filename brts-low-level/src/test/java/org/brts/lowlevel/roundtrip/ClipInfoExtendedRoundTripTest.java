@@ -16,8 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
 
 /**
- * Extended ClipInfo round-trip tests covering multiple codec types, PG/IG streams, timing
- * boundaries, and application types.
+ * Extended ClipInfo round-trip tests covering multiple codec types, PG/IG streams, timing boundaries, and application
+ * types.
  */
 class ClipInfoExtendedRoundTripTest {
 
@@ -80,11 +80,8 @@ class ClipInfoExtendedRoundTripTest {
 
 		ClipInfo out = roundTrip(ci);
 
-		ClipStream pgOut = out.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
-			.findFirst()
-			.orElseThrow();
+		ClipStream pgOut = out.getStreams().stream()
+				.filter(s -> s.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS).findFirst().orElseThrow();
 		assertThat(pgOut.getPid()).isEqualTo(0x1200);
 		assertThat(pgOut.getLanguage()).isEqualTo("fra");
 	}
@@ -100,11 +97,8 @@ class ClipInfoExtendedRoundTripTest {
 
 		ClipInfo out = roundTrip(ci);
 
-		ClipStream igOut = out.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType() == StreamCodingType.INTERACTIVE_GRAPHICS)
-			.findFirst()
-			.orElseThrow();
+		ClipStream igOut = out.getStreams().stream()
+				.filter(s -> s.getCodingType() == StreamCodingType.INTERACTIVE_GRAPHICS).findFirst().orElseThrow();
 		assertThat(igOut.getPid()).isEqualTo(0x1400);
 		assertThat(igOut.getLanguage()).isEqualTo("eng");
 	}
@@ -178,7 +172,7 @@ class ClipInfoExtendedRoundTripTest {
 		assertThat(audioCount).isEqualTo(3);
 		assertThat(
 				out.getStreams().stream().filter(s -> s.getLanguage() != null && s.getLanguage().equals("fra")).count())
-			.isEqualTo(1);
+				.isEqualTo(1);
 	}
 
 	// -------------------------------------------------------------------------

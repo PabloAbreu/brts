@@ -7,12 +7,11 @@ import java.util.*;
 /**
  * Simulates execution of a list of HDMV {@link NavigationCommand}s.
  * <p>
- * Internal engine commands (GOTO, SET, COMPARE, etc.) are fully executed with an internal
- * GPR register file. Commands that would have an external effect (PLAY, JUMP, SET_SYSTEM,
- * etc.) are traced but not executed.
+ * Internal engine commands (GOTO, SET, COMPARE, etc.) are fully executed with an internal GPR register file. Commands
+ * that would have an external effect (PLAY, JUMP, SET_SYSTEM, etc.) are traced but not executed.
  * <p>
- * Operand types (immediate vs register) are determined from the opcode's immediate flags
- * (bits 23 and 22) via {@link ParsedNavigationCommand}.
+ * Operand types (immediate vs register) are determined from the opcode's immediate flags (bits 23 and 22) via
+ * {@link ParsedNavigationCommand}.
  */
 public class NavigationCommandSimulator {
 
@@ -36,8 +35,8 @@ public class NavigationCommandSimulator {
 
 	/**
 	 * @param commands the program to simulate
-	 * @param psrInit initial PSR values (may be {@code null}); reading an uninitialised
-	 * PSR at runtime will throw {@link SimulationException}
+	 * @param psrInit  initial PSR values (may be {@code null}); reading an uninitialised PSR at runtime will throw
+	 *                 {@link SimulationException}
 	 * @param maxSteps maximum number of instructions to execute before aborting
 	 */
 	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit, long maxSteps) {
@@ -46,9 +45,9 @@ public class NavigationCommandSimulator {
 
 	/**
 	 * @param commands the program to simulate
-	 * @param psrInit initial PSR values (may be {@code null})
-	 * @param gprInit initial GPR values (may be {@code null}); used to carry state across
-	 * chained simulations (e.g. CALL/RESUME flows)
+	 * @param psrInit  initial PSR values (may be {@code null})
+	 * @param gprInit  initial GPR values (may be {@code null}); used to carry state across chained simulations (e.g.
+	 *                 CALL/RESUME flows)
 	 * @param maxSteps maximum number of instructions to execute before aborting
 	 */
 	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit,
@@ -99,70 +98,70 @@ public class NavigationCommandSimulator {
 			boolean incPc = true;
 
 			switch (m) {
-				// ── BRANCH / GOTO ──────────────────────────────────────────
-				case NOP -> {
-					/* nothing */ }
-				case GOTO -> {
-					pc = (int) resolveOperand(cmd, 1);
-					incPc = false;
-				}
-				case BREAK -> {
-					terminationReason = "BREAK";
-					pc = commands.size();
-					incPc = false;
-				}
+			// ── BRANCH / GOTO ──────────────────────────────────────────
+			case NOP -> {
+				/* nothing */ }
+			case GOTO -> {
+				pc = (int) resolveOperand(cmd, 1);
+				incPc = false;
+			}
+			case BREAK -> {
+				terminationReason = "BREAK";
+				pc = commands.size();
+				incPc = false;
+			}
 
-				// ── BRANCH / JUMP — external, terminate ────────────────────
-				case JUMP_OBJECT, JUMP_TITLE, CALL_OBJECT, CALL_TITLE, RESUME -> {
-					traceExternal(m, cmd, steps);
-					terminationReason = m.getMnemonic();
-					terminalOp1 = safeResolveOperand(cmd, 1, m);
-					terminalOp2 = safeResolveOperand(cmd, 2, m);
-					pc = commands.size();
-					incPc = false;
-				}
+			// ── BRANCH / JUMP — external, terminate ────────────────────
+			case JUMP_OBJECT, JUMP_TITLE, CALL_OBJECT, CALL_TITLE, RESUME -> {
+				traceExternal(m, cmd, steps);
+				terminationReason = m.getMnemonic();
+				terminalOp1 = safeResolveOperand(cmd, 1, m);
+				terminalOp2 = safeResolveOperand(cmd, 2, m);
+				pc = commands.size();
+				incPc = false;
+			}
 
-				// ── BRANCH / PLAY — external, terminate ────────────────────
-				case PLAY_PL, PLAY_PL_PI, PLAY_PL_PM, TERMINATE_PL, LINK_PI, LINK_MK -> {
-					traceExternal(m, cmd, steps);
-					terminationReason = m.getMnemonic();
-					terminalOp1 = safeResolveOperand(cmd, 1, m);
-					terminalOp2 = safeResolveOperand(cmd, 2, m);
-					pc = commands.size();
-					incPc = false;
-				}
+			// ── BRANCH / PLAY — external, terminate ────────────────────
+			case PLAY_PL, PLAY_PL_PI, PLAY_PL_PM, TERMINATE_PL, LINK_PI, LINK_MK -> {
+				traceExternal(m, cmd, steps);
+				terminationReason = m.getMnemonic();
+				terminalOp1 = safeResolveOperand(cmd, 1, m);
+				terminalOp2 = safeResolveOperand(cmd, 2, m);
+				pc = commands.size();
+				incPc = false;
+			}
 
-				// ── COMPARE — skip next instruction if condition false ─────
-				case BC -> conditionalSkip(cmd, (d, s) -> (d & ~s & MASK_32) == 0);
-				case EQ -> conditionalSkip(cmd, (d, s) -> d == s);
-				case NE -> conditionalSkip(cmd, (d, s) -> d != s);
-				case GE -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) >= 0);
-				case GT -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) > 0);
-				case LE -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) <= 0);
-				case LT -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) < 0);
+			// ── COMPARE — skip next instruction if condition false ─────
+			case BC -> conditionalSkip(cmd, (d, s) -> (d & ~s & MASK_32) == 0);
+			case EQ -> conditionalSkip(cmd, (d, s) -> d == s);
+			case NE -> conditionalSkip(cmd, (d, s) -> d != s);
+			case GE -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) >= 0);
+			case GT -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) > 0);
+			case LE -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) <= 0);
+			case LT -> conditionalSkip(cmd, (d, s) -> Long.compareUnsigned(d, s) < 0);
 
-				// ── SET — arithmetic / logic ───────────────────────────────
-				case MOVE -> executeSet(cmd, (d, s) -> s);
-				case SWAP -> executeSwap(cmd);
-				case ADD -> executeSet(cmd, (d, s) -> Math.min(d + s, MASK_32));
-				case SUB -> executeSet(cmd, (d, s) -> d > s ? d - s : 0);
-				case MUL -> executeSet(cmd, (d, s) -> (d * s) & MASK_32);
-				case DIV -> executeSet(cmd, (d, s) -> s > 0 ? d / s : MASK_32);
-				case MOD -> executeSet(cmd, (d, s) -> s > 0 ? d % s : MASK_32);
-				case RND -> executeSet(cmd, (d, s) -> s > 0 ? random.nextLong(s) + 1 : 0);
-				case AND -> executeSet(cmd, (d, s) -> d & s);
-				case OR -> executeSet(cmd, (d, s) -> d | s);
-				case XOR -> executeSet(cmd, (d, s) -> d ^ s);
-				case BITSET -> executeSet(cmd, (d, s) -> d | (1L << (s & 31)));
-				case BITCLR -> executeSet(cmd, (d, s) -> d & ~(1L << (s & 31)));
-				case SHL -> executeSet(cmd, (d, s) -> (d << (s & 31)) & MASK_32);
-				case SHR -> executeSet(cmd, (d, s) -> (d & MASK_32) >>> (s & 31));
+			// ── SET — arithmetic / logic ───────────────────────────────
+			case MOVE -> executeSet(cmd, (d, s) -> s);
+			case SWAP -> executeSwap(cmd);
+			case ADD -> executeSet(cmd, (d, s) -> Math.min(d + s, MASK_32));
+			case SUB -> executeSet(cmd, (d, s) -> d > s ? d - s : 0);
+			case MUL -> executeSet(cmd, (d, s) -> (d * s) & MASK_32);
+			case DIV -> executeSet(cmd, (d, s) -> s > 0 ? d / s : MASK_32);
+			case MOD -> executeSet(cmd, (d, s) -> s > 0 ? d % s : MASK_32);
+			case RND -> executeSet(cmd, (d, s) -> s > 0 ? random.nextLong(s) + 1 : 0);
+			case AND -> executeSet(cmd, (d, s) -> d & s);
+			case OR -> executeSet(cmd, (d, s) -> d | s);
+			case XOR -> executeSet(cmd, (d, s) -> d ^ s);
+			case BITSET -> executeSet(cmd, (d, s) -> d | (1L << (s & 31)));
+			case BITCLR -> executeSet(cmd, (d, s) -> d & ~(1L << (s & 31)));
+			case SHL -> executeSet(cmd, (d, s) -> (d << (s & 31)) & MASK_32);
+			case SHR -> executeSet(cmd, (d, s) -> (d & MASK_32) >>> (s & 31));
 
-				// ── SET_SYSTEM — external, continue ────────────────────────
-				case SET_STREAM, SET_NV_TIMER, SET_BUTTON_PAGE, ENABLE_BUTTON, DISABLE_BUTTON, SET_SEC_STREAM,
-						POPUP_OFF, STILL_ON, STILL_OFF, SET_OUTPUT_MODE, SET_STREAM_SS -> {
-					traceExternal(m, cmd, steps);
-				}
+			// ── SET_SYSTEM — external, continue ────────────────────────
+			case SET_STREAM, SET_NV_TIMER, SET_BUTTON_PAGE, ENABLE_BUTTON, DISABLE_BUTTON, SET_SEC_STREAM, POPUP_OFF,
+					STILL_ON, STILL_OFF, SET_OUTPUT_MODE, SET_STREAM_SS -> {
+				traceExternal(m, cmd, steps);
+			}
 			}
 
 			if (incPc)
@@ -292,8 +291,7 @@ public class NavigationCommandSimulator {
 			if ((raw & PSR_BIT) != 0)
 				return "PSR" + (raw & 0x7F) + "=" + resolved;
 			return "GPR[" + (raw & 0xFFF) + "]=" + resolved;
-		}
-		catch (SimulationException | IllegalStateException e) {
+		} catch (SimulationException | IllegalStateException e) {
 			return "?(" + e.getMessage() + ")";
 		}
 	}
@@ -303,8 +301,7 @@ public class NavigationCommandSimulator {
 			return null;
 		try {
 			return resolveOperand(cmd, operandIndex);
-		}
-		catch (SimulationException e) {
+		} catch (SimulationException e) {
 			return null;
 		}
 	}

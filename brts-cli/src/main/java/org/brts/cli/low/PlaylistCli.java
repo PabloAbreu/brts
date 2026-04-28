@@ -90,8 +90,7 @@ public class PlaylistCli {
 		@Option(name = "--clip", required = true, usage = "M2TS clip name to search for (e.g. 12345)")
 		String clip;
 
-		@Option(name = "--playlist-dir", required = true,
-				usage = "Directory containing .mpls files (e.g. BDMV/PLAYLIST)")
+		@Option(name = "--playlist-dir", required = true, usage = "Directory containing .mpls files (e.g. BDMV/PLAYLIST)")
 		File playlistDir;
 
 		@Option(name = "--output", usage = "Output JSON file path (default: stdout)")
@@ -134,10 +133,9 @@ public class PlaylistCli {
 						if (referencesClip(playlist, opts.clip)) {
 							results.add(playlist);
 						}
-					}
-					catch (IOException e) {
+					} catch (IOException e) {
 						System.err
-							.println("Warning: failed to parse " + mplsPath.getFileName() + ": " + e.getMessage());
+								.println("Warning: failed to parse " + mplsPath.getFileName() + ": " + e.getMessage());
 					}
 				}
 			}

@@ -12,13 +12,12 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 
 /**
- * Wraps an elementary stream file, providing frame-by-frame reads and PES stream_id
- * derivation. Detects access unit (frame) boundaries based on the codec type:
+ * Wraps an elementary stream file, providing frame-by-frame reads and PES stream_id derivation. Detects access unit
+ * (frame) boundaries based on the codec type:
  * <ul>
- * <li>H.264/AVC: splits at AUD NAL (type 9) or at every VCL NAL if no AUDs present. When
- * B-frames are detected via H.264 POC analysis, per-frame PTS values (display order) and
- * DTS values (decode order) are pre-computed so that the muxer can write correct
- * {@code PTS_DTS_flags=11} PES headers.</li>
+ * <li>H.264/AVC: splits at AUD NAL (type 9) or at every VCL NAL if no AUDs present. When B-frames are detected via
+ * H.264 POC analysis, per-frame PTS values (display order) and DTS values (decode order) are pre-computed so that the
+ * muxer can write correct {@code PTS_DTS_flags=11} PES headers.</li>
  * <li>MPEG-2 video: splits at picture_start_code (00 00 01 00)</li>
  * <li>AC3/E-AC3 audio: splits at sync word (0x0B 0x77)</li>
  * <li>Others: returns fixed-size chunks</li>
@@ -41,22 +40,21 @@ public class ESReader implements Closeable {
 	private int frameIndex = 0;
 
 	/**
-	 * Per-frame PTS in 90 kHz ticks, pre-computed from H.264 POC display order with a
-	 * reorder-delay offset so that DTS ≤ PTS for every frame. {@code null} when no
-	 * B-frame reordering is needed (poc-type != 0, no displayrank shuffle, or non-H264
-	 * stream).
+	 * Per-frame PTS in 90 kHz ticks, pre-computed from H.264 POC display order with a reorder-delay offset so that DTS
+	 * ≤ PTS for every frame. {@code null} when no B-frame reordering is needed (poc-type != 0, no displayrank shuffle,
+	 * or non-H264 stream).
 	 */
 	private long[] framePts;
 
 	/**
-	 * Per-frame DTS in 90 kHz ticks (decode order: {@code i * frameDuration}). Non-null
-	 * precisely when {@link #framePts} is non-null.
+	 * Per-frame DTS in 90 kHz ticks (decode order: {@code i * frameDuration}). Non-null precisely when
+	 * {@link #framePts} is non-null.
 	 */
 	private long[] frameDts;
 
 	/**
-	 * Number of frames the stream reorders for display (= max(decode_i −
-	 * display_rank_i)); used to shift PTS so that DTS ≤ PTS always holds.
+	 * Number of frames the stream reorders for display (= max(decode_i − display_rank_i)); used to shift PTS so that
+	 * DTS ≤ PTS always holds.
 	 */
 	private int numReorderDelay;
 
@@ -75,21 +73,18 @@ public class ESReader implements Closeable {
 	// -----------------------------------------------------------------
 
 	/**
-	 * Pre-computes {@link #framePts} and {@link #frameDts} for H.264 streams that contain
-	 * B-frames, using {@code pic_order_cnt_lsb} values parsed from slice headers to
-	 * determine the display order (POC rank) of each access unit.
+	 * Pre-computes {@link #framePts} and {@link #frameDts} for H.264 streams that contain B-frames, using
+	 * {@code pic_order_cnt_lsb} values parsed from slice headers to determine the display order (POC rank) of each
+	 * access unit.
 	 *
 	 * <p>
 	 * The algorithm:
 	 * <ol>
 	 * <li>Find the first SPS NAL and parse {@link H264SpsInfo}.</li>
-	 * <li>For each AU, locate the first VCL slice NAL and read {@code pic_order_cnt_lsb}
-	 * (POC type&nbsp;0 only).</li>
-	 * <li>Reconstruct a global POC value per AU using the wrap-around rule described in
-	 * H.264 spec §8.2.1.1.</li>
+	 * <li>For each AU, locate the first VCL slice NAL and read {@code pic_order_cnt_lsb} (POC type&nbsp;0 only).</li>
+	 * <li>Reconstruct a global POC value per AU using the wrap-around rule described in H.264 spec §8.2.1.1.</li>
 	 * <li>Rank AUs by ascending POC to get their display order.</li>
-	 * <li>Compute {@code numReorderDelay} = max(decode_i − display_rank_i) so that DTS ≤
-	 * PTS for every frame.</li>
+	 * <li>Compute {@code numReorderDelay} = max(decode_i − display_rank_i) so that DTS ≤ PTS for every frame.</li>
 	 * <li>Assign:
 	 * <ul>
 	 * <li>{@code framePts[i] = (displayRank[i] + numReorderDelay) × fd}</li>
@@ -97,9 +92,8 @@ public class ESReader implements Closeable {
 	 * </ul>
 	 * </li>
 	 * </ol>
-	 * If parsing fails or no reordering is needed, {@link #framePts} and
-	 * {@link #frameDts} are left {@code null} and the mux loop falls back to the existing
-	 * sequential PTS assignment.
+	 * If parsing fails or no reordering is needed, {@link #framePts} and {@link #frameDts} are left {@code null} and
+	 * the mux loop falls back to the existing sequential PTS assignment.
 	 */
 	private void computeH264PtsDts() {
 		H264SpsInfo sps = findAndParseSps();
@@ -122,14 +116,11 @@ public class ESReader implements Closeable {
 			if (firstFrame) {
 				pocMsb = 0;
 				firstFrame = false;
-			}
-			else if (pocLsb < prevPocLsb && (prevPocLsb - pocLsb) >= maxPocLsb / 2) {
+			} else if (pocLsb < prevPocLsb && (prevPocLsb - pocLsb) >= maxPocLsb / 2) {
 				pocMsb = prevPocMsb + maxPocLsb; // positive wrap
-			}
-			else if (pocLsb > prevPocLsb && (pocLsb - prevPocLsb) > maxPocLsb / 2) {
+			} else if (pocLsb > prevPocLsb && (pocLsb - prevPocLsb) > maxPocLsb / 2) {
 				pocMsb = prevPocMsb - maxPocLsb; // negative wrap
-			}
-			else {
+			} else {
 				pocMsb = prevPocMsb;
 			}
 			pocValues[i] = pocMsb + pocLsb;
@@ -168,6 +159,7 @@ public class ESReader implements Closeable {
 
 	/**
 	 * Scans {@link #esData} for the first SPS NAL unit (type&nbsp;7) and parses it.
+	 *
 	 * @return parsed {@link H264SpsInfo}, or {@code null} if none found
 	 */
 	private H264SpsInfo findAndParseSps() {
@@ -194,9 +186,8 @@ public class ESReader implements Closeable {
 	}
 
 	/**
-	 * Searches the AU at [{@code frameStart}, {@code frameStart+frameLen}) for the first
-	 * VCL slice NAL (type&nbsp;1 or&nbsp;5) and returns its {@code pic_order_cnt_lsb}, or
-	 * {@code -1} on error.
+	 * Searches the AU at [{@code frameStart}, {@code frameStart+frameLen}) for the first VCL slice NAL (type&nbsp;1
+	 * or&nbsp;5) and returns its {@code pic_order_cnt_lsb}, or {@code -1} on error.
 	 */
 	private int findAndReadSlicePocLsb(int frameStart, int frameLen, H264SpsInfo sps) {
 		int end = frameStart + frameLen;
@@ -226,9 +217,9 @@ public class ESReader implements Closeable {
 	// -----------------------------------------------------------------
 
 	/**
-	 * Returns {@code true} iff this is an H.264 stream whose access units were found to
-	 * be stored in a reordered (B-frame) decode order. When {@code true}, the caller must
-	 * use {@link #getPts} / {@link #getDts} rather than external sequential PTS tracking.
+	 * Returns {@code true} iff this is an H.264 stream whose access units were found to be stored in a reordered
+	 * (B-frame) decode order. When {@code true}, the caller must use {@link #getPts} / {@link #getDts} rather than
+	 * external sequential PTS tracking.
 	 */
 	boolean hasBFrames() {
 		return framePts != null;
@@ -240,26 +231,24 @@ public class ESReader implements Closeable {
 	}
 
 	/**
-	 * Returns the PES PTS (display-order, with reorder-delay offset) for decode-order
-	 * frame {@code i}. The offset guarantees DTS ≤ PTS.
+	 * Returns the PES PTS (display-order, with reorder-delay offset) for decode-order frame {@code i}. The offset
+	 * guarantees DTS ≤ PTS.
 	 */
 	long getPts(int i) {
 		return framePts[i];
 	}
 
 	/**
-	 * Returns the PES DTS (decode-order) for frame {@code i}. Equal to
-	 * {@code i × frameDuration90kHz()}.
+	 * Returns the PES DTS (decode-order) for frame {@code i}. Equal to {@code i × frameDuration90kHz()}.
 	 */
 	long getDts(int i) {
 		return frameDts[i];
 	}
 
 	/**
-	 * Returns the <em>display</em> PTS without the reorder-delay offset, i.e.
-	 * {@code displayRank[i] × frameDuration}. Use this value against the chapter
-	 * {@code ptsTicks} map so that descriptors can still specify chapter positions as
-	 * logical display times (0 = first I-frame).
+	 * Returns the <em>display</em> PTS without the reorder-delay offset, i.e. {@code displayRank[i] × frameDuration}.
+	 * Use this value against the chapter {@code ptsTicks} map so that descriptors can still specify chapter positions
+	 * as logical display times (0 = first I-frame).
 	 */
 	long getDisplayPts(int i) {
 		return framePts[i] - (long) numReorderDelay * frameDuration90kHz();
@@ -287,8 +276,7 @@ public class ESReader implements Closeable {
 			}
 			if (nalList.isEmpty()) {
 				frames.add(new int[] { 0, esData.length });
-			}
-			else {
+			} else {
 				// Prefer AUD NAL (type 9) as AU delimiter; fall back to every VCL NAL
 				// (types 1-5).
 				boolean hasAud = nalList.stream().anyMatch(n -> n[1] == 9);
@@ -298,8 +286,7 @@ public class ESReader implements Closeable {
 						if (nal[1] == 9)
 							auStarts.add(nal[0]);
 					}
-				}
-				else {
+				} else {
 					// No AUDs: every VCL NAL starts a new AU.
 					// Scan backwards from each VCL to include its non-VCL preamble (SPS,
 					// PPS, SEI).
@@ -319,8 +306,7 @@ public class ESReader implements Closeable {
 				}
 				if (auStarts.isEmpty()) {
 					frames.add(new int[] { 0, esData.length });
-				}
-				else {
+				} else {
 					// First AU starts at offset 0 to capture any SPS/PPS preamble.
 					for (int j = 0; j < auStarts.size(); j++) {
 						int start = (j == 0) ? 0 : auStarts.get(j);
@@ -329,8 +315,7 @@ public class ESReader implements Closeable {
 					}
 				}
 			}
-		}
-		else if (codingType != null && codingType.isVideo()) {
+		} else if (codingType != null && codingType.isVideo()) {
 			// MPEG-2 video: split at picture_start_code (00 00 01 00)
 			List<Integer> picStarts = new ArrayList<>();
 			for (int i = 0; i <= esData.length - 4; i++) {
@@ -340,16 +325,14 @@ public class ESReader implements Closeable {
 			}
 			if (picStarts.isEmpty()) {
 				frames.add(new int[] { 0, esData.length });
-			}
-			else {
+			} else {
 				for (int j = 0; j < picStarts.size(); j++) {
 					int start = (j == 0) ? 0 : picStarts.get(j);
 					int end = (j + 1 < picStarts.size()) ? picStarts.get(j + 1) : esData.length;
 					frames.add(new int[] { start, end - start });
 				}
 			}
-		}
-		else if (codingType != null && codingType.isDolbyAudio()) {
+		} else if (codingType != null && codingType.isDolbyAudio()) {
 			// AC3 / E-AC3: split at sync word 0x0B77
 			List<Integer> syncStarts = new ArrayList<>();
 			for (int i = 0; i <= esData.length - 2; i++) {
@@ -359,16 +342,14 @@ public class ESReader implements Closeable {
 			}
 			if (syncStarts.isEmpty()) {
 				frames.add(new int[] { 0, esData.length });
-			}
-			else {
+			} else {
 				for (int j = 0; j < syncStarts.size(); j++) {
 					int start = syncStarts.get(j);
 					int end = (j + 1 < syncStarts.size()) ? syncStarts.get(j + 1) : esData.length;
 					frames.add(new int[] { start, end - start });
 				}
 			}
-		}
-		else if (codingType != null && (codingType == StreamCodingType.DTS || codingType == StreamCodingType.DTS_HD
+		} else if (codingType != null && (codingType == StreamCodingType.DTS || codingType == StreamCodingType.DTS_HD
 				|| codingType == StreamCodingType.DTS_HD_MASTER_AUDIO)) {
 			// DTS: split at sync word 0x7FFE8001
 			List<Integer> syncStarts = new ArrayList<>();
@@ -380,16 +361,14 @@ public class ESReader implements Closeable {
 			}
 			if (syncStarts.isEmpty()) {
 				frames.add(new int[] { 0, esData.length });
-			}
-			else {
+			} else {
 				for (int j = 0; j < syncStarts.size(); j++) {
 					int start = syncStarts.get(j);
 					int end = (j + 1 < syncStarts.size()) ? syncStarts.get(j + 1) : esData.length;
 					frames.add(new int[] { start, end - start });
 				}
 			}
-		}
-		else if (codingType == StreamCodingType.INTERACTIVE_GRAPHICS
+		} else if (codingType == StreamCodingType.INTERACTIVE_GRAPHICS
 				|| codingType == StreamCodingType.PRESENTATION_GRAPHICS) {
 			// IGS / PGS: the raw ES file is a concatenation of bare segments:
 			// 1 byte type
@@ -411,8 +390,7 @@ public class ESReader implements Closeable {
 			if (frames.isEmpty()) {
 				frames.add(new int[] { 0, esData.length });
 			}
-		}
-		else {
+		} else {
 			// Fallback: fixed-size chunks (kept within 16-bit PES packet_length limit)
 			int chunkSize = 65000;
 			for (int off = 0; off < esData.length; off += chunkSize) {
@@ -458,8 +436,7 @@ public class ESReader implements Closeable {
 	}
 
 	/**
-	 * MPEG-2 PES stream_id: 0xE0 = video, 0xC0-0xDF = audio, 0xBD = private (DTS, AC3,
-	 * PGS, IGS).
+	 * MPEG-2 PES stream_id: 0xE0 = video, 0xC0-0xDF = audio, 0xBD = private (DTS, AC3, PGS, IGS).
 	 */
 	int streamId() {
 		if (codingType == null)
@@ -467,16 +444,16 @@ public class ESReader implements Closeable {
 		if (codingType.isVideo())
 			return 0xE0;
 		return switch (codingType) {
-			case LPCM, DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, PRESENTATION_GRAPHICS,
-					INTERACTIVE_GRAPHICS, TEXT_SUBTITLE ->
-				0xBD;
-			default -> 0xC0;
+		case LPCM, DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, PRESENTATION_GRAPHICS,
+				INTERACTIVE_GRAPHICS, TEXT_SUBTITLE ->
+			0xBD;
+		default -> 0xC0;
 		};
 	}
 
 	/**
-	 * HDMV sub-stream identifier inserted as the first byte of the PES data payload for
-	 * {@code stream_id=0xBD} (private_stream_1) packets.
+	 * HDMV sub-stream identifier inserted as the first byte of the PES data payload for {@code stream_id=0xBD}
+	 * (private_stream_1) packets.
 	 * <p>
 	 * Blu-ray spec mapping:
 	 * <ul>
@@ -484,18 +461,17 @@ public class ESReader implements Closeable {
 	 * <li>0x00–0x1F = Presentation Graphics (PG) sub-stream n</li>
 	 * <li>0x80–0xBF = private audio (AC-3, DTS, LPCM, …)</li>
 	 * </ul>
-	 * For stream types that do not use {@code 0xBD} the value is not used (callers check
-	 * {@link #streamId()} first).
+	 * For stream types that do not use {@code 0xBD} the value is not used (callers check {@link #streamId()} first).
 	 */
 	int substreamId() {
 		if (codingType == null)
 			return M2tsWriter.SUBSTREAM_ID_AUDIO_PRIVATE;
 		return switch (codingType) {
-			case INTERACTIVE_GRAPHICS -> M2tsWriter.SUBSTREAM_ID_IG;
-			case PRESENTATION_GRAPHICS, TEXT_SUBTITLE -> M2tsWriter.SUBSTREAM_ID_PG;
-			case LPCM, DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO ->
-				M2tsWriter.SUBSTREAM_ID_AUDIO_PRIVATE;
-			default -> 0x00;
+		case INTERACTIVE_GRAPHICS -> M2tsWriter.SUBSTREAM_ID_IG;
+		case PRESENTATION_GRAPHICS, TEXT_SUBTITLE -> M2tsWriter.SUBSTREAM_ID_PG;
+		case LPCM, DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO ->
+			M2tsWriter.SUBSTREAM_ID_AUDIO_PRIVATE;
+		default -> 0x00;
 		};
 	}
 

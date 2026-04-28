@@ -10,7 +10,9 @@ import java.util.List;
  * <p>
  * Supports glob patterns or an explicit file list to auto-include episodes.
  * <p>
- * Example {@code series-disc.json}: <pre>{@code
+ * Example {@code series-disc.json}:
+ *
+ * <pre>{@code
  * {
  *   "templateType": "TV_SERIES",
  *   "discTitle": "My Series — Season 1",
@@ -33,14 +35,14 @@ public class TvSeriesDiscDescriptor extends HighLevelDiscDescriptor {
 	private int seasonNumber;
 
 	/**
-	 * Glob pattern to discover episode MKV files. Files are sorted alphabetically; this
-	 * order determines episode numbering. Mutually exclusive with {@link #episodeFiles}.
+	 * Glob pattern to discover episode MKV files. Files are sorted alphabetically; this order determines episode
+	 * numbering. Mutually exclusive with {@link #episodeFiles}.
 	 */
 	private String episodesGlob;
 
 	/**
-	 * Explicit ordered list of episode MKV file paths. Takes precedence over
-	 * {@link #episodesGlob} if both are specified.
+	 * Explicit ordered list of episode MKV file paths. Takes precedence over {@link #episodesGlob} if both are
+	 * specified.
 	 */
 	private List<String> episodeFiles;
 

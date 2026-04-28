@@ -11,9 +11,8 @@ import java.util.List;
 /**
  * Simulates Blu-ray remote-control navigation on an IGS display set.
  * <p>
- * Handles directional movement (up / down / left / right), selection (Enter), and numeric
- * input. After each action it updates the {@link DisplaySetPreviewModel} and returns a
- * {@link NavigationResult} describing what changed.
+ * Handles directional movement (up / down / left / right), selection (Enter), and numeric input. After each action it
+ * updates the {@link DisplaySetPreviewModel} and returns a {@link NavigationResult} describing what changed.
  */
 public class NavigationController {
 
@@ -48,8 +47,8 @@ public class NavigationController {
 	}
 
 	/**
-	 * Activate (enter / confirm) the currently selected button. Checks navigation
-	 * commands and returns a result describing them.
+	 * Activate (enter / confirm) the currently selected button. Checks navigation commands and returns a result
+	 * describing them.
 	 */
 	public NavigationResult activate() {
 		IgsButton btn = model.getAllButtons().get(model.getSelectedButtonId());
@@ -109,10 +108,10 @@ public class NavigationController {
 		}
 
 		int targetId = switch (dir) {
-			case UP -> current.getUpperButtonIdRef();
-			case DOWN -> current.getLowerButtonIdRef();
-			case LEFT -> current.getLeftButtonIdRef();
-			case RIGHT -> current.getRightButtonIdRef();
+		case UP -> current.getUpperButtonIdRef();
+		case DOWN -> current.getLowerButtonIdRef();
+		case LEFT -> current.getLeftButtonIdRef();
+		case RIGHT -> current.getRightButtonIdRef();
 		};
 
 		// 0xFFFF means "no neighbour in that direction"
@@ -155,9 +154,8 @@ public class NavigationController {
 	// ── Navigation-command description ──────────────────────────────────────
 
 	/**
-	 * Provides a human-readable description of a button's navigation commands. This is
-	 * displayed as an overlay when the user activates a button. Delegates to
-	 * {@link ParsedNavigationCommand} for proper mnemonic decoding.
+	 * Provides a human-readable description of a button's navigation commands. This is displayed as an overlay when the
+	 * user activates a button. Delegates to {@link ParsedNavigationCommand} for proper mnemonic decoding.
 	 */
 	private String describeNavigationCommands(IgsButton btn) {
 		List<ParsedNavigationCommand> cmds = btn.getNavigationCommands();

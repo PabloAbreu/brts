@@ -14,17 +14,19 @@ import java.util.List;
 /**
  * Writer for {@code BDMV/index.bdmv}.
  * <p>
- * The version written is taken from {@link IndexBdmv#getVersion()}; if {@code null} or
- * blank, {@code "0300"} is used as a safe default (broadest BD-ROM compatibility).
+ * The version written is taken from {@link IndexBdmv#getVersion()}; if {@code null} or blank, {@code "0300"} is used as
+ * a safe default (broadest BD-ROM compatibility).
  * <p>
  * Version-specific constraints enforced at write time:
  * <ul>
- * <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are not
- * supported and will cause a {@link WriteException}.</li>
+ * <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are not supported and will cause a
+ * {@link WriteException}.</li>
  * <li>{@code "0200"} / {@code "0300"} — both HDMV and BD-J entries are accepted.</li>
  * </ul>
  * <p>
- * Binary layout written (big-endian throughout): <pre>
+ * Binary layout written (big-endian throughout):
+ *
+ * <pre>
  * Header (40 bytes):
  *   magic                     : 4 bytes  ("INDX")
  *   version                   : 4 bytes  (from model, e.g. "0300")
@@ -113,8 +115,8 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Validates that the model is compatible with the target version. Throws
-	 * {@link WriteException} if an incompatible combination is found.
+	 * Validates that the model is compatible with the target version. Throws {@link WriteException} if an incompatible
+	 * combination is found.
 	 */
 	private void validate(IndexBdmv model, String version) throws IOException {
 		if (BDJ_CAPABLE_VERSIONS.contains(version)) {
@@ -140,8 +142,7 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) + flags(1)
-	 * + content_provider_name(32).
+	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) + flags(1) + content_provider_name(32).
 	 */
 	private byte[] buildAppInfoSection(IndexBdmv model) throws IOException {
 		ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + APP_INFO_BODY_LEN);
@@ -190,8 +191,8 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12 zero
-	 * bytes (reserved / no-object slot).
+	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12 zero bytes (reserved / no-object
+	 * slot).
 	 */
 	private void writeTitleEntry(BinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
 		if (entry == null) {
@@ -216,8 +217,7 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 			for (int i = 0; i < 5; i++) {
 				w.writeByte(i < nameBytes.length ? nameBytes[i] & 0xFF : ' ');
 			}
-		}
-		else {
+		} else {
 			// HDMV: hdmv_object_id (2 bytes big-endian) + 3 reserved bytes
 			w.writeShort(entry.getHdmvObjectId());
 			w.writePadding(3);

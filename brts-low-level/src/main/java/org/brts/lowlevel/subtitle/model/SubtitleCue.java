@@ -7,13 +7,11 @@ import lombok.ToString;
 /**
  * A single subtitle cue — one timed block of text that appears on screen.
  * <p>
- * The text may contain basic inline HTML-like tags ({@code <b>}, {@code <i>},
- * {@code <u>}) which the renderer is expected to interpret. Line breaks within a cue are
- * represented by newline characters ({@code \n}).
+ * The text may contain basic inline HTML-like tags ({@code <b>}, {@code <i>}, {@code <u>}) which the renderer is
+ * expected to interpret. Line breaks within a cue are represented by newline characters ({@code \n}).
  * <p>
- * Optional per-cue positioning allows override of the default placement. Both absolute
- * (pixel) and screen-anchored positioning are supported, depending on the source subtitle
- * format.
+ * Optional per-cue positioning allows override of the default placement. Both absolute (pixel) and screen-anchored
+ * positioning are supported, depending on the source subtitle format.
  */
 @Getter
 @Setter
@@ -30,14 +28,13 @@ public class SubtitleCue {
 	private long endTimeMs;
 
 	/**
-	 * The subtitle text, potentially containing inline HTML tags ({@code <b>},
-	 * {@code <i>}, {@code <u>}) and newlines.
+	 * The subtitle text, potentially containing inline HTML tags ({@code <b>}, {@code <i>}, {@code <u>}) and newlines.
 	 */
 	private String text;
 
 	/**
-	 * Optional per-cue position override. When {@code null}, the renderer uses its
-	 * default positioning (typically bottom-centre).
+	 * Optional per-cue position override. When {@code null}, the renderer uses its default positioning (typically
+	 * bottom-centre).
 	 */
 	private SubtitlePosition position;
 

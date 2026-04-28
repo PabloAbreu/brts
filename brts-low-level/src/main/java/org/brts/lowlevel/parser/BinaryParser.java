@@ -13,6 +13,7 @@ public interface BinaryParser<T> {
 
 	/**
 	 * Parses the binary format from the given {@link InputStream}.
+	 *
 	 * @param input the stream to read; the caller is responsible for closing it.
 	 * @return the parsed model object
 	 * @throws org.brts.common.exception.ParseException on any format or I/O error
@@ -20,8 +21,7 @@ public interface BinaryParser<T> {
 	T parse(InputStream input) throws IOException;
 
 	/**
-	 * Convenience method — opens the file at {@code path} and delegates to
-	 * {@link #parse(InputStream)}.
+	 * Convenience method — opens the file at {@code path} and delegates to {@link #parse(InputStream)}.
 	 */
 	default T parse(Path path) throws IOException {
 		try (var in = java.nio.file.Files.newInputStream(path)) {

@@ -15,7 +15,9 @@ import java.util.List;
  * <p>
  * Produces a binary file matching the BDJO format as understood by libbluray.
  * <p>
- * Binary layout written (big-endian throughout): <pre>
+ * Binary layout written (big-endian throughout):
+ *
+ * <pre>
  * Header (48 bytes):
  *   magic                              : 4 bytes  ("BDJO")
  *   version                            : 4 bytes  (from model, e.g. "0200")
@@ -87,8 +89,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Builds the TerminalInfo section. Body: default_font(5) + flags(1) + padding(4) = 10
-	 * bytes.
+	 * Builds the TerminalInfo section. Body: default_font(5) + flags(1) + padding(4) = 10 bytes.
 	 */
 	private byte[] buildTerminalInfoSection(Bdjo.TerminalInfo ti) throws IOException {
 		if (ti == null)
@@ -111,8 +112,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 			byte[] rawPadding = ti.getRawPadding();
 			if (rawPadding != null && rawPadding.length > 0) {
 				w.writeBytes(rawPadding);
-			}
-			else {
+			} else {
 				w.writePadding(4); // default padding
 			}
 		}
@@ -124,8 +124,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Builds the AppCacheInfo section. Body: num_items(1) + padding(1) + items[num_items]
-	 * × 12 bytes each.
+	 * Builds the AppCacheInfo section. Body: num_items(1) + padding(1) + items[num_items] × 12 bytes each.
 	 */
 	private byte[] buildAppCacheInfoSection(Bdjo.AppCacheInfo aci) throws IOException {
 		List<Bdjo.AppCacheItem> items = (aci != null && aci.getItems() != null) ? aci.getItems() : List.of();
@@ -155,8 +154,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Builds the AccessiblePlaylists section. Body: flags32(4) + playlists[num_pl] × 6
-	 * bytes each.
+	 * Builds the AccessiblePlaylists section. Body: flags32(4) + playlists[num_pl] × 6 bytes each.
 	 */
 	private byte[] buildAccessiblePlaylistsSection(Bdjo.AccessiblePlaylists ap) throws IOException {
 		if (ap == null)
@@ -233,8 +231,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 		byte[] header = app.getDescriptorHeader();
 		if (header != null && header.length == 10) {
 			w.writeBytes(header);
-		}
-		else {
+		} else {
 			w.writePadding(2);
 			w.writeInt(descriptorBody.length + 4);
 			w.writePadding(4);
@@ -245,8 +242,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	}
 
 	/**
-	 * Builds the application descriptor body (everything after the 10-byte tag+length
-	 * header).
+	 * Builds the application descriptor body (everything after the 10-byte tag+length header).
 	 */
 	private byte[] buildAppDescriptorBody(Bdjo.BdjoApp app) throws IOException {
 		ByteArrayOutputStream buf = new ByteArrayOutputStream();
@@ -290,7 +286,9 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	}
 
 	/**
-	 * Writes the application names block. <pre>
+	 * Writes the application names block.
+	 *
+	 * <pre>
 	 *   data_length(16) + names... + word-align
 	 * </pre>
 	 */
@@ -320,7 +318,9 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	}
 
 	/**
-	 * Writes a word-aligned length-prefixed string. <pre>
+	 * Writes a word-aligned length-prefixed string.
+	 *
+	 * <pre>
 	 *   length(8) + string(length) + padding(1 if length is even)
 	 * </pre>
 	 */
@@ -339,7 +339,9 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	}
 
 	/**
-	 * Writes the application parameters block. <pre>
+	 * Writes the application parameters block.
+	 *
+	 * <pre>
 	 *   data_length(8) + params... + word-align
 	 * </pre>
 	 */
@@ -400,7 +402,9 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	// =====================================================================
 
 	/**
-	 * Builds the File Access Info section. <pre>
+	 * Builds the File Access Info section.
+	 *
+	 * <pre>
 	 *   file_access_length(16) + path(file_access_length bytes)
 	 * </pre>
 	 */

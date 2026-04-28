@@ -17,8 +17,7 @@ import org.kohsuke.args4j.Option;
  * Sub-commands:
  * <ul>
  * <li><b>mobj-parse</b> — parse a binary {@code MovieObject.bdmv} file and emit JSON</li>
- * <li><b>mobj-write</b> — generate a binary {@code MovieObject.bdmv} from a JSON
- * model</li>
+ * <li><b>mobj-write</b> — generate a binary {@code MovieObject.bdmv} from a JSON model</li>
  * </ul>
  */
 public class MovieObjectsCli {
@@ -69,8 +68,7 @@ public class MovieObjectsCli {
 
 	public static class WriteOptions {
 
-		@JsonInputOption(name = "--input", required = true,
-				usage = "Path to the JSON model file (as produced by mobj-parse)")
+		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by mobj-parse)")
 		MovieObjects input;
 
 		@Option(name = "--output", required = true, usage = "Output path for the generated MovieObject.bdmv file")

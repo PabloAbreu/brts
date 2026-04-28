@@ -6,8 +6,7 @@ import org.brts.middle.menu.descriptor.MkvBackgroundMedia;
 import java.nio.file.Path;
 
 /**
- * Factory that creates the appropriate {@link MediaSource} implementation from a
- * {@link BackgroundMediaDescriptor}.
+ * Factory that creates the appropriate {@link MediaSource} implementation from a {@link BackgroundMediaDescriptor}.
  */
 public final class MediaSourceFactory {
 
@@ -16,6 +15,7 @@ public final class MediaSourceFactory {
 
 	/**
 	 * Creates a {@link MediaSource} from the given descriptor.
+	 *
 	 * @param descriptor the background media descriptor
 	 * @return the appropriate media source implementation
 	 * @throws IllegalArgumentException if the descriptor type is unsupported

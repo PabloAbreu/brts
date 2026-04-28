@@ -7,9 +7,8 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * SubPath — secondary path played in sync with the main PlayItem sequence. Used for
- * secondary video/audio streams and for out-of-mux PG/IG subtitles. Simplified support:
- * only type and clip references are modeled.
+ * SubPath — secondary path played in sync with the main PlayItem sequence. Used for secondary video/audio streams and
+ * for out-of-mux PG/IG subtitles. Simplified support: only type and clip references are modeled.
  */
 @Getter
 @Setter

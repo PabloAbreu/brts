@@ -11,17 +11,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Presentation Composition Segment (PCS) — the composition segment specific to PGS
- * (Presentation Graphic Stream) subtitle streams.
+ * Presentation Composition Segment (PCS) — the composition segment specific to PGS (Presentation Graphic Stream)
+ * subtitle streams.
  * <p>
- * A PCS is simpler than the IGS Interactive Composition Segment (ICS): it contains no
- * interactive elements (pages, buttons, navigation) but instead carries a flat list of
- * {@link CompositionObject} references that position pre-rendered subtitle bitmaps on
- * screen.
+ * A PCS is simpler than the IGS Interactive Composition Segment (ICS): it contains no interactive elements (pages,
+ * buttons, navigation) but instead carries a flat list of {@link CompositionObject} references that position
+ * pre-rendered subtitle bitmaps on screen.
  * <p>
- * The shared structural elements ({@link VideoDescriptor}, {@link CompositionDescriptor},
- * {@link CompositionObject}) are reused from the IGS model package — they are
- * format-identical between PGS and IGS.
+ * The shared structural elements ({@link VideoDescriptor}, {@link CompositionDescriptor}, {@link CompositionObject})
+ * are reused from the IGS model package — they are format-identical between PGS and IGS.
  */
 @Getter
 @Setter
@@ -41,8 +39,7 @@ public class PgsCompositionSegment {
 	private CompositionDescriptor compositionDescriptor;
 
 	/**
-	 * Whether the display is a "palette update only" (no new objects). 0 = false, 0x80 =
-	 * true.
+	 * Whether the display is a "palette update only" (no new objects). 0 = false, 0x80 = true.
 	 */
 	private boolean paletteUpdateFlag;
 
@@ -50,9 +47,8 @@ public class PgsCompositionSegment {
 	private int paletteIdRef;
 
 	/**
-	 * Composition objects — each maps an object to a window at a specific screen
-	 * position. For subtitle display there is typically one object; for clearing the
-	 * screen this list is empty.
+	 * Composition objects — each maps an object to a window at a specific screen position. For subtitle display there
+	 * is typically one object; for clearing the screen this list is empty.
 	 */
 	private List<CompositionObject> compositionObjects = new ArrayList<>();
 

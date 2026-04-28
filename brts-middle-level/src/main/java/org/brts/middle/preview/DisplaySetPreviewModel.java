@@ -13,8 +13,8 @@ import java.util.Map;
 /**
  * Holds the runtime state for an IGS Display Set preview session.
  * <p>
- * This model tracks the current page, which buttons are enabled/selected/activated, and
- * pre-decoded button images. It is the "engine" behind the Swing viewer.
+ * This model tracks the current page, which buttons are enabled/selected/activated, and pre-decoded button images. It
+ * is the "engine" behind the Swing viewer.
  */
 @Getter
 @Setter
@@ -52,8 +52,7 @@ public class DisplaySetPreviewModel {
 	private int activatedButtonId = -1;
 
 	/**
-	 * Per-BOG enabled button id. Key = bog index within the current page, Value = enabled
-	 * button id.
+	 * Per-BOG enabled button id. Key = bog index within the current page, Value = enabled button id.
 	 */
 	private Map<Integer, Integer> bogEnabledButtons = new HashMap<>();
 
@@ -103,8 +102,7 @@ public class DisplaySetPreviewModel {
 		IgsPage page = getCurrentPage();
 		if (page != null && page.getDefaultSelectedButtonIdRef() != 0xFFFF) {
 			selectedButtonId = page.getDefaultSelectedButtonIdRef();
-		}
-		else {
+		} else {
 			// Fall back to first enabled button
 			for (var entry : bogEnabledButtons.entrySet()) {
 				selectedButtonId = entry.getValue();

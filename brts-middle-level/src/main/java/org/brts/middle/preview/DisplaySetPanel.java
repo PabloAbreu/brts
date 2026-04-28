@@ -33,12 +33,11 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Swing panel that renders the current state of a {@link DisplaySetPreviewModel}.
  * <p>
- * The panel maintains the original aspect ratio of the display set and scales all button
- * graphics proportionally when the window is resized. A programmatically generated
- * checkerboard pattern is used as a background to simulate the video plane.
+ * The panel maintains the original aspect ratio of the display set and scales all button graphics proportionally when
+ * the window is resized. A programmatically generated checkerboard pattern is used as a background to simulate the
+ * video plane.
  *
- * For the time being, only draws the start button image for each button state
- * (normal/selected/activated).
+ * For the time being, only draws the start button image for each button state (normal/selected/activated).
  */
 @Slf4j
 public class DisplaySetPanel extends JPanel {
@@ -75,9 +74,8 @@ public class DisplaySetPanel extends JPanel {
 	private BufferedImage checkerboardTile;
 
 	/**
-	 * Cache of ghost images generated from a selected-state image when the corresponding
-	 * normal-state image is fully transparent. Key = normal-state object id, Value =
-	 * ghost image derived from the selected state.
+	 * Cache of ghost images generated from a selected-state image when the corresponding normal-state image is fully
+	 * transparent. Key = normal-state object id, Value = ghost image derived from the selected state.
 	 */
 	private final Map<Integer, BufferedImage> ghostImageCache = new HashMap<>();
 
@@ -96,8 +94,7 @@ public class DisplaySetPanel extends JPanel {
 	}
 
 	/**
-	 * Computes the viewport rectangle that fits the display-set aspect ratio inside the
-	 * current panel bounds.
+	 * Computes the viewport rectangle that fits the display-set aspect ratio inside the current panel bounds.
 	 */
 	private Rectangle computeViewport() {
 		int pw = getWidth();
@@ -111,8 +108,7 @@ public class DisplaySetPanel extends JPanel {
 			// Panel is wider than needed — fit height
 			viewH = ph;
 			viewW = (int) Math.round(ph * aspect);
-		}
-		else {
+		} else {
 			// Panel is taller than needed — fit width
 			viewW = pw;
 			viewH = (int) Math.round(pw / aspect);
@@ -182,8 +178,7 @@ public class DisplaySetPanel extends JPanel {
 				g2.drawString("2.40 aspect ratio", vp.x + 10, ratioY - 20);
 			}
 
-		}
-		finally {
+		} finally {
 			g2.dispose();
 		}
 		sw.close();
@@ -248,20 +243,17 @@ public class DisplaySetPanel extends JPanel {
 				img = model.getObjectImages().get(btn.getSelectedStartObjectIdRef());
 			if (img == null)
 				img = resolveNormalImage(btn);
-		}
-		else if (isSelected) {
+		} else if (isSelected) {
 			img = model.getObjectImages().get(btn.getSelectedStartObjectIdRef());
 			if (img == null)
 				img = resolveNormalImage(btn);
-		}
-		else {
+		} else {
 			img = resolveNormalImage(btn);
 		}
 
 		if (img != null) {
 			g2.drawImage(img, bx, by, img.getWidth(), img.getHeight(), null);
-		}
-		else {
+		} else {
 			// Draw a placeholder rectangle
 			g2.setColor(new Color(0x80, 0x80, 0x80, 0x60));
 			g2.fillRect(bx, by, 120, 40);
@@ -275,11 +267,9 @@ public class DisplaySetPanel extends JPanel {
 		// Draw selection/activation highlight outline
 		if (isActivated) {
 			drawHighlight(g2, btn, img, ACTIVATION_HIGHLIGHT, 3);
-		}
-		else if (isSelected) {
+		} else if (isSelected) {
 			drawHighlight(g2, btn, img, SELECTION_HIGHLIGHT, 2);
-		}
-		else {
+		} else {
 			drawHighlight(g2, btn, img, NORMAL_HIGHLIGHT, 2);
 		}
 	}
@@ -300,10 +290,9 @@ public class DisplaySetPanel extends JPanel {
 	// ── Ghost images for fully-transparent normal states ─────────────────────
 
 	/**
-	 * Resolves the normal-state image for a button. If the original image is fully
-	 * transparent (all alpha == 0) and a selected-state image exists, a "ghost"
-	 * placeholder is returned instead — a faded copy of the selected image annotated with
-	 * a marker symbol.
+	 * Resolves the normal-state image for a button. If the original image is fully transparent (all alpha == 0) and a
+	 * selected-state image exists, a "ghost" placeholder is returned instead — a faded copy of the selected image
+	 * annotated with a marker symbol.
 	 */
 	private BufferedImage resolveNormalImage(IgsButton btn) {
 		int normalId = btn.getNormalStartObjectIdRef();
@@ -353,9 +342,9 @@ public class DisplaySetPanel extends JPanel {
 	// ── Navigation arrows ───────────────────────────────────────────────────
 
 	/**
-	 * Draws oriented navigation arrows from each enabled button to its neighbour targets
-	 * (up, down, left, right). When multiple directions point to the same target, their
-	 * labels are collapsed into a single annotated line (e.g. "left,down").
+	 * Draws oriented navigation arrows from each enabled button to its neighbour targets (up, down, left, right). When
+	 * multiple directions point to the same target, their labels are collapsed into a single annotated line (e.g.
+	 * "left,down").
 	 */
 	private void drawNavigationArrows(Graphics2D g2, List<IgsButton> enabledButtons) {
 		// Build a fast lookup: button id → enabled button (for centre computation)
@@ -436,8 +425,7 @@ public class DisplaySetPanel extends JPanel {
 	}
 
 	/**
-	 * Draws an arrow from the edge of {@code src} towards the edge of {@code dst},
-	 * annotated with the given label.
+	 * Draws an arrow from the edge of {@code src} towards the edge of {@code dst}, annotated with the given label.
 	 */
 	private void drawArrowBetween(Graphics2D g2, IgsButton src, IgsButton dst, String label) {
 		int[] srcC = buttonCentre(src);
@@ -505,8 +493,8 @@ public class DisplaySetPanel extends JPanel {
 	}
 
 	/**
-	 * Approximates the distance from a rectangle's centre to its edge along a given
-	 * normalised direction vector (nx, ny).
+	 * Approximates the distance from a rectangle's centre to its edge along a given normalised direction vector (nx,
+	 * ny).
 	 */
 	private static double edgeDistance(int w, int h, double nx, double ny) {
 		double hw = w / 2.0;

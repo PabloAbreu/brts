@@ -6,8 +6,8 @@ import lombok.Setter;
 /**
  * Configuration for PGS subtitle rendering.
  * <p>
- * All fields have sensible defaults for typical 1080p Blu-ray output. Override individual
- * fields to customise the appearance.
+ * All fields have sensible defaults for typical 1080p Blu-ray output. Override individual fields to customise the
+ * appearance.
  */
 @Getter
 @Setter
@@ -31,8 +31,7 @@ public class PgsRenderConfig {
 	private int fontColor = 0xFFFFFFFF;
 
 	/**
-	 * Outline/border colour as ARGB (default: black, fully opaque — provides legibility
-	 * over varied backgrounds).
+	 * Outline/border colour as ARGB (default: black, fully opaque — provides legibility over varied backgrounds).
 	 */
 	private int outlineColor = 0xFF000000;
 
@@ -42,9 +41,8 @@ public class PgsRenderConfig {
 	private float outlineWidth = 3.0f;
 
 	/**
-	 * Default vertical position as a fraction of screen height (0.0 = top, 1.0 = bottom).
-	 * The subtitle baseline is placed at this vertical offset. Default 0.90 places text
-	 * near the bottom.
+	 * Default vertical position as a fraction of screen height (0.0 = top, 1.0 = bottom). The subtitle baseline is
+	 * placed at this vertical offset. Default 0.90 places text near the bottom.
 	 */
 	private double verticalPositionRatio = 0.90;
 

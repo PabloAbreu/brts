@@ -22,16 +22,14 @@ public class BuildCli {
 	@Setter
 	public static class BaseOptions {
 
-		@Option(name = "--error-details", required = false, hidden = true,
-				usage = "Shows more detailed errors. This option should be put first.")
+		@Option(name = "--error-details", required = false, hidden = true, usage = "Shows more detailed errors. This option should be put first.")
 		boolean errorDetails;
 
 	}
 
 	public static class BuildOptions extends BaseOptions {
 
-		@JsonInputOption(name = "--descriptor", required = true,
-				usage = "Path to the middle-level disc JSON descriptor")
+		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the middle-level disc JSON descriptor")
 		DiscDescriptor descriptor;
 
 		@Option(name = "--output", required = true, usage = "Output directory for low-level descriptors and script")

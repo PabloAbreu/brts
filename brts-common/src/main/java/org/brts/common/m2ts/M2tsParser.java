@@ -18,14 +18,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Parser for M2TS (MPEG-2 Transport Stream) files used on Blu-ray discs.
  * <p>
- * M2TS files are standard 188-byte MPEG-2 TS packets each prepended with a 4-byte
- * {@code TP_extra_header} (Arrival Time Stamp + copy-permission bits), giving a fixed
- * 192-byte <em>Source Packet</em> size.
+ * M2TS files are standard 188-byte MPEG-2 TS packets each prepended with a 4-byte {@code TP_extra_header} (Arrival Time
+ * Stamp + copy-permission bits), giving a fixed 192-byte <em>Source Packet</em> size.
  * <p>
  * This parser:
  * <ol>
- * <li>Scans the first {@code MAX_SCAN_PACKETS} source packets (or the full file for small
- * files) to harvest PAT, PMT, and PCR data.</li>
+ * <li>Scans the first {@code MAX_SCAN_PACKETS} source packets (or the full file for small files) to harvest PAT, PMT,
+ * and PCR data.</li>
  * <li>Builds an {@link M2tsInfo} with stream metadata and timing information.</li>
  * </ol>
  * <p>
@@ -55,6 +54,7 @@ public class M2tsParser {
 
 	/**
 	 * Parses the M2TS file at {@code path} and returns stream/timing metadata.
+	 *
 	 * @param path path to the {@code .m2ts} file
 	 * @return populated {@link M2tsInfo}
 	 * @throws IOException on I/O error
@@ -192,8 +192,7 @@ public class M2tsParser {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Extracts the PMT PID from a PAT (Program Association Table) TS packet. Returns -1
-	 * if parsing fails.
+	 * Extracts the PMT PID from a PAT (Program Association Table) TS packet. Returns -1 if parsing fails.
 	 */
 	private int parsePat(byte[] sp) {
 		// TS payload starts at offset 4 + (possibly) adaptation field
@@ -268,8 +267,7 @@ public class M2tsParser {
 																					// audio
 
 	/**
-	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not
-	 * contain a recognisable PMT.
+	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not contain a recognisable PMT.
 	 */
 	private PmtParseResult parsePmt(byte[] sp) {
 		int tsOff = 4;
@@ -324,123 +322,115 @@ public class M2tsParser {
 				if (descPos + 2 + descLen > sp.length)
 					break; // malformed descriptor
 				switch (descTag) {
-					case descriptor_tag_registration -> {
-						// Registration descriptor (e.g. "HDMV" for Blu-ray)
-						if (descLen >= 4) {
-							String reg = new String(sp, descPos + 2, 4, java.nio.charset.StandardCharsets.US_ASCII);
-							log.debug("  Registration descriptor: {}", reg);
-							if (!reg.isBlank())
-								streamInfo.setRegistration(reg);
-							if (descriptor_tag_registration_HDMV.equals(reg)) {
-								if (descLen == 8) {
-									int category = sp[descPos + 6] & 0xFF;
-									if (category == descriptor_tag_registration_HDMV_mystery_byte) {
-										int codec = sp[descPos + 7] & 0xFF;
-										if (codec != streamType) {
-											log.warn(
-													"  HDMV registration stream type 0x{} does not match PMT stream type 0x{}",
-													Integer.toHexString(codec), Integer.toHexString(streamType));
-										}
-										int todo = ((sp[descPos + 8] & 0xFF) << 8) | (sp[descPos + 9] & 0xFF);
-										if (streamInfo.getCodingType().isVideo()) {
-											int vfr = sp[descPos + 8] & 0xFF;
-											streamInfo.setVfr(vfr);
-										}
-										else if (todo == 0x31FF && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-											streamInfo.setBitrateKbps(2304);// based upon
-																			// one LPCM
-																			// example
-											streamInfo.setSampleRateHz(48000);
-											streamInfo.setChannels(2);
-										}
-										else if (todo == 0x317F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-											streamInfo.setBitrateKbps(1536);// based upon
-																			// one 16-bit
-																			// LPCM
-																			// example
-											streamInfo.setSampleRateHz(48000);
-											streamInfo.setChannels(2);
-										}
-										else if (todo == 0x617F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-											streamInfo.setBitrateKbps(4608);// based upon
-																			// one LPCM
-																			// example
-										}
-										else {
-											log.warn(
-													"  TODO developers: reverse engineer that. HDMV registration has some original bytes: 0x{}",
-													Integer.toHexString(todo));
-										}
+				case descriptor_tag_registration -> {
+					// Registration descriptor (e.g. "HDMV" for Blu-ray)
+					if (descLen >= 4) {
+						String reg = new String(sp, descPos + 2, 4, java.nio.charset.StandardCharsets.US_ASCII);
+						log.debug("  Registration descriptor: {}", reg);
+						if (!reg.isBlank())
+							streamInfo.setRegistration(reg);
+						if (descriptor_tag_registration_HDMV.equals(reg)) {
+							if (descLen == 8) {
+								int category = sp[descPos + 6] & 0xFF;
+								if (category == descriptor_tag_registration_HDMV_mystery_byte) {
+									int codec = sp[descPos + 7] & 0xFF;
+									if (codec != streamType) {
+										log.warn(
+												"  HDMV registration stream type 0x{} does not match PMT stream type 0x{}",
+												Integer.toHexString(codec), Integer.toHexString(streamType));
+									}
+									int todo = ((sp[descPos + 8] & 0xFF) << 8) | (sp[descPos + 9] & 0xFF);
+									if (streamInfo.getCodingType().isVideo()) {
+										int vfr = sp[descPos + 8] & 0xFF;
+										streamInfo.setVfr(vfr);
+									} else if (todo == 0x31FF && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
+										streamInfo.setBitrateKbps(2304);// based upon
+																		// one LPCM
+																		// example
+										streamInfo.setSampleRateHz(48000);
+										streamInfo.setChannels(2);
+									} else if (todo == 0x317F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
+										streamInfo.setBitrateKbps(1536);// based upon
+																		// one 16-bit
+																		// LPCM
+																		// example
+										streamInfo.setSampleRateHz(48000);
+										streamInfo.setChannels(2);
+									} else if (todo == 0x617F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
+										streamInfo.setBitrateKbps(4608);// based upon
+																		// one LPCM
+																		// example
+									} else {
+										log.warn(
+												"  TODO developers: reverse engineer that. HDMV registration has some original bytes: 0x{}",
+												Integer.toHexString(todo));
 									}
 								}
-								else {
-									log.warn("  Unexpected registration descriptor length {} for HDMV stream", descLen);
-								}
-								// found on one track 04 64 00 29 BF after the 8-byte HDMV
-								// no idea what that means
+							} else {
+								log.warn("  Unexpected registration descriptor length {} for HDMV stream", descLen);
 							}
-							else if (descriptor_tag_registration_AC_3.equals(reg)) {
-								if (descLen == 4 && esInfoLen >= 12) {
-									int audioType = sp[descPos + 6] & 0xFF;
-									if (audioType != StreamCodingType.DOLBY_AC3.getCodingTypeByte()) {
-										log.warn("  AC-3 registration stream type 0x{} does not match expected AC3",
-												Integer.toHexString(audioType));
-									}
+							// found on one track 04 64 00 29 BF after the 8-byte HDMV
+							// no idea what that means
+						} else if (descriptor_tag_registration_AC_3.equals(reg)) {
+							if (descLen == 4 && esInfoLen >= 12) {
+								int audioType = sp[descPos + 6] & 0xFF;
+								if (audioType != StreamCodingType.DOLBY_AC3.getCodingTypeByte()) {
+									log.warn("  AC-3 registration stream type 0x{} does not match expected AC3",
+											Integer.toHexString(audioType));
 								}
-								int subLength = sp[descPos + 7] & 0xFF;
-								if (subLength == 4) {
-									int audioCodingType = sp[descPos + 8] & 0xFF;
-									// IA suggests that:
-									// 0x06 AC‑3 (Dolby Digital) primary audio
-									// 0x0A E‑AC‑3 (Dolby Digital Plus) primary audio
-									// 0x0B AC‑3 secondary audio
-									// 0x0E E‑AC‑3 secondary audio
-									// 0x82 DTS primary audio
-									// 0x83 DTS‑HD primary audio
-									// 0x84 DTS‑HD Master Audio
-									// 0x80 LPCM primary audio
-									// 0x81 LPCM secondary audio
-									// but i've seen E-AC-3 with code 0x06 on some
-									// blu-rays...
-									// 0x08 seems to be AC-3 too. So confidence is low on
-									// that mapping.
-									BitrateCode bitrateCode = BitrateCode.fromCode(sp[descPos + 9] & 0xFF);
-									if (bitrateCode == null) {
-										log.warn("  Unknown bitrate code 0x{} in AC-3 registration descriptor",
-												Integer.toHexString(sp[descPos + 9] & 0xFF));
-									}
-									else {
-										streamInfo.setBitrateKbps(bitrateCode.getBitrateKbps());
-										streamInfo.setChannels(bitrateCode.getChannels());
-									}
-									// no idea what that data means
-									// found on some blu-rays:
-									// 06 35 04 00 : AC-3 320 kbps, 2 channels, 48 kHz
-									// 06 40 0E 00 : E-AC-3 896 kbps, 8 channels, 48 kHz
-									// 06 29 04 00 : AC-3 192 kbps, 2 channels, 48 kHz .
-									// 08 29 04 00 too
-									int todooo = sp[descPos + 10] & 0xFF;
-									// 0x04 seems to be 2, and 0X0E seems to be 8
-									// channels, but that is based on very limited data
-									// and may be wrong.
+							}
+							int subLength = sp[descPos + 7] & 0xFF;
+							if (subLength == 4) {
+								int audioCodingType = sp[descPos + 8] & 0xFF;
+								// IA suggests that:
+								// 0x06 AC‑3 (Dolby Digital) primary audio
+								// 0x0A E‑AC‑3 (Dolby Digital Plus) primary audio
+								// 0x0B AC‑3 secondary audio
+								// 0x0E E‑AC‑3 secondary audio
+								// 0x82 DTS primary audio
+								// 0x83 DTS‑HD primary audio
+								// 0x84 DTS‑HD Master Audio
+								// 0x80 LPCM primary audio
+								// 0x81 LPCM secondary audio
+								// but i've seen E-AC-3 with code 0x06 on some
+								// blu-rays...
+								// 0x08 seems to be AC-3 too. So confidence is low on
+								// that mapping.
+								BitrateCode bitrateCode = BitrateCode.fromCode(sp[descPos + 9] & 0xFF);
+								if (bitrateCode == null) {
+									log.warn("  Unknown bitrate code 0x{} in AC-3 registration descriptor",
+											Integer.toHexString(sp[descPos + 9] & 0xFF));
+								} else {
+									streamInfo.setBitrateKbps(bitrateCode.getBitrateKbps());
+									streamInfo.setChannels(bitrateCode.getChannels());
 								}
+								// no idea what that data means
+								// found on some blu-rays:
+								// 06 35 04 00 : AC-3 320 kbps, 2 channels, 48 kHz
+								// 06 40 0E 00 : E-AC-3 896 kbps, 8 channels, 48 kHz
+								// 06 29 04 00 : AC-3 192 kbps, 2 channels, 48 kHz .
+								// 08 29 04 00 too
+								int todooo = sp[descPos + 10] & 0xFF;
+								// 0x04 seems to be 2, and 0X0E seems to be 8
+								// channels, but that is based on very limited data
+								// and may be wrong.
+							}
 
-							}
 						}
 					}
-					case descriptor_tag_ISO_639_LANGUAGE -> {
-						// ISO 639 language descriptor
-						if (descLen >= 3) {
-							String lang = new String(sp, descPos + 2, 3, java.nio.charset.StandardCharsets.US_ASCII)
-								.trim();
-							log.debug("  Language descriptor: {}", lang);
-							if (!lang.isBlank())
-								streamInfo.setLanguage(lang);
-						}
+				}
+				case descriptor_tag_ISO_639_LANGUAGE -> {
+					// ISO 639 language descriptor
+					if (descLen >= 3) {
+						String lang = new String(sp, descPos + 2, 3, java.nio.charset.StandardCharsets.US_ASCII).trim();
+						log.debug("  Language descriptor: {}", lang);
+						if (!lang.isBlank())
+							streamInfo.setLanguage(lang);
 					}
-					default -> {
-						// Other descriptors can be handled here if needed
-					}
+				}
+				default -> {
+					// Other descriptors can be handled here if needed
+				}
 				}
 				descPos += 2 + descLen;
 			}
@@ -457,8 +447,7 @@ public class M2tsParser {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Extracts the 27 MHz PCR value from a TS packet's adaptation field. Returns -1 if no
-	 * PCR is present.
+	 * Extracts the 27 MHz PCR value from a TS packet's adaptation field. Returns -1 if no PCR is present.
 	 */
 	public static long extractPcr(byte[] sp) {
 		final int tsOff = 4;
@@ -489,26 +478,26 @@ public class M2tsParser {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Maps an ISO 13818-1 stream_type byte to a Blu-ray {@link StreamCodingType}. Returns
-	 * null for unknown stream types.
+	 * Maps an ISO 13818-1 stream_type byte to a Blu-ray {@link StreamCodingType}. Returns null for unknown stream
+	 * types.
 	 */
 	public static StreamCodingType mapStreamType(int streamTypeByte) {
 		return switch (streamTypeByte) {
-			case 0x02 -> StreamCodingType.MPEG2_VIDEO;
-			case 0x1B -> StreamCodingType.H264_AVC;
-			case 0x24 -> StreamCodingType.H265_HEVC;
-			case 0xEA -> StreamCodingType.VC1;
-			case 0x80 -> StreamCodingType.LPCM;
-			case 0x81 -> StreamCodingType.DOLBY_AC3;
-			case 0x82 -> StreamCodingType.DTS;
-			case 0x83 -> StreamCodingType.DOLBY_TRUEHD;
-			case 0x84 -> StreamCodingType.DOLBY_AC3_PLUS;
-			case 0x85 -> StreamCodingType.DTS_HD;
-			case 0x86 -> StreamCodingType.DTS_HD_MASTER_AUDIO;
-			case 0x90 -> StreamCodingType.PRESENTATION_GRAPHICS;
-			case 0x91 -> StreamCodingType.INTERACTIVE_GRAPHICS;
-			case 0x92 -> StreamCodingType.TEXT_SUBTITLE;
-			default -> null;
+		case 0x02 -> StreamCodingType.MPEG2_VIDEO;
+		case 0x1B -> StreamCodingType.H264_AVC;
+		case 0x24 -> StreamCodingType.H265_HEVC;
+		case 0xEA -> StreamCodingType.VC1;
+		case 0x80 -> StreamCodingType.LPCM;
+		case 0x81 -> StreamCodingType.DOLBY_AC3;
+		case 0x82 -> StreamCodingType.DTS;
+		case 0x83 -> StreamCodingType.DOLBY_TRUEHD;
+		case 0x84 -> StreamCodingType.DOLBY_AC3_PLUS;
+		case 0x85 -> StreamCodingType.DTS_HD;
+		case 0x86 -> StreamCodingType.DTS_HD_MASTER_AUDIO;
+		case 0x90 -> StreamCodingType.PRESENTATION_GRAPHICS;
+		case 0x91 -> StreamCodingType.INTERACTIVE_GRAPHICS;
+		case 0x92 -> StreamCodingType.TEXT_SUBTITLE;
+		default -> null;
 		};
 	}
 

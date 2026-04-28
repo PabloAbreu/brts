@@ -11,20 +11,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A complete PGS Display Set — the collection of all segments between a PCS (Presentation
- * Composition Segment) and the End-Of-Display marker.
+ * A complete PGS Display Set — the collection of all segments between a PCS (Presentation Composition Segment) and the
+ * End-Of-Display marker.
  * <p>
  * A display set typically contains:
  * <ul>
  * <li>One PCS ({@link PgsCompositionSegment})</li>
  * <li>Zero or more PDS (Palette Definition Segments) — reuses {@link IgsPalette}</li>
- * <li>Zero or more WDS (Window Definition Segments) — reuses
- * {@link IgsWindowDefinition}</li>
+ * <li>Zero or more WDS (Window Definition Segments) — reuses {@link IgsWindowDefinition}</li>
  * <li>Zero or more ODS (Object Definition Segments) — reuses {@link IgsObject}</li>
  * <li>One End-Of-Display segment</li>
  * </ul>
- * PDS, ODS, WDS, and END segments are structurally identical between PGS and IGS, so we
- * reuse the IGS model classes directly.
+ * PDS, ODS, WDS, and END segments are structurally identical between PGS and IGS, so we reuse the IGS model classes
+ * directly.
  */
 @Getter
 @Setter

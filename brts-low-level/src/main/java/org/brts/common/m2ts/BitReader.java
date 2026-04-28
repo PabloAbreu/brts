@@ -1,8 +1,7 @@
 package org.brts.common.m2ts;
 
 /**
- * MSB-first bit reader for H.264 RBSP bytes (emulation-prevention bytes already removed
- * by the caller).
+ * MSB-first bit reader for H.264 RBSP bytes (emulation-prevention bytes already removed by the caller).
  */
 public final class BitReader {
 

@@ -10,9 +10,8 @@ import java.util.List;
 /**
  * Result of scanning all playlists on a Blu-ray disc.
  * <p>
- * Contains the auto-detected (or forced) content type and a curated list of "interesting"
- * playlists that most likely represent the main content (feature film + alternate cuts,
- * or TV-series episodes).
+ * Contains the auto-detected (or forced) content type and a curated list of "interesting" playlists that most likely
+ * represent the main content (feature film + alternate cuts, or TV-series episodes).
  */
 @Getter
 @Setter
@@ -46,8 +45,7 @@ public class PlaylistScanResult {
 		private String durationFormatted;
 
 		/**
-		 * A hint about the role of this playlist (e.g. "main movie", "alternate cut",
-		 * "episode").
+		 * A hint about the role of this playlist (e.g. "main movie", "alternate cut", "episode").
 		 */
 		private String role;
 

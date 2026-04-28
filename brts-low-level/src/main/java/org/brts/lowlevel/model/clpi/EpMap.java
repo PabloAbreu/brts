@@ -6,9 +6,8 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * EP_map (Entry Point Map) — enables random access into an M2TS clip. Each
- * {@link EpMapEntry} stores a coarse-grained (SPN=Source Packet Number) anchor aligned to
- * a keyframe, required for seek and chapter navigation.
+ * EP_map (Entry Point Map) — enables random access into an M2TS clip. Each {@link EpMapEntry} stores a coarse-grained
+ * (SPN=Source Packet Number) anchor aligned to a keyframe, required for seek and chapter navigation.
  */
 @Getter
 @Setter
@@ -36,8 +35,8 @@ public class EpMap {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * A single entry-point anchor within an EP_map stream. The combination of PTS + SPN
-	 * uniquely identifies a seekable position.
+	 * A single entry-point anchor within an EP_map stream. The combination of PTS + SPN uniquely identifies a seekable
+	 * position.
 	 */
 	@Getter
 	@Setter
@@ -53,8 +52,8 @@ public class EpMap {
 		private boolean isAngleChangePoint;
 
 		/**
-		 * I-picture end position offset (3 bits, 0–7). Indicates the relative distance to
-		 * the end of the I-picture in units of aligned units.
+		 * I-picture end position offset (3 bits, 0–7). Indicates the relative distance to the end of the I-picture in
+		 * units of aligned units.
 		 */
 		private int iEndPositionOffset;
 

@@ -5,8 +5,8 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Sequence descriptor — indicates whether a segment is the first or last fragment of a
- * multi-fragment object or composition.
+ * Sequence descriptor — indicates whether a segment is the first or last fragment of a multi-fragment object or
+ * composition.
  */
 @Getter
 @Setter

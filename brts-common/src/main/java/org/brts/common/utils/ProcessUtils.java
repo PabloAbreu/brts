@@ -12,15 +12,13 @@ import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Convenience utilities for managing external processes, including consuming their output
- * and error streams.
+ * Convenience utilities for managing external processes, including consuming their output and error streams.
  */
 public class ProcessUtils {
 
 	/**
-	 * Swallows an InputStream in a separate thread, passing each line to the given
-	 * consumer. Useful for consuming process output or error streams without blocking the
-	 * main thread.
+	 * Swallows an InputStream in a separate thread, passing each line to the given consumer. Useful for consuming
+	 * process output or error streams without blocking the main thread.
 	 */
 	@RequiredArgsConstructor
 	public static class StreamGobbler extends Thread {
@@ -36,8 +34,7 @@ public class ProcessUtils {
 				while ((line = reader.readLine()) != null) {
 					consumer.accept(line);
 				}
-			}
-			catch (IOException e) {
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -45,8 +42,7 @@ public class ProcessUtils {
 	}
 
 	/**
-	 * Specialized StreamGobbler that accumulates the output into a StringBuilder and
-	 * returns it as a single string.
+	 * Specialized StreamGobbler that accumulates the output into a StringBuilder and returns it as a single string.
 	 */
 	public static class StringStreamGobbler extends StreamGobbler {
 
@@ -65,6 +61,7 @@ public class ProcessUtils {
 
 	/**
 	 * Finds the full path to an executable binary by searching the system PATH.
+	 *
 	 * @param binaryName
 	 * @return the full path to the binary if found, or null if not found
 	 */

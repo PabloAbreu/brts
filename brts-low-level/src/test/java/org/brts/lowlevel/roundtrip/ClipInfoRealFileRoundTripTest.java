@@ -22,8 +22,8 @@ import static org.assertj.core.data.Offset.offset;
 /**
  * Round-trip test using real CLPI files from the samples directory.
  * <p>
- * For each sample: parse the real file, write the model back to bytes, re-parse the
- * written bytes, and compare the two parsed models.
+ * For each sample: parse the real file, write the model back to bytes, re-parse the written bytes, and compare the two
+ * parsed models.
  */
 class ClipInfoRealFileRoundTripTest {
 
@@ -88,13 +88,13 @@ class ClipInfoRealFileRoundTripTest {
 			ClipInfo second = writeAndReparse(first);
 
 			assertThat(second.getClipStreamType()).as("clipStreamType for %s", file.getFileName())
-				.isEqualTo(first.getClipStreamType());
+					.isEqualTo(first.getClipStreamType());
 			assertThat(second.getApplicationType()).as("applicationType for %s", file.getFileName())
-				.isEqualTo(first.getApplicationType());
+					.isEqualTo(first.getApplicationType());
 			assertThat(second.getTsRecordingStartPts().getTicks()).as("startPts for %s", file.getFileName())
-				.isEqualTo(first.getTsRecordingStartPts().getTicks());
+					.isEqualTo(first.getTsRecordingStartPts().getTicks());
 			assertThat(second.getTsRecordingEndPts().getTicks()).as("endPts for %s", file.getFileName())
-				.isEqualTo(first.getTsRecordingEndPts().getTicks());
+					.isEqualTo(first.getTsRecordingEndPts().getTicks());
 			assertThat(second.getStreams()).hasSameSizeAs(first.getStreams());
 
 			// EP map: either both null or same stream count
@@ -163,9 +163,9 @@ class ClipInfoRealFileRoundTripTest {
 				assertThat(e2.getPtsTicks()).as("ep[%d][%d].ptsTicks", s, e).isEqualTo(e1.getPtsTicks());
 				assertThat(e2.getSpn()).as("ep[%d][%d].spn", s, e).isEqualTo(e1.getSpn());
 				assertThat(e2.isAngleChangePoint()).as("ep[%d][%d].angleChange", s, e)
-					.isEqualTo(e1.isAngleChangePoint());
+						.isEqualTo(e1.isAngleChangePoint());
 				assertThat(e2.getIEndPositionOffset()).as("ep[%d][%d].iEndPosOffset", s, e)
-					.isEqualTo(e1.getIEndPositionOffset());
+						.isEqualTo(e1.getIEndPositionOffset());
 			}
 		}
 	}

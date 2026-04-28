@@ -8,8 +8,9 @@ import java.util.List;
 /**
  * Middle-level descriptor for a complete Blu-ray disc.
  * <p>
- * This is the main input for the middle-level authoring pipeline. Example
- * {@code disc.json}: <pre>{@code
+ * This is the main input for the middle-level authoring pipeline. Example {@code disc.json}:
+ *
+ * <pre>{@code
  * {
  *   "discName": "My Movie",
  *   "hasTopMenu": false,

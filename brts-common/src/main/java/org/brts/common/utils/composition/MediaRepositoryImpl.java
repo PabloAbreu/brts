@@ -10,8 +10,8 @@ import org.brts.common.utils.ImageUtils;
 public class MediaRepositoryImpl implements MediaRepository {
 
 	/**
-	 * map of videoPath to VideoFrames instances, to "cache" loaded videos Note that
-	 * VideoFrames instances do their own caching for frames
+	 * map of videoPath to VideoFrames instances, to "cache" loaded videos Note that VideoFrames instances do their own
+	 * caching for frames
 	 */
 	private final Map<Path, VideoFrames> videoCache = new HashMap<>();
 
@@ -27,8 +27,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 		return videoCache.computeIfAbsent(videoPath, path -> {
 			try {
 				return new M2tsVideoFrames(path);
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				throw new RuntimeException("Failed to load video frames for path: " + path, e);
 			}
 		});
@@ -55,8 +54,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 		videoCache.values().forEach(vf -> {
 			try {
 				vf.close();
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				// just ignore
 			}
 		});
@@ -64,8 +62,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 		syntheticCache.values().forEach(s -> {
 			try {
 				s.close();
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				// just ignore
 			}
 		});

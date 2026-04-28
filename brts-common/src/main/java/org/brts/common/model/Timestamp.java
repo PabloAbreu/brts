@@ -4,17 +4,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 /**
- * Represents a Blu-ray 90 kHz timestamp (used in CLPI and MPLS). The Blu-ray spec uses a
- * 45 kHz clock for some fields and 90 kHz for others; all values here are in 90 kHz
- * units.
+ * Represents a Blu-ray 90 kHz timestamp (used in CLPI and MPLS). The Blu-ray spec uses a 45 kHz clock for some fields
+ * and 90 kHz for others; all values here are in 90 kHz units.
  */
 public final class Timestamp {
 
 	public static final long TICKS_PER_SECOND = 90_000L;
 
 	/**
-	 * MPLS PlayItem IN_time / OUT_time and PlayMark timestamps use the 45 kHz STC clock,
-	 * not the 90 kHz PTS clock.
+	 * MPLS PlayItem IN_time / OUT_time and PlayMark timestamps use the 45 kHz STC clock, not the 90 kHz PTS clock.
 	 */
 	public static final long MPLS_TICKS_PER_SECOND = 45_000L;
 

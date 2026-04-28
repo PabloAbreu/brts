@@ -5,8 +5,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Video descriptor found at the start of PCS / ICS segments. Describes the target video
- * dimensions and frame rate.
+ * Video descriptor found at the start of PCS / ICS segments. Describes the target video dimensions and frame rate.
  */
 @Getter
 @Setter

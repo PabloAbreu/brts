@@ -1,18 +1,25 @@
 package org.brts.common.model;
 
 /**
- * Codec types found on a Blu-ray stream. Each constant maps to the Blu-ray
- * stream_coding_type byte value.
+ * Codec types found on a Blu-ray stream. Each constant maps to the Blu-ray stream_coding_type byte value.
  */
 public enum StreamCodingType {
 
 	// Video
 	// maybe 1 = MPEG-1 ?
-	MPEG2_VIDEO(0x02), H264_AVC(0x1B), H265_HEVC(0x24), VC1(0xEA),
+	MPEG2_VIDEO(0x02),
+	H264_AVC(0x1B),
+	H265_HEVC(0x24),
+	VC1(0xEA),
 
 	// Audio
 	// maybe add 0x03, 0x04, 0xA1, 0XA2
-	LPCM(0x80), DOLBY_AC3(0x81), DTS(0x82), DOLBY_TRUEHD(0x83), DOLBY_AC3_PLUS(0x84), DTS_HD(0x85),
+	LPCM(0x80),
+	DOLBY_AC3(0x81),
+	DTS(0x82),
+	DOLBY_TRUEHD(0x83),
+	DOLBY_AC3_PLUS(0x84),
+	DTS_HD(0x85),
 	DTS_HD_MASTER_AUDIO(0x86),
 
 	// Presentation Graphics (subtitles)

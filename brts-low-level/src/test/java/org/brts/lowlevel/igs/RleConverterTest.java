@@ -219,8 +219,7 @@ class RleConverterTest {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Creates a simple greyscale palette: index N → Y=N, Cb=128, Cr=128, alpha=255
-	 * (except index 0 → transparent).
+	 * Creates a simple greyscale palette: index N → Y=N, Cb=128, Cr=128, alpha=255 (except index 0 → transparent).
 	 */
 	private IgsPalette createSimplePalette() {
 		IgsPalette pal = new IgsPalette();
@@ -239,8 +238,8 @@ class RleConverterTest {
 	}
 
 	/**
-	 * Builds a simple RLE stream: {@code width×height} filled with a single colour using
-	 * the long-run-with-colour encoding.
+	 * Builds a simple RLE stream: {@code width×height} filled with a single colour using the long-run-with-colour
+	 * encoding.
 	 */
 	private byte[] buildRle(int width, int height, int colorIdx) {
 		ByteArrayOutputStream buf = new ByteArrayOutputStream();

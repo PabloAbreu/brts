@@ -16,8 +16,7 @@ public class RleConverterCli {
 
 	public static class Options {
 
-		@Option(name = "--input", required = true,
-				usage = "Path to a demuxed IGS directory (with igs_manifest.json) or a single .rle file")
+		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json) or a single .rle file")
 		File input;
 
 		@Option(name = "--output", usage = "Output directory (directory mode) or output PNG file (single-file mode). "
@@ -30,8 +29,7 @@ public class RleConverterCli {
 		@Option(name = "--height", usage = "Image height in pixels (required for single-file mode)")
 		int height = -1;
 
-		@Option(name = "--palette-id",
-				usage = "Palette index to use (directory mode only; default: first palette in display set)")
+		@Option(name = "--palette-id", usage = "Palette index to use (directory mode only; default: first palette in display set)")
 		int paletteId = -1;
 
 	}
@@ -57,8 +55,7 @@ public class RleConverterCli {
 				Path outputDir = opts.output != null ? opts.output.toPath() : null;
 				converter.convertDirectory(inputPath, outputDir);
 				System.out.println("RLE → PNG conversion complete → " + (outputDir != null ? outputDir : inputPath));
-			}
-			else {
+			} else {
 				if (opts.width <= 0 || opts.height <= 0) {
 					System.err.println("Error: --width and --height are required when converting a single .rle file.");
 					printUsage(System.err);
@@ -68,8 +65,7 @@ public class RleConverterCli {
 				Path outputFile;
 				if (opts.output != null) {
 					outputFile = opts.output.toPath();
-				}
-				else {
+				} else {
 					String name = inputPath.getFileName().toString().replaceAll("\\.rle$", ".png");
 					outputFile = inputPath.resolveSibling(name);
 				}
@@ -83,9 +79,8 @@ public class RleConverterCli {
 	}
 
 	/**
-	 * Builds a simple greyscale palette (256 entries: index 0 = transparent, 1–255 =
-	 * increasingly bright white) for standalone RLE conversion when no palette JSON is
-	 * available.
+	 * Builds a simple greyscale palette (256 entries: index 0 = transparent, 1–255 = increasingly bright white) for
+	 * standalone RLE conversion when no palette JSON is available.
 	 */
 	private static IgsPalette buildGreyscalePalette() {
 		IgsPalette pal = new IgsPalette();

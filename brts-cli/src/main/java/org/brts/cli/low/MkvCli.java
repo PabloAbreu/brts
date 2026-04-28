@@ -13,8 +13,7 @@ import java.nio.file.Path;
  * <p>
  * Sub-commands:
  * <ul>
- * <li><b>mkv-info</b>: parse an MKV file and emit the discovered track metadata as
- * JSON</li>
+ * <li><b>mkv-info</b>: parse an MKV file and emit the discovered track metadata as JSON</li>
  * </ul>
  */
 public class MkvCli {

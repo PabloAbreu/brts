@@ -18,8 +18,7 @@ public interface CompositionContext {
 		Object value = eval(expression);
 		if (value instanceof Number) {
 			return ((Number) value).doubleValue();
-		}
-		else if (value == null)
+		} else if (value == null)
 			return 0;
 		else {
 			return new BigDecimal(value.toString()).doubleValue();

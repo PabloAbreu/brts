@@ -16,10 +16,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * Scans all {@code .mpls} files in a Blu-ray {@code BDMV/PLAYLIST} directory, parses each
- * one using the low-level {@link MoviePlaylistParser}, and applies configurable
- * heuristics to select the "interesting" playlists that most likely represent the main
- * content of the disc.
+ * Scans all {@code .mpls} files in a Blu-ray {@code BDMV/PLAYLIST} directory, parses each one using the low-level
+ * {@link MoviePlaylistParser}, and applies configurable heuristics to select the "interesting" playlists that most
+ * likely represent the main content of the disc.
  */
 public class PlaylistScanner {
 
@@ -29,9 +28,9 @@ public class PlaylistScanner {
 
 	/**
 	 * Scans the given PLAYLIST directory and returns the curated result.
+	 *
 	 * @param playlistDir path to the {@code BDMV/PLAYLIST} directory
-	 * @param config scanning/filtering configuration (use
-	 * {@link PlaylistScanConfig#defaults()} for sane defaults)
+	 * @param config      scanning/filtering configuration (use {@link PlaylistScanConfig#defaults()} for sane defaults)
 	 * @return the scan result with detected type and interesting playlists
 	 */
 	public PlaylistScanResult scan(Path playlistDir, PlaylistScanConfig config) throws IOException {
@@ -42,7 +41,8 @@ public class PlaylistScanner {
 
 		// Optionally exclude menus
 		List<PlaylistScanResult.AnnotatedPlaylist> candidates = config.isExcludeMenus()
-				? allParsed.stream().filter(a -> !a.isMenu()).toList() : allParsed;
+				? allParsed.stream().filter(a -> !a.isMenu()).toList()
+				: allParsed;
 
 		log.info("Parsed {} playlists ({} after menu exclusion) from {}", allParsed.size(), candidates.size(),
 				playlistDir);
@@ -82,8 +82,7 @@ public class PlaylistScanner {
 					ap.setDurationFormatted(formatDuration(dur));
 
 					result.add(ap);
-				}
-				catch (Exception e) {
+				} catch (Exception e) {
 					log.warn("Skipping unparseable playlist {}: {}", mplsFile.getFileName(), e.getMessage());
 				}
 			}
@@ -127,8 +126,7 @@ public class PlaylistScanner {
 
 		// Candidates above episode min duration
 		List<PlaylistScanResult.AnnotatedPlaylist> longEnough = candidates.stream()
-			.filter(a -> a.getDurationSeconds() >= episodeMinSec)
-			.toList();
+				.filter(a -> a.getDurationSeconds() >= episodeMinSec).toList();
 
 		if (longEnough.isEmpty()) {
 			log.info("No playlists above {} min; defaulting to MOVIE", config.getEpisodeMinMinutes());
@@ -137,14 +135,10 @@ public class PlaylistScanner {
 
 		// Check for TV-series pattern: multiple episodes of similar duration
 		if (longEnough.size() >= config.getEpisodeMinCount()) {
-			double maxDur = longEnough.stream()
-				.mapToDouble(PlaylistScanResult.AnnotatedPlaylist::getDurationSeconds)
-				.max()
-				.orElse(0);
-			double minDur = longEnough.stream()
-				.mapToDouble(PlaylistScanResult.AnnotatedPlaylist::getDurationSeconds)
-				.min()
-				.orElse(0);
+			double maxDur = longEnough.stream().mapToDouble(PlaylistScanResult.AnnotatedPlaylist::getDurationSeconds)
+					.max().orElse(0);
+			double minDur = longEnough.stream().mapToDouble(PlaylistScanResult.AnnotatedPlaylist::getDurationSeconds)
+					.min().orElse(0);
 
 			if (minDur > 0 && (maxDur / minDur) <= config.getEpisodeMaxDurationRatio()) {
 				// All "long enough" playlists are within the acceptable ratio → series
@@ -171,8 +165,8 @@ public class PlaylistScanner {
 		List<PlaylistScanResult.AnnotatedPlaylist> result = new ArrayList<>();
 
 		switch (type) {
-			case MOVIE -> filterMovie(candidates, config, result);
-			case TV_SERIES -> filterSeries(candidates, config, result);
+		case MOVIE -> filterMovie(candidates, config, result);
+		case TV_SERIES -> filterSeries(candidates, config, result);
 		}
 
 		return result;
@@ -196,11 +190,9 @@ public class PlaylistScanner {
 			if (!mainFound) {
 				ap.setRole("main movie");
 				mainFound = true;
-			}
-			else if (ap.getDurationSeconds() >= longestDur * config.getMovieAlternateCutRatio()) {
+			} else if (ap.getDurationSeconds() >= longestDur * config.getMovieAlternateCutRatio()) {
 				ap.setRole("alternate/director's cut");
-			}
-			else {
+			} else {
 				continue; // too short relative to main
 			}
 			result.add(ap);
@@ -242,14 +234,12 @@ public class PlaylistScanner {
 	private String buildSummary(DiscContentType type, List<PlaylistScanResult.AnnotatedPlaylist> interesting,
 			List<PlaylistScanResult.AnnotatedPlaylist> allCandidates) {
 		return switch (type) {
-			case MOVIE ->
-				String.format(
-						"Detected MOVIE disc — %d interesting playlist(s) out of %d total (non-menu). "
-								+ "Longest: %s.",
-						interesting.size(), allCandidates.size(),
-						interesting.isEmpty() ? "n/a" : interesting.get(0).getDurationFormatted());
-			case TV_SERIES -> String.format("Detected TV_SERIES disc — %d episode(s) out of %d total (non-menu).",
-					interesting.size(), allCandidates.size());
+		case MOVIE -> String.format(
+				"Detected MOVIE disc — %d interesting playlist(s) out of %d total (non-menu). " + "Longest: %s.",
+				interesting.size(), allCandidates.size(),
+				interesting.isEmpty() ? "n/a" : interesting.get(0).getDurationFormatted());
+		case TV_SERIES -> String.format("Detected TV_SERIES disc — %d episode(s) out of %d total (non-menu).",
+				interesting.size(), allCandidates.size());
 		};
 	}
 

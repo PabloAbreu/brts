@@ -21,14 +21,12 @@ import static org.assertj.core.api.Assumptions.assumeThat;
 /**
  * Integration tests against real MPLS files from a physical Blu-ray disc.
  * <p>
- * Sample disc is located at {@code samples/PB/BDMV/PLAYLIST/}. All tests are skipped when
- * the sample data is absent.
+ * Sample disc is located at {@code samples/PB/BDMV/PLAYLIST/}. All tests are skipped when the sample data is absent.
  * <p>
  * Disc layout notes (derived from binary analysis):
  * <ul>
- * <li>This disc uses BD-J with all clips referenced via SubPath entries, so
- * {@code numItems == 0} is normal — clips are not referenced by classic PlayItem
- * records.</li>
+ * <li>This disc uses BD-J with all clips referenced via SubPath entries, so {@code numItems == 0} is normal — clips are
+ * not referenced by classic PlayItem records.</li>
  * <li>PlayMarks carry real chapter/entry timestamps in 90 kHz ticks.</li>
  * <li>All MPLS files are version "0200".</li>
  * </ul>
@@ -42,7 +40,7 @@ class RealDiscPlaylistParserTest {
 	@BeforeAll
 	static void requireSampleData() {
 		assumeThat(Files.isDirectory(PLAYLIST)).as("sample disc data must be present at " + PLAYLIST.toAbsolutePath())
-			.isTrue();
+				.isTrue();
 	}
 
 	// ------------------------------------------------------------------
@@ -58,8 +56,8 @@ class RealDiscPlaylistParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * Representative files spanning all MPLS structural variants on this disc (different
-	 * subPath counts and mark counts) must parse without exception.
+	 * Representative files spanning all MPLS structural variants on this disc (different subPath counts and mark
+	 * counts) must parse without exception.
 	 */
 	@ParameterizedTest(name = "{0}.mpls parses without exception")
 	@ValueSource(strings = {
@@ -122,8 +120,7 @@ class RealDiscPlaylistParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * On this disc all playlists have 0 SubPath entries — clips are referenced via
-	 * PlayItems only.
+	 * On this disc all playlists have 0 SubPath entries — clips are referenced via PlayItems only.
 	 */
 	@ParameterizedTest(name = "{0}.mpls: numSubPaths == 0")
 	@ValueSource(strings = { "01129", "00600", "00800", "00805", "01113", "01309", "01343", "01460", "01121", "01632",
@@ -169,8 +166,7 @@ class RealDiscPlaylistParserTest {
 	/**
 	 * 00600.mpls — two entry marks for the main feature. Binary-verified exact values:
 	 * <ul>
-	 * <li>mark[0]: type=1 (entry), playItemRef=0, time=524280, entryEsPid=65535
-	 * (0xFFFF)</li>
+	 * <li>mark[0]: type=1 (entry), playItemRef=0, time=524280, entryEsPid=65535 (0xFFFF)</li>
 	 * <li>mark[1]: type=1 (entry), playItemRef=0, time=1100480</li>
 	 * </ul>
 	 */
@@ -204,8 +200,7 @@ class RealDiscPlaylistParserTest {
 	}
 
 	/**
-	 * 01113.mpls — two PlayItems (both clip "00248"), two entry marks pointing to refs 0
-	 * and 1.
+	 * 01113.mpls — two PlayItems (both clip "00248"), two entry marks pointing to refs 0 and 1.
 	 * <ul>
 	 * <li>item[0]: clip=00248, inTime=524280, outTime=749505</li>
 	 * <li>item[1]: clip=00248, inTime=749505, outTime=751381</li>
@@ -238,12 +233,11 @@ class RealDiscPlaylistParserTest {
 	}
 
 	/**
-	 * 00800.mpls — 31 marks, alternating type-1 (entry) and type-2 (link). Verifies first
-	 * mark, second mark, and last mark.
+	 * 00800.mpls — 31 marks, alternating type-1 (entry) and type-2 (link). Verifies first mark, second mark, and last
+	 * mark.
 	 */
 	/**
-	 * 00800.mpls — single PlayItem (clip "00705"), 31 chapter marks alternating type 1
-	 * and 2.
+	 * 00800.mpls — single PlayItem (clip "00705"), 31 chapter marks alternating type 1 and 2.
 	 * <ul>
 	 * <li>item[0]: clip=00705, inTime=27000000, outTime=317157367</li>
 	 * <li>mark[0]: type=1, time=27,000,000 (≈ 5-minute intro chapter)</li>
@@ -283,9 +277,8 @@ class RealDiscPlaylistParserTest {
 	}
 
 	/**
-	 * 00149.mpls — 301 PlayItems and 301 entry marks. Each mark references its
-	 * corresponding item (mark[i].ref == i). All marks have timestamp 524,280 and pid
-	 * 0xFFFF. First item: clip="00616", inTime=524280.
+	 * 00149.mpls — 301 PlayItems and 301 entry marks. Each mark references its corresponding item (mark[i].ref == i).
+	 * All marks have timestamp 524,280 and pid 0xFFFF. First item: clip="00616", inTime=524280.
 	 */
 	@Test
 	void marks_00149_bulkEntryMarks() throws IOException {
@@ -327,8 +320,7 @@ class RealDiscPlaylistParserTest {
 	// ------------------------------------------------------------------
 
 	/**
-	 * All marks must have markType in {1, 2}, non-negative time ticks, and non-negative
-	 * play-item ref.
+	 * All marks must have markType in {1, 2}, non-negative time ticks, and non-negative play-item ref.
 	 */
 	@ParameterizedTest(name = "{0}.mpls: all marks have valid field ranges")
 	@ValueSource(strings = { "00600", "00800", "00805", "01113", "01460", "00149" })
@@ -339,9 +331,9 @@ class RealDiscPlaylistParserTest {
 			PlayMark m = marks.get(i);
 			assertThat(m.getMarkType()).as("marks[%d].type in %s.mpls must be 1 or 2", i, name).isIn(1, 2);
 			assertThat(m.getMarkTimeTicks()).as("marks[%d].timeTicks in %s.mpls must be >= 0", i, name)
-				.isGreaterThanOrEqualTo(0L);
+					.isGreaterThanOrEqualTo(0L);
 			assertThat(m.getPlayItemRef()).as("marks[%d].playItemRef in %s.mpls must be >= 0", i, name)
-				.isGreaterThanOrEqualTo(0);
+					.isGreaterThanOrEqualTo(0);
 		}
 	}
 
@@ -361,7 +353,7 @@ class RealDiscPlaylistParserTest {
 					MoviePlaylist playlist = parser.parse(path);
 					assertThat(playlist).as("MoviePlaylist from %s", path.getFileName()).isNotNull();
 					assertThat(playlist.getPlayMarks()).as("playMarks from %s must not be null", path.getFileName())
-						.isNotNull();
+							.isNotNull();
 					count++;
 				}
 			}

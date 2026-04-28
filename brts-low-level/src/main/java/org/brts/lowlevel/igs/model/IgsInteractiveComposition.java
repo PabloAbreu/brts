@@ -8,9 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Interactive Composition — the top-level structure inside an ICS (Interactive
- * Composition Segment). Holds stream/UI model, timeout values, and the full list of
- * interactive pages.
+ * Interactive Composition — the top-level structure inside an ICS (Interactive Composition Segment). Holds stream/UI
+ * model, timeout values, and the full list of interactive pages.
  */
 @Getter
 @Setter
@@ -36,8 +35,7 @@ public class IgsInteractiveComposition {
 	private int uiModel;
 
 	/**
-	 * Composition timeout PTS (33 bits, 90 kHz). Valid only when
-	 * {@code streamModel == 0}.
+	 * Composition timeout PTS (33 bits, 90 kHz). Valid only when {@code streamModel == 0}.
 	 */
 	private long compositionTimeoutPts;
 

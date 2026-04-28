@@ -15,11 +15,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Parser for SubStation Alpha ({@code .ssa}) and Advanced SubStation Alpha ({@code .ass})
- * subtitle files.
+ * Parser for SubStation Alpha ({@code .ssa}) and Advanced SubStation Alpha ({@code .ass}) subtitle files.
  * <p>
- * The parser extracts dialogue events from the {@code [Events]} section and maps SSA
- * style overrides to the common {@link SubtitleCue} model:
+ * The parser extracts dialogue events from the {@code [Events]} section and maps SSA style overrides to the common
+ * {@link SubtitleCue} model:
  * <ul>
  * <li>{@code \pos(x,y)} &#8594; absolute pixel position</li>
  * <li>{@code \an1} to {@code \an9} &#8594; numpad alignment override</li>
@@ -97,9 +96,9 @@ public class SsaParser implements SubtitleParser {
 					formatFields = cols.split("\\s*,\\s*");
 					for (int i = 0; i < formatFields.length; i++) {
 						switch (formatFields[i].trim().toLowerCase()) {
-							case "text" -> textIndex = i;
-							case "start" -> startIndex = i;
-							case "end" -> endIndex = i;
+						case "text" -> textIndex = i;
+						case "start" -> startIndex = i;
+						case "end" -> endIndex = i;
 						}
 					}
 					continue;
@@ -151,8 +150,7 @@ public class SsaParser implements SubtitleParser {
 	// ── SSA text processing ─────────────────────────────────────────────────
 
 	/**
-	 * Extracts an optional position from SSA override tags. Looks for {@code \pos(x,y)}
-	 * first, then {@code \anN}.
+	 * Extracts an optional position from SSA override tags. Looks for {@code \pos(x,y)} first, then {@code \anN}.
 	 */
 	private SubtitlePosition extractPosition(String text) {
 		Matcher posM = POS_TAG.matcher(text);
@@ -204,9 +202,8 @@ public class SsaParser implements SubtitleParser {
 	}
 
 	/**
-	 * Within SSA override blocks, replaces a matched tag pattern with an HTML replacement
-	 * (placed outside the block). This is a best-effort conversion: if a block contains
-	 * multiple tags they are all converted.
+	 * Within SSA override blocks, replaces a matched tag pattern with an HTML replacement (placed outside the block).
+	 * This is a best-effort conversion: if a block contains multiple tags they are all converted.
 	 */
 	private static String replaceTagInOverrides(String text, Pattern tag, String html) {
 		// For each override block, extract the tag if present, insert the HTML
@@ -228,8 +225,7 @@ public class SsaParser implements SubtitleParser {
 					sb.append('{').append(inner).append('}');
 				}
 				sb.append(html);
-			}
-			else {
+			} else {
 				sb.append(block);
 			}
 			last = blockM.end();
@@ -242,6 +238,7 @@ public class SsaParser implements SubtitleParser {
 
 	/**
 	 * Parses an SSA/ASS timestamp: {@code H:MM:SS.cc} (centiseconds).
+	 *
 	 * @param ts the timestamp string
 	 * @return time in milliseconds
 	 */
@@ -259,8 +256,7 @@ public class SsaParser implements SubtitleParser {
 		if (csStr.length() <= 2) {
 			cs = Long.parseLong(csStr);
 			return ((long) h * 3600 + m * 60 + s) * 1000 + cs * 10;
-		}
-		else {
+		} else {
 			// Treat as milliseconds
 			cs = Long.parseLong(csStr);
 			return ((long) h * 3600 + m * 60 + s) * 1000 + cs;

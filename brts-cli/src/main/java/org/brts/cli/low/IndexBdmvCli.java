@@ -70,8 +70,7 @@ public class IndexBdmvCli {
 
 	public static class WriteOptions {
 
-		@JsonInputOption(name = "--input", required = true,
-				usage = "Path to the JSON model file (as produced by index-parse)")
+		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by index-parse)")
 		IndexBdmv input;
 
 		@Option(name = "--output", required = true, usage = "Output path for the generated index.bdmv file")

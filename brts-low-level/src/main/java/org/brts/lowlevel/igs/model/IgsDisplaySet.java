@@ -8,8 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A complete IGS Display Set — the collection of all segments between an ICS (or PCS) and
- * the End-Of-Display marker.
+ * A complete IGS Display Set — the collection of all segments between an ICS (or PCS) and the End-Of-Display marker.
  * <p>
  * A display set typically contains:
  * <ul>

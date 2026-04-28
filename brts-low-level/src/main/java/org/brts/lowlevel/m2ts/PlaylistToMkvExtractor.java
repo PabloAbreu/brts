@@ -21,22 +21,19 @@ import org.slf4j.LoggerFactory;
 /**
  * Extracts a full Blu-ray playlist into a single Matroska (MKV) file.
  * <p>
- * The extractor iterates over the playlist's {@link PlayItem}s, demuxes the corresponding
- * M2TS files, and writes all selected elementary streams into a single MKV container
- * using jebml. Chapter marks from the playlist are preserved.
+ * The extractor iterates over the playlist's {@link PlayItem}s, demuxes the corresponding M2TS files, and writes all
+ * selected elementary streams into a single MKV container using jebml. Chapter marks from the playlist are preserved.
  *
- * <h2>Stream selection</h2> The caller controls which audio and subtitle streams are
- * retained via PID filters. The <em>video</em> stream is always included (exactly one
- * video track per playlist is expected).
+ * <h2>Stream selection</h2> The caller controls which audio and subtitle streams are retained via PID filters. The
+ * <em>video</em> stream is always included (exactly one video track per playlist is expected).
  *
- * <h2>Usage</h2> <pre>{@code
+ * <h2>Usage</h2>
+ *
+ * <pre>{@code
  * MoviePlaylist playlist = new MoviePlaylistParser().parse(mplsPath);
- * new PlaylistToMkvExtractor().extract(
- *         bdmvStreamDir,      // e.g. /disc/BDMV/STREAM
- *         playlist,
- *         outputMkvPath,
- *         Set.of(4352),       // audio PIDs to keep (null = all)
- *         Set.of(4608)        // subtitle PIDs to keep (null = all)
+ * new PlaylistToMkvExtractor().extract(bdmvStreamDir, // e.g. /disc/BDMV/STREAM
+ * 		playlist, outputMkvPath, Set.of(4352), // audio PIDs to keep (null = all)
+ * 		Set.of(4608) // subtitle PIDs to keep (null = all)
  * );
  * }</pre>
  */
@@ -49,8 +46,7 @@ public class PlaylistToMkvExtractor {
 	private final M2tsDemuxer demuxer = new M2tsDemuxer();
 
 	/**
-	 * Extracts the given playlist into an MKV file, retaining all audio and subtitle
-	 * streams.
+	 * Extracts the given playlist into an MKV file, retaining all audio and subtitle streams.
 	 */
 	public void extract(Path streamDir, MoviePlaylist playlist, Path outputMkv) throws IOException {
 		extract(streamDir, playlist, outputMkv, null, null);
@@ -58,10 +54,11 @@ public class PlaylistToMkvExtractor {
 
 	/**
 	 * Extracts the given playlist into an MKV file.
-	 * @param streamDir directory containing M2TS files (e.g. {@code /disc/BDMV/STREAM})
-	 * @param playlist parsed MPLS playlist
-	 * @param outputMkv path to the output MKV file
-	 * @param audioPids audio PIDs to retain; {@code null} or empty = all audio
+	 *
+	 * @param streamDir    directory containing M2TS files (e.g. {@code /disc/BDMV/STREAM})
+	 * @param playlist     parsed MPLS playlist
+	 * @param outputMkv    path to the output MKV file
+	 * @param audioPids    audio PIDs to retain; {@code null} or empty = all audio
 	 * @param subtitlePids subtitle PIDs to retain; {@code null} or empty = all subs
 	 * @throws IOException on I/O error
 	 */
@@ -132,12 +129,10 @@ public class PlaylistToMkvExtractor {
 			if (ct.isVideo()) {
 				// Always include the video stream
 				result.add(s.getPid());
-			}
-			else if (ct.isAudio()) {
+			} else if (ct.isAudio()) {
 				if (audioPids == null || audioPids.isEmpty() || audioPids.contains(s.getPid()))
 					result.add(s.getPid());
-			}
-			else if (ct.isSubtitle()) {
+			} else if (ct.isSubtitle()) {
 				if (subtitlePids == null || subtitlePids.isEmpty() || subtitlePids.contains(s.getPid()))
 					result.add(s.getPid());
 			}
@@ -169,10 +164,8 @@ public class PlaylistToMkvExtractor {
 		filtered.setPcrPid(info.getPcrPid());
 
 		if (info.getStreams() != null) {
-			List<M2tsStreamInfo> filteredStreams = info.getStreams()
-				.stream()
-				.filter(s -> pids.contains(s.getPid()))
-				.collect(Collectors.toList());
+			List<M2tsStreamInfo> filteredStreams = info.getStreams().stream().filter(s -> pids.contains(s.getPid()))
+					.collect(Collectors.toList());
 			filtered.setStreams(filteredStreams);
 		}
 		return filtered;

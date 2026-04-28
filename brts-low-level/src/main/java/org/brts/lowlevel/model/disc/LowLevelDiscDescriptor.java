@@ -26,8 +26,7 @@ public class LowLevelDiscDescriptor {
 	/**
 	 * Parent folder.
 	 *
-	 * Passing parentFolder=/some/path and discName=MY_MOVIE will lead to creation of
-	 * /some/path/MY_MOVIE/BDMV etc...
+	 * Passing parentFolder=/some/path and discName=MY_MOVIE will lead to creation of /some/path/MY_MOVIE/BDMV etc...
 	 */
 	private String parentFolder;
 

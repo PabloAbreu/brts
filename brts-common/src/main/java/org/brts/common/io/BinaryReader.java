@@ -4,8 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Reads big-endian binary data from an InputStream. All Blu-ray binary structures use
- * big-endian byte ordering.
+ * Reads big-endian binary data from an InputStream. All Blu-ray binary structures use big-endian byte ordering.
  */
 public class BinaryReader implements AutoCloseable {
 

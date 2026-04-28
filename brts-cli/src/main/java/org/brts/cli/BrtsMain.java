@@ -11,7 +11,9 @@ import java.util.Map;
 /**
  * Root CLI dispatcher for the BRTStool suite.
  * <p>
- * Usage: <pre>
+ * Usage:
+ *
+ * <pre>
  *   brt-cli.jar &lt;level&gt; &lt;command&gt; [options]
  *
  *   Levels:
@@ -49,14 +51,12 @@ public class BrtsMain {
 			LevelDispatcher dispatcher = levels.get(level);
 			if (dispatcher != null) {
 				dispatcher.dispatch(rest);
-			}
-			else {
+			} else {
 				System.err.println("Unknown level: " + level);
 				printUsage();
 				System.exit(1);
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			log.error("Fatal error: {}", e.getMessage(), e);
 			System.exit(2);
 		}

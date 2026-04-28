@@ -5,8 +5,7 @@ import java.io.OutputStream;
 import java.util.Arrays;
 
 /**
- * Writes big-endian binary data to an OutputStream. All Blu-ray binary structures use
- * big-endian byte ordering.
+ * Writes big-endian binary data to an OutputStream. All Blu-ray binary structures use big-endian byte ordering.
  */
 public class BinaryWriter implements AutoCloseable {
 

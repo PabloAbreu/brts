@@ -6,8 +6,8 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * Result of {@link FirstPlaylistFinder}: the first playlist that would be played
- * according to the HDMV navigation program, or a reason why none was found.
+ * Result of {@link FirstPlaylistFinder}: the first playlist that would be played according to the HDMV navigation
+ * program, or a reason why none was found.
  */
 @Getter
 @Setter

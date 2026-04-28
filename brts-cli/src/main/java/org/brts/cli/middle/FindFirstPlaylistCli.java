@@ -20,8 +20,7 @@ public class FindFirstPlaylistCli {
 
 	static class Options {
 
-		@Option(name = "--bdmv-dir", required = true,
-				usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
+		@Option(name = "--bdmv-dir", required = true, usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
 		File bdmvDir;
 
 		@Option(name = "--start-title", usage = "Title number to start from (1-based; default: first-play title)")

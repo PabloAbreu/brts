@@ -10,9 +10,8 @@ import lombok.Setter;
 /**
  * Model for {@code BDMV/MovieObject.bdmv}.
  * <p>
- * Contains an ordered list of {@link MovieObject}s, each consisting of a navigation
- * command program. Objects are referenced from {@code index.bdmv} by their zero-based
- * index.
+ * Contains an ordered list of {@link MovieObject}s, each consisting of a navigation command program. Objects are
+ * referenced from {@code index.bdmv} by their zero-based index.
  */
 @Getter
 @Setter
@@ -23,8 +22,7 @@ public class MovieObjects {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * A single HDMV movie object — a program of navigation commands executed when a title
-	 * is entered.
+	 * A single HDMV movie object — a program of navigation commands executed when a title is entered.
 	 */
 	@Getter
 	@Setter
@@ -59,8 +57,8 @@ public class MovieObjects {
 	public static class NavigationCommand {
 
 		/**
-		 * Symbolic command mnemonic, e.g.: "PLAY_PL", "PLAY_PL_PI", "PLAY_PL_PM",
-		 * "TERMINATE_PL", "LINK_PI", "LINK_MK", "JUMP_TITLE", "JUMP_OBJECT", "MOVE".
+		 * Symbolic command mnemonic, e.g.: "PLAY_PL", "PLAY_PL_PI", "PLAY_PL_PM", "TERMINATE_PL", "LINK_PI", "LINK_MK",
+		 * "JUMP_TITLE", "JUMP_OBJECT", "MOVE".
 		 */
 		private String mnemonic;
 
@@ -79,9 +77,10 @@ public class MovieObjects {
 		/**
 		 * Converts this DTO to a {@link ParsedNavigationCommand} for rich analysis.
 		 * <p>
-		 * If {@code rawOpcode} is set (≥ 0), it is used directly. Otherwise the opcode is
-		 * compiled from the mnemonic. When compiling from a mnemonic without a rawOpcode,
-		 * operands are assumed immediate (since we have no other information).
+		 * If {@code rawOpcode} is set (≥ 0), it is used directly. Otherwise the opcode is compiled from the mnemonic.
+		 * When compiling from a mnemonic without a rawOpcode, operands are assumed immediate (since we have no other
+		 * information).
+		 *
 		 * @return a parsed command with correct immediate flags
 		 * @throws IllegalStateException if neither rawOpcode nor mnemonic is available
 		 */

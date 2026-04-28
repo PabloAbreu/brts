@@ -13,8 +13,8 @@ import java.util.List;
 
 /**
  * Parses a raw IGS elementary stream file (PES payload bytes, as extracted by
- * {@link org.brts.common.m2ts.FilePacketHandler}) into a list of {@link IgsRawSegment}s
- * grouped into {@link IgsDisplaySet}s.
+ * {@link org.brts.common.m2ts.FilePacketHandler}) into a list of {@link IgsRawSegment}s grouped into
+ * {@link IgsDisplaySet}s.
  * <p>
  * The IGS elementary stream is a sequence of PES packets. Each PES packet contains:
  * <ol>
@@ -22,14 +22,12 @@ import java.util.List;
  * <li>One segment: 1-byte type + 2-byte big-endian length + data.</li>
  * </ol>
  * <p>
- * Note: the {@link org.brts.common.m2ts.FilePacketHandler} already strips the PES header,
- * so the raw .igs file is a concatenation of bare segments (type + length + data)
- * <strong>without PTS information</strong>. If PTS values are needed, the caller should
- * use the PES-aware overload or supply a separate PTS mapping.
+ * Note: the {@link org.brts.common.m2ts.FilePacketHandler} already strips the PES header, so the raw .igs file is a
+ * concatenation of bare segments (type + length + data) <strong>without PTS information</strong>. If PTS values are
+ * needed, the caller should use the PES-aware overload or supply a separate PTS mapping.
  *
- * <h2>PES-level parsing</h2> For the round-trip use-case we also provide a method that
- * accepts the raw PES-encapsulated bytes (before PES header stripping) so we can preserve
- * PTS.
+ * <h2>PES-level parsing</h2> For the round-trip use-case we also provide a method that accepts the raw PES-encapsulated
+ * bytes (before PES header stripping) so we can preserve PTS.
  */
 public class IgsParser {
 
@@ -40,8 +38,9 @@ public class IgsParser {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Parses an IGS elementary stream file (bare segments, no PES headers) into raw
-	 * segments. PTS on each segment will be {@code -1}.
+	 * Parses an IGS elementary stream file (bare segments, no PES headers) into raw segments. PTS on each segment will
+	 * be {@code -1}.
+	 *
 	 * @param igsFile path to the raw .igs file produced by m2ts-extract
 	 * @return ordered list of raw segments
 	 * @throws IOException on I/O error
@@ -53,6 +52,7 @@ public class IgsParser {
 
 	/**
 	 * Parses bare segment bytes (no PES headers) into raw segments.
+	 *
 	 * @param data raw segment bytes
 	 * @return ordered list of raw segments
 	 */
@@ -98,9 +98,9 @@ public class IgsParser {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Groups raw segments into display sets. A new display set begins at each ICS
-	 * (IG_COMPOSITION) segment. The display set is marked complete when an END_OF_DISPLAY
-	 * segment is encountered.
+	 * Groups raw segments into display sets. A new display set begins at each ICS (IG_COMPOSITION) segment. The display
+	 * set is marked complete when an END_OF_DISPLAY segment is encountered.
+	 *
 	 * @param segments ordered list of raw segments
 	 * @return ordered list of display sets
 	 */
@@ -119,18 +119,18 @@ public class IgsParser {
 			}
 
 			switch (seg.getType()) {
-				case IG_COMPOSITION -> {
-					IgsCompositionSegment ics = decodeIcs(seg);
-					current.setCompositionSegment(ics);
-					if (ics.getCompositionDescriptor() != null && ics.getCompositionDescriptor().getState() == 2) {
-						current.setEpochStart(true);
-					}
+			case IG_COMPOSITION -> {
+				IgsCompositionSegment ics = decodeIcs(seg);
+				current.setCompositionSegment(ics);
+				if (ics.getCompositionDescriptor() != null && ics.getCompositionDescriptor().getState() == 2) {
+					current.setEpochStart(true);
 				}
-				case PALETTE_DEFINITION -> current.getPalettes().add(decodePalette(seg));
-				case OBJECT_DEFINITION -> current.getObjects().add(decodeObject(seg));
-				case WINDOW_DEFINITION -> current.getWindowDefinitions().add(decodeWindowDef(seg));
-				case END_OF_DISPLAY -> current.setComplete(true);
-				default -> log.warn("Unexpected segment type {} in display set", seg.getType());
+			}
+			case PALETTE_DEFINITION -> current.getPalettes().add(decodePalette(seg));
+			case OBJECT_DEFINITION -> current.getObjects().add(decodeObject(seg));
+			case WINDOW_DEFINITION -> current.getWindowDefinitions().add(decodeWindowDef(seg));
+			case END_OF_DISPLAY -> current.setComplete(true);
+			default -> log.warn("Unexpected segment type {} in display set", seg.getType());
 			}
 		}
 
@@ -205,8 +205,7 @@ public class IgsParser {
 			byte[] rle = new byte[d.length - pos];
 			System.arraycopy(d, pos, rle, 0, rle.length);
 			obj.setRleData(rle);
-		}
-		else {
+		} else {
 			obj.setRleData(new byte[0]);
 		}
 
@@ -641,8 +640,8 @@ public class IgsParser {
 	}
 
 	/**
-	 * Reads a 33-bit PTS value packed as: skip(7) + 1-bit marker + 32-bit value. Format:
-	 * byte0[bit0] << 32 | byte1..byte4
+	 * Reads a 33-bit PTS value packed as: skip(7) + 1-bit marker + 32-bit value. Format: byte0[bit0] << 32 |
+	 * byte1..byte4
 	 */
 	private long readPts33(byte[] d, int pos) {
 		long hi = d[pos] & 0x01; // bit 0 of first byte

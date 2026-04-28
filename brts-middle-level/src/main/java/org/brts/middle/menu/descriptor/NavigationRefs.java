@@ -7,10 +7,12 @@ import lombok.Setter;
 /**
  * Explicit directional navigation overrides for a single menu item.
  * <p>
- * Each field holds the {@code id} of the target item in the direction indicated, or
- * {@code null} to let the auto-wiring logic fill that direction.
+ * Each field holds the {@code id} of the target item in the direction indicated, or {@code null} to let the auto-wiring
+ * logic fill that direction.
  *
- * <h2>Example</h2> <pre>{@code
+ * <h2>Example</h2>
+ *
+ * <pre>{@code
  * "nav": {
  *   "down": "sub-en",
  *   "up":   "misc-play"

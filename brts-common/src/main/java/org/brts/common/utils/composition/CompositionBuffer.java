@@ -24,9 +24,8 @@ import lombok.Getter;
  * </ul>
  *
  * <p>
- * The buffer uses lazy loading with caching to optimize performance when composing
- * multiple frames. Video frames are accessed with automatic looping when the requested
- * frame number exceeds the total frame count.
+ * The buffer uses lazy loading with caching to optimize performance when composing multiple frames. Video frames are
+ * accessed with automatic looping when the requested frame number exceeds the total frame count.
  *
  * @author brt-common
  * @version 1.0
@@ -54,9 +53,8 @@ public class CompositionBuffer {
 		this.configuration = configuration;
 		this.mediaRepository = mediaRepository;
 		this.context = context;
-		references = configuration.getImages()
-			.stream()
-			.collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r), HashMap::putAll);
+		references = configuration.getImages().stream().collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r),
+				HashMap::putAll);
 	}
 
 	private ImageReference getReference(String imageId) {
@@ -71,13 +69,11 @@ public class CompositionBuffer {
 	private BufferedImage getImage(ImageReference ref, int frameNumber) {
 		if (ref.isStatic()) {
 			return mediaRepository.getStaticImage(resolvePath(ref.getSourcePath()));
-		}
-		else if (ref.isVideo()) {
+		} else if (ref.isVideo()) {
 			VideoFrames videoFrames = getVideoFrames(ref);
 			// loop video if frameNumber exceeds total frames
 			return videoFrames.getFrame(frameNumber % videoFrames.getFrameCount());
-		}
-		else if (ref.isSynthetic()) {
+		} else if (ref.isSynthetic()) {
 			SyntheticImageGenerator generator = getSyntheticGenerator(ref);
 			return generator.generate(frameNumber);
 		}

@@ -32,8 +32,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 	private static final String VERSION_200 = "0200";
 
 	/**
-	 * Absolute byte offset where the ClipInfo section always starts (8 bytes
-	 * magic/version + 20 bytes offsets + 12 bytes reserved).
+	 * Absolute byte offset where the ClipInfo section always starts (8 bytes magic/version + 20 bytes offsets + 12
+	 * bytes reserved).
 	 */
 	@SuppressWarnings("unused")
 	private static final int CLIP_INFO_START = 40;
@@ -192,8 +192,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				StreamCodingType codingType;
 				try {
 					codingType = StreamCodingType.fromByte(codingTypeByte);
-				}
-				catch (IllegalArgumentException e) {
+				} catch (IllegalArgumentException e) {
 					r.skip(streamInfoSize - 1);
 					all.add(stream);
 					continue;
@@ -207,15 +206,13 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 					int ar = r.readUnsignedByte();
 					stream.setAspectRatio((ar >> 4) & 0x0F);
 					r.skip(streamInfoSize - 3); // reserved
-				}
-				else if (codingType.isAudio()) {
+				} else if (codingType.isAudio()) {
 					int channelSample = r.readUnsignedByte();
 					stream.setAudioChannelLayout((channelSample >> 4) & 0x0F);
 					stream.setSampleRate(channelSample & 0x0F);
 					stream.setLanguage(r.readAscii(3));
 					r.skip(streamInfoSize - 5); // reserved
-				}
-				else if (codingType.isSubtitle() || codingType.isMenu()) {
+				} else if (codingType.isSubtitle() || codingType.isMenu()) {
 					int offset = 1;
 					if (codingType == StreamCodingType.TEXT_SUBTITLE) {
 						offset = 0;

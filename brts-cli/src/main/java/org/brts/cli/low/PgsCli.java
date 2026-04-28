@@ -41,8 +41,7 @@ public class PgsCli {
 		@Option(name = "--position", usage = "Vertical position as fraction 0.0–1.0 (default: 0.90 = near bottom)")
 		Double position;
 
-		@Option(name = "--frame-rate",
-				usage = "Frame rate code: 1=23.976, 2=24, 3=25, 4=29.97, 6=50, 7=59.94 (default: 1)")
+		@Option(name = "--frame-rate", usage = "Frame rate code: 1=23.976, 2=24, 3=25, 4=29.97, 6=50, 7=59.94 (default: 1)")
 		Integer frameRate;
 
 		@Option(name = "--margin", usage = "Horizontal margin in pixels (default: 120)")

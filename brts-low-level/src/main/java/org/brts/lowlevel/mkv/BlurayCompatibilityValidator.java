@@ -13,15 +13,13 @@ import java.util.Set;
 /**
  * Validates that source media tracks are compatible with the Blu-ray disc format.
  * <p>
- * <b>Video</b> must be one of: MPEG-2, H.264 (AVC), H.265 (HEVC), VC-1. For H.264,
- * profile must be ≤ High (100) and level must be ≤ 4.1.
+ * <b>Video</b> must be one of: MPEG-2, H.264 (AVC), H.265 (HEVC), VC-1. For H.264, profile must be ≤ High (100) and
+ * level must be ≤ 4.1.
  * <p>
- * <b>Audio</b> must be one of: LPCM, Dolby AC-3, Dolby TrueHD, Dolby Digital Plus, DTS,
- * DTS-HD, DTS-HD Master Audio.
+ * <b>Audio</b> must be one of: LPCM, Dolby AC-3, Dolby TrueHD, Dolby Digital Plus, DTS, DTS-HD, DTS-HD Master Audio.
  * <p>
- * <b>Subtitles</b>: PGS (PRESENTATION_GRAPHICS) passes directly. Text-based subtitles
- * (SRT, ASS, SSA) are flagged as requiring conversion to PGS. Other subtitle formats
- * (e.g. VOBSUB) are rejected.
+ * <b>Subtitles</b>: PGS (PRESENTATION_GRAPHICS) passes directly. Text-based subtitles (SRT, ASS, SSA) are flagged as
+ * requiring conversion to PGS. Other subtitle formats (e.g. VOBSUB) are rejected.
  */
 public class BlurayCompatibilityValidator {
 
@@ -54,6 +52,7 @@ public class BlurayCompatibilityValidator {
 
 	/**
 	 * Validates all tracks in the source media info and returns per-track results.
+	 *
 	 * @param info the parsed MKV media info
 	 * @return list of validation results, one per track
 	 */
@@ -66,8 +65,8 @@ public class BlurayCompatibilityValidator {
 	}
 
 	/**
-	 * Validates all tracks and throws a {@link BrtException} if any track that is not
-	 * convertible fails validation.
+	 * Validates all tracks and throws a {@link BrtException} if any track that is not convertible fails validation.
+	 *
 	 * @param info the parsed MKV media info
 	 * @return list of validation results (all passing or convertible)
 	 * @throws BrtException if a non-convertible track is incompatible
@@ -89,11 +88,9 @@ public class BlurayCompatibilityValidator {
 
 		if (ct.isVideo()) {
 			return validateVideo(track);
-		}
-		else if (ct.isAudio()) {
+		} else if (ct.isAudio()) {
 			return validateAudio(track);
-		}
-		else if (ct.isSubtitle() || ct == StreamCodingType.TEXT_SUBTITLE) {
+		} else if (ct.isSubtitle() || ct == StreamCodingType.TEXT_SUBTITLE) {
 			return validateSubtitle(track);
 		}
 
@@ -126,8 +123,7 @@ public class BlurayCompatibilityValidator {
 							"H.264 level " + level + " exceeds Blu-ray maximum (4.1 = " + H264_MAX_LEVEL + ").");
 				}
 				log.info("H.264 track #{}: profile={}, level={} — Blu-ray compatible", trackNo, profile, level);
-			}
-			else {
+			} else {
 				log.warn("H.264 track #{}: no codec private data available, skipping profile/level check", trackNo);
 			}
 		}

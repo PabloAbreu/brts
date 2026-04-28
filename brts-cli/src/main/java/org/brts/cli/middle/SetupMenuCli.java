@@ -18,8 +18,7 @@ public class SetupMenuCli {
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the setup menu JSON descriptor")
 		SetupMenuDescriptor descriptor;
 
-		@Option(name = "--output", required = true,
-				usage = "Output directory for the generated M2TS and intermediate files")
+		@Option(name = "--output", required = true, usage = "Output directory for the generated M2TS and intermediate files")
 		File outputDir;
 
 	}

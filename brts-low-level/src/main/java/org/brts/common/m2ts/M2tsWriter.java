@@ -23,41 +23,37 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This code was created by IA to mux ES into m2ts. But the result is still not playable.
- * It needs to be fixed to support IGS muxing along with video. Padding is also not
- * working correctly, which causes the output file to be (a lot) larger than expected. The
- * code is left here for reference and future work.
+ * This code was created by IA to mux ES into m2ts. But the result is still not playable. It needs to be fixed to
+ * support IGS muxing along with video. Padding is also not working correctly, which causes the output file to be (a
+ * lot) larger than expected. The code is left here for reference and future work.
  *
  *
- * Creates an M2TS (Blu-ray 192-byte source packet) file from a set of elementary stream
- * (ES) files on disk and a list of chapter timestamps.
+ * Creates an M2TS (Blu-ray 192-byte source packet) file from a set of elementary stream (ES) files on disk and a list
+ * of chapter timestamps.
  *
  * <h2>What the writer does</h2>
  * <ol>
  * <li>Reads each ES file, packetises the raw bytes into PES packets.</li>
  * <li>Multiplexes all PES packets into 188-byte MPEG-2 TS packets.</li>
- * <li>Prepends each TS packet with a 4-byte {@code TP_extra_header} containing a
- * synthesised 27 MHz Arrival Time Stamp (ATS), producing the standard 192-byte Blu-ray
- * source packet.</li>
+ * <li>Prepends each TS packet with a 4-byte {@code TP_extra_header} containing a synthesised 27 MHz Arrival Time Stamp
+ * (ATS), producing the standard 192-byte Blu-ray source packet.</li>
  * <li>Periodically inserts PAT and PMT tables.</li>
  * <li>Inserts PCR packets on the video PID so players can lock their clocks.</li>
- * <li>Tracks the Source Packet Number (SPN) at each chapter / IDR boundary and builds the
- * data needed by {@link org.brts.lowlevel.writer.ClipInfoWriter}.</li>
+ * <li>Tracks the Source Packet Number (SPN) at each chapter / IDR boundary and builds the data needed by
+ * {@link org.brts.lowlevel.writer.ClipInfoWriter}.</li>
  * </ol>
  *
- * <h2>ClipInfo generation</h2> After writing the M2TS file, call
- * {@link #buildClipInfo(String)} to obtain a fully-populated {@link ClipInfo} model that
- * can be serialised directly by {@link org.brts.lowlevel.writer.ClipInfoWriter}.
+ * <h2>ClipInfo generation</h2> After writing the M2TS file, call {@link #buildClipInfo(String)} to obtain a
+ * fully-populated {@link ClipInfo} model that can be serialised directly by
+ * {@link org.brts.lowlevel.writer.ClipInfoWriter}.
  *
  * <h2>Limitations / assumptions</h2>
  * <ul>
  * <li>ES files are treated as raw byte streams; no re-encoding is performed.</li>
- * <li>PES timestamps are synthesised from the chapter list at a constant frame rate
- * derived from the first video stream; individual frame-accurate timestamps are not
- * parsed from the ES bitstream.</li>
- * <li>Audio/subtitle PES packets are interleaved round-robin with video at a fixed
- * byte-budget per video frame, which is sufficient for authoring but not broadcast-grade
- * multiplexing.</li>
+ * <li>PES timestamps are synthesised from the chapter list at a constant frame rate derived from the first video
+ * stream; individual frame-accurate timestamps are not parsed from the ES bitstream.</li>
+ * <li>Audio/subtitle PES packets are interleaved round-robin with video at a fixed byte-budget per video frame, which
+ * is sufficient for authoring but not broadcast-grade multiplexing.</li>
  * </ul>
  */
 public class M2tsWriter {
@@ -127,6 +123,7 @@ public class M2tsWriter {
 
 	/**
 	 * Writes the M2TS file described by {@code descriptor} to {@code outputPath}.
+	 *
 	 * @param descriptor mux descriptor (streams + chapters)
 	 * @param outputPath target {@code .m2ts} file path
 	 * @throws IOException on I/O error
@@ -192,7 +189,8 @@ public class M2tsWriter {
 
 			// 90 kHz PTS — start at a standard Blu-ray origin
 			long pts90 = (descriptor.getInitialPtsOffsetTicks() != null && descriptor.getInitialPtsOffsetTicks() > 0)
-					? descriptor.getInitialPtsOffsetTicks() : 0L;
+					? descriptor.getInitialPtsOffsetTicks()
+					: 0L;
 			firstPts90kHz = pts90;
 
 			long nextPcrAts = 0;
@@ -249,10 +247,12 @@ public class M2tsWriter {
 				// produce the correct on-disc PTS key.
 				long currentSpn = totalTsPackets;
 				long chapterCheckPts = (videoReader != null && videoReader.hasBFrames())
-						? videoReader.getDisplayPts(videoReader.getFrameIndex()) + firstPts90kHz : pts90;
+						? videoReader.getDisplayPts(videoReader.getFrameIndex()) + firstPts90kHz
+						: pts90;
 				if (chapterByPts.containsKey(chapterCheckPts)) {
 					long epPts = (videoReader != null && videoReader.hasBFrames())
-							? videoReader.getPts(videoReader.getFrameIndex()) + firstPts90kHz : pts90;
+							? videoReader.getPts(videoReader.getFrameIndex()) + firstPts90kHz
+							: pts90;
 					EpMap.EpMapEntry epEntry = new EpMap.EpMapEntry();
 					epEntry.setPtsTicks(epPts);
 					epEntry.setSpn(currentSpn);
@@ -277,8 +277,7 @@ public class M2tsWriter {
 								thisPts = reader.getPts(decodeIdx) + firstPts90kHz;
 								long dts = reader.getDts(decodeIdx) + firstPts90kHz;
 								thisDts = dts; // always write DTS for H.264
-							}
-							else {
+							} else {
 								thisPts = streamPts.get(reader.pid());
 								// H.264 requires PTS+DTS even when they are equal
 								// (decoder HRD model)
@@ -300,11 +299,8 @@ public class M2tsWriter {
 
 				// Advance the master PTS by the video frame duration
 				lastPts90kHz = pts90;
-				long videoFd = readers.stream()
-					.filter(ESReader::isVideo)
-					.mapToLong(ESReader::frameDuration90kHz)
-					.findFirst()
-					.orElse(90_000L / 24);
+				long videoFd = readers.stream().filter(ESReader::isVideo).mapToLong(ESReader::frameDuration90kHz)
+						.findFirst().orElse(90_000L / 24);
 				pts90 += videoFd;
 
 				// CBR null-packet stuffing: insert PID 0x1FFF packets so that the total
@@ -330,13 +326,13 @@ public class M2tsWriter {
 	}
 
 	/**
-	 * Builds a {@link ClipInfo} model populated with the timing information collected
-	 * during the most recent {@link #write} call.
+	 * Builds a {@link ClipInfo} model populated with the timing information collected during the most recent
+	 * {@link #write} call.
 	 * <p>
-	 * This model can be written directly by
-	 * {@link org.brts.lowlevel.writer.ClipInfoWriter}.
+	 * This model can be written directly by {@link org.brts.lowlevel.writer.ClipInfoWriter}.
+	 *
 	 * @param descriptor the same descriptor that was passed to {@link #write}
-	 * @param clipName 5-digit clip name (e.g. "00001")
+	 * @param clipName   5-digit clip name (e.g. "00001")
 	 * @return a fully populated {@link ClipInfo}
 	 */
 	public ClipInfo buildClipInfo(M2tsDescriptor descriptor, String clipName) {
@@ -366,8 +362,7 @@ public class M2tsWriter {
 					cs.setVideoFormat(6); // 1080p default
 					cs.setFrameRate(2); // 24 fps default
 					cs.setAspectRatio(3); // 16:9 default
-				}
-				else if (ct.isAudio()) {
+				} else if (ct.isAudio()) {
 					cs.setAudioChannelLayout(3); // stereo default
 					cs.setSampleRate(1); // 48 kHz default
 				}
@@ -517,8 +512,7 @@ public class M2tsWriter {
 			desc[8] = (byte) (s.getFrameRateFps() != null && s.getFrameRateFps() == 24 ? 0x62 : 0x61);
 			desc[9] = 0x3F;
 			return desc;
-		}
-		else if (type.isDolbyAudio()) {
+		} else if (type.isDolbyAudio()) {
 			// this code mirrors what is parsed in M2tsParser
 			byte[] desc = new byte[12];
 			desc[0] = 0x05;// registration_descriptor tag
@@ -545,8 +539,7 @@ public class M2tsWriter {
 																					// stereo
 			desc[11] = 0;
 			return desc;
-		}
-		else if (type.isMenu() || type.isSubtitle()) {
+		} else if (type.isMenu() || type.isSubtitle()) {
 			// HDMV registration descriptor for IG menus (0x91) and PG subtitles (0x90)
 			byte[] desc = new byte[10];
 			desc[0] = 0x05; // registration_descriptor tag
@@ -615,10 +608,9 @@ public class M2tsWriter {
 	 * Builds a PES packet for one access unit / segment.
 	 *
 	 * <p>
-	 * For {@code stream_id=0xBD} (private_stream_1), the Blu-ray / HDMV specification
-	 * requires the first byte of the PES payload to be a <em>sub-stream identifier</em>
-	 * so that the decoder can distinguish IGS, PGS, AC-3, DTS, LPCM, etc. carried on the
-	 * same logical PES stream_id. The mapping is:
+	 * For {@code stream_id=0xBD} (private_stream_1), the Blu-ray / HDMV specification requires the first byte of the
+	 * PES payload to be a <em>sub-stream identifier</em> so that the decoder can distinguish IGS, PGS, AC-3, DTS, LPCM,
+	 * etc. carried on the same logical PES stream_id. The mapping is:
 	 * <ul>
 	 * <li>0x20–0x3F → Interactive Graphics (IG) sub-stream</li>
 	 * <li>0x00–0x1F → Presentation Graphics (PG) sub-stream</li>
@@ -627,15 +619,14 @@ public class M2tsWriter {
 	 * Without this byte the player cannot identify the private sub-stream type.
 	 *
 	 * <p>
-	 * For video ({@code stream_id=0xE0}) the PES packet_length is set to 0 (unbounded) as
-	 * required by the MPEG-2 TS spec for video elementary streams. For non-video streams
-	 * the length must fit in 16 bits; callers are responsible for keeping individual
-	 * segments small enough (per-segment PES).
+	 * For video ({@code stream_id=0xE0}) the PES packet_length is set to 0 (unbounded) as required by the MPEG-2 TS
+	 * spec for video elementary streams. For non-video streams the length must fit in 16 bits; callers are responsible
+	 * for keeping individual segments small enough (per-segment PES).
+	 *
 	 * @param pts90 presentation time stamp in 90 kHz ticks
-	 * @param dts90 decode time stamp in 90 kHz ticks, or {@code null} when equal to PTS
-	 * (PTS-only PES header, {@code PTS_DTS_flags=10}). Must be non-null (and ≤ pts90) for
-	 * H.264/AVC access units that contain B-frames so that the decoder HRD buffer model
-	 * works correctly ({@code PTS_DTS_flags=11}).
+	 * @param dts90 decode time stamp in 90 kHz ticks, or {@code null} when equal to PTS (PTS-only PES header,
+	 *              {@code PTS_DTS_flags=10}). Must be non-null (and ≤ pts90) for H.264/AVC access units that contain
+	 *              B-frames so that the decoder HRD buffer model works correctly ({@code PTS_DTS_flags=11}).
 	 */
 	private byte[] buildPesPacket(int streamId, int substreamId, long pts90, Long dts90, byte[] payload) {
 		// PES header: start code (3) + stream_id (1) + length (2) + flags (2) +
@@ -675,8 +666,7 @@ public class M2tsWriter {
 			pes[16] = (byte) (0x01 | ((dts90 >> 14) & 0xFE));
 			pes[17] = (byte) ((dts90 >> 7) & 0xFF);
 			pes[18] = (byte) (0x01 | ((dts90 << 1) & 0xFE));
-		}
-		else {
+		} else {
 			pes[7] = (byte) 0x80; // PTS_DTS_flags = 10 (PTS only)
 			pes[8] = 0x05; // PES_header_data_length = 5 (PTS)
 			// PTS encoding: 4 bits marker + 33 bit PTS + 1 marker
@@ -695,8 +685,9 @@ public class M2tsWriter {
 	}
 
 	/**
-	 * Splits {@code pes} into 188-byte TS packets (with adaptation field padding on the
-	 * last packet) and writes 192-byte source packets.
+	 * Splits {@code pes} into 188-byte TS packets (with adaptation field padding on the last packet) and writes
+	 * 192-byte source packets.
+	 *
 	 * @return number of TS packets written
 	 */
 	private int writePesToTs(OutputStream out, int pid, byte[] pes, Map<Integer, Integer> cc, long startPacketIndex)
@@ -733,15 +724,13 @@ public class M2tsWriter {
 					ts[4] = 0x00; // af_length=0 (takes 1 byte)
 					// payload at ts[5]
 					System.arraycopy(pes, offset, ts, 5, chunkLen);
-				}
-				else {
+				} else {
 					ts[4] = (byte) (stuffLen - 1); // af_length
 					ts[5] = 0x00; // flags
 					Arrays.fill(ts, 6, 4 + stuffLen, (byte) 0xFF); // stuffing
 					System.arraycopy(pes, offset, ts, 4 + stuffLen, chunkLen);
 				}
-			}
-			else {
+			} else {
 				System.arraycopy(pes, offset, ts, 4, chunkLen);
 			}
 
@@ -772,10 +761,9 @@ public class M2tsWriter {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Returns the 27 MHz ATS (Arrival Time Stamp) for the n-th source packet at the
-	 * configured target bitrate. Uses split-quotient arithmetic to avoid 64-bit overflow
-	 * over long (multi-hour) streams. The result is not masked to 30 bits here;
-	 * {@link #writeSourcePacket} applies the mask on output.
+	 * Returns the 27 MHz ATS (Arrival Time Stamp) for the n-th source packet at the configured target bitrate. Uses
+	 * split-quotient arithmetic to avoid 64-bit overflow over long (multi-hour) streams. The result is not masked to 30
+	 * bits here; {@link #writeSourcePacket} applies the mask on output.
 	 */
 	private long atsOf(long packetIndex) {
 		long q = ATS_NUMERATOR / targetBitrateBps;
@@ -784,9 +772,8 @@ public class M2tsWriter {
 	}
 
 	/**
-	 * Writes a null (stuffing) source packet with PID {@code 0x1FFF}. Null packets carry
-	 * no payload and are used to maintain CBR delivery. The continuity counter is not
-	 * incremented for PID 0x1FFF (MPEG-2 TS §2.4.3.3).
+	 * Writes a null (stuffing) source packet with PID {@code 0x1FFF}. Null packets carry no payload and are used to
+	 * maintain CBR delivery. The continuity counter is not incremented for PID 0x1FFF (MPEG-2 TS §2.4.3.3).
 	 */
 	private void writeNullPacket(OutputStream out, long ats27) throws IOException {
 		byte[] ts = new byte[TS_PACKET_SIZE];
@@ -853,9 +840,10 @@ public class M2tsWriter {
 	// =========================================================================
 
 	/**
-	 * Removes H.264 RBSP emulation-prevention bytes ({@code 0x00 0x00 0x03} sequences
-	 * where the {@code 0x03} is discarded) from a NAL body slice.
-	 * @param data source byte array
+	 * Removes H.264 RBSP emulation-prevention bytes ({@code 0x00 0x00 0x03} sequences where the {@code 0x03} is
+	 * discarded) from a NAL body slice.
+	 *
+	 * @param data   source byte array
 	 * @param offset first byte of the NAL body (i.e. the byte after the NAL header byte)
 	 * @param length number of bytes to process
 	 * @return RBSP bytes (emulation-prevention bytes removed)
@@ -877,10 +865,10 @@ public class M2tsWriter {
 	}
 
 	/**
-	 * Parses an H.264 SPS NAL unit body and extracts the fields needed for B-frame
-	 * PTS/DTS reordering.
-	 * @param data ES byte array
-	 * @param nalStart offset of the NAL <em>header</em> byte (type field)
+	 * Parses an H.264 SPS NAL unit body and extracts the fields needed for B-frame PTS/DTS reordering.
+	 *
+	 * @param data      ES byte array
+	 * @param nalStart  offset of the NAL <em>header</em> byte (type field)
 	 * @param nalLength length of the NAL unit including the header byte
 	 * @return parsed {@link H264SpsInfo}, or {@code null} on parse error
 	 */
@@ -924,8 +912,7 @@ public class M2tsWriter {
 			sps.picOrderCntType = br.readUE();
 			if (sps.picOrderCntType == 0) {
 				sps.log2MaxPicOrderCntLsbMinus4 = br.readUE();
-			}
-			else if (sps.picOrderCntType == 1) {
+			} else if (sps.picOrderCntType == 1) {
 				br.readBit(); // delta_pic_order_always_zero_flag
 				br.readSE();
 				br.readSE(); // offsets
@@ -993,8 +980,7 @@ public class M2tsWriter {
 					br.readUE(); // max_dec_frame_buffering
 				}
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			return null; // malformed SPS — fall back to no reordering
 		}
 		return sps;
@@ -1017,12 +1003,12 @@ public class M2tsWriter {
 	}
 
 	/**
-	 * Reads {@code pic_order_cnt_lsb} from the beginning of an H.264 VCL slice NAL unit
-	 * (poc_type&nbsp;==&nbsp;0 only).
-	 * @param data ES byte array
-	 * @param nalStart offset of the NAL header byte
+	 * Reads {@code pic_order_cnt_lsb} from the beginning of an H.264 VCL slice NAL unit (poc_type&nbsp;==&nbsp;0 only).
+	 *
+	 * @param data      ES byte array
+	 * @param nalStart  offset of the NAL header byte
 	 * @param nalLength length of the NAL including the header byte
-	 * @param sps previously parsed SPS
+	 * @param sps       previously parsed SPS
 	 * @return {@code pic_order_cnt_lsb}, or {@code -1} on parse error / wrong poc_type
 	 */
 	static int readSlicePocLsb(byte[] data, int nalStart, int nalLength, H264SpsInfo sps) {
@@ -1045,8 +1031,7 @@ public class M2tsWriter {
 			if (nalType == 5)
 				br.readUE(); // idr_pic_id (IDR slices only)
 			return br.readBits(sps.log2MaxPicOrderCntLsbMinus4 + 4); // pic_order_cnt_lsb
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			return -1;
 		}
 	}

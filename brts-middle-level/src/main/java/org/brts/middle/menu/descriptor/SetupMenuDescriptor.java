@@ -67,8 +67,7 @@ public class SetupMenuDescriptor {
 	private List<MiscMenuItem> miscItems = new ArrayList<>();
 
 	/**
-	 * Base name for the output M2TS file for intro (5 digits, no extension). E.g.
-	 * "00800".
+	 * Base name for the output M2TS file for intro (5 digits, no extension). E.g. "00800".
 	 */
 	private String outputIntroName = "00800";
 
@@ -78,8 +77,7 @@ public class SetupMenuDescriptor {
 	private String outputName = "00801";
 
 	/**
-	 * Base name for the output out-of-mux IGS M2TS file (5 digits, no extension). E.g.
-	 * "00802".
+	 * Base name for the output out-of-mux IGS M2TS file (5 digits, no extension). E.g. "00802".
 	 */
 	private String outputMenuName = "00802";
 

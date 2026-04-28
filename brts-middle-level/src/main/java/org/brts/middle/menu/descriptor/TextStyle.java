@@ -7,8 +7,8 @@ import lombok.Setter;
 import java.awt.*;
 
 /**
- * Text rendering style for menu button labels. All fields are optional — sensible
- * defaults are applied when {@code null}.
+ * Text rendering style for menu button labels. All fields are optional — sensible defaults are applied when
+ * {@code null}.
  *
  * <h2>Defaults</h2>
  * <ul>
@@ -70,8 +70,7 @@ public class TextStyle {
 	// ── Background shape ────────────────────────────────────────────────────
 
 	/**
-	 * Shape drawn underneath the text. Possible values: NONE, RECTANGLE,
-	 * ROUNDED_RECTANGLE.
+	 * Shape drawn underneath the text. Possible values: NONE, RECTANGLE, ROUNDED_RECTANGLE.
 	 */
 	private BackgroundShape backgroundShape;
 
@@ -79,8 +78,7 @@ public class TextStyle {
 	private String backgroundColor;
 
 	/**
-	 * Alpha (0–255) of the background shape. Overrides the alpha in backgroundColor if
-	 * set.
+	 * Alpha (0–255) of the background shape. Overrides the alpha in backgroundColor if set.
 	 */
 	private Integer backgroundAlpha;
 
@@ -104,9 +102,8 @@ public class TextStyle {
 	// ── Merge / defaults ────────────────────────────────────────────────────
 
 	/**
-	 * Returns a new {@code TextStyle} that merges this style's non-null fields over the
-	 * given base (global) style. Fields set on {@code this} take precedence; unset fields
-	 * fall back to the base.
+	 * Returns a new {@code TextStyle} that merges this style's non-null fields over the given base (global) style.
+	 * Fields set on {@code this} take precedence; unset fields fall back to the base.
 	 */
 	public TextStyle mergeOver(TextStyle base) {
 		if (base == null)
@@ -133,8 +130,7 @@ public class TextStyle {
 	}
 
 	/**
-	 * Returns a fully-resolved copy of this style where all {@code null} fields are
-	 * replaced with sensible defaults.
+	 * Returns a fully-resolved copy of this style where all {@code null} fields are replaced with sensible defaults.
 	 */
 	public TextStyle withDefaults() {
 		TextStyle d = new TextStyle();

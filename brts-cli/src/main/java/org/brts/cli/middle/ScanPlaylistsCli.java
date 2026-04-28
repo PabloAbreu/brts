@@ -17,8 +17,7 @@ public class ScanPlaylistsCli {
 
 	static class Options {
 
-		@Option(name = "--playlist-dir", required = true,
-				usage = "Path to the BDMV/PLAYLIST directory containing .mpls files")
+		@Option(name = "--playlist-dir", required = true, usage = "Path to the BDMV/PLAYLIST directory containing .mpls files")
 		File playlistDir;
 
 		@Option(name = "--output", usage = "Output JSON file (default: stdout)")
@@ -30,20 +29,16 @@ public class ScanPlaylistsCli {
 		@Option(name = "--movie-min", usage = "Minimum duration in minutes for a playlist to be a movie (default: 80)")
 		Double movieMinMinutes;
 
-		@Option(name = "--alt-cut-ratio",
-				usage = "Min ratio vs longest playlist to qualify as alternate cut (default: 0.85)")
+		@Option(name = "--alt-cut-ratio", usage = "Min ratio vs longest playlist to qualify as alternate cut (default: 0.85)")
 		Double movieAlternateCutRatio;
 
-		@Option(name = "--episode-min",
-				usage = "Minimum duration in minutes for a playlist to be an episode (default: 22)")
+		@Option(name = "--episode-min", usage = "Minimum duration in minutes for a playlist to be an episode (default: 22)")
 		Double episodeMinMinutes;
 
-		@Option(name = "--episode-max-ratio",
-				usage = "Max duration ratio between longest and shortest episode candidate (default: 2.0)")
+		@Option(name = "--episode-max-ratio", usage = "Max duration ratio between longest and shortest episode candidate (default: 2.0)")
 		Double episodeMaxDurationRatio;
 
-		@Option(name = "--episode-min-count",
-				usage = "Minimum number of similar-duration playlists for TV-series detection (default: 2)")
+		@Option(name = "--episode-min-count", usage = "Minimum number of similar-duration playlists for TV-series detection (default: 2)")
 		Integer episodeMinCount;
 
 		@Option(name = "--include-menus", usage = "Include menu playlists in results (default: excluded)")

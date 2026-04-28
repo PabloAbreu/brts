@@ -21,8 +21,7 @@ public class MkvToPlaylistCli {
 		@Option(name = "--input", required = true, usage = "Path to the MKV source file")
 		File input;
 
-		@Option(name = "--output", required = true,
-				usage = "Output directory for BDMV structure (STREAM/, CLIPINF/, PLAYLIST/ subdirs)")
+		@Option(name = "--output", required = true, usage = "Output directory for BDMV structure (STREAM/, CLIPINF/, PLAYLIST/ subdirs)")
 		File outputDir;
 
 		@Option(name = "--clip-name", usage = "5-digit clip name (default: 00001)")
@@ -107,11 +106,8 @@ public class MkvToPlaylistCli {
 	}
 
 	private static Set<Integer> parseTrackNumbers(String csv) {
-		return Arrays.stream(csv.split(","))
-			.map(String::trim)
-			.filter(s -> !s.isEmpty())
-			.map(Integer::parseInt)
-			.collect(Collectors.toCollection(LinkedHashSet::new));
+		return Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).map(Integer::parseInt)
+				.collect(Collectors.toCollection(LinkedHashSet::new));
 	}
 
 }

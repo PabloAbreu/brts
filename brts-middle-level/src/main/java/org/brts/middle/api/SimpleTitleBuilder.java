@@ -21,9 +21,8 @@ import java.util.List;
  * <ol>
  * <li>Auto-parses the source MKV to discover tracks</li>
  * <li>Auto-assigns PIDs using {@link PidAllocator}</li>
- * <li>Produces a {@link ClipDescriptor} and a {@link PlaylistDescriptor} that can be fed
- * to the low-level writers directly or written to JSON for manual inspection /
- * re-use.</li>
+ * <li>Produces a {@link ClipDescriptor} and a {@link PlaylistDescriptor} that can be fed to the low-level writers
+ * directly or written to JSON for manual inspection / re-use.</li>
  * </ol>
  */
 public class SimpleTitleBuilder {
@@ -38,6 +37,7 @@ public class SimpleTitleBuilder {
 
 	/**
 	 * Builds low-level descriptors for a single title.
+	 *
 	 * @param descriptor the middle-level title description
 	 * @return a {@link TitleBuildResult} containing the low-level descriptors
 	 */

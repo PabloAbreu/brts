@@ -88,13 +88,12 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 	 * <p>
 	 * Uses a combination of deterministic and heuristic checks:
 	 * <ol>
-	 * <li><b>IG streams</b> — if any PlayItem carries an {@code INTERACTIVE_GRAPHICS}
-	 * (0x91) stream in its STN, the playlist is interactive and therefore a menu.</li>
-	 * <li><b>SubPath type 3</b> — a sub-path of type 3 is the "Interactive Graphics
-	 * presentation menu" path defined by the Blu-ray spec.</li>
-	 * <li><b>Repeated-clip heuristic</b> — menus typically loop a short clip many times.
-	 * If the playlist has ≥ 3 PlayItems and the most-repeated clip accounts for ≥ 80 % of
-	 * all items, it is flagged as a menu.</li>
+	 * <li><b>IG streams</b> — if any PlayItem carries an {@code INTERACTIVE_GRAPHICS} (0x91) stream in its STN, the
+	 * playlist is interactive and therefore a menu.</li>
+	 * <li><b>SubPath type 3</b> — a sub-path of type 3 is the "Interactive Graphics presentation menu" path defined by
+	 * the Blu-ray spec.</li>
+	 * <li><b>Repeated-clip heuristic</b> — menus typically loop a short clip many times. If the playlist has ≥ 3
+	 * PlayItems and the most-repeated clip accounts for ≥ 80 % of all items, it is flagged as a menu.</li>
 	 * </ol>
 	 */
 	private boolean detectMenu(MoviePlaylist playlist) {
@@ -206,8 +205,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 			StreamCodingType type;
 			try {
 				type = StreamCodingType.fromByte(codingByte);
-			}
-			catch (IllegalArgumentException e) {
+			} catch (IllegalArgumentException e) {
 				throw new ParseException("Unknown coding type 0x" + Integer.toHexString(codingByte));
 			}
 			s.setCodingType(type);
@@ -216,15 +214,13 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 				int vfr = r.readUnsignedByte();
 				s.setVfr(vfr);
 				r.skip(attrLength - 2);
-			}
-			else if (type.isAudio()) {
+			} else if (type.isAudio()) {
 				int channelSample = r.readUnsignedByte();
 				s.setAudioChannelLayout((channelSample >> 4) & 0x0F);
 				s.setSampleRate(channelSample & 0x0F);
 				s.setLanguage(r.readAscii(3));
 				r.skip(attrLength - 5);
-			}
-			else {
+			} else {
 				if (attrLength > 1)
 					s.setLanguage(r.readAscii(3));
 				r.skip(Math.max(0, attrLength - 4));

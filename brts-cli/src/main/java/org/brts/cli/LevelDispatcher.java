@@ -10,8 +10,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Registry and dispatcher for {@link FeatureRunner} instances within a single level (low
- * / mid / high).
+ * Registry and dispatcher for {@link FeatureRunner} instances within a single level (low / mid / high).
  */
 @RequiredArgsConstructor
 public class LevelDispatcher {
@@ -33,8 +32,8 @@ public class LevelDispatcher {
 	}
 
 	/**
-	 * Dispatches the given args to the appropriate runner. The first element of
-	 * {@code args} is the sub-command name; the rest are forwarded to the runner.
+	 * Dispatches the given args to the appropriate runner. The first element of {@code args} is the sub-command name;
+	 * the rest are forwarded to the runner.
 	 */
 	public void dispatch(String[] args) throws Exception {
 		if (args.length < 1 || "help".equalsIgnoreCase(args[0])) {

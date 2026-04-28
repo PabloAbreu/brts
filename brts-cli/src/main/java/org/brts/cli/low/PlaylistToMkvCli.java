@@ -69,11 +69,10 @@ public class PlaylistToMkvCli {
 	private static Set<Integer> parsePidList(String pids) {
 		if (pids == null || pids.isBlank())
 			return null;
-		return Arrays.stream(pids.split(","))
-			.map(String::trim)
-			.map(s -> s.startsWith("0x") || s.startsWith("0X") ? Integer.parseInt(s.substring(2), 16)
-					: Integer.parseInt(s))
-			.collect(Collectors.toCollection(HashSet::new));
+		return Arrays.stream(pids.split(",")).map(String::trim)
+				.map(s -> s.startsWith("0x") || s.startsWith("0X") ? Integer.parseInt(s.substring(2), 16)
+						: Integer.parseInt(s))
+				.collect(Collectors.toCollection(HashSet::new));
 	}
 
 }

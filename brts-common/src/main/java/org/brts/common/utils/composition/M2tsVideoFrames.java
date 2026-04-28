@@ -48,11 +48,10 @@ import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 
 /**
- * {@link VideoFrames} implementation that decodes frames from an M2TS file using
- * bytedeco/FFmpeg.
+ * {@link VideoFrames} implementation that decodes frames from an M2TS file using bytedeco/FFmpeg.
  * <p>
- * Frames are decoded sequentially on demand. An LRU cache avoids redundant decoding when
- * the same frame number is requested repeatedly.
+ * Frames are decoded sequentially on demand. An LRU cache avoids redundant decoding when the same frame number is
+ * requested repeatedly.
  */
 public class M2tsVideoFrames implements VideoFrames {
 
@@ -81,12 +80,9 @@ public class M2tsVideoFrames implements VideoFrames {
 		// 1. Parse M2TS to find first H264_AVC stream PID
 		M2tsParser parser = new M2tsParser();
 		M2tsInfo info = parser.parse(m2tsPath);
-		int pid = info.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType() == StreamCodingType.H264_AVC)
-			.findFirst()
-			.map(M2tsStreamInfo::getPid)
-			.orElseThrow(() -> new IOException("No H264_AVC stream found in " + m2tsPath));
+		int pid = info.getStreams().stream().filter(s -> s.getCodingType() == StreamCodingType.H264_AVC).findFirst()
+				.map(M2tsStreamInfo::getPid)
+				.orElseThrow(() -> new IOException("No H264_AVC stream found in " + m2tsPath));
 
 		// 2. Open file with FFmpeg
 		formatCtx = new AVFormatContext(null);
@@ -146,14 +142,12 @@ public class M2tsVideoFrames implements VideoFrames {
 		long nb = videoStream.nb_frames();
 		if (nb > 0) {
 			this.frameCount = (int) nb;
-		}
-		else {
+		} else {
 			double duration = videoStream.duration() * av_q2d(videoStream.time_base());
 			double fps = av_q2d(videoStream.r_frame_rate());
 			if (duration > 0 && fps > 0) {
 				this.frameCount = (int) (duration * fps);
-			}
-			else {
+			} else {
 				this.frameCount = -1;
 			}
 		}
@@ -215,13 +209,11 @@ public class M2tsVideoFrames implements VideoFrames {
 						return image;
 					}
 				}
-			}
-			finally {
+			} finally {
 				av_frame_free(frame);
 				av_packet_free(packet);
 			}
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new RuntimeException("Failed to decode frame " + frameNumber, e);
 		}
 
@@ -252,8 +244,7 @@ public class M2tsVideoFrames implements VideoFrames {
 		ByteBuffer buffer = bgrFrame.data(0).position(0).capacity((long) linesize * height).asByteBuffer();
 		if (linesize == width * 3) {
 			buffer.get(pixels);
-		}
-		else {
+		} else {
 			// Handle padding in each row
 			for (int y = 0; y < height; y++) {
 				buffer.position(y * linesize);

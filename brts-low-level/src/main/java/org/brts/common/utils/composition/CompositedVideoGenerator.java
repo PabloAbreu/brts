@@ -58,16 +58,14 @@ import lombok.Setter;
  * Makes use of the {@link VideoCompositionBuffer} to generate composited videos.
  *
  * <p>
- * Outputs an H.264 M2TS video file (with the corresponding CLPI) by compositing frames
- * according to the provided {@link ImagesComposition} configuration.
+ * Outputs an H.264 M2TS video file (with the corresponding CLPI) by compositing frames according to the provided
+ * {@link ImagesComposition} configuration.
  *
  * <p>
- * If the background image is a video, its audio streams are extracted and muxed into the
- * output M2TS file.
+ * If the background image is a video, its audio streams are extracted and muxed into the output M2TS file.
  *
  * <p>
- * This class lives in {@code brt-low-level} so it can use {@link M2tsWriter} and
- * {@link ClipInfoWriter}.
+ * This class lives in {@code brt-low-level} so it can use {@link M2tsWriter} and {@link ClipInfoWriter}.
  */
 public class CompositedVideoGenerator {
 
@@ -95,15 +93,15 @@ public class CompositedVideoGenerator {
 	public static class Config {
 
 		/**
-		 * Number of frames to generate. When ≤ 0, the generator tries to derive the count
-		 * from the base video's frame count; an {@link IllegalArgumentException} is
-		 * thrown when the base is not a video and this value is not positive.
+		 * Number of frames to generate. When ≤ 0, the generator tries to derive the count from the base video's frame
+		 * count; an {@link IllegalArgumentException} is thrown when the base is not a video and this value is not
+		 * positive.
 		 */
 		private int frameCount = -1;
 
 		/**
-		 * Output frame rate in frames per second. When ≤ 0, derived from the base video
-		 * stream info or defaults to 24.0.
+		 * Output frame rate in frames per second. When ≤ 0, derived from the base video stream info or defaults to
+		 * 24.0.
 		 */
 		private double fps = 0;
 
@@ -114,8 +112,7 @@ public class CompositedVideoGenerator {
 		private int height = 1080;
 
 		/**
-		 * Average MPEG-2 video target bitrate in kbps. Defaults to 20 000 kbps (~20
-		 * Mbit/s), a safe value for Blu-ray.
+		 * Average MPEG-2 video target bitrate in kbps. Defaults to 20 000 kbps (~20 Mbit/s), a safe value for Blu-ray.
 		 */
 		private int bitrateKbps = 20_000;
 
@@ -132,19 +129,17 @@ public class CompositedVideoGenerator {
 	 * Steps performed:
 	 * <ol>
 	 * <li>Resolve fps and frameCount (from config or base video).</li>
-	 * <li>Composite each frame via {@link CompositionBuffer} and encode to an MPEG-2 ES
-	 * file.</li>
+	 * <li>Composite each frame via {@link CompositionBuffer} and encode to an MPEG-2 ES file.</li>
 	 * <li>Optionally extract audio streams from the base video.</li>
-	 * <li>Mux everything into a Blu-ray 192-byte source-packet M2TS using
-	 * {@link M2tsWriter}.</li>
+	 * <li>Mux everything into a Blu-ray 192-byte source-packet M2TS using {@link M2tsWriter}.</li>
 	 * <li>Write the corresponding CLPI using {@link ClipInfoWriter}.</li>
 	 * </ol>
+	 *
 	 * @param composition the images composition recipe
-	 * @param outputDir destination directory; {@code <clipName>.m2ts} and
-	 * {@code <clipName>.clpi} are written here
-	 * @param clipName 5-digit clip name (e.g. {@code "00001"})
-	 * @param config generation parameters
-	 * @throws IOException on any I/O or encoding failure
+	 * @param outputDir   destination directory; {@code <clipName>.m2ts} and {@code <clipName>.clpi} are written here
+	 * @param clipName    5-digit clip name (e.g. {@code "00001"})
+	 * @param config      generation parameters
+	 * @throws IOException              on any I/O or encoding failure
 	 * @throws IllegalArgumentException if frameCount cannot be determined
 	 */
 	public void generate(ImagesComposition composition, Path outputDir, String clipName, Config config, Path baseDir)
@@ -166,12 +161,10 @@ public class CompositedVideoGenerator {
 				VideoFrames vf = new M2tsVideoFrames(Path.of(baseVideoPath));
 				try {
 					frameCount = vf.getFrameCount();
-				}
-				finally {
+				} finally {
 					try {
 						vf.close();
-					}
-					catch (Exception ignored) {
+					} catch (Exception ignored) {
 					}
 				}
 			}
@@ -236,8 +229,7 @@ public class CompositedVideoGenerator {
 
 			log.info("Wrote {} and {}", m2tsPath.getFileName(), clpiPath.getFileName());
 
-		}
-		finally {
+		} finally {
 			deleteTempDir(tempDir);
 		}
 	}
@@ -247,14 +239,12 @@ public class CompositedVideoGenerator {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Encodes all composited frames to a raw H.264 elementary stream file using
-	 * bytedeco/FFmpeg.
+	 * Encodes all composited frames to a raw H.264 elementary stream file using bytedeco/FFmpeg.
 	 *
 	 * <p>
-	 * Each frame is composited via {@link CompositionBuffer}, converted from BGR24 to
-	 * YUV420P using {@code sws_scale}, then handed to the H.264 encoder. The
-	 * {@link MediaRepositoryImpl} is closed when encoding completes so that any opened
-	 * {@link M2tsVideoFrames} FFmpeg contexts are released promptly.
+	 * Each frame is composited via {@link CompositionBuffer}, converted from BGR24 to YUV420P using {@code sws_scale},
+	 * then handed to the H.264 encoder. The {@link MediaRepositoryImpl} is closed when encoding completes so that any
+	 * opened {@link M2tsVideoFrames} FFmpeg contexts are released promptly.
 	 */
 	private void encodeToMpeg4(ImagesComposition composition, int frameCount, double fps, Config config,
 			Path outputFile, Path baseDir) throws IOException {
@@ -354,24 +344,20 @@ public class CompositedVideoGenerator {
 					avcodec_send_frame(codecCtx, null);
 					drainPackets(codecCtx, packet, out);
 
-				}
-				finally {
+				} finally {
 					try {
 						repo.close();
-					}
-					catch (Exception ignored) {
+					} catch (Exception ignored) {
 					}
 				}
-			}
-			finally {
+			} finally {
 				av_frame_free(yuvFrame);
 				av_frame_free(bgrFrame);
 				av_packet_free(packet);
 				sws_freeContext(swsCtx);
 			}
 
-		}
-		finally {
+		} finally {
 			avcodec_free_context(codecCtx);
 		}
 	}
@@ -388,8 +374,8 @@ public class CompositedVideoGenerator {
 	}
 
 	/**
-	 * Fills a pre-allocated BGR24 {@link AVFrame} from a {@link BufferedImage}, scaling
-	 * the image to the frame's dimensions if necessary.
+	 * Fills a pre-allocated BGR24 {@link AVFrame} from a {@link BufferedImage}, scaling the image to the frame's
+	 * dimensions if necessary.
 	 */
 	private static void fillBgrFrame(BufferedImage img, AVFrame bgrFrame, int width, int height) {
 		if (img.getWidth() != width || img.getHeight() != height) {
@@ -413,20 +399,18 @@ public class CompositedVideoGenerator {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Extracts audio elementary streams from the background video and appends
-	 * corresponding {@link M2tsDescriptor.StreamEntry} objects to {@code streams}.
+	 * Extracts audio elementary streams from the background video and appends corresponding
+	 * {@link M2tsDescriptor.StreamEntry} objects to {@code streams}.
 	 *
 	 * <p>
-	 * Output files are produced by {@link M2tsExtractor} and are named
-	 * {@code pid_<hex>.<ext>} inside a temporary subdirectory.
+	 * Output files are produced by {@link M2tsExtractor} and are named {@code pid_<hex>.<ext>} inside a temporary
+	 * subdirectory.
 	 */
 	private void appendAudioEntries(String baseVideoPath, Path tempDir, List<M2tsDescriptor.StreamEntry> streams)
 			throws IOException {
 		M2tsInfo info = new M2tsParser().parse(Path.of(baseVideoPath));
-		List<M2tsStreamInfo> audioStreams = info.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType() != null && s.getCodingType().isAudio())
-			.toList();
+		List<M2tsStreamInfo> audioStreams = info.getStreams().stream()
+				.filter(s -> s.getCodingType() != null && s.getCodingType().isAudio()).toList();
 
 		if (audioStreams.isEmpty()) {
 			log.debug("No audio streams found in '{}'", baseVideoPath);
@@ -472,8 +456,8 @@ public class CompositedVideoGenerator {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Returns the video path of the base {@link ImageReference}, or {@code null} if the
-	 * base is a static image or synthetic.
+	 * Returns the video path of the base {@link ImageReference}, or {@code null} if the base is a static image or
+	 * synthetic.
 	 */
 	private static String resolveBaseVideoPath(ImagesComposition composition, Path baseDir) {
 		// TODO more or less same logic exists in CompositionBuffer
@@ -485,8 +469,7 @@ public class CompositedVideoGenerator {
 		ImageReference ref;
 		if (baseId != null && !baseId.isBlank()) {
 			ref = images.stream().filter(r -> baseId.equals(r.getImageId())).findFirst().orElse(null);
-		}
-		else {
+		} else {
 			ref = images.get(0);
 		}
 		String videoPath = (ref != null && ref.isVideo()) ? ref.getVideoPath() : null;
@@ -499,11 +482,8 @@ public class CompositedVideoGenerator {
 	}
 
 	private static M2tsStreamInfo findFirstVideoStream(M2tsInfo info) {
-		return info.getStreams()
-			.stream()
-			.filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
-			.findFirst()
-			.orElse(null);
+		return info.getStreams().stream().filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
+				.findFirst().orElse(null);
 	}
 
 	/**
@@ -514,14 +494,14 @@ public class CompositedVideoGenerator {
 			return "bin";
 		}
 		return switch (s.getCodingType()) {
-			case LPCM -> "lpcm";
-			case DOLBY_AC3 -> "ac3";
-			case DOLBY_AC3_PLUS -> "eac3";
-			case DOLBY_TRUEHD -> "thd";
-			case DTS -> "dts";
-			case DTS_HD -> "dtshd";
-			case DTS_HD_MASTER_AUDIO -> "dtsma";
-			default -> "bin";
+		case LPCM -> "lpcm";
+		case DOLBY_AC3 -> "ac3";
+		case DOLBY_AC3_PLUS -> "eac3";
+		case DOLBY_TRUEHD -> "thd";
+		case DTS -> "dts";
+		case DTS_HD -> "dtshd";
+		case DTS_HD_MASTER_AUDIO -> "dtsma";
+		default -> "bin";
 		};
 	}
 
@@ -547,13 +527,11 @@ public class CompositedVideoGenerator {
 			stream.sorted((a, b) -> -a.compareTo(b)).forEach(p -> {
 				try {
 					Files.delete(p);
-				}
-				catch (IOException ignored) {
+				} catch (IOException ignored) {
 					// best-effort cleanup
 				}
 			});
-		}
-		catch (IOException ignored) {
+		} catch (IOException ignored) {
 			// best-effort cleanup
 		}
 	}

@@ -8,8 +8,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * Abstract representation of the tracks found in a source media container (MKV, etc.).
- * Low-level components use this model to map source tracks to target Blu-ray PIDs.
+ * Abstract representation of the tracks found in a source media container (MKV, etc.). Low-level components use this
+ * model to map source tracks to target Blu-ray PIDs.
  */
 @Getter
 @Setter

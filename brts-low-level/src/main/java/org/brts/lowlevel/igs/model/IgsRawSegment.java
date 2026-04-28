@@ -8,12 +8,10 @@ import org.brts.lowlevel.igs.IgsSegmentType;
 /**
  * A raw PES-encapsulated segment as found in an IGS elementary stream.
  * <p>
- * The IGS stream is made up of PES packets. Each PES packet carries a PTS/DTS header
- * followed by one segment. A segment has a 3-byte header (type + length) plus the segment
- * data bytes.
+ * The IGS stream is made up of PES packets. Each PES packet carries a PTS/DTS header followed by one segment. A segment
+ * has a 3-byte header (type + length) plus the segment data bytes.
  * <p>
- * This class preserves the exact binary representation to enable faithful round-trip
- * (demux → mux) without loss.
+ * This class preserves the exact binary representation to enable faithful round-trip (demux → mux) without loss.
  */
 @Getter
 @Setter

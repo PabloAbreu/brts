@@ -18,11 +18,13 @@ import java.util.List;
  * <li>{@code "0200"} — BD-ROM v2; HDMV and BD-J entries.</li>
  * <li>{@code "0300"} — BD-ROM v3; same binary structure as v2.</li>
  * </ul>
- * The binary entry layout is identical across all versions (12 bytes per title entry);
- * the version is surfaced in {@link IndexBdmv#getVersion()} so callers can apply
- * version-specific rules (e.g. the writer rejects BD-J entries for {@code "0100"}).
+ * The binary entry layout is identical across all versions (12 bytes per title entry); the version is surfaced in
+ * {@link IndexBdmv#getVersion()} so callers can apply version-specific rules (e.g. the writer rejects BD-J entries for
+ * {@code "0100"}).
  * <p>
- * Binary layout (all integers big-endian): <pre>
+ * Binary layout (all integers big-endian):
+ *
+ * <pre>
  * File header (40 bytes):
  *   magic                       : 4 bytes  ("INDX")
  *   version                     : 4 bytes  ("0200" or "0300")
@@ -71,8 +73,7 @@ public class IndexBdmvParser implements BinaryParser<IndexBdmv> {
 	private static final int ENTRY_SIZE = 12;
 
 	/**
-	 * Length of the BD-J object name field (5 ASCII characters), located at byte offset 6
-	 * within each title entry.
+	 * Length of the BD-J object name field (5 ASCII characters), located at byte offset 6 within each title entry.
 	 */
 	private static final int BDJ_NAME_LENGTH = 5;
 
@@ -132,9 +133,8 @@ public class IndexBdmvParser implements BinaryParser<IndexBdmv> {
 	}
 
 	/**
-	 * Reads the AppInfoBDMV section and returns the content_provider_name (trimmed of
-	 * nulls). The section structure is: section_length(4) + reserved(1) + flags(1) +
-	 * name(32).
+	 * Reads the AppInfoBDMV section and returns the content_provider_name (trimmed of nulls). The section structure is:
+	 * section_length(4) + reserved(1) + flags(1) + name(32).
 	 */
 	private String readAppInfoBdmv(BinaryReader r) throws IOException {
 		long sectionLength = r.readUnsignedInt();
@@ -195,8 +195,7 @@ public class IndexBdmvParser implements BinaryParser<IndexBdmv> {
 		if (objectType == 2) {
 			// BD-J entry: payload bytes 0-4 are the 5-char BDJO file name
 			entry.setBdjObjectName(new String(payload, java.nio.charset.StandardCharsets.US_ASCII));
-		}
-		else if (objectType == 1) {
+		} else if (objectType == 1) {
 			// HDMV entry: hdmv_object_id is a 16-bit big-endian value at payload[0-1]
 			int hdmvObjectId = ((payload[0] & 0xFF) << 8) | (payload[1] & 0xFF);
 			entry.setHdmvObjectId(hdmvObjectId);

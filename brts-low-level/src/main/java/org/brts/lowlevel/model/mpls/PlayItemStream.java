@@ -7,8 +7,8 @@ import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.model.StreamCodingType;
 
 /**
- * Stream entry in a PlayItem STN (Stream Number Table). Specifies which PID to present
- * and carries the same stream attributes as the corresponding CLPI ClipStream entry.
+ * Stream entry in a PlayItem STN (Stream Number Table). Specifies which PID to present and carries the same stream
+ * attributes as the corresponding CLPI ClipStream entry.
  */
 @Getter
 @Setter
@@ -34,8 +34,8 @@ public class PlayItemStream implements IStreamInfo {
 
 	public Integer sampleRateKhz() {
 		return sampleRate != null ? switch (sampleRate) {
-			case 0x01 -> 48;// this one seems good
-			default -> null;
+		case 0x01 -> 48;// this one seems good
+		default -> null;
 		} : null;
 	}
 

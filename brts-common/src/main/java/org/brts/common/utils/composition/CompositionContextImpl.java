@@ -14,22 +14,19 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Implementation of {@link CompositionContext} that manages expression language
- * evaluation within a specific frame context.
+ * Implementation of {@link CompositionContext} that manages expression language evaluation within a specific frame
+ * context.
  *
- * Note that an instance of this class is typically created for each frame being
- * processed, allowing only to cache and parse expressions within the same frame, but not
- * across different frames.
+ * Note that an instance of this class is typically created for each frame being processed, allowing only to cache and
+ * parse expressions within the same frame, but not across different frames.
  *
  * <p>
- * This class provides functionality to evaluate EL expressions and maintain
- * frame-specific context information. It uses the EL (Expression Language) API to create
- * and evaluate value expressions dynamically.
+ * This class provides functionality to evaluate EL expressions and maintain frame-specific context information. It uses
+ * the EL (Expression Language) API to create and evaluate value expressions dynamically.
  * </p>
  *
  * <p>
- * The context automatically registers the current frame number as a variable accessible
- * within evaluated expressions.
+ * The context automatically registers the current frame number as a variable accessible within evaluated expressions.
  * </p>
  *
  * @author [Author Name]

@@ -14,11 +14,9 @@ public class ObjectExpressionDeserializer extends JsonDeserializer<ObjectExpress
 		JsonToken token = p.getCurrentToken();
 		if (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT) {
 			return ObjectExpression.of(p.getDecimalValue());
-		}
-		else if (token == JsonToken.VALUE_STRING) {
+		} else if (token == JsonToken.VALUE_STRING) {
 			return ObjectExpression.expr(p.getText());
-		}
-		else {
+		} else {
 			return ctxt.reportInputMismatch(this, "Expected number or string expression");
 		}
 	}

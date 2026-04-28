@@ -5,7 +5,9 @@ import org.brts.common.model.StreamCodingType;
 /**
  * Automatic PID allocator for Blu-ray elementary streams.
  * <p>
- * Follows the Blu-ray default PID allocation convention: <pre>
+ * Follows the Blu-ray default PID allocation convention:
+ *
+ * <pre>
  *   PMT              0x0100 (256)
  *   Video            0x1011 (4113)
  *   Primary audio    0x1100–0x110F
@@ -13,8 +15,9 @@ import org.brts.common.model.StreamCodingType;
  *   PG subtitles     0x1200–0x120F
  *   IG (menu)        0x1400–0x140F
  *   Text subtitles   0x1800–0x180F
- * </pre> Each call to {@code next*()} returns the next available PID in the respective
- * range.
+ * </pre>
+ *
+ * Each call to {@code next*()} returns the next available PID in the respective range.
  */
 public class PidAllocator {
 
@@ -32,11 +35,11 @@ public class PidAllocator {
 
 	public int allocate(StreamCodingType type) {
 		return switch (type) {
-			case H264_AVC, H265_HEVC, MPEG2_VIDEO, VC1 -> nextVideo++;
-			case DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, LPCM -> nextAudio++;
-			case PRESENTATION_GRAPHICS -> nextPg++;
-			case INTERACTIVE_GRAPHICS -> nextIg++;
-			case TEXT_SUBTITLE -> nextTextSub++;
+		case H264_AVC, H265_HEVC, MPEG2_VIDEO, VC1 -> nextVideo++;
+		case DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, LPCM -> nextAudio++;
+		case PRESENTATION_GRAPHICS -> nextPg++;
+		case INTERACTIVE_GRAPHICS -> nextIg++;
+		case TEXT_SUBTITLE -> nextTextSub++;
 		};
 	}
 

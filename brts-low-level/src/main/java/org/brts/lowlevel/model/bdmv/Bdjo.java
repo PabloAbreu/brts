@@ -8,8 +8,7 @@ import java.util.List;
 /**
  * Model for {@code BDMV/BDJO/XXXXX.bdjo} — a BD-J Object file.
  * <p>
- * A BDJO file describes the BD-J application(s) that are launched when a BD-J title is
- * entered. It contains:
+ * A BDJO file describes the BD-J application(s) that are launched when a BD-J title is entered. It contains:
  * <ul>
  * <li>Terminal information (default font, HAVi configuration, call masks)</li>
  * <li>Application cache information (JAR references)</li>
@@ -53,7 +52,9 @@ public class Bdjo {
 	/**
 	 * Terminal information — default font, HAVi config, call masks.
 	 * <p>
-	 * Binary layout (after 4-byte section_length): <pre>
+	 * Binary layout (after 4-byte section_length):
+	 *
+	 * <pre>
 	 *   default_font          : 5 bytes ASCII ("*****" = none)
 	 *   initial_havi_config   : 4 bits
 	 *   menu_call_mask        : 1 bit
@@ -66,8 +67,7 @@ public class Bdjo {
 	public static class TerminalInfo {
 
 		/**
-		 * Default AWT font file name (5 chars, references AUXDATA/xxxxx.otf). "*****" =
-		 * none.
+		 * Default AWT font file name (5 chars, references AUXDATA/xxxxx.otf). "*****" = none.
 		 */
 		private String defaultFont = "*****";
 
@@ -81,8 +81,8 @@ public class Bdjo {
 		private boolean titleSearchMask;
 
 		/**
-		 * Raw padding bytes from the TerminalInfo section (4 bytes after the flags byte).
-		 * Preserved for byte-for-byte round-trip fidelity.
+		 * Raw padding bytes from the TerminalInfo section (4 bytes after the flags byte). Preserved for byte-for-byte
+		 * round-trip fidelity.
 		 */
 		private byte[] rawPadding = new byte[4];
 
@@ -167,9 +167,8 @@ public class Bdjo {
 		private int applicationId;
 
 		/**
-		 * Raw 10-byte descriptor tag+length header. Preserved for byte-for-byte
-		 * round-trip fidelity. When writing, if null, the header is computed from the
-		 * descriptor body length.
+		 * Raw 10-byte descriptor tag+length header. Preserved for byte-for-byte round-trip fidelity. When writing, if
+		 * null, the header is computed from the descriptor body length.
 		 */
 		private byte[] descriptorHeader;
 

@@ -16,7 +16,9 @@ import java.nio.file.Path;
 /**
  * Generates the complete Blu-ray disc folder structure from the low-level model objects.
  * <p>
- * Output layout: <pre>
+ * Output layout:
+ *
+ * <pre>
  * &lt;outputRoot&gt;/
  *   BDMV/
  *     index.bdmv
@@ -49,8 +51,8 @@ public class BdmvStructureGenerator {
 	private final MovieObjectsWriter movieObjectsWriter = new MovieObjectsWriter();
 
 	/**
-	 * Creates the full Blu-ray directory skeleton at {@code outputRoot}. Call
-	 * {@link #writeClip}, {@link #writePlaylist} etc. to populate content.
+	 * Creates the full Blu-ray directory skeleton at {@code outputRoot}. Call {@link #writeClip},
+	 * {@link #writePlaylist} etc. to populate content.
 	 */
 	public void initStructure(Path outputRoot) throws IOException {
 		log.info("Initialising BDMV structure at {}", outputRoot);

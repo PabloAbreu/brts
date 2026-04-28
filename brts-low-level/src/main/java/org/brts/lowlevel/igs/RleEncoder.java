@@ -9,8 +9,8 @@ import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.PaletteEntry;
 
 /**
- * Encodes an ARGB {@link BufferedImage} into PG/IG RLE-compressed bytes suitable for an
- * Object Definition Segment (ODS).
+ * Encodes an ARGB {@link BufferedImage} into PG/IG RLE-compressed bytes suitable for an Object Definition Segment
+ * (ODS).
  * <p>
  * This is the inverse of {@link RleConverter#decodeRle}.
  *
@@ -30,9 +30,10 @@ public final class RleEncoder {
 	}
 
 	/**
-	 * Encodes an ARGB image to RLE bytes using the given palette. Each pixel in the image
-	 * is matched to its nearest palette entry index.
-	 * @param image the source ARGB image
+	 * Encodes an ARGB image to RLE bytes using the given palette. Each pixel in the image is matched to its nearest
+	 * palette entry index.
+	 *
+	 * @param image   the source ARGB image
 	 * @param palette the palette to quantise against
 	 * @return RLE-encoded bytes
 	 */
@@ -76,9 +77,10 @@ public final class RleEncoder {
 
 	/**
 	 * Encodes an indexed image (pixel values are palette indices) to RLE bytes.
+	 *
 	 * @param indexedPixels 2D array [height][width] of palette indices
-	 * @param width image width
-	 * @param height image height
+	 * @param width         image width
+	 * @param height        image height
 	 * @return RLE-encoded bytes
 	 */
 	public static byte[] encodeIndexed(int[][] indexedPixels, int width, int height) {
@@ -118,23 +120,20 @@ public final class RleEncoder {
 				// 0x00 0b00LLLLLL
 				out.write(0x00);
 				out.write(runLen & 0x3F);
-			}
-			else {
+			} else {
 				// 0x00 0b01LLLLLL LLLLLLLL (14-bit length)
 				out.write(0x00);
 				out.write(0x40 | ((runLen >> 8) & 0x3F));
 				out.write(runLen & 0xFF);
 			}
-		}
-		else {
+		} else {
 			// Runs of non-zero colour
 			if (runLen <= 63) {
 				// 0x00 0b10LLLLLL CC
 				out.write(0x00);
 				out.write(0x80 | (runLen & 0x3F));
 				out.write(colorIdx);
-			}
-			else {
+			} else {
 				// 0x00 0b11LLLLLL LLLLLLLL CC (14-bit length)
 				out.write(0x00);
 				out.write(0xC0 | ((runLen >> 8) & 0x3F));
@@ -145,8 +144,7 @@ public final class RleEncoder {
 	}
 
 	/**
-	 * Resolve an ARGB pixel to its palette index. Uses exact match first, then falls back
-	 * to nearest-colour search.
+	 * Resolve an ARGB pixel to its palette index. Uses exact match first, then falls back to nearest-colour search.
 	 */
 	private static int resolveIndex(int argb, Map<Integer, Integer> argbToIndex, int[] argbPalette) {
 		Integer idx = argbToIndex.get(argb);

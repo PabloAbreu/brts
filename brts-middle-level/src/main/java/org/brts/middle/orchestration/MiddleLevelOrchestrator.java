@@ -25,9 +25,8 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * Middle-level orchestrator: processes a {@link DiscDescriptor}, builds low-level
- * descriptors for each title, and writes them to an output directory along with an
- * orchestration script.
+ * Middle-level orchestrator: processes a {@link DiscDescriptor}, builds low-level descriptors for each title, and
+ * writes them to an output directory along with an orchestration script.
  * <p>
  * Output structure:
  *
@@ -57,9 +56,9 @@ public class MiddleLevelOrchestrator {
 	}
 
 	/**
-	 * Processes the disc descriptor and writes low-level descriptors + orchestration
-	 * script.
-	 * @param disc the middle-level disc description
+	 * Processes the disc descriptor and writes low-level descriptors + orchestration script.
+	 *
+	 * @param disc      the middle-level disc description
 	 * @param outputDir directory where descriptors and the script will be written
 	 */
 	public void orchestrate(DiscDescriptor disc, Path outputDir) throws IOException {
@@ -109,7 +108,7 @@ public class MiddleLevelOrchestrator {
 			titles.add(entry);
 			MovieObject movieObject = new MovieObject();
 			movieObject.setNavigationCommands(List.of(NavigationCommand.fromParsed(ParsedNavigationCommand
-				.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, false))));
+					.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, false))));
 			movieObjects.add(movieObject);
 			lastTitleId = title.getTitleId();
 		}

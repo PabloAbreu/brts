@@ -29,8 +29,7 @@ class ParsedNavigationCommandTest {
 	@Test
 	void fromRaw_rejectsShortArray() {
 		assertThatThrownBy(() -> ParsedNavigationCommand.fromRaw(new byte[8]))
-			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessageContaining("12 bytes");
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("12 bytes");
 	}
 
 	@Test
@@ -171,7 +170,7 @@ class ParsedNavigationCommandTest {
 	void registerIndex_throwsForImmediate() {
 		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 42, true, 0, false);
 		assertThatThrownBy(cmd::computeOp1RegisterIndex).isInstanceOf(IllegalStateException.class)
-			.hasMessageContaining("immediate");
+				.hasMessageContaining("immediate");
 	}
 
 	// ── Heuristic bug fix: describe uses opcode flags, not value heuristics ─
@@ -213,7 +212,7 @@ class ParsedNavigationCommandTest {
 	void describe_noOperandCommands() {
 		assertThat(ParsedNavigationCommand.compile("NOP", 0, false, 0, false).describe()).isEqualTo("No operation");
 		assertThat(ParsedNavigationCommand.compile("BREAK", 0, false, 0, false).describe())
-			.isEqualTo("Break out of program");
+				.isEqualTo("Break out of program");
 	}
 
 	@Test

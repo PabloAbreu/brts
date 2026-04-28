@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A visual effect — a timed palette + object composition used in page transition
- * animations (in-effects and out-effects).
+ * A visual effect — a timed palette + object composition used in page transition animations (in-effects and
+ * out-effects).
  */
 @Getter
 @Setter

@@ -4,8 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * A chapter mark within an MPLS playlist. Each mark anchors a chapter to a specific PTS
- * within a PlayItem.
+ * A chapter mark within an MPLS playlist. Each mark anchors a chapter to a specific PTS within a PlayItem.
  */
 @Getter
 @Setter

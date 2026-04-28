@@ -8,8 +8,7 @@ public interface ExpressionEvaluator {
 		Object value = eval(expression, context);
 		if (value instanceof Number) {
 			return ((Number) value).doubleValue();
-		}
-		else {
+		} else {
 			throw new IllegalArgumentException("Expected numeric value, got: " + value);
 		}
 	}

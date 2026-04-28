@@ -16,8 +16,8 @@ import java.util.stream.Collectors;
 /**
  * Template for a TV series Blu-ray disc.
  * <p>
- * Each episode in the glob-expanded or explicit file list becomes a separate title.
- * Titles are numbered from 1 upward in sorted file-name order.
+ * Each episode in the glob-expanded or explicit file list becomes a separate title. Titles are numbered from 1 upward
+ * in sorted file-name order.
  */
 public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor> {
 
@@ -76,18 +76,15 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 				int lastSep = Math.max(glob.lastIndexOf('/'), glob.lastIndexOf('\\'));
 				baseDir = Path.of(lastSep > 0 ? glob.substring(0, lastSep) : ".");
 				pattern = "glob:" + glob;
-			}
-			else {
+			} else {
 				baseDir = globPath.getParent() != null ? globPath.getParent() : Path.of(".");
 				pattern = "glob:" + glob;
 			}
 			PathMatcher matcher = FileSystems.getDefault().getPathMatcher(pattern);
 			try (var stream = Files.walk(baseDir, 1)) {
-				return stream.filter(p -> !Files.isDirectory(p))
-					.filter(matcher::matches)
-					.sorted(Comparator.comparing(Path::getFileName))
-					.map(p -> p.toAbsolutePath().toString())
-					.collect(Collectors.toList());
+				return stream.filter(p -> !Files.isDirectory(p)).filter(matcher::matches)
+						.sorted(Comparator.comparing(Path::getFileName)).map(p -> p.toAbsolutePath().toString())
+						.collect(Collectors.toList());
 			}
 		}
 		throw new IllegalArgumentException("TvSeriesDiscDescriptor must specify either episodesGlob or episodeFiles");

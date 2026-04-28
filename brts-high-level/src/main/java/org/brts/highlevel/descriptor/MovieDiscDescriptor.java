@@ -8,7 +8,9 @@ import java.util.List;
 /**
  * High-level descriptor for a single movie Blu-ray disc.
  * <p>
- * Example {@code movie-disc.json}: <pre>{@code
+ * Example {@code movie-disc.json}:
+ *
+ * <pre>{@code
  * {
  *   "templateType": "MOVIE",
  *   "discTitle": "My Movie",

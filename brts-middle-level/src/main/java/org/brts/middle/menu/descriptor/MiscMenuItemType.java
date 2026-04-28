@@ -6,8 +6,7 @@ package org.brts.middle.menu.descriptor;
  * Each type maps to a specific Blu-ray HDMV navigation command:
  * <ul>
  * <li>{@link #LAUNCH} → {@code PLAY_PL} (play a playlist)</li>
- * <li>{@link #GO_BACK} → {@code JUMP_TITLE} (jump to a title, typically the top
- * menu)</li>
+ * <li>{@link #GO_BACK} → {@code JUMP_TITLE} (jump to a title, typically the top menu)</li>
  * <li>{@link #POPUP_OFF} → {@code POPUP_OFF} (dismiss the pop-up menu)</li>
  * <li>{@link #RESUME} → {@code RESUME} (resume from saved location)</li>
  * </ul>

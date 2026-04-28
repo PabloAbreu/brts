@@ -23,9 +23,9 @@ class FirstPlaylistFinderTest {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Creates a navigation command with both operands marked as immediate. Suitable for
-	 * PLAY_PL*, JUMP_OBJECT, JUMP_TITLE, CALL_OBJECT, CALL_TITLE where operands are
-	 * always literal values (playlist IDs, object indices, etc.).
+	 * Creates a navigation command with both operands marked as immediate. Suitable for PLAY_PL*, JUMP_OBJECT,
+	 * JUMP_TITLE, CALL_OBJECT, CALL_TITLE where operands are always literal values (playlist IDs, object indices,
+	 * etc.).
 	 */
 	private static NavigationCommand cmd(String mnemonic, long op1, long op2) {
 		NavigationCommand c = new NavigationCommand();
@@ -38,8 +38,8 @@ class FirstPlaylistFinderTest {
 	}
 
 	/**
-	 * Creates a SET command where operand1 is a GPR reference (destination) and operand2
-	 * is an immediate value (source).
+	 * Creates a SET command where operand1 is a GPR reference (destination) and operand2 is an immediate value
+	 * (source).
 	 */
 	private static NavigationCommand cmdSet(String mnemonic, int gprIndex, long immValue) {
 		NavigationCommand c = new NavigationCommand();
@@ -311,7 +311,7 @@ class FirstPlaylistFinderTest {
 		MovieObjects mobj = mobjWith(movieObject(cmd("JUMP_OBJECT", 1)), movieObject(cmd("JUMP_OBJECT", 0)));
 
 		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj)
-			.find(FirstPlaylistFinderConfig.builder().maxChainDepth(5).build());
+				.find(FirstPlaylistFinderConfig.builder().maxChainDepth(5).build());
 
 		assertThat(r.isFound()).isFalse();
 		assertThat(r.getTerminationReason()).isEqualTo("MAX_DEPTH");
@@ -351,7 +351,7 @@ class FirstPlaylistFinderTest {
 		MovieObjects mobj = mobjWith(movieObject(cmd("BREAK")), movieObject(cmd("PLAY_PL", 555)));
 
 		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj)
-			.find(FirstPlaylistFinderConfig.builder().startObjectId(1).build());
+				.find(FirstPlaylistFinderConfig.builder().startObjectId(1).build());
 
 		assertThat(r.isFound()).isTrue();
 		assertThat(r.getPlaylistId()).isEqualTo(555);
@@ -364,7 +364,7 @@ class FirstPlaylistFinderTest {
 		MovieObjects mobj = mobjWith(movieObject(cmd("BREAK")), movieObject(cmd("PLAY_PL", 666)));
 
 		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj)
-			.find(FirstPlaylistFinderConfig.builder().startTitleNumber(1).build());
+				.find(FirstPlaylistFinderConfig.builder().startTitleNumber(1).build());
 
 		assertThat(r.isFound()).isTrue();
 		assertThat(r.getPlaylistId()).isEqualTo(666);

@@ -10,13 +10,11 @@ import org.brts.lowlevel.model.bdmv.MovieObjects.MovieObject;
 import java.util.*;
 
 /**
- * Finds the first playlist that would be played on a non-BD-J Blu-ray disc by chaining
- * HDMV movie-object simulations.
+ * Finds the first playlist that would be played on a non-BD-J Blu-ray disc by chaining HDMV movie-object simulations.
  * <p>
- * Starting from the disc's first-play title (or a configurable override), the finder runs
- * each movie object's navigation commands through {@link NavigationCommandSimulator}.
- * When the simulator terminates with JUMP/CALL, the finder resolves the target and
- * simulates the next object. When it terminates with PLAY_PL*, the playlist number is
+ * Starting from the disc's first-play title (or a configurable override), the finder runs each movie object's
+ * navigation commands through {@link NavigationCommandSimulator}. When the simulator terminates with JUMP/CALL, the
+ * finder resolves the target and simulates the next object. When it terminates with PLAY_PL*, the playlist number is
  * extracted and returned.
  */
 public class FirstPlaylistFinder {
@@ -45,15 +43,13 @@ public class FirstPlaylistFinder {
 		if (config.getStartObjectId() != null) {
 			currentObjectId = config.getStartObjectId();
 			trace.add("start → object " + currentObjectId + " (explicit)");
-		}
-		else if (config.getStartTitleNumber() != null) {
+		} else if (config.getStartTitleNumber() != null) {
 			int titleNum = config.getStartTitleNumber();
 			currentObjectId = resolveTitleToObject(titleNum, trace);
 			if (currentObjectId < 0) {
 				return deadEnd(trace, totalSteps, "BD_J_ENCOUNTERED");
 			}
-		}
-		else {
+		} else {
 			TitleEntry fp = index.getFirstPlayTitle();
 			if (fp == null) {
 				trace.add("no firstPlayTitle defined in index.bdmv");
@@ -112,8 +108,7 @@ public class FirstPlaylistFinder {
 				r.setPlayCommand(reason);
 				if ("PLAY_PL_PI".equals(reason) && result.terminalOp2() != null) {
 					r.setPlayItemId(result.terminalOp2().intValue());
-				}
-				else if ("PLAY_PL_PM".equals(reason) && result.terminalOp2() != null) {
+				} else if ("PLAY_PL_PM".equals(reason) && result.terminalOp2() != null) {
 					r.setPlayMarkId(result.terminalOp2().intValue());
 				}
 				r.setTrace(trace);
@@ -210,6 +205,7 @@ public class FirstPlaylistFinder {
 	 * <li>0xFFFF → first play title</li>
 	 * <li>1..N → titles[n-1]</li>
 	 * </ul>
+	 *
 	 * @return movie object index, or -1 if the title is BD-J or invalid
 	 */
 	private int resolveTitleToObject(int titleNumber, List<String> trace) {
@@ -220,15 +216,13 @@ public class FirstPlaylistFinder {
 				trace.add("title 0 (top menu) not defined");
 				return -1;
 			}
-		}
-		else if (titleNumber == 0xFFFF) {
+		} else if (titleNumber == 0xFFFF) {
 			entry = index.getFirstPlayTitle();
 			if (entry == null) {
 				trace.add("title 0xFFFF (first play) not defined");
 				return -1;
 			}
-		}
-		else {
+		} else {
 			int idx = titleNumber - 1;
 			if (index.getTitles() == null || idx < 0 || idx >= index.getTitles().size()) {
 				trace.add("title " + titleNumber + " out of range");

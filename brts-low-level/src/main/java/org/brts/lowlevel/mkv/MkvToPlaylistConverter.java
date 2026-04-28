@@ -42,8 +42,7 @@ import org.slf4j.LoggerFactory;
  * <li>Validate Blu-ray compatibility ({@link BlurayCompatibilityValidator})</li>
  * <li>Demux MKV into elementary streams ({@link MkvDemuxer})</li>
  * <li>Convert text subtitles to PGS where needed ({@link PgsGenerator})</li>
- * <li>Build an {@link M2tsDescriptor} and write M2TS + CLPI ({@link M2tsWriter},
- * {@link ClipInfoWriter})</li>
+ * <li>Build an {@link M2tsDescriptor} and write M2TS + CLPI ({@link M2tsWriter}, {@link ClipInfoWriter})</li>
  * <li>Build and write MPLS ({@link MoviePlaylistWriter})</li>
  * </ol>
  */
@@ -91,9 +90,10 @@ public class MkvToPlaylistConverter {
 
 	/**
 	 * Runs the full MKV-to-playlist conversion pipeline.
+	 *
 	 * @param config conversion configuration
 	 * @return paths to the generated files
-	 * @throws IOException on I/O error
+	 * @throws IOException  on I/O error
 	 * @throws BrtException if any stream is incompatible with Blu-ray
 	 */
 	public Result convert(Config config) throws IOException {
@@ -193,22 +193,18 @@ public class MkvToPlaylistConverter {
 
 			if (ct.isVideo()) {
 				result.add(track);
-			}
-			else if (ct.isAudio()) {
+			} else if (ct.isAudio()) {
 				if (config.getAudioTrackFilter() == null
 						|| config.getAudioTrackFilter().contains(track.getTrackNumber())) {
 					result.add(track);
-				}
-				else {
+				} else {
 					log.debug("Skipping audio track {} (not in filter)", track.getTrackNumber());
 				}
-			}
-			else if (ct.isSubtitle() || ct == StreamCodingType.TEXT_SUBTITLE) {
+			} else if (ct.isSubtitle() || ct == StreamCodingType.TEXT_SUBTITLE) {
 				if (config.getSubtitleTrackFilter() == null
 						|| config.getSubtitleTrackFilter().contains(track.getTrackNumber())) {
 					result.add(track);
-				}
-				else {
+				} else {
 					log.debug("Skipping subtitle track {} (not in filter)", track.getTrackNumber());
 				}
 			}
@@ -249,8 +245,7 @@ public class MkvToPlaylistConverter {
 				entry.setFile(pgsFile.toAbsolutePath().toString());
 				entry.setStreamTypeByte(StreamCodingType.PRESENTATION_GRAPHICS.getCodingTypeByte());
 				entry.setPid(PGS_PID_BASE + subIdx++);
-			}
-			else {
+			} else {
 				Path esFile = demuxedFiles.get(trackNo);
 				if (esFile == null)
 					continue;
@@ -262,14 +257,12 @@ public class MkvToPlaylistConverter {
 					if (track.getFrameRateFps() != null) {
 						entry.setFrameRateFps(track.getFrameRateFps());
 					}
-				}
-				else if (ct.isAudio()) {
+				} else if (ct.isAudio()) {
 					entry.setPid(AUDIO_PID_BASE + audioIdx++);
 					entry.setChannels(track.getChannels());
 					entry.setSampleRateHz(track.getSampleRateHz());
 					entry.setBitrateKbps(track.getBitrateKbps());
-				}
-				else if (ct == StreamCodingType.PRESENTATION_GRAPHICS) {
+				} else if (ct == StreamCodingType.PRESENTATION_GRAPHICS) {
 					entry.setPid(PGS_PID_BASE + subIdx++);
 				}
 			}
@@ -313,8 +306,7 @@ public class MkvToPlaylistConverter {
 				cs.setVideoFormat(deriveVideoFormat(st));
 				cs.setFrameRate(deriveFrameRateCode(st));
 				cs.setAspectRatio(3); // 16:9
-			}
-			else if (cs.getCodingType() != null && cs.getCodingType().isAudio()) {
+			} else if (cs.getCodingType() != null && cs.getCodingType().isAudio()) {
 				cs.setAudioChannelLayout(deriveChannelLayout(st));
 				cs.setSampleRate(deriveSampleRateCode(st));
 			}

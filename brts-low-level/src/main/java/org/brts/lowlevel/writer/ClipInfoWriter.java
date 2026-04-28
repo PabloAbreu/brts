@@ -15,15 +15,18 @@ import org.brts.lowlevel.model.clpi.EpMap;
 /**
  * Writer for CLPI (Clip Information) binary files.
  * <p>
- * Generates a standards-compliant {@code XXXXX.clpi} file from a {@link ClipInfo} model.
- * The output is compatible with players that implement the Blu-ray Read-Only spec
- * v2.x/3.x.
+ * Generates a standards-compliant {@code XXXXX.clpi} file from a {@link ClipInfo} model. The output is compatible with
+ * players that implement the Blu-ray Read-Only spec v2.x/3.x.
  * <p>
- * Header layout (40 bytes): <pre>
+ * Header layout (40 bytes):
+ *
+ * <pre>
  *   4 magic ("HDMV") + 4 version ("0200")
  *   5×4 offsets (SequenceInfo, ProgramInfo, CPI, ClipMark, ExtData)
  *   12 reserved bytes
- * </pre> The ClipInfo section always starts immediately at byte 40.
+ * </pre>
+ *
+ * The ClipInfo section always starts immediately at byte 40.
  */
 public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
@@ -165,8 +168,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 									// previous byte
 				// pad with '0' and 4 zeroes (seen in actual files, not sure if
 				// required or just reserved)
-			}
-			else if (s.getCodingType().isAudio()) {
+			} else if (s.getCodingType().isAudio()) {
 				int ch = (s.getAudioChannelLayout() != null ? s.getAudioChannelLayout() : 0);
 				int sr = (s.getSampleRate() != null ? s.getSampleRate() : 0);
 				wi.writeByte((ch << 4) | sr);
@@ -178,10 +180,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 				wi.writeByte(s.getCharacterCode() != null ? s.getCharacterCode() : 0);
 				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
-			}
-			else /*
-					 * if (s.getCodingType()== StreamCodingType.PRESENTATION_GRAPHICS ||
-					 * s.getCodingType() == StreamCodingType.INTERACTIVE_GRAPHICS)
+			} else /*
+					 * if (s.getCodingType()== StreamCodingType.PRESENTATION_GRAPHICS || s.getCodingType() ==
+					 * StreamCodingType.INTERACTIVE_GRAPHICS)
 					 */ {
 				String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 				wi.writeAscii(String.format("%-3s", lang).substring(0, 3));
@@ -276,8 +277,8 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	}
 
 	/**
-	 * Builds the binary EP_map data block for one stream (coarse + fine entries). Layout:
-	 * fine_start_offset (4 bytes) + coarse entries + fine entries.
+	 * Builds the binary EP_map data block for one stream (coarse + fine entries). Layout: fine_start_offset (4 bytes) +
+	 * coarse entries + fine entries.
 	 */
 	private byte[] buildEpMapStreamData(List<EpMap.EpMapEntry> entries) throws IOException {
 		if (entries.isEmpty()) {

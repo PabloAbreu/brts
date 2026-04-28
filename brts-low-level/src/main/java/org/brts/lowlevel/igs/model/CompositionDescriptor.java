@@ -5,8 +5,8 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Composition descriptor (shared by PCS and ICS). Contains the composition number and
- * state (epoch start, normal update, etc.).
+ * Composition descriptor (shared by PCS and ICS). Contains the composition number and state (epoch start, normal
+ * update, etc.).
  */
 @Getter
 @Setter

@@ -11,15 +11,13 @@ import org.slf4j.LoggerFactory;
 /**
  * Extracts elementary streams from an M2TS file to separate files on disk.
  * <p>
- * For each PID listed in a parsed {@link M2tsInfo}, the extractor writes all PES payload
- * bytes for that PID into a file named {@code <outputDir>/<pid>.<ext>}, where the
- * extension is derived from the stream type.
+ * For each PID listed in a parsed {@link M2tsInfo}, the extractor writes all PES payload bytes for that PID into a file
+ * named {@code <outputDir>/<pid>.<ext>}, where the extension is derived from the stream type.
  * <p>
- * The output files are raw elementary streams (i.e. the MPEG-2 TS packetisation and PES
- * headers are removed). Downstream tools like FFmpeg can consume them directly.
+ * The output files are raw elementary streams (i.e. the MPEG-2 TS packetisation and PES headers are removed).
+ * Downstream tools like FFmpeg can consume them directly.
  * <p>
- * This class delegates to {@link M2tsDemuxer} for packet iteration and
- * {@link FilePacketHandler} for file output.
+ * This class delegates to {@link M2tsDemuxer} for packet iteration and {@link FilePacketHandler} for file output.
  *
  * <h2>Usage</h2>
  *
@@ -40,8 +38,9 @@ public class M2tsExtractor {
 
 	/**
 	 * Extracts all streams described in {@code info} to {@code outputDir}.
-	 * @param source path to the M2TS source file
-	 * @param info stream metadata (from {@link M2tsParser})
+	 *
+	 * @param source    path to the M2TS source file
+	 * @param info      stream metadata (from {@link M2tsParser})
 	 * @param outputDir directory where elementary stream files will be written
 	 * @throws IOException on I/O error
 	 */
@@ -51,11 +50,11 @@ public class M2tsExtractor {
 
 	/**
 	 * Extracts only the PIDs listed in {@code pidFilter} to {@code outputDir}.
-	 * @param source path to the M2TS source file
-	 * @param info stream metadata (from {@link M2tsParser})
+	 *
+	 * @param source    path to the M2TS source file
+	 * @param info      stream metadata (from {@link M2tsParser})
 	 * @param outputDir directory where elementary stream files will be written
-	 * @param pidFilter only these PIDs will be extracted; pass null or empty to extract
-	 * all
+	 * @param pidFilter only these PIDs will be extracted; pass null or empty to extract all
 	 * @throws IOException on I/O error
 	 */
 	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter) throws IOException {
