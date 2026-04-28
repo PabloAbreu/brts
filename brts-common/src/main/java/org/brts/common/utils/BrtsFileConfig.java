@@ -113,16 +113,12 @@ public class BrtsFileConfig {
 	}
 
 	public List<Entry> getAllProperties() {
-		// deep copy of entries too to prevent external modification of their values
-		List<Entry> copy = new ArrayList<>();
-		for (Map.Entry<String, Entry> e : resolvedProperties.entrySet())
-			copy.add(e.getValue().clone());
+		List<Entry> copy = new ArrayList<>(resolvedProperties.values());
 		Collections.sort(copy, (a, b) -> a.getKey().compareTo(b.getKey()));
 		return copy;
 	}
 
 	@Getter
-	@Setter
 	@ToString
 	public static class Entry implements Cloneable {
 
@@ -140,18 +136,10 @@ public class BrtsFileConfig {
 			this.origin = origin;
 		}
 
-		public void update(String newValue, String newOrigin) {
+		private void update(String newValue, String newOrigin) {
 			this.value = newValue;
 			this.origin = newOrigin;
 			this.overridden = true;
-		}
-
-		public Entry clone() {
-			try {
-				return (Entry) super.clone();
-			} catch (CloneNotSupportedException e) {
-				throw new AssertionError(); // Can't happen
-			}
 		}
 	}
 }
