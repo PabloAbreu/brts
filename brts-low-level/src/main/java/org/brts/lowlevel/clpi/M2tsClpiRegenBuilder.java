@@ -41,6 +41,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class M2tsClpiRegenBuilder {
 
+	/** MPEG-2 PTS/PCR_base modulo in 90 kHz ticks (33-bit counter). */
+	static final long PTS_MODULO = 1L << 33;
+
+	/** PCR modulo in 27 MHz ticks ({@code PCR_base * 300 + PCR_ext}). */
+	static final long PCR_27MHZ_MODULO = PTS_MODULO * 300L;
+
 	/**
 	 * Parses {@code m2tsPath} and builds a fully-populated {@link ClipInfo}.
 	 * @param m2tsPath path to the {@code .m2ts} source file
@@ -103,6 +109,9 @@ public class M2tsClpiRegenBuilder {
 		if (videoStream == null)
 			return result;
 
+		MonotonicTimestampUnwrapper pcrUnwrapper = new MonotonicTimestampUnwrapper(PCR_27MHZ_MODULO);
+		MonotonicTimestampUnwrapper ptsUnwrapper = new MonotonicTimestampUnwrapper(PTS_MODULO);
+
 		int videoPid = videoStream.getPid();
 		StreamCodingType videoType = videoStream.getCodingType();
 
@@ -121,11 +130,12 @@ public class M2tsClpiRegenBuilder {
 					long packetIndex, long ats) {
 
 				if (pid == info.getPcrPid()) {
-					long pcr = M2tsParser.extractPcr(sp);
-					if (pcr != -1) {
-						if (info.getFirstPcr27MHz() < 0)
+					long pcr = pcrUnwrapper.unwrap(M2tsParser.extractPcr(sp));
+					if (pcr >= 0) {
+						if (info.getFirstPcr27MHz() < 0 || pcr < info.getFirstPcr27MHz())
 							info.setFirstPcr27MHz(pcr);
-						info.setLastPcr27MHz(pcr);
+						if (pcr > info.getLastPcr27MHz())
+							info.setLastPcr27MHz(pcr);
 					}
 				}
 				if (!payloadUnitStart)
@@ -144,13 +154,14 @@ public class M2tsClpiRegenBuilder {
 				if (ptsDtsFlags == 0)
 					return;
 
-				long pts = decodePts(sp, offset + 9);
+				long pts = ptsUnwrapper.unwrap(decodePts(sp, offset + 9));
 				if (pts < 0)
 					return;
 
-				if (result.firstPts < 0)
+				if (result.firstPts < 0 || pts < result.firstPts)
 					result.firstPts = pts;
-				result.lastPts = pts;
+				if (pts > result.lastPts)
+					result.lastPts = pts;
 
 				// ES data starts after the variable-length PES header
 				int pesHeaderDataLen = sp[offset + 8] & 0xFF;
@@ -274,6 +285,36 @@ public class M2tsClpiRegenBuilder {
 	// =========================================================================
 	// PES and bitstream helpers (package-private for unit testing)
 	// =========================================================================
+
+	/**
+	 * Converts a modulo counter into a monotonic timeline by counting wrap-arounds.
+	 */
+	static final class MonotonicTimestampUnwrapper {
+
+		private final long modulo;
+
+		private long wraps;
+
+		private long lastRaw = -1;
+
+		MonotonicTimestampUnwrapper(long modulo) {
+			if (modulo <= 0)
+				throw new IllegalArgumentException("modulo must be > 0");
+			this.modulo = modulo;
+		}
+
+		long unwrap(long raw) {
+			if (raw < 0)
+				return -1;
+			// A large backward jump means the source counter wrapped.
+			if (lastRaw >= 0 && raw < lastRaw && (lastRaw - raw) > (modulo / 2)) {
+				wraps++;
+			}
+			lastRaw = raw;
+			return raw + wraps * modulo;
+		}
+
+	}
 
 	/**
 	 * Decodes the 33-bit PTS value from the 5-byte PES PTS field starting at

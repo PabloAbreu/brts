@@ -13,7 +13,11 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.model.mpls.PlayItem;
+import org.brts.lowlevel.model.mpls.SubPath;
+import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
 import org.brts.middle.menu.media.MediaSource;
@@ -39,7 +43,14 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class SetupMenuGenerator {
 
+	private static final int BACKGROUND_LOOP_COUNT = 50;
+
+	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 90_000L;
+
 	private final ObjectMapper mapper = JsonMapperFactory.get();
+
+	private record ClipTiming(long inTimeTicks, long outTimeTicks) {
+	}
 
 	/**
 	 * Generates a setup menu M2TS from an in-memory descriptor.
@@ -89,13 +100,18 @@ public class SetupMenuGenerator {
 
 		PidAllocator pids = new PidAllocator();
 		muxIntoM2ts(extraction, pids, descriptor.getOutputName(), bdmv);
-		muxIntoM2ts(introExtraction, pids, descriptor.getOutputIntroName(), bdmv);
+
+		String outputIntroName = null;
+		if (introExtraction != null) {
+			outputIntroName = descriptor.getOutputIntroName();
+			muxIntoM2ts(introExtraction, pids, outputIntroName, bdmv);
+		}
 
 		muxMenu(igsEsFile, pids, descriptor.getOutputMenuName(), bdmv);
 
 		// ── 5. Playlist with intro, loop on background, menu ────────────────────────
 
-		generatePlaylist(descriptor.getOutputIntroName(), descriptor.getOutputName(), descriptor.getOutputMenuName(),
+		generatePlaylist(outputIntroName, descriptor.getOutputName(), descriptor.getOutputMenuName(),
 				descriptor.getOutputPlaylistName(), bdmv);
 	}
 
@@ -116,9 +132,80 @@ public class SetupMenuGenerator {
 		MoviePlaylistWriter playlistWriter = new MoviePlaylistWriter();
 		MoviePlaylist playlist = new MoviePlaylist();
 		playlist.setMenu(true);
-		playlist.setPlaylistName(outputPlaylistName);// in fact unused
-		// TODO videos, menu
+		playlist.setPlaylistName(outputPlaylistName);// field in fact unused
+
+		List<PlayItem> playItems = new ArrayList<>();
+		int firstBackgroundPlayItemId = 0;
+		ClipTiming defaultTiming = new ClipTiming(0L, DEFAULT_PLAYITEM_DURATION_TICKS);
+
+		// first intro, then loop on background
+		if (outputIntroName != null && !outputIntroName.isBlank()) {
+			ClipTiming introTiming = resolveClipTiming(outputIntroName, bdmv, defaultTiming);
+			playItems.add(buildPlayItem(outputIntroName, introTiming));
+			firstBackgroundPlayItemId = 1;
+		}
+
+		ClipTiming backgroundTiming = resolveClipTiming(outputName, bdmv, defaultTiming);
+		for (int i = 0; i < BACKGROUND_LOOP_COUNT; i++) {
+			playItems.add(buildPlayItem(outputName, backgroundTiming));
+		}
+
+		// Menu is out-of-mux: reference its own clip using subpath type 3.
+		ClipTiming menuTiming = resolveClipTiming(outputMenuName, bdmv, backgroundTiming);
+		SubPath.SubPlayItem menuSubPlayItem = new SubPath.SubPlayItem();
+		menuSubPlayItem.setClipName(outputMenuName);
+		menuSubPlayItem.setInTimeTicks(menuTiming.inTimeTicks());
+		menuSubPlayItem.setOutTimeTicks(menuTiming.outTimeTicks());
+		menuSubPlayItem.setSyncPlayItemId(firstBackgroundPlayItemId);
+		menuSubPlayItem.setSyncStartPtsTicks(backgroundTiming.inTimeTicks());
+
+		SubPath menuSubPath = new SubPath();
+		menuSubPath.setSubPathType(3);
+		menuSubPath.setRepeatSubPath(true);
+		menuSubPath.setSubPlayItems(List.of(menuSubPlayItem));
+
+		playlist.setPlayItems(playItems);
+		playlist.setSubPaths(List.of(menuSubPath));
 		playlistWriter.write(playlist, playlistPath);
+	}
+
+	private PlayItem buildPlayItem(String clipName, ClipTiming timing) {
+		PlayItem item = new PlayItem();
+		item.setClipName(clipName);
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(timing.inTimeTicks());
+		item.setOutTimeTicks(timing.outTimeTicks());
+		return item;
+	}
+
+	private ClipTiming resolveClipTiming(String clipName, Path bdmv, ClipTiming fallbackTiming) {
+		Path clpiPath = bdmv.resolve("CLIPINF").resolve(clipName + ".clpi");
+		if (!Files.exists(clpiPath)) {
+			log.warn("CLPI file not found for clip {} ({}), using fallback timing [{}, {})", clipName, clpiPath,
+					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks());
+			return fallbackTiming;
+		}
+
+		try {
+			ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
+			if (clipInfo.getTsRecordingStartPts() != null && clipInfo.getTsRecordingEndPts() != null) {
+				long startPts = clipInfo.getTsRecordingStartPts().getTicks();
+				long endPts = clipInfo.getTsRecordingEndPts().getTicks();
+				if (endPts > startPts) {
+					return new ClipTiming(startPts, endPts);
+				}
+				log.warn("Invalid start/end PTS in {}: start={}, end={}, using fallback [{}, {})", clpiPath, startPts,
+						endPts, fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks());
+				return fallbackTiming;
+			}
+			log.warn("Missing start/end PTS in {}, using fallback timing [{}, {})", clpiPath,
+					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks());
+		}
+		catch (IOException e) {
+			log.warn("Could not parse {} for clip {}, using fallback timing [{}, {})", clpiPath, clipName,
+					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks(), e);
+		}
+		return fallbackTiming;
 	}
 
 	private void muxMenu(Path igsStreamPath, PidAllocator pids, String outputName, Path bdmv) throws IOException {
@@ -155,6 +242,9 @@ public class SetupMenuGenerator {
 	private void muxIntoM2ts(MediaSource.ExtractionResult extraction, PidAllocator pids, String outputName, Path bdmv)
 			throws IOException {
 
+		if (extraction == null)
+			return;
+
 		M2tsDescriptor m2tsDesc = new M2tsDescriptor();
 		m2tsDesc.setOutputName(outputName);
 
@@ -183,6 +273,7 @@ public class SetupMenuGenerator {
 				audioStream.setChannels(extraction.audioChannels());
 			streams.add(audioStream);
 		}
+		m2tsDesc.setStreams(streams);
 		mux(m2tsDesc, outputName, bdmv);
 	}
 
