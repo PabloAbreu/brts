@@ -7,7 +7,7 @@ import lombok.Setter;
 import java.util.List;
 
 /**
- * A PlayItem references one M2TS clip and defines the in/out point within that clip expressed as 90 kHz PTS values.
+ * A PlayItem references one M2TS clip and defines the in/out point within that clip expressed in MPLS 45 kHz STC ticks.
  */
 @Getter
 @Setter
@@ -23,10 +23,10 @@ public class PlayItem {
 	@JsonProperty("isMultiAngle")
 	private boolean isMultiAngle = false;
 
-	/** Presentation start time in 90 kHz ticks (in/out within the clip). */
+	/** Presentation start time in 45 kHz ticks (in/out within the clip). */
 	private long inTimeTicks;
 
-	/** Presentation end time in 90 kHz ticks. */
+	/** Presentation end time in 45 kHz ticks. */
 	private long outTimeTicks;
 
 	/** Stream-table — PIDs and attributes of streams to present from this clip. */

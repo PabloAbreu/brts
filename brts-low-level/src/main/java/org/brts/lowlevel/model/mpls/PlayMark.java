@@ -16,13 +16,13 @@ public class PlayMark {
 	/** Zero-based index into the PlayItem list. */
 	private int playItemRef;
 
-	/** Mark time in 90 kHz ticks (relative to clip start, i.e. absolute PTS). */
+	/** Mark time in 45 kHz ticks (relative to clip start in the MPLS STC domain). */
 	private long markTimeTicks;
 
 	/** Entry ES PID. Use 0xFFFF if not applicable. */
 	private int entryEsPid = 0xFFFF;
 
-	/** Duration of this mark in 90 kHz ticks (0 = to next mark). */
+	/** Duration of this mark in 45 kHz ticks (0 = to next mark). */
 	private long durationTicks = 0;
 
 }

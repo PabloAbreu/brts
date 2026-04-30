@@ -2,6 +2,7 @@ package org.brts.middle.api;
 
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.mkv.SourceMediaParser;
+import org.brts.common.model.Timestamp;
 import org.brts.lowlevel.descriptor.ClipDescriptor;
 import org.brts.lowlevel.descriptor.PlaylistDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
@@ -89,8 +90,8 @@ public class SimpleTitleBuilder {
 		PlaylistDescriptor.PlayItemDescriptor playItem = new PlaylistDescriptor.PlayItemDescriptor();
 		playItem.setClipName(clipName);
 		playItem.setInTimeTicks(0);
-		// Duration in 90 kHz ticks from parsed duration (milliseconds → ticks)
-		long durationTicks = (mediaInfo.getDurationMs() * 90L);
+		// Duration in MPLS 45 kHz ticks from parsed duration (milliseconds → ticks)
+		long durationTicks = mediaInfo.getDurationMs() * (Timestamp.MPLS_TICKS_PER_SECOND / 1000L);
 		playItem.setOutTimeTicks(durationTicks);
 		playItem.setStreamPids(playlistPids);
 		playlistDescriptor.setPlayItems(List.of(playItem));
@@ -101,7 +102,7 @@ public class SimpleTitleBuilder {
 			for (TitleDescriptor.ChapterMarker cm : descriptor.getChapters()) {
 				PlaylistDescriptor.ChapterDescriptor ch = new PlaylistDescriptor.ChapterDescriptor();
 				ch.setPlayItemRef(0);
-				ch.setMarkTimeTicks(Math.round(cm.getTimeSeconds() * 90_000));
+				ch.setMarkTimeTicks(Math.round(cm.getTimeSeconds() * Timestamp.MPLS_TICKS_PER_SECOND));
 				chapters.add(ch);
 			}
 		}

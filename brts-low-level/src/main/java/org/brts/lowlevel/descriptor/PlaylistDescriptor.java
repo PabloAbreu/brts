@@ -18,13 +18,13 @@ import java.util.List;
  *     {
  *       "clipName": "00001",
  *       "inTimeTicks": 0,
- *       "outTimeTicks": 8100000,
+ *       "outTimeTicks": 4050000,
  *       "streamPids": [4113, 4352, 4608]
  *     }
  *   ],
  *   "chapters": [
  *     { "playItemRef": 0, "markTimeTicks": 0 },
- *     { "playItemRef": 0, "markTimeTicks": 2700000 }
+ *     { "playItemRef": 0, "markTimeTicks": 1350000 }
  *   ]
  * }
  * }</pre>
@@ -67,7 +67,7 @@ public class PlaylistDescriptor {
 
 		private int playItemRef;
 
-		/** Chapter mark time in 90 kHz ticks. */
+		/** Chapter mark time in 45 kHz ticks. */
 		private long markTimeTicks;
 
 	}

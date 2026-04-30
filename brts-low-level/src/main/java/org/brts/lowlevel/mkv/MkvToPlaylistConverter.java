@@ -20,7 +20,9 @@ import org.brts.common.mkv.MkvDemuxer;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.model.Timestamp;
 import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
@@ -56,6 +58,8 @@ public class MkvToPlaylistConverter {
 	private static final int AUDIO_PID_BASE = 0x1100; // 4352
 
 	private static final int PGS_PID_BASE = 0x1200; // 4608
+
+	private static final long MPLS_TICKS_PER_MILLISECOND = Timestamp.MPLS_TICKS_PER_SECOND / 1000L;
 
 	/**
 	 * Configuration for the conversion.
@@ -170,12 +174,13 @@ public class MkvToPlaylistConverter {
 		writer.write(descriptor, m2tsPath, clpiPath);
 
 		ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
+		// enrichClipInfo(clipInfo, selectedTracks, descriptor);
 
 		// 10. Write MPLS
 		Path playlistDir = outputDir.resolve("PLAYLIST");
 		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
-		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, descriptor, mediaInfo.getDurationMs());
+		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs());
 		new MoviePlaylistWriter().write(playlist, mplsPath);
 
 		log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}", m2tsPath, clpiPath, mplsPath);
@@ -369,15 +374,44 @@ public class MkvToPlaylistConverter {
 
 	// ── MPLS builder ────────────────────────────────────────────────────────
 
-	private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo, M2tsDescriptor descriptor,
-			long durationMs) {
+	private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo, long durationMs) {
 		MoviePlaylist playlist = new MoviePlaylist();
 		playlist.setPlaylistName(clipName);
 		playlist.setMenu(false);
 
-		long durationTicks = durationMs * 90; // 90 kHz
+		long mkvDurationTicks = toMplsTicksFromMilliseconds(durationMs);
 		long inTime = 0;
-		long outTime = durationTicks;
+		long outTime = mkvDurationTicks;
+		boolean usedClpiTiming = false;
+
+		if (clipInfo.getTsRecordingStartPts() != null && clipInfo.getTsRecordingEndPts() != null) {
+			long clpiIn = toMplsTicksFrom90Khz(clipInfo.getTsRecordingStartPts().getTicks());
+			long clpiOut = toMplsTicksFrom90Khz(clipInfo.getTsRecordingEndPts().getTicks());
+			if (clpiOut > clpiIn) {
+				inTime = clpiIn;
+				outTime = clpiOut;
+				usedClpiTiming = true;
+			} else {
+				log.warn("Ignoring invalid CLPI timing for clip {}: start={} end={}", clipName, clpiIn, clpiOut);
+			}
+		}
+
+		if (usedClpiTiming && mkvDurationTicks > 0) {
+			long clpiDurationTicks = outTime - inTime;
+			long delta = Math.abs(clpiDurationTicks - mkvDurationTicks);
+			if (delta > Timestamp.MPLS_TICKS_PER_SECOND) {
+				log.warn(
+						"Duration mismatch for clip {}: CLPI={} ticks ({} s), MKV metadata={} ticks ({} s); using CLPI timing",
+						clipName, clpiDurationTicks, clpiDurationTicks / (double) Timestamp.MPLS_TICKS_PER_SECOND,
+						mkvDurationTicks, mkvDurationTicks / (double) Timestamp.MPLS_TICKS_PER_SECOND);
+			}
+		}
+
+		if (outTime <= inTime) {
+			throw new BrtException(String.format(
+					"Invalid MPLS timing for clip %s (in=%d, out=%d). Check source duration and CLPI SequenceInfo.",
+					clipName, inTime, outTime));
+		}
 
 		// PlayItem
 		PlayItem playItem = new PlayItem();
@@ -388,7 +422,8 @@ public class MkvToPlaylistConverter {
 
 		// Build stream table from the CLPI streams
 		List<PlayItemStream> streams = new ArrayList<>();
-		for (var cs : clipInfo.getStreams()) {
+		List<ClipStream> clipStreams = clipInfo.getStreams() != null ? clipInfo.getStreams() : List.of();
+		for (ClipStream cs : clipStreams) {
 			PlayItemStream pis = new PlayItemStream();
 			pis.setPid(cs.getPid());
 			pis.setCodingType(cs.getCodingType());
@@ -411,6 +446,14 @@ public class MkvToPlaylistConverter {
 		playlist.setPlayMarks(List.of(mark));
 
 		return playlist;
+	}
+
+	private long toMplsTicksFromMilliseconds(long durationMs) {
+		return Math.max(0L, durationMs) * MPLS_TICKS_PER_MILLISECOND;
+	}
+
+	private long toMplsTicksFrom90Khz(long ticks90Khz) {
+		return Math.max(0L, ticks90Khz / 2L);
 	}
 
 }
