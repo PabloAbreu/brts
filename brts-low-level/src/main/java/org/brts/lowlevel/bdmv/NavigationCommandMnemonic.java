@@ -43,7 +43,7 @@ public enum NavigationCommandMnemonic {
 	// BRANCH group (grp=0) / JUMP sub-group (sub=1)
 	// ────────────────────────────────────────────────────────────────────────
 	// a title on blu-ray is defined in index.bdmv
-	// the title_id operand refers to the index of the title in index.bdmv (0-based)
+	// the title_id operand refers to the index of the title in index.bdmv (1-based)
 	// "jump" plays the given title and does not return, while "call" plays the title and
 	// returns to the next command when done
 	JUMP_OBJECT("JUMP_OBJECT", 0x0100_0000L, 1, "JumpObject(object_id)"),

@@ -31,7 +31,7 @@ class MovieObjectsRoundTripTest {
 	void roundTrip_magicAndVersionCorrect() throws Exception {
 		byte[] bytes = writeToBytes(buildObjects(1));
 		assertThat(new String(bytes, 0, 4)).isEqualTo("MOBJ");
-		assertThat(new String(bytes, 4, 4)).isEqualTo("0300");
+		assertThat(new String(bytes, 4, 4)).isEqualTo("0200");
 	}
 
 	@Test

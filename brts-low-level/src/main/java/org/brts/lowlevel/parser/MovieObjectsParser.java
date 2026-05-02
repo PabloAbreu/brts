@@ -22,11 +22,10 @@ import java.util.List;
  * File header (40 bytes):
  *   magic                       : 4 bytes  ("MOBJ")
  *   version                     : 4 bytes  ("0200" or "0300")
- *   MovieObjectsStartAddress    : 4 bytes
  *   ExtensionDataStartAddress   : 4 bytes  (0 when no extension data)
- *   reserved                    : 24 bytes
+ *   reserved                    : 28 bytes
  *
- * MovieObjects section (starts at MovieObjectsStartAddress):
+ * MovieObjects section (starts at 40):
  *   section_length              : 4 bytes
  *   reserved                    : 4 bytes
  *   number_of_movie_objects     : 2 bytes
@@ -67,15 +66,8 @@ public class MovieObjectsParser implements BinaryParser<MovieObjects> {
 			throw new ParseException("Unsupported MovieObject.bdmv version: '" + version + "'");
 		}
 
-		long objectsStartAddress = r.readUnsignedInt();
 		long extensionStartAddress = r.readUnsignedInt(); // may be 0
-		r.skip(24); // reserved — total header is 40 bytes
-
-		// ---- Seek to MovieObjects section ----
-		long pos = r.getPosition();
-		if (objectsStartAddress > pos) {
-			r.skip(objectsStartAddress - pos);
-		}
+		r.skip(28); // reserved — total header is 40 bytes
 
 		// ---- MovieObjects section ----
 		long sectionLength = r.readUnsignedInt(); // length of the body that follows

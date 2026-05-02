@@ -6,11 +6,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
@@ -92,8 +93,17 @@ public class MiddleLevelOrchestrator {
 		int movieObjectIndex = 0;
 		List<MovieObject> movieObjects = new ArrayList<>();
 		int nbTitles = disc.getTitles().size();
-		int lastTitleId = -1;
+		Set<Integer> titleIds = new HashSet<>();
 		for (TitleDescriptor title : disc.getTitles()) {
+			// first check that the title ID is valid (1-based, sequential)
+			if (title.getTitleId() < 1 || title.getTitleId() > nbTitles) {
+				throw new IllegalArgumentException("Invalid title ID " + title.getTitleId() + " for title '"
+						+ title.getSourceMkv() + "': must be between 1 and " + nbTitles);
+			}
+			if (!titleIds.add(title.getTitleId())) {
+				throw new IllegalArgumentException(
+						"Duplicate title ID " + title.getTitleId() + " for title '" + title.getSourceMkv() + "'");
+			}
 			SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
 
 			String clipName = result.clipDescriptor().getClipName();
@@ -107,29 +117,23 @@ public class MiddleLevelOrchestrator {
 			entry.setHdmvObjectId(movieObjectIndex++);
 			titles.add(entry);
 			MovieObject movieObject = new MovieObject();
-			movieObject.setNavigationCommands(
-					List.of(NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 10, false, 0, false),
-							NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
-							NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
-							NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL_PM, title.getTitleId(), true, 10,
-									false),
-							NavigationCommand.compile(NavigationCommandMnemonic.BREAK, 0, false, 0, false)));
+			movieObject.setResumeIntentionFlag(true);
+			movieObject.setNavigationCommands(List.of(
+					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, true),
+					NavigationCommand.compile(NavigationCommandMnemonic.BREAK, 0, false, 0, false)));
 			movieObjects.add(movieObject);
-			lastTitleId = title.getTitleId();
 		}
 
 		MovieObject topMenuMovieObject = new MovieObject();
+		topMenuMovieObject.setResumeIntentionFlag(true);
 		topMenuMovieObject.setNavigationCommands(
-				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, lastTitleId, true, 0, false)));
+				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
 		movieObjects.add(topMenuMovieObject);
 
 		MovieObject firstPlayMovieObject = new MovieObject();
+		firstPlayMovieObject.setResumeIntentionFlag(true);
 		firstPlayMovieObject.setNavigationCommands(
-				List.of(NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
-						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 2, false, 1, true),
-						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 3, false, 0xFFFF, true),
-						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 4, false, 0, true),
-						NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, lastTitleId, true, 0, false)));
+				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
 		movieObjects.add(firstPlayMovieObject);
 
 		TitleEntry topMenuTitle = new TitleEntry();

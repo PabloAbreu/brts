@@ -16,23 +16,20 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 
 	private static final String MAGIC = "MOBJ";
 
-	private static final String VERSION = "0300";
+	private static final String VERSION = "0200";
 
 	@Override
 	public void write(MovieObjects model, OutputStream output) throws IOException {
 		byte[] objSection = buildObjectsSection(model);
 
-		// Header: 4 + 4 + 2×4 + 24 reserved = 40 bytes
-		int headerSize = 40;
-		int objectsOffset = headerSize;
+		// Header: 4 + 4 + 4 + 28 reserved = 40 bytes
 		int extensionOffset = 0;
 
 		BinaryWriter w = new BinaryWriter(output);
 		w.writeAscii(MAGIC);
 		w.writeAscii(VERSION);
-		w.writeInt(objectsOffset);
 		w.writeInt(extensionOffset);
-		w.writePadding(24);
+		w.writePadding(28); // reserved
 
 		w.writeBytes(objSection);
 	}
