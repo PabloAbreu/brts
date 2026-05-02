@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import lombok.Getter;
-import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,9 +20,13 @@ public class BrtsFileConfig {
 
 	private static final @Getter BrtsFileConfig instance = new BrtsFileConfig();
 
-	private static final String DEFAULT_CONFIG_PATH = "/etc/default/brts.conf";
+	private static final String CONFIG_FILE_NAME = "brts.conf";
 
-	private final String USER_CONFIG_PATH = System.getProperty("user.home") + "/.brts/brts.conf";
+	private static final String CLASSPATH_RESOURCE = "/" + CONFIG_FILE_NAME;
+
+	private static final String DEFAULT_CONFIG_PATH = "/etc/default/" + CONFIG_FILE_NAME;
+
+	private final String USER_CONFIG_PATH = System.getProperty("user.home") + "/.brts/" + CONFIG_FILE_NAME;
 
 	private final String OVERRIDEN_CONFIG_PATH = System.getProperty("brts.conf");
 
@@ -31,10 +34,12 @@ public class BrtsFileConfig {
 		// load properties from three sources, in order.
 		// each loaded property overrides the previous ones, so that system properties
 		// have the highest precedence.
+		// 0/ defaults from classpath embedded resource (e.g. src/main/resources/default-brts.conf) - not implemented
+		// yet, but could be added as a fallback if no file is found in the filesystem
 		// 1/ default properties from /etc/default/brts.conf
 		// 2/ user properties from ~/.brts/brts.conf
 		// 3/ system properties passed via -Dbrts.conf on the command line
-		// default
+		loadFromClasspathResource(CLASSPATH_RESOURCE);
 		loadFromFile(DEFAULT_CONFIG_PATH);
 		loadFromFile(USER_CONFIG_PATH);
 		loadFromFile(OVERRIDEN_CONFIG_PATH);
@@ -64,6 +69,22 @@ public class BrtsFileConfig {
 
 	private static String getEnvVarName(String propertyKey) {
 		return propertyKey.toUpperCase().replace('.', '_');
+	}
+
+	private void loadFromClasspathResource(String resourcePath) {
+		try (var stream = getClass().getResourceAsStream(resourcePath)) {
+			if (stream == null) {
+				log.debug("No config found in classpath at '{}'", resourcePath);
+				return;
+			}
+			Properties properties = new Properties();
+			properties.load(stream);
+			properties.stringPropertyNames()
+					.forEach(key -> addProperty(key, properties.getProperty(key), "classpath " + resourcePath));
+			log.debug("Loaded config from classpath resource '{}'", resourcePath);
+		} catch (Exception e) {
+			log.debug("Error loading config from classpath resource '{}'", resourcePath, e);
+		}
 	}
 
 	private void loadFromFile(String path) {

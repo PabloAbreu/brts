@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
@@ -86,7 +87,7 @@ public class MiddleLevelOrchestrator {
 		scriptLines.add("");
 
 		IndexBdmv index = new IndexBdmv();
-		index.setContentProviderName("BRTS authoring");
+		index.setContentProviderName(BrtsFileConfig.getInstance().getProperty("index.bdmv.contentProviderName"));
 		index.setDiscApplicationType(1);
 		index.setVersion("0200");
 		List<TitleEntry> titles = new ArrayList<>();
