@@ -20,16 +20,17 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 	private static final String MAGIC = "MPLS";
 
-	private static final String VERSION = "0300";
+	private static final String VERSION = "0200";
 
 	@Override
 	public void write(MoviePlaylist model, OutputStream output) throws IOException {
+		byte[] appInfoPlayListSection = buildAppInfoPlayListSection();
 		byte[] playlistSection = buildPlaylistSection(model);
 		byte[] markSection = buildMarkSection(model);
 
 		// Header: 4 magic + 4 version + 3×4 offsets + 20 reserved = 40 bytes
 		int headerSize = 40;
-		int playlistOffset = headerSize;
+		int playlistOffset = headerSize + appInfoPlayListSection.length;
 		int playlistMarkOffset = playlistOffset + playlistSection.length;
 		int extensionOffset = 0;
 
@@ -41,8 +42,33 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		w.writeInt(extensionOffset);
 		w.writePadding(20); // reserved
 
+		w.writeBytes(appInfoPlayListSection);
 		w.writeBytes(playlistSection);
 		w.writeBytes(markSection);
+	}
+
+	private byte[] buildAppInfoPlayListSection() throws IOException {
+		ByteArrayOutputStream buf = new ByteArrayOutputStream();
+		BinaryWriter w = new BinaryWriter(buf);
+		final int size = 14;
+		w.writeInt(size);
+		w.writeByte(0);// reserved
+		final int playbackType = 1;
+		w.writeByte(playbackType); // playback_type
+		if (playbackType == 2 || playbackType == 3) {
+			final int playbackCount = 1;
+			w.writeShort(playbackCount);
+		} else {
+			w.writePadding(2);
+		}
+		// UOMaskTable
+		final int uoMaskTable = 0;// unset and unused for now
+		w.writeInt(uoMaskTable);
+		w.writeInt(0); // 2 bits for flags and 30 bits reserved
+		final int accessFlags = 0;
+		w.writeByte(accessFlags);// flags, unset and unused for now
+		w.writeByte(0);// reserved
+		return buf.toByteArray();
 	}
 
 	// -------------------------------------------------------------------------
@@ -60,9 +86,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 		for (PlayItem item : items) {
 			byte[] itemBytes = buildPlayItem(item);
-			wi.writeShort(itemBytes.length); // item length field is part of the item
-												// header...
-			// actually the length is written inside buildPlayItem; re-pack correctly:
+			wi.writeShort(itemBytes.length);
 			wi.writeBytes(itemBytes);
 		}
 		for (SubPath sp : subPaths) {
@@ -92,6 +116,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 		// UO_mask_table (8 bytes) + random_access_flag + still_mode + still_time
 		w.writePadding(12);
+		// TODO multiple angles and UO_mask_table are not supported for now
 
 		// STN
 		w.writeBytes(buildStn(item));
@@ -107,15 +132,17 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 		ByteArrayOutputStream inner = new ByteArrayOutputStream();
 		BinaryWriter wi = new BinaryWriter(inner);
-		wi.writePadding(2);
+		wi.writePadding(2); // reserved
 		wi.writeByte((int) numVideo);
 		wi.writeByte((int) numAudio);
 		wi.writeByte((int) numPg);
 		wi.writeByte((int) numIg);
+		// secondary video, audio and pip streams are not supported for now
 		wi.writeByte(0); // numSecVideo
 		wi.writeByte(0); // numSecAudio
 		wi.writeByte(0); // numPip
-		wi.writePadding(5);
+		wi.writeByte(0); // numDV
+		wi.writePadding(4); // reserved
 
 		for (PlayItemStream s : streams) {
 			// stream_entry (length byte + content)
@@ -123,6 +150,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			BinaryWriter we = new BinaryWriter(entry);
 			we.writeByte(0x01); // stream_type = in-mux
 			we.writeShort(s.getPid());
+			we.writePadding(6);
 			byte[] entryBytes = entry.toByteArray();
 			wi.writeByte(entryBytes.length);
 			wi.writeBytes(entryBytes);
@@ -136,6 +164,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 					int vf = (s.getVideoFormat() != null ? s.getVideoFormat() : 0);
 					int fr = (s.getFrameRate() != null ? s.getFrameRate() : 0);
 					wa.writeByte((vf << 4) | fr);
+					wa.writePadding(3); // reserved (or HDR info for HEVC, but not supported for now)
 				} else if (s.getCodingType().isAudio()) {
 					int ch = (s.getAudioChannelLayout() != null ? s.getAudioChannelLayout() : 0);
 					int sr = (s.getSampleRate() != null ? s.getSampleRate() : 0);
@@ -145,6 +174,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 				} else {
 					String lang = s.getLanguage() != null ? s.getLanguage() : "und";
 					wa.writeAscii(String.format("%-3s", lang).substring(0, 3));
+					wa.writePadding(1); // reserved
 				}
 			}
 			byte[] attrBytes = attr.toByteArray();

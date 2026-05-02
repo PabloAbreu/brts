@@ -281,7 +281,7 @@ public final class ParsedNavigationCommand {
 	}
 
 	/**
-	 * Describes a 32-bit operand value using the correct immediate flag. Fixes the heuristic bug in the old decompiler.
+	 * Describes a 32-bit operand value using the correct immediate flag.
 	 */
 	private static String describeOperandValue(boolean immediate, long operand) {
 		if (immediate) {

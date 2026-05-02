@@ -2,6 +2,7 @@ package org.brts.lowlevel.model.bdmv;
 
 import java.util.List;
 
+import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 
 import lombok.Getter;
@@ -111,6 +112,10 @@ public class MovieObjects {
 			return cmd;
 		}
 
+		public static NavigationCommand compile(NavigationCommandMnemonic mnemonic, long op1, boolean op1Immediate,
+				long op2, boolean op2Immediate) {
+			return fromParsed(ParsedNavigationCommand.compile(mnemonic, op1, op1Immediate, op2, op2Immediate));
+		}
 	}
 
 }

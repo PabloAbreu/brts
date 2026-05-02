@@ -164,8 +164,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 				wi.writeByte((vf << 4) | fr);
 				// we ignore the "OCFlag", whatever that is
 				wi.writeByte((s.getAspectRatio() != null ? s.getAspectRatio() : 0) << 4);
-				wi.writeShort(0);// 17 bits reserved, counting the last 1 from the
-									// previous byte
+				wi.writeShort(0);// 17 bits reserved, counting the last 1 from the previous byte
 				// pad with '0' and 4 zeroes (seen in actual files, not sure if
 				// required or just reserved)
 			} else if (s.getCodingType().isAudio()) {

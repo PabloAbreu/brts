@@ -127,6 +127,26 @@ class MoviePlaylistRoundTripTest {
 		assertThat(reparsed.getPlayMarks()).isEmpty();
 	}
 
+	@Test
+	void roundTrip_playlistWithSubPath_subPathFieldsPreserved() throws Exception {
+		MoviePlaylist original = buildPlaylistWithSubPath();
+
+		byte[] bytes = writeToBytes(original);
+		MoviePlaylist reparsed = parser.parse(new ByteArrayInputStream(bytes));
+
+		assertThat(reparsed.getSubPaths()).hasSize(1);
+		SubPath sp = reparsed.getSubPaths().get(0);
+		assertThat(sp.getSubPathType()).isEqualTo(3);
+		assertThat(sp.isRepeatSubPath()).isFalse();
+		assertThat(sp.getSubPlayItems()).hasSize(1);
+		SubPath.SubPlayItem spi = sp.getSubPlayItems().get(0);
+		assertThat(spi.getClipName()).isEqualTo("00001");
+		assertThat(spi.getInTimeTicks()).isEqualTo(0L);
+		assertThat(spi.getOutTimeTicks()).isEqualTo(900_000L);
+		assertThat(spi.getSyncPlayItemId()).isEqualTo(0);
+		assertThat(spi.getSyncStartPtsTicks()).isEqualTo(0L);
+	}
+
 	// ─── Menu detection tests ───────────────────────────────────────────────
 
 	@Test
@@ -268,6 +288,40 @@ class MoviePlaylistRoundTripTest {
 		pl.setPlaylistName("00003");
 		pl.setPlayItems(List.of(item));
 		pl.setSubPaths(List.of());
+		pl.setPlayMarks(List.of());
+		return pl;
+	}
+
+	private MoviePlaylist buildPlaylistWithSubPath() {
+		PlayItemStream video = new PlayItemStream();
+		video.setPid(0x1011);
+		video.setCodingType(StreamCodingType.H264_AVC);
+		video.setVideoFormat(0x06);
+		video.setFrameRate(0x04);
+
+		PlayItem item = new PlayItem();
+		item.setClipName("00001");
+		item.setConnectionCondition(1);
+		item.setInTimeTicks(0L);
+		item.setOutTimeTicks(8_100_000L);
+		item.setStreams(List.of(video));
+
+		SubPath.SubPlayItem spi = new SubPath.SubPlayItem();
+		spi.setClipName("00001");
+		spi.setInTimeTicks(0L);
+		spi.setOutTimeTicks(900_000L);
+		spi.setSyncPlayItemId(0);
+		spi.setSyncStartPtsTicks(0L);
+
+		SubPath sp = new SubPath();
+		sp.setSubPathType(3);
+		sp.setRepeatSubPath(false);
+		sp.setSubPlayItems(List.of(spi));
+
+		MoviePlaylist pl = new MoviePlaylist();
+		pl.setPlaylistName("00004");
+		pl.setPlayItems(List.of(item));
+		pl.setSubPaths(List.of(sp));
 		pl.setPlayMarks(List.of());
 		return pl;
 	}

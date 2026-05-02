@@ -186,9 +186,10 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		int numSecVideo = r.readUnsignedByte();
 		int numSecAudio = r.readUnsignedByte();
 		int numPip = r.readUnsignedByte();
-		r.skip(5); // reserved
+		int numDv = r.readUnsignedByte();
+		r.skip(4); // reserved
 
-		int totalStreams = numVideo + numAudio + numPg + numIg + numSecVideo + numSecAudio;
+		int totalStreams = numVideo + numAudio + numPg + numIg + numSecVideo + numSecAudio + numPip + numDv;
 		List<PlayItemStream> streams = new ArrayList<>(totalStreams);
 
 		for (int i = 0; i < totalStreams; i++) {
@@ -232,10 +233,10 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 
 	private SubPath readSubPath(BinaryReader r) throws IOException {
 		long spLength = r.readUnsignedInt();
-		r.skip(1); // reserved (0x00 probably)
+		r.skip(1); // reserved
 		int subPathType = r.readUnsignedByte();
 		int repeatFlag = r.readUnsignedByte(); // bit 0
-		r.skip(2);
+		r.skip(1); // reserved
 		int numSubPlayItems = r.readUnsignedByte();
 		log.error("spLength {}, numSubPlayItems {}, position {}", spLength, numSubPlayItems, r.getPosition());
 
@@ -247,13 +248,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 			String codecId = r.readAscii(4); // "M2TS"
 			if (!"M2TS".equals(codecId))
 				log.warn("Found unknown codecId: {}", codecId);
-			r.skip(3); // no clue what this is
-			int connectionConditionAndMultiClip = r.readUnsignedByte();
-			int connectionCondition = connectionConditionAndMultiClip;// TODO bits 1->4
-			int isMultiClipconnectionCondition = connectionConditionAndMultiClip;// TODO
-																					// bit
-																					// 0
-			int refToStcId = r.readUnsignedByte();
+			r.skip(3); // reserved
 			spi.setInTimeTicks(r.readUnsignedInt());
 			spi.setOutTimeTicks(r.readUnsignedInt());
 			spi.setSyncPlayItemId(r.readUnsignedShort());

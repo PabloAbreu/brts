@@ -107,21 +107,30 @@ public class MiddleLevelOrchestrator {
 			entry.setHdmvObjectId(movieObjectIndex++);
 			titles.add(entry);
 			MovieObject movieObject = new MovieObject();
-			movieObject.setNavigationCommands(List.of(NavigationCommand.fromParsed(ParsedNavigationCommand
-					.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, false))));
+			movieObject.setNavigationCommands(
+					List.of(NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 10, false, 0, false),
+							NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
+							NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
+							NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL_PM, title.getTitleId(), true, 10,
+									false),
+							NavigationCommand.compile(NavigationCommandMnemonic.BREAK, 0, false, 0, false)));
 			movieObjects.add(movieObject);
 			lastTitleId = title.getTitleId();
 		}
 
-		MovieObject movieObject = new MovieObject();
-		movieObject.setNavigationCommands(List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, lastTitleId, true, 0, false))));
-		movieObjects.add(movieObject);
+		MovieObject topMenuMovieObject = new MovieObject();
+		topMenuMovieObject.setNavigationCommands(
+				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, lastTitleId, true, 0, false)));
+		movieObjects.add(topMenuMovieObject);
 
-		movieObject = new MovieObject();
-		movieObject.setNavigationCommands(List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, lastTitleId, true, 0, false))));
-		movieObjects.add(movieObject);
+		MovieObject firstPlayMovieObject = new MovieObject();
+		firstPlayMovieObject.setNavigationCommands(
+				List.of(NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 0, false, 0, true),
+						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 2, false, 1, true),
+						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 3, false, 0xFFFF, true),
+						NavigationCommand.compile(NavigationCommandMnemonic.MOVE, 4, false, 0, true),
+						NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, lastTitleId, true, 0, false)));
+		movieObjects.add(firstPlayMovieObject);
 
 		TitleEntry topMenuTitle = new TitleEntry();
 		topMenuTitle.setObjectType(1);// HDMV
