@@ -1,6 +1,9 @@
 package org.brts.middle.menu.descriptor;
 
+import org.brts.common.menu.TextStyle;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.Getter;
 import lombok.Setter;
 

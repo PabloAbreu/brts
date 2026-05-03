@@ -1,17 +1,5 @@
 package org.brts.lowlevel.pgs;
 
-import org.brts.lowlevel.igs.PaletteBuilder;
-import org.brts.lowlevel.igs.RleEncoder;
-import org.brts.lowlevel.igs.model.*;
-import org.brts.lowlevel.pgs.model.PgsCompositionSegment;
-import org.brts.lowlevel.pgs.model.PgsDisplaySet;
-import org.brts.lowlevel.subtitle.model.SubtitleCue;
-import org.brts.lowlevel.subtitle.model.SubtitleTrack;
-import org.brts.lowlevel.subtitle.parser.SubtitleParser;
-import org.brts.lowlevel.subtitle.parser.SubtitleParsers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.awt.image.BufferedImage;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -19,6 +7,27 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+
+import org.brts.common.utils.BrtsFileConfig;
+import org.brts.lowlevel.igs.PaletteBuilder;
+import org.brts.lowlevel.igs.RleEncoder;
+import org.brts.lowlevel.igs.model.CompositionDescriptor;
+import org.brts.lowlevel.igs.model.CompositionObject;
+import org.brts.lowlevel.igs.model.IgsObject;
+import org.brts.lowlevel.igs.model.IgsPalette;
+import org.brts.lowlevel.igs.model.IgsWindow;
+import org.brts.lowlevel.igs.model.IgsWindowDefinition;
+import org.brts.lowlevel.igs.model.SequenceDescriptor;
+import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.lowlevel.pgs.model.PgsCompositionSegment;
+import org.brts.lowlevel.pgs.model.PgsDisplaySet;
+import org.brts.lowlevel.subtitle.model.SubtitleCue;
+import org.brts.lowlevel.subtitle.model.SubtitleTrack;
+import org.brts.lowlevel.subtitle.parser.SubtitleParser;
+import org.brts.lowlevel.subtitle.parser.SubtitleParsers;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Generates a complete PGS (Presentation Graphic Stream) elementary stream file from a parsed {@link SubtitleTrack} or
@@ -38,18 +47,13 @@ import java.util.List;
  * The resulting {@code .sup} / {@code .pgs} file can be muxed into an M2TS using the existing
  * {@link org.brts.common.m2ts.M2tsWriter} (which already supports {@code PRESENTATION_GRAPHICS} streams).
  */
+@Slf4j
+@RequiredArgsConstructor
 public class PgsGenerator {
-
-	private static final Logger log = LoggerFactory.getLogger(PgsGenerator.class);
-
 	/** 90 kHz clock ticks per millisecond. */
 	private static final long TICKS_PER_MS = 90;
 
 	private final PgsRenderConfig config;
-
-	public PgsGenerator(PgsRenderConfig config) {
-		this.config = config;
-	}
 
 	/**
 	 * Generates a PGS file from a subtitle file (SRT, SSA, ASS).
@@ -73,6 +77,7 @@ public class PgsGenerator {
 	 */
 	public void generate(SubtitleTrack track, Path outputFile) throws IOException {
 		Files.createDirectories(outputFile.getParent());
+		BrtsFileConfig.getInstance().fillPojo(config);
 
 		PgsMuxer muxer = new PgsMuxer();
 		PgsSubtitleRenderer renderer = new PgsSubtitleRenderer(config);

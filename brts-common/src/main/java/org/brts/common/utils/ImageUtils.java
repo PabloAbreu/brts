@@ -137,4 +137,20 @@ public class ImageUtils {
 		return background;
 	}
 
+	public static BufferedImage scaleImage(BufferedImage src, int w, int h) {
+		BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+		Graphics2D g = dst.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g.drawImage(src, 0, 0, w, h, null);
+		g.dispose();
+		return dst;
+	}
+
+	public static BufferedImage convertToBgr(BufferedImage src, int w, int h) {
+		BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
+		Graphics2D g = dst.createGraphics();
+		g.drawImage(src, 0, 0, null);
+		g.dispose();
+		return dst;
+	}
 }

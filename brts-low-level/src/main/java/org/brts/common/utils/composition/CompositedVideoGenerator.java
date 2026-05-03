@@ -20,8 +20,6 @@ import static org.bytedeco.ffmpeg.global.swscale.sws_freeContext;
 import static org.bytedeco.ffmpeg.global.swscale.sws_getContext;
 import static org.bytedeco.ffmpeg.global.swscale.sws_scale;
 
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.IOException;
@@ -42,17 +40,19 @@ import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.utils.Extensions;
+import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.ImageUtils;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Makes use of the {@link VideoCompositionBuffer} to generate composited videos.
@@ -67,10 +67,8 @@ import lombok.Setter;
  * <p>
  * This class lives in {@code brt-low-level} so it can use {@link M2tsWriter} and {@link ClipInfoWriter}.
  */
+@Slf4j
 public class CompositedVideoGenerator {
-
-	private static final Logger log = LoggerFactory.getLogger(CompositedVideoGenerator.class);
-
 	/** Standard Blu-ray video PID. */
 	private static final int VIDEO_PID = 0x1011;
 
@@ -230,7 +228,7 @@ public class CompositedVideoGenerator {
 			log.info("Wrote {} and {}", m2tsPath.getFileName(), clpiPath.getFileName());
 
 		} finally {
-			deleteTempDir(tempDir);
+			FileUtils.deleteDir(tempDir);
 		}
 	}
 
@@ -379,10 +377,10 @@ public class CompositedVideoGenerator {
 	 */
 	private static void fillBgrFrame(BufferedImage img, AVFrame bgrFrame, int width, int height) {
 		if (img.getWidth() != width || img.getHeight() != height) {
-			img = scaleImage(img, width, height);
+			img = ImageUtils.scaleImage(img, width, height);
 		}
 		if (img.getType() != BufferedImage.TYPE_3BYTE_BGR) {
-			img = convertToBgr(img, width, height);
+			img = ImageUtils.convertToBgr(img, width, height);
 		}
 
 		byte[] bgrBytes = ((DataBufferByte) img.getRaster().getDataBuffer()).getData();
@@ -429,7 +427,7 @@ public class CompositedVideoGenerator {
 		int nextPid = BASE_AUDIO_PID;
 		for (M2tsStreamInfo as : audioStreams) {
 			// FilePacketHandler names files as "pid_<hex>.<ext>"
-			String ext = extensionForStream(as);
+			String ext = Extensions.extensionForStream(as);
 			Path esFile = audioDir.resolve(String.format("pid_%04x.%s", as.getPid(), ext));
 			if (!Files.exists(esFile)) {
 				log.warn("Audio ES file not found for PID 0x{}: {}", Integer.toHexString(as.getPid()),
@@ -485,55 +483,4 @@ public class CompositedVideoGenerator {
 		return info.getStreams().stream().filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
 				.findFirst().orElse(null);
 	}
-
-	/**
-	 * Returns the file extension used by {@link org.brts.common.m2ts.FilePacketHandler}.
-	 */
-	private static String extensionForStream(M2tsStreamInfo s) {
-		if (s.getCodingType() == null) {
-			return "bin";
-		}
-		return switch (s.getCodingType()) {
-		case LPCM -> "lpcm";
-		case DOLBY_AC3 -> "ac3";
-		case DOLBY_AC3_PLUS -> "eac3";
-		case DOLBY_TRUEHD -> "thd";
-		case DTS -> "dts";
-		case DTS_HD -> "dtshd";
-		case DTS_HD_MASTER_AUDIO -> "dtsma";
-		default -> "bin";
-		};
-	}
-
-	private static BufferedImage scaleImage(BufferedImage src, int w, int h) {
-		BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
-		Graphics2D g = dst.createGraphics();
-		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-		g.drawImage(src, 0, 0, w, h, null);
-		g.dispose();
-		return dst;
-	}
-
-	private static BufferedImage convertToBgr(BufferedImage src, int w, int h) {
-		BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
-		Graphics2D g = dst.createGraphics();
-		g.drawImage(src, 0, 0, null);
-		g.dispose();
-		return dst;
-	}
-
-	private static void deleteTempDir(Path dir) {
-		try (var stream = Files.walk(dir)) {
-			stream.sorted((a, b) -> -a.compareTo(b)).forEach(p -> {
-				try {
-					Files.delete(p);
-				} catch (IOException ignored) {
-					// best-effort cleanup
-				}
-			});
-		} catch (IOException ignored) {
-			// best-effort cleanup
-		}
-	}
-
 }

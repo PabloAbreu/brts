@@ -1,10 +1,11 @@
-package org.brts.middle.menu.descriptor;
+package org.brts.common.menu;
+
+import java.awt.Font;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import lombok.Getter;
 import lombok.Setter;
-
-import java.awt.*;
 
 /**
  * Text rendering style for menu button labels. All fields are optional — sensible defaults are applied when
@@ -28,9 +29,7 @@ import java.awt.*;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class TextStyle {
 
-	/**
-	 * Font family name (e.g. "SansSerif", "Serif", "Monospaced", or a system font name).
-	 */
+	/** Font family name (e.g. "SansSerif", "Serif", "Monospaced", or a system font name). */
 	private String fontName;
 
 	/** Font size in points. */
@@ -69,17 +68,13 @@ public class TextStyle {
 
 	// ── Background shape ────────────────────────────────────────────────────
 
-	/**
-	 * Shape drawn underneath the text. Possible values: NONE, RECTANGLE, ROUNDED_RECTANGLE.
-	 */
+	/** Shape drawn underneath the text. Possible values: NONE, RECTANGLE, ROUNDED_RECTANGLE. */
 	private BackgroundShape backgroundShape;
 
 	/** Background shape fill colour as "#AARRGGBB". */
 	private String backgroundColor;
 
-	/**
-	 * Alpha (0–255) of the background shape. Overrides the alpha in backgroundColor if set.
-	 */
+	/** Alpha (0–255) of the background shape. Overrides the alpha in backgroundColor if set. */
 	private Integer backgroundAlpha;
 
 	/** Corner radius for ROUNDED_RECTANGLE (default: 12). */
@@ -160,9 +155,7 @@ public class TextStyle {
 
 	// ── Colour parsing ──────────────────────────────────────────────────────
 
-	/**
-	 * Parses an "#AARRGGBB" or "#RRGGBB" colour string to an ARGB int.
-	 */
+	/** Parses an "#AARRGGBB" or "#RRGGBB" colour string to an ARGB int. */
 	public static int parseColor(String colorStr) {
 		if (colorStr == null || colorStr.isEmpty())
 			return 0xFFFFFFFF;

@@ -1,16 +1,23 @@
 package org.brts.middle.menu.render;
 
-import org.brts.middle.menu.descriptor.TextStyle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Shape;
 import java.awt.font.GlyphVector;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
+
+import javax.imageio.ImageIO;
+
+import org.brts.common.menu.TextStyle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Renders button images for the three IGS button states (normal, selected, activated) using Java2D {@link Graphics2D}.

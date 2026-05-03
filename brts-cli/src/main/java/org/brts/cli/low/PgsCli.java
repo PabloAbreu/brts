@@ -1,6 +1,7 @@
 package org.brts.cli.low;
 
 import org.brts.cli.FeatureRunner;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.pgs.PgsGenerator;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.kohsuke.args4j.Option;

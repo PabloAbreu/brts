@@ -13,6 +13,7 @@ import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.utils.Extensions;
 import org.brts.common.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,7 @@ public class FilePacketHandler implements M2tsPacketHandler {
 		for (M2tsStreamInfo s : streams) {
 			if (pidFilter != null && !pidFilter.isEmpty() && !pidFilter.contains(s.getPid()))
 				continue;
-			String ext = extensionFor(s);
+			String ext = Extensions.extensionForStream(s);
 			Path outFile = outputDir.resolve(String.format("pid_%04x.%s", s.getPid(), ext));
 			pidToStream.put(s.getPid(), new BufferedOutputStream(Files.newOutputStream(outFile)));
 			pidToFile.put(s.getPid(), outFile.toString());
@@ -124,26 +125,4 @@ public class FilePacketHandler implements M2tsPacketHandler {
 	public Map<Integer, String> getOutputFiles() {
 		return Collections.unmodifiableMap(pidToFile);
 	}
-
-	private String extensionFor(M2tsStreamInfo s) {
-		if (s.getCodingType() == null)
-			return "bin";
-		return switch (s.getCodingType()) {
-		case H264_AVC -> "h264";
-		case H265_HEVC -> "h265";
-		case MPEG2_VIDEO -> "m2v";
-		case VC1 -> "vc1";
-		case LPCM -> "lpcm";
-		case DOLBY_AC3 -> "ac3";
-		case DOLBY_AC3_PLUS -> "eac3";
-		case DOLBY_TRUEHD -> "thd";
-		case DTS -> "dts";
-		case DTS_HD -> "dtshd";
-		case DTS_HD_MASTER_AUDIO -> "dtsma";
-		case PRESENTATION_GRAPHICS -> "pgs";
-		case INTERACTIVE_GRAPHICS -> "igs";
-		case TEXT_SUBTITLE -> "txt";
-		};
-	}
-
 }

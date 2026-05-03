@@ -1,21 +1,39 @@
 package org.brts.middle.menu;
 
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
-import org.brts.lowlevel.igs.PaletteBuilder;
-import org.brts.lowlevel.igs.RleEncoder;
-import org.brts.lowlevel.igs.model.*;
-import org.brts.middle.menu.descriptor.*;
-import org.brts.middle.menu.render.ButtonImageRenderer;
-import org.brts.middle.menu.render.ButtonImageRenderer.ButtonImages;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.brts.common.menu.TextStyle;
+import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
+import org.brts.lowlevel.igs.PaletteBuilder;
+import org.brts.lowlevel.igs.RleEncoder;
+import org.brts.lowlevel.igs.model.CompositionDescriptor;
+import org.brts.lowlevel.igs.model.IgsBog;
+import org.brts.lowlevel.igs.model.IgsButton;
+import org.brts.lowlevel.igs.model.IgsCompositionSegment;
+import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
+import org.brts.lowlevel.igs.model.IgsObject;
+import org.brts.lowlevel.igs.model.IgsPage;
+import org.brts.lowlevel.igs.model.IgsPalette;
+import org.brts.lowlevel.igs.model.IgsWindow;
+import org.brts.lowlevel.igs.model.IgsWindowDefinition;
+import org.brts.lowlevel.igs.model.SequenceDescriptor;
+import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.middle.menu.descriptor.AudioMenuItem;
+import org.brts.middle.menu.descriptor.MenuItem;
+import org.brts.middle.menu.descriptor.MiscMenuItem;
+import org.brts.middle.menu.descriptor.NavigationRefs;
+import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
+import org.brts.middle.menu.descriptor.SubtitleMenuItem;
+import org.brts.middle.menu.render.ButtonImageRenderer;
+import org.brts.middle.menu.render.ButtonImageRenderer.ButtonImages;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Builds a complete {@link IgsDisplaySet} from a {@link SetupMenuDescriptor}.

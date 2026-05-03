@@ -1,0 +1,272 @@
+package org.brts.lowlevel.titlemenu;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
+import org.brts.lowlevel.igs.PaletteBuilder;
+import org.brts.lowlevel.igs.RleEncoder;
+import org.brts.lowlevel.igs.model.CompositionDescriptor;
+import org.brts.lowlevel.igs.model.IgsBog;
+import org.brts.lowlevel.igs.model.IgsButton;
+import org.brts.lowlevel.igs.model.IgsCompositionSegment;
+import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
+import org.brts.lowlevel.igs.model.IgsObject;
+import org.brts.lowlevel.igs.model.IgsPage;
+import org.brts.lowlevel.igs.model.IgsPalette;
+import org.brts.lowlevel.igs.model.IgsWindow;
+import org.brts.lowlevel.igs.model.IgsWindowDefinition;
+import org.brts.lowlevel.igs.model.SequenceDescriptor;
+import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
+import org.brts.lowlevel.titlemenu.descriptor.NavigationOverride;
+import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
+import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
+import org.brts.lowlevel.titlemenu.layout.LayoutResult;
+import org.brts.lowlevel.titlemenu.layout.LayoutResult.PositionedButton;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Builds a complete {@link IgsDisplaySet} from a title menu {@link LayoutResult}.
+ * <p>
+ * The builder:
+ * <ol>
+ * <li>Builds a shared palette from all button images</li>
+ * <li>RLE-encodes all images into {@link IgsObject}s</li>
+ * <li>Creates Button Object Groups (BOGs) with JUMP_TITLE navigation commands</li>
+ * <li>Wires D-pad neighbour references (auto-calculated from grid positions, with optional overrides)</li>
+ * <li>Assembles the full display set (ICS, palette, windows, objects)</li>
+ * </ol>
+ */
+public class TitleMenuIgsBuilder {
+
+	private static final Logger log = LoggerFactory.getLogger(TitleMenuIgsBuilder.class);
+
+	/**
+	 * Builds the complete display set from the layout result.
+	 *
+	 * @param layoutResult the positioned buttons from a layout implementation
+	 * @param descriptor   the title menu descriptor (for screen dimensions and title entries)
+	 * @return a fully-populated {@link IgsDisplaySet} ready for encoding via
+	 *         {@link org.brts.lowlevel.igs.IgsMuxer#encodeDisplaySet}
+	 * @throws IOException on encoding errors
+	 */
+	public IgsDisplaySet build(LayoutResult layoutResult, TitleMenuDescriptor descriptor) throws IOException {
+		int screenW = descriptor.getScreenWidth();
+		int screenH = descriptor.getScreenHeight();
+		List<PositionedButton> buttons = layoutResult.getButtons();
+
+		// ── Collect all button images for palette building ───────────────────
+
+		List<BufferedImage> allImages = new ArrayList<>();
+		for (PositionedButton btn : buttons) {
+			allImages.add(btn.getNormalImage());
+			allImages.add(btn.getSelectedImage());
+			allImages.add(btn.getActivatedImage());
+		}
+
+		// ── Build palette ───────────────────────────────────────────────────
+
+		IgsPalette palette = PaletteBuilder.buildFromImages(0, allImages.toArray(new BufferedImage[0]));
+
+		// ── RLE-encode all images into IgsObjects ───────────────────────────
+
+		List<IgsObject> objects = new ArrayList<>();
+		for (int i = 0; i < allImages.size(); i++) {
+			BufferedImage img = allImages.get(i);
+			byte[] rle = RleEncoder.encode(img, palette);
+
+			IgsObject obj = new IgsObject();
+			obj.setId(i);
+			obj.setVersion(0);
+			obj.setWidth(img.getWidth());
+			obj.setHeight(img.getHeight());
+			obj.setRleData(rle);
+			obj.setDataLength(rle.length + 4); // +4 for width(2)+height(2)
+
+			SequenceDescriptor sd = new SequenceDescriptor();
+			sd.setFirstInSequence(true);
+			sd.setLastInSequence(true);
+			obj.setSequenceDescriptor(sd);
+
+			objects.add(obj);
+		}
+
+		// ── Build BOGs with navigation commands ─────────────────────────────
+
+		List<IgsBog> bogs = new ArrayList<>();
+		for (int i = 0; i < buttons.size(); i++) {
+			PositionedButton pb = buttons.get(i);
+			int buttonId = i + 1; // 1-based button IDs
+
+			// Object IDs: 3 images per button (normal, selected, activated)
+			int normalObjId = i * 3;
+			int selectedObjId = i * 3 + 1;
+			int activatedObjId = i * 3 + 2;
+
+			// JUMP_TITLE navigation command
+			List<ParsedNavigationCommand> navCmds = List
+					.of(ParsedNavigationCommand.compile("JUMP_TITLE", pb.getTitleNumber(), true, 0, false));
+
+			IgsButton btn = new IgsButton();
+			btn.setId(buttonId);
+			btn.setNumericSelectValue(0xFFFF);
+			btn.setAutoAction(false);
+			btn.setXPos(pb.getX());
+			btn.setYPos(pb.getY());
+
+			// Visual states
+			btn.setNormalStartObjectIdRef(normalObjId);
+			btn.setNormalEndObjectIdRef(normalObjId);
+			btn.setSelectedStartObjectIdRef(selectedObjId);
+			btn.setSelectedEndObjectIdRef(selectedObjId);
+			btn.setSelectedSoundIdRef(0xFF);
+			btn.setActivatedStartObjectIdRef(activatedObjId);
+			btn.setActivatedEndObjectIdRef(activatedObjId);
+			btn.setActivatedSoundIdRef(0xFF);
+
+			btn.setNavigationCommands(navCmds);
+
+			IgsBog bog = new IgsBog();
+			bog.setDefaultValidButtonIdRef(buttonId);
+			bog.getButtons().add(btn);
+			bogs.add(bog);
+		}
+
+		// ── Wire D-pad neighbours ───────────────────────────────────────────
+
+		wireNeighbours(bogs, buttons, descriptor);
+
+		// ── Build IGS page ──────────────────────────────────────────────────
+
+		IgsPage page = new IgsPage();
+		page.setId(0);
+		page.setVersion(0);
+		page.setUoMaskTable(new byte[8]);
+		page.setAnimationFrameRateCode(0);
+		page.setDefaultSelectedButtonIdRef(buttons.isEmpty() ? 0xFFFF : 1);
+		page.setDefaultActivatedButtonIdRef(0xFFFF);
+		page.setPaletteIdRef(0);
+		page.setBogs(bogs);
+
+		// ── Build Interactive Composition ────────────────────────────────────
+
+		IgsInteractiveComposition ic = new IgsInteractiveComposition();
+		ic.setStreamModel(1); // Out-of-Mux (SubPath type 3)
+		ic.setUiModel(0); // Always-On
+		ic.setUserTimeoutDuration(0xFF);
+		ic.getPages().add(page);
+
+		// ── Build ICS ───────────────────────────────────────────────────────
+
+		VideoDescriptor vd = new VideoDescriptor();
+		vd.setWidth(screenW);
+		vd.setHeight(screenH);
+		vd.setFrameRateCode(1); // 24000/1001
+
+		CompositionDescriptor cd = new CompositionDescriptor();
+		cd.setNumber(0);
+		cd.setState(2); // Epoch start
+
+		SequenceDescriptor sd = new SequenceDescriptor();
+		sd.setFirstInSequence(true);
+		sd.setLastInSequence(true);
+
+		IgsCompositionSegment ics = new IgsCompositionSegment();
+		ics.setVideoDescriptor(vd);
+		ics.setCompositionDescriptor(cd);
+		ics.setSequenceDescriptor(sd);
+		ics.setInteractiveComposition(ic);
+
+		// ── Window Definition ────────────────────────────────────────────────
+
+		IgsWindow window = new IgsWindow();
+		window.setId(0);
+		window.setX(0);
+		window.setY(0);
+		window.setWidth(screenW);
+		window.setHeight(screenH);
+
+		IgsWindowDefinition wds = new IgsWindowDefinition();
+		wds.getWindows().add(window);
+
+		// ── Assemble Display Set ────────────────────────────────────────────
+
+		IgsDisplaySet displaySet = new IgsDisplaySet();
+		displaySet.setEpochStart(true);
+		displaySet.setComplete(true);
+		displaySet.setCompositionSegment(ics);
+		displaySet.getPalettes().add(palette);
+		displaySet.getWindowDefinitions().add(wds);
+		displaySet.setObjects(objects);
+
+		log.info("Title menu IGS built: {} buttons, {} objects, palette with {} entries", buttons.size(),
+				objects.size(), palette.getEntries().size());
+
+		return displaySet;
+	}
+
+	// ── D-pad navigation wiring ─────────────────────────────────────────────
+
+	private void wireNeighbours(List<IgsBog> bogs, List<PositionedButton> buttons, TitleMenuDescriptor descriptor) {
+		LayoutConfig config = descriptor.getLayout();
+		int columns = config.effectiveColumns();
+		int count = buttons.size();
+		List<TitleEntry> titles = descriptor.getTitles();
+
+		for (int i = 0; i < bogs.size(); i++) {
+			IgsButton btn = bogs.get(i).getButtons().get(0);
+			int buttonId = i + 1;
+
+			// Grid-based auto-wiring
+			int col = i % columns;
+			int row = i / columns;
+			int rows = (int) Math.ceil((double) count / columns);
+
+			// Up: same column, previous row (wrap to last row)
+			int upRow = (row - 1 + rows) % rows;
+			int upIdx = Math.min(upRow * columns + col, count - 1);
+
+			// Down: same column, next row (wrap to first row)
+			int downRow = (row + 1) % rows;
+			int downIdx = Math.min(downRow * columns + col, count - 1);
+
+			// Left: previous column (wrap to last column in same row)
+			int leftCol = (col - 1 + columns) % columns;
+			int leftIdx = Math.min(row * columns + leftCol, count - 1);
+
+			// Right: next column (wrap to first column in same row)
+			int rightCol = (col + 1) % columns;
+			int rightIdx = Math.min(row * columns + rightCol, count - 1);
+
+			// Apply explicit overrides from descriptor
+			if (i < titles.size()) {
+				NavigationOverride nav = titles.get(i).getNav();
+				if (nav != null) {
+					if (nav.getUp() != null)
+						upIdx = clamp(nav.getUp(), 0, count - 1);
+					if (nav.getDown() != null)
+						downIdx = clamp(nav.getDown(), 0, count - 1);
+					if (nav.getLeft() != null)
+						leftIdx = clamp(nav.getLeft(), 0, count - 1);
+					if (nav.getRight() != null)
+						rightIdx = clamp(nav.getRight(), 0, count - 1);
+				}
+			}
+
+			btn.setUpperButtonIdRef(upIdx + 1); // 1-based
+			btn.setLowerButtonIdRef(downIdx + 1);
+			btn.setLeftButtonIdRef(leftIdx + 1);
+			btn.setRightButtonIdRef(rightIdx + 1);
+		}
+	}
+
+	private static int clamp(int value, int min, int max) {
+		return Math.max(min, Math.min(max, value));
+	}
+
+}

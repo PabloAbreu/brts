@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 import org.brts.lowlevel.subtitle.model.SubtitlePosition;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Renders subtitle text into ARGB {@link BufferedImage}s suitable for PGS Object Definition Segments.
@@ -40,17 +40,13 @@ import lombok.extern.slf4j.Slf4j;
  *
  * @see PgsRenderConfig
  */
-@Slf4j
+@RequiredArgsConstructor
 public class PgsSubtitleRenderer {
 
 	/** Pattern matching supported HTML tags and their closes. */
 	private static final Pattern HTML_TAG = Pattern.compile("</?([biuBIU])>");
 
 	private final PgsRenderConfig config;
-
-	public PgsSubtitleRenderer(PgsRenderConfig config) {
-		this.config = config;
-	}
 
 	/**
 	 * Result of rendering a single subtitle cue.
