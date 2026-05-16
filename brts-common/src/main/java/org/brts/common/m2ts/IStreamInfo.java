@@ -65,7 +65,11 @@ public interface IStreamInfo {
 		if (getFrameRate() == null) {
 			return null;
 		}
-		return switch (getFrameRate()) {
+		return fpsFromFrameRate(getFrameRate());
+	}
+
+	static Double fpsFromFrameRate(int frameRate) {
+		return switch (frameRate) {
 		case 1 -> 23.976;
 		case 2 -> 24.0;
 		case 4 -> 29.97;
@@ -73,4 +77,15 @@ public interface IStreamInfo {
 		};
 	}
 
+	static int frameRateFromFps(Double fps) {
+		if (fps == null || fps == 23.976) {
+			return 1;
+		} else if (fps == 24.0) {
+			return 2;
+		} else if (fps == 29.97) {
+			return 4;
+		} else {
+			throw new IllegalArgumentException("Unsupported frame rate: " + fps);
+		}
+	}
 }

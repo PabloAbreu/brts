@@ -55,4 +55,7 @@ public class TvSeriesDiscDescriptor extends HighLevelDiscDescriptor {
 	/** If true, an episode-selection menu is auto-generated. */
 	private boolean generateEpisodeMenu = true;
 
+	/** Path to a video file used as the title menu background. Required when generateEpisodeMenu is true. */
+	private String menuBackgroundVideoPath;
+
 }

@@ -3,6 +3,7 @@ package org.brts.highlevel.template;
 import org.brts.highlevel.descriptor.TvSeriesDiscDescriptor;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
+import org.brts.middle.descriptor.TitleMenuConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +39,12 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 		DiscDescriptor disc = new DiscDescriptor();
 		disc.setDiscName(descriptor.getDiscTitle());
 		disc.setHasTopMenu(descriptor.isGenerateEpisodeMenu());
+
+		if (descriptor.isGenerateEpisodeMenu() && descriptor.getMenuBackgroundVideoPath() != null) {
+			TitleMenuConfig menuConfig = new TitleMenuConfig();
+			menuConfig.setBackgroundVideoPath(descriptor.getMenuBackgroundVideoPath());
+			disc.setTitleMenuConfig(menuConfig);
+		}
 
 		List<TitleDescriptor> titles = new ArrayList<>();
 		int titleId = 1;

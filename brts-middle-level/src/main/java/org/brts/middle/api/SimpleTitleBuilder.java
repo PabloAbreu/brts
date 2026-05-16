@@ -10,6 +10,9 @@ import org.brts.middle.pid.PidAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -26,15 +29,10 @@ import java.util.List;
  * directly or written to JSON for manual inspection / re-use.</li>
  * </ol>
  */
+@Slf4j
+@RequiredArgsConstructor
 public class SimpleTitleBuilder {
-
-	private static final Logger log = LoggerFactory.getLogger(SimpleTitleBuilder.class);
-
 	private final SourceMediaParser mediaParser;
-
-	public SimpleTitleBuilder(SourceMediaParser mediaParser) {
-		this.mediaParser = mediaParser;
-	}
 
 	/**
 	 * Builds low-level descriptors for a single title.

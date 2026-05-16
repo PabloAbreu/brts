@@ -137,11 +137,12 @@ public class CompositedVideoGenerator {
 	 * @param outputDir   destination directory; {@code <clipName>.m2ts} and {@code <clipName>.clpi} are written here
 	 * @param clipName    5-digit clip name (e.g. {@code "00001"})
 	 * @param config      generation parameters
+	 * @returns the M2TS descriptor for the generated video
 	 * @throws IOException              on any I/O or encoding failure
 	 * @throws IllegalArgumentException if frameCount cannot be determined
 	 */
-	public void generate(ImagesComposition composition, Path outputDir, String clipName, Config config, Path baseDir)
-			throws IOException {
+	public M2tsDescriptor generate(ImagesComposition composition, Path outputDir, String clipName, Config config,
+			Path baseDir) throws IOException {
 
 		// 1. Resolve fps and frameCount ----------------------------------------
 		double fps = config.getFps() > 0 ? config.getFps() : 0;
@@ -226,7 +227,7 @@ public class CompositedVideoGenerator {
 			}
 
 			log.info("Wrote {} and {}", m2tsPath.getFileName(), clpiPath.getFileName());
-
+			return descriptor;
 		} finally {
 			FileUtils.deleteDir(tempDir);
 		}

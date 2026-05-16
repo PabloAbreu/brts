@@ -45,7 +45,7 @@ public class SetupMenuGenerator {
 
 	private static final int BACKGROUND_LOOP_COUNT = 50;
 
-	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 90_000L;
+	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 45_000L;
 
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
@@ -190,8 +190,9 @@ public class SetupMenuGenerator {
 		try {
 			ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
 			if (clipInfo.getTsRecordingStartPts() != null && clipInfo.getTsRecordingEndPts() != null) {
-				long startPts = clipInfo.getTsRecordingStartPts().getTicks();
-				long endPts = clipInfo.getTsRecordingEndPts().getTicks();
+				// ClipInfo stores PTS in 90 kHz; MPLS fields use 45 kHz
+				long startPts = clipInfo.getTsRecordingStartPts().getTicks() / 2;
+				long endPts = clipInfo.getTsRecordingEndPts().getTicks() / 2;
 				if (endPts > startPts) {
 					return new ClipTiming(startPts, endPts);
 				}

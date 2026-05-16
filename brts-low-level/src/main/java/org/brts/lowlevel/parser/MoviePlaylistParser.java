@@ -197,8 +197,27 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 			// stream_entry (9 bytes): length, stream_type, pid...
 			int entryLength = r.readUnsignedByte();
 			int streamType = r.readUnsignedByte(); // 0x01=in-mux, 0x02=out-of-mux, etc.
-			s.setPid(r.readUnsignedShort());
-			r.skip(entryLength - 3); // skip rest of entry to align
+			s.setStreamType(streamType);
+			int consumed = 1; // stream_type already read
+			switch (streamType) {
+			case 2:
+				s.setSubpathId(r.readUnsignedByte());
+				s.setSubclipId(r.readUnsignedByte());
+				s.setPid(r.readUnsignedShort());
+				consumed += 4;
+				break;
+			case 3:
+			case 4:
+				s.setSubpathId(r.readUnsignedByte());
+				s.setPid(r.readUnsignedShort());
+				consumed += 3;
+				break;
+			default: // type 1 (in-mux)
+				s.setPid(r.readUnsignedShort());
+				consumed += 2;
+				break;
+			}
+			r.skip(entryLength - consumed); // skip rest of entry to align
 
 			// stream_attributes
 			int attrLength = r.readUnsignedByte();
@@ -235,7 +254,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		long spLength = r.readUnsignedInt();
 		r.skip(1); // reserved
 		int subPathType = r.readUnsignedByte();
-		int repeatFlag = r.readUnsignedByte(); // bit 0
+		int repeatFlag = r.readUnsignedShort(); // bit 0
 		r.skip(1); // reserved
 		int numSubPlayItems = r.readUnsignedByte();
 		log.error("spLength {}, numSubPlayItems {}, position {}", spLength, numSubPlayItems, r.getPosition());
@@ -248,13 +267,19 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 			String codecId = r.readAscii(4); // "M2TS"
 			if (!"M2TS".equals(codecId))
 				log.warn("Found unknown codecId: {}", codecId);
-			r.skip(3); // reserved
+
+			// 27 reserved 4 ConnectionCondition 1 IsMultiClipEntries 8 RefToSTCID
+			// We only care about ConnectionCondition for now, and we need to skip the rest to align properly
+			r.skip(3);
+			spi.setConnectionCondition((r.readUnsignedByte() >> 1) & 0x0F);
+			r.skip(1); // RefToSTCID
 			spi.setInTimeTicks(r.readUnsignedInt());
 			spi.setOutTimeTicks(r.readUnsignedInt());
 			spi.setSyncPlayItemId(r.readUnsignedShort());
 			spi.setSyncStartPtsTicks(r.readUnsignedInt());
-			// TODO parse multiclip, whatever that is, and keep checking spiLength for
-			// sanity
+			// TODO parse multiclip, whatever that is, and keep checking spiLength for sanity
+			int bytesRead = 5 + 4 + 5 + 4 + 4 + 2 + 4;
+			r.skip(spiLength - bytesRead);
 			subPlayItems.add(spi);
 		}
 

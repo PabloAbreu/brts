@@ -320,6 +320,19 @@ public class M2tsWriter {
 			// Ensure all readers are closed
 			for (ESReader r : readers)
 				r.close();
+
+			// Pad to aligned-unit boundary (32 source packets = 6144 bytes).
+			// Blu-ray players read M2TS files in 6144-byte blocks; a partial
+			// trailing block causes "Read past EOF" failures.
+			int packetsPerUnit = 32;
+			long remainder = totalTsPackets % packetsPerUnit;
+			if (remainder != 0) {
+				long padCount = packetsPerUnit - remainder;
+				for (long p = 0; p < padCount; p++) {
+					writeNullPacket(rawOut, atsOf(totalTsPackets));
+					totalTsPackets++;
+				}
+			}
 		}
 
 		log.info("M2TS written: {} TS packets ({} bytes)", totalTsPackets, totalTsPackets * (long) SOURCE_PKT_SIZE);
@@ -340,6 +353,8 @@ public class M2tsWriter {
 		info.setClipName(clipName);
 		info.setClipStreamType(1); // AV clip
 		info.setApplicationType(1); // movie
+		info.setTsRecordingRate(targetBitrateBps);
+		info.setNumSourcePackets(totalTsPackets);
 
 		// PTS values stored in ClipInfo are 45 kHz (spec stores /2 of 90 kHz)
 		Timestamp startTs = Timestamp.ofTicks(firstPts90kHz);

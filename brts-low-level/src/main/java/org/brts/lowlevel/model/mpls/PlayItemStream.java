@@ -13,8 +13,17 @@ import org.brts.common.model.StreamCodingType;
 @Getter
 @Setter
 public class PlayItemStream implements IStreamInfo {
-
+	public static final int STREAM_TYPE_IN_MUX = 0x01;
+	public static final int STREAM_TYPE_OUT_OF_MUX = 0x02;
 	private int pid;
+
+	private int streamType; // 0x01=in-mux, 0x02=out-of-mux, etc.
+
+	/** Sub-path index (stream_type 2, 3, 4). */
+	private int subpathId;
+
+	/** Sub-clip index within the sub-path (stream_type 2 only). */
+	private int subclipId;
 
 	private StreamCodingType codingType;
 

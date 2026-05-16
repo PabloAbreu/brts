@@ -6,13 +6,16 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
+import org.brts.common.m2ts.M2tsClipWriterImpl;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.Extensions;
 import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
@@ -22,6 +25,7 @@ import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
+import org.brts.lowlevel.model.mpls.PlayItemStream;
 import org.brts.lowlevel.model.mpls.SubPath;
 import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
@@ -69,7 +73,7 @@ public class TitleMenuGenerator {
 	/** Standard Blu-ray IGS PID. */
 	private static final int IGS_PID = 0x1400;
 
-	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 90_000L;
+	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 45_000L;
 
 	/**
 	 * Generates a title menu from the given descriptor.
@@ -102,12 +106,12 @@ public class TitleMenuGenerator {
 		String bgName = descriptor.getOutputBackgroundName();
 		Path bgM2ts = streamDir.resolve(bgName + ".m2ts");
 		Path bgClpi = clipDir.resolve(bgName + ".clpi");
-
+		M2tsDescriptor desc = null;
 		if (layoutResult.isCompositeBackground() && layoutResult.getBackgroundComposition() != null) {
-			generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamDir, clipDir,
+			desc = generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamDir, clipDir,
 					bgName, baseDir);
 		} else {
-			generateSimpleBackground(descriptor.getBackgroundMedia(), streamDir, clipDir, bgName, baseDir);
+			desc = generateSimpleBackground(descriptor.getBackgroundMedia(), streamDir, clipDir, bgName, baseDir);
 		}
 
 		// ── 3. Build and encode IGS → menu M2TS + CLPI ─────────────────────
@@ -137,7 +141,8 @@ public class TitleMenuGenerator {
 
 			Path menuM2ts = streamDir.resolve(menuName + ".m2ts");
 			Path menuClpi = clipDir.resolve(menuName + ".clpi");
-			M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
+			// TsMuxerM2tsClipWriter does not support IGS muxing; hardwire to M2tsClipWriterImpl.
+			M2tsClipWriter writer = new M2tsClipWriterImpl();
 			writer.write(menuDesc, menuM2ts, menuClpi);
 
 			log.info("Menu M2TS written: {}", menuM2ts.getFileName());
@@ -148,14 +153,14 @@ public class TitleMenuGenerator {
 
 		// ── 4. Build MPLS playlist ──────────────────────────────────────────
 
-		generatePlaylist(descriptor, outputDir);
+		generatePlaylist(descriptor, outputDir, desc);
 
 		log.info("Title menu generation complete. Output: {}", outputDir);
 	}
 
 	// ── Background generation ───────────────────────────────────────────────
 
-	private void generateCompositedBackground(ImagesComposition composition, TitleMenuDescriptor descriptor,
+	private M2tsDescriptor generateCompositedBackground(ImagesComposition composition, TitleMenuDescriptor descriptor,
 			Path streamDir, Path clipDir, String clipName, Path baseDir) throws IOException {
 		CompositedVideoGenerator generator = new CompositedVideoGenerator();
 		CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
@@ -167,17 +172,18 @@ public class TitleMenuGenerator {
 		// But CompositedVideoGenerator writes to a flat dir, need to handle that
 		Path tempOut = Files.createTempDirectory("brts-title-bg-");
 		try {
-			generator.generate(composition, tempOut, clipName, config, baseDir);
+			var desc = generator.generate(composition, tempOut, clipName, config, baseDir);
 			// Move results to proper BDMV structure
 			Files.move(tempOut.resolve(clipName + ".m2ts"), streamDir.resolve(clipName + ".m2ts"));
 			Files.move(tempOut.resolve(clipName + ".clpi"), clipDir.resolve(clipName + ".clpi"));
+			return desc;
 		} finally {
 			FileUtils.deleteDir(tempOut);
 		}
 	}
 
-	private void generateSimpleBackground(BackgroundSource bgSource, Path streamDir, Path clipDir, String clipName,
-			Path baseDir) throws IOException {
+	private M2tsDescriptor generateSimpleBackground(BackgroundSource bgSource, Path streamDir, Path clipDir,
+			String clipName, Path baseDir) throws IOException {
 		if (bgSource == null) {
 			throw new IllegalArgumentException("backgroundMedia must be specified in the descriptor");
 		}
@@ -217,6 +223,7 @@ public class TitleMenuGenerator {
 						entry.setPid(0x1011);
 						entry.setStreamTypeByte(videoStream.getStreamTypeByte());
 						entry.setFrameRateFps(videoStream.getFrameRateFps());
+						entry.setVideoFormat(videoStream.getVideoFormat());
 						streams.add(entry);
 					}
 				}
@@ -246,7 +253,7 @@ public class TitleMenuGenerator {
 				Path clpiPath = clipDir.resolve(clipName + ".clpi");
 				M2tsClipWriter clipWriter = M2tsClipWriterFactory.createWriter();
 				clipWriter.write(desc, m2tsPath, clpiPath);
-
+				return desc;
 			} finally {
 				FileUtils.deleteDir(tempDir);
 			}
@@ -262,7 +269,8 @@ public class TitleMenuGenerator {
 
 	// ── Playlist generation ─────────────────────────────────────────────────
 
-	private void generatePlaylist(TitleMenuDescriptor descriptor, Path outputDir) throws IOException {
+	private void generatePlaylist(TitleMenuDescriptor descriptor, Path outputDir, M2tsDescriptor bgDescriptor)
+			throws IOException {
 		Path playlistDir = outputDir.resolve("PLAYLIST");
 		Files.createDirectories(playlistDir);
 		Path playlistPath = playlistDir.resolve(descriptor.getOutputPlaylistName() + ".mpls");
@@ -279,9 +287,41 @@ public class TitleMenuGenerator {
 		for (int i = 0; i < loopCount; i++) {
 			PlayItem item = new PlayItem();
 			item.setClipName(bgName);
-			item.setConnectionCondition(1);
+			item.setConnectionCondition(5);
 			item.setInTimeTicks(bgTiming.inTimeTicks());
 			item.setOutTimeTicks(bgTiming.outTimeTicks());
+			item.setStreams(new ArrayList<>());
+			// streams from bgDescriptor
+			// video
+			bgDescriptor.getStreams().stream().filter(s -> StreamCodingType.fromByte(s.getStreamTypeByte()).isVideo())
+					.findFirst().ifPresent(videoStream -> {
+						PlayItemStream s = new PlayItemStream();
+						s.setPid(videoStream.getPid());
+						s.setCodingType(StreamCodingType.fromByte(videoStream.getStreamTypeByte()));
+						s.setFrameRate(IStreamInfo.frameRateFromFps(videoStream.getFrameRateFps()));
+						s.setVideoFormat(videoStream.getVideoFormat());
+						item.getStreams().add(s);
+					});
+			// first audio
+			bgDescriptor.getStreams().stream().filter(s -> StreamCodingType.fromByte(s.getStreamTypeByte()).isAudio())
+					.findFirst().ifPresent(audioStream -> {
+						PlayItemStream s = new PlayItemStream();
+						s.setPid(audioStream.getPid());
+						s.setCodingType(StreamCodingType.fromByte(audioStream.getStreamTypeByte()));
+						s.setSampleRate(deriveSampleRateCode(audioStream.getSampleRateHz()));
+						s.setAudioChannelLayout(deriveChannelLayoutCode(audioStream.getChannels()));
+						s.setLanguage(audioStream.getLanguage());
+						item.getStreams().add(s);
+					});
+			// IGS stream referencing the menu SubPath (out-of-mux, stream_type 2)
+			PlayItemStream s = new PlayItemStream();
+			s.setPid(IGS_PID);
+			s.setStreamType(PlayItemStream.STREAM_TYPE_OUT_OF_MUX);
+			s.setSubpathId(0); // index of menu SubPath
+			s.setSubclipId(0); // first clip in that SubPath
+			s.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
+			s.setLanguage("eng");// TODO better
+			item.getStreams().add(s);
 			playItems.add(item);
 		}
 
@@ -289,6 +329,7 @@ public class TitleMenuGenerator {
 		ClipTiming menuTiming = resolveClipTiming(menuName, outputDir);
 		SubPath.SubPlayItem menuSubPlayItem = new SubPath.SubPlayItem();
 		menuSubPlayItem.setClipName(menuName);
+		menuSubPlayItem.setConnectionCondition(1);
 		menuSubPlayItem.setInTimeTicks(menuTiming.inTimeTicks());
 		menuSubPlayItem.setOutTimeTicks(menuTiming.outTimeTicks());
 		menuSubPlayItem.setSyncPlayItemId(0); // sync to first PlayItem
@@ -296,7 +337,7 @@ public class TitleMenuGenerator {
 
 		SubPath menuSubPath = new SubPath();
 		menuSubPath.setSubPathType(3);
-		menuSubPath.setRepeatSubPath(true);
+		menuSubPath.setRepeatSubPath(false);
 		menuSubPath.setSubPlayItems(List.of(menuSubPlayItem));
 
 		// Assemble playlist
@@ -323,8 +364,9 @@ public class TitleMenuGenerator {
 		try {
 			ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
 			if (clipInfo.getTsRecordingStartPts() != null && clipInfo.getTsRecordingEndPts() != null) {
-				long startPts = clipInfo.getTsRecordingStartPts().getTicks();
-				long endPts = clipInfo.getTsRecordingEndPts().getTicks();
+				// ClipInfo stores PTS in 90 kHz; MPLS fields use 45 kHz
+				long startPts = clipInfo.getTsRecordingStartPts().getTicks() / 2;
+				long endPts = clipInfo.getTsRecordingEndPts().getTicks() / 2;
 				if (endPts > startPts) {
 					return new ClipTiming(startPts, endPts);
 				}
@@ -342,5 +384,23 @@ public class TitleMenuGenerator {
 		case TEXT_LIST -> new TextListLayout();
 		case THUMBNAIL_GRID -> new ThumbnailGridLayout();
 		};
+	}
+
+	private static int deriveSampleRateCode(Integer sampleRateHz) {
+		if (sampleRateHz == null || sampleRateHz <= 48000)
+			return 1;
+		if (sampleRateHz <= 96000)
+			return 4;
+		return 5;
+	}
+
+	private static int deriveChannelLayoutCode(Integer channels) {
+		if (channels == null || channels <= 1)
+			return 1;
+		if (channels <= 2)
+			return 3;
+		if (channels <= 6)
+			return 6;
+		return 12;
 	}
 }

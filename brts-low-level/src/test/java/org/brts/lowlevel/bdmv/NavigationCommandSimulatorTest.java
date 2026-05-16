@@ -522,4 +522,42 @@ class NavigationCommandSimulatorTest {
 		assertThat(r.finalGprState()).containsEntry(2, 88_000L);
 	}
 
+	// -------------------------------------------------------------------------
+	// Playlist terminator predicate
+	// -------------------------------------------------------------------------
+
+	@Test
+	void playlistPredicate_alwaysTrue_terminatesLikeNull() {
+		List<NavigationCommand> cmds = List.of(cmd("PLAY_PL", 10_000, IMM));
+		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> true).run();
+		assertThat(r.terminationReason()).isEqualTo("PLAY_PL");
+		assertThat(r.terminalOp1()).isEqualTo(10_000L);
+		assertThat(r.stepsExecuted()).isEqualTo(1);
+	}
+
+	@Test
+	void playlistPredicate_falseFirstTrueSecond_skipsFirstTerminatesSecond() {
+		// PLAY_PL 1 (rejected), PLAY_PL 2 (accepted)
+		List<NavigationCommand> cmds = new ArrayList<>();
+		cmds.add(cmd("PLAY_PL", 1, IMM));
+		cmds.add(cmd("PLAY_PL", 2, IMM));
+		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> id == 2L).run();
+		assertThat(r.terminationReason()).isEqualTo("PLAY_PL");
+		assertThat(r.terminalOp1()).isEqualTo(2L);
+		assertThat(r.stepsExecuted()).isEqualTo(2);
+		// Both PLAY_PL commands must appear in external effects
+		assertThat(r.externalEffects()).hasSize(2);
+	}
+
+	@Test
+	void playlistPredicate_alwaysFalse_reachesEnd() {
+		List<NavigationCommand> cmds = new ArrayList<>();
+		cmds.add(cmd("PLAY_PL", 5, IMM));
+		cmds.add(cmd("PLAY_PL", 6, IMM));
+		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> false).run();
+		assertThat(r.terminationReason()).isEqualTo("END");
+		assertThat(r.terminalOp1()).isNull();
+		assertThat(r.externalEffects()).hasSize(2);
+	}
+
 }

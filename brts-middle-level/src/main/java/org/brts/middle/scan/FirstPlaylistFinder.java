@@ -6,8 +6,12 @@ import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.model.bdmv.MovieObjects.MovieObject;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.model.mpls.PlayItem;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.LongPredicate;
 
 /**
  * Finds the first playlist that would be played on a non-BD-J Blu-ray disc by chaining HDMV movie-object simulations.
@@ -29,9 +33,21 @@ public class FirstPlaylistFinder {
 
 	private final MovieObjects movieObjects;
 
+	/**
+	 * Optional function that resolves a playlist ID to its parsed {@link MoviePlaylist}. When non-null it is used to
+	 * apply the duration/menu filters from {@link FirstPlaylistFinderConfig}.
+	 */
+	private final Function<Integer, Optional<MoviePlaylist>> playlistLoader;
+
 	public FirstPlaylistFinder(IndexBdmv index, MovieObjects movieObjects) {
+		this(index, movieObjects, null);
+	}
+
+	public FirstPlaylistFinder(IndexBdmv index, MovieObjects movieObjects,
+			Function<Integer, Optional<MoviePlaylist>> playlistLoader) {
 		this.index = Objects.requireNonNull(index);
 		this.movieObjects = Objects.requireNonNull(movieObjects);
+		this.playlistLoader = playlistLoader;
 	}
 
 	public FirstPlaylistResult find(FirstPlaylistFinderConfig config) {
@@ -92,7 +108,7 @@ public class FirstPlaylistFinder {
 			}
 
 			NavigationCommandSimulator sim = new NavigationCommandSimulator(mo.getNavigationCommands(), psrMap,
-					gprState, Math.min(stepsRemaining, config.getMaxTotalSteps()));
+					gprState, Math.min(stepsRemaining, config.getMaxTotalSteps()), buildPlaylistTerminator(config));
 			SimulationResult result = sim.run();
 			totalSteps += result.stepsExecuted();
 			String reason = result.terminationReason();
@@ -114,6 +130,10 @@ public class FirstPlaylistFinder {
 				r.setTrace(trace);
 				r.setTerminationReason(reason);
 				r.setTotalStepsExecuted(totalSteps);
+				if (playlistLoader != null) {
+					playlistLoader.apply((int) playlistId)
+							.ifPresent(mpls -> r.setDurationSeconds(computeDurationSeconds(mpls)));
+				}
 				return r;
 			}
 
@@ -273,6 +293,45 @@ public class FirstPlaylistFinder {
 		psr.put(29, 0x0200L); // player profile version = 2.0
 		psr.put(31, 4L); // player capability (UHD)
 		return psr;
+	}
+
+	/**
+	 * Builds a {@link LongPredicate} that returns {@code true} when a playlist with the given ID should terminate
+	 * simulation (i.e. it qualifies as the answer). Returns {@code null} when no filtering is configured.
+	 */
+	private LongPredicate buildPlaylistTerminator(FirstPlaylistFinderConfig config) {
+		boolean hasMinDuration = config.getMinDurationSeconds() != null;
+		boolean hasMenuFilter = config.isStopAtMenu();
+		if (playlistLoader == null || (!hasMinDuration && !hasMenuFilter)) {
+			return null;
+		}
+		return id -> {
+			Optional<MoviePlaylist> opt = playlistLoader.apply((int) id);
+			if (opt.isEmpty()) {
+				return false;
+			}
+			MoviePlaylist mpls = opt.get();
+			if (hasMenuFilter && mpls.isMenu()) {
+				return true;
+			}
+			if (hasMinDuration) {
+				return computeDurationSeconds(mpls) >= config.getMinDurationSeconds();
+			}
+			return false;
+		};
+	}
+
+	/**
+	 * Computes the total duration of a playlist in seconds by summing PlayItem in/out ticks at 45 kHz.
+	 */
+	private static long computeDurationSeconds(MoviePlaylist mpls) {
+		long ticks = 0;
+		if (mpls.getPlayItems() != null) {
+			for (PlayItem pi : mpls.getPlayItems()) {
+				ticks += pi.getOutTimeTicks() - pi.getInTimeTicks();
+			}
+		}
+		return ticks / 45_000L;
 	}
 
 }

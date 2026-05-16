@@ -93,6 +93,9 @@ public class M2tsDescriptor {
 
 		private Double frameRateFps;
 
+		/** Blu-ray video format code (1=480i, 2=480p, 3=720p, 4=1080i, 6=1080p). */
+		private Integer videoFormat;
+
 		// audio metadata
 		private Integer sampleRateHz;
 

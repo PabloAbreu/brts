@@ -3,8 +3,10 @@ package org.brts.cli.middle;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.parser.IndexBdmvParser;
 import org.brts.lowlevel.parser.MovieObjectsParser;
+import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.middle.scan.FirstPlaylistFinder;
 import org.brts.middle.scan.FirstPlaylistFinderConfig;
 import org.brts.middle.scan.FirstPlaylistResult;
@@ -12,6 +14,8 @@ import org.kohsuke.args4j.Option;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Optional;
 
 /**
  * CLI for the middle-level "find-first-playlist" command.
@@ -34,6 +38,12 @@ public class FindFirstPlaylistCli {
 
 		@Option(name = "--max-depth", usage = "Maximum number of object transitions (default: 100)")
 		Integer maxDepth;
+
+		@Option(name = "--min-duration", usage = "Skip PLAY_PL playlists shorter than N seconds (requires --bdmv-dir to contain PLAYLIST/)")
+		Integer minDuration;
+
+		@Option(name = "--find-menu", usage = "Also stop at the first menu playlist (requires --bdmv-dir to contain PLAYLIST/)")
+		boolean findMenu;
 
 	}
 
@@ -86,15 +96,38 @@ public class FindFirstPlaylistCli {
 				cb.startTitleNumber(opts.startTitle);
 			if (opts.maxDepth != null)
 				cb.maxChainDepth(opts.maxDepth);
+			if (opts.minDuration != null)
+				cb.minDurationSeconds((long) opts.minDuration);
+			cb.stopAtMenu(opts.findMenu);
+
+			// --- Build playlist loader (only when filtering is needed) ---
+			FirstPlaylistFinder finder;
+			if (opts.minDuration != null || opts.findMenu) {
+				File playlistDir = new File(opts.bdmvDir, "PLAYLIST");
+				MoviePlaylistParser mplsParser = new MoviePlaylistParser();
+				finder = new FirstPlaylistFinder(index, movieObjects, id -> {
+					File mplsFile = new File(playlistDir, String.format("%05d.mpls", id));
+					try (FileInputStream fis = new FileInputStream(mplsFile)) {
+						return Optional.of(mplsParser.parse(fis));
+					} catch (IOException e) {
+						return Optional.empty();
+					}
+				});
+			} else {
+				finder = new FirstPlaylistFinder(index, movieObjects);
+			}
 
 			// --- Find first playlist ---
-			FirstPlaylistFinder finder = new FirstPlaylistFinder(index, movieObjects);
 			FirstPlaylistResult result = finder.find(cb.build());
 
 			// --- Output ---
 			writeJson(opts.output, result);
 			if (opts.output != null) {
 				System.out.println("Result → " + opts.output);
+			}
+			if (result.getDurationSeconds() != null) {
+				System.out.printf("Playlist %d duration: %d seconds%n", result.getPlaylistId(),
+						result.getDurationSeconds());
 			}
 		}
 

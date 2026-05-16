@@ -6,10 +6,14 @@ import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.model.bdmv.MovieObjects.MovieObject;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.model.mpls.PlayItem;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -435,6 +439,107 @@ class FirstPlaylistFinderTest {
 		assertThat(r.isFound()).isTrue();
 		assertThat(r.getPlaylistId()).isEqualTo(777);
 		assertThat(r.getTrace()).anyMatch(s -> s.contains("CALL_TITLE"));
+	}
+
+	// -------------------------------------------------------------------------
+	// Helpers for playlist loader tests
+	// -------------------------------------------------------------------------
+
+	private static MoviePlaylist playlist(boolean menu, long durationSeconds) {
+		MoviePlaylist mpls = new MoviePlaylist();
+		mpls.setMenu(menu);
+		PlayItem pi = new PlayItem();
+		pi.setInTimeTicks(0);
+		pi.setOutTimeTicks(durationSeconds * 45_000L);
+		mpls.setPlayItems(List.of(pi));
+		return mpls;
+	}
+
+	// -------------------------------------------------------------------------
+	// Playlist loader / duration + menu filtering
+	// -------------------------------------------------------------------------
+
+	@Test
+	void durationFilter_skipsShortPlaylist_stopsAtLong() {
+		// Object 0: PLAY_PL 1 (5 s, too short), PLAY_PL 2 (120 s, qualifies)
+		IndexBdmv index = indexWith(hdmvTitle(0), null, List.of());
+		MovieObjects mobj = mobjWith(movieObject(cmd("PLAY_PL", 1), cmd("PLAY_PL", 2)));
+
+		Map<Integer, MoviePlaylist> playlists = Map.of(1, playlist(false, 5), 2, playlist(false, 120));
+
+		FirstPlaylistFinderConfig cfg = FirstPlaylistFinderConfig.builder().minDurationSeconds(60L).build();
+		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj, id -> Optional.ofNullable(playlists.get(id)))
+				.find(cfg);
+
+		assertThat(r.isFound()).isTrue();
+		assertThat(r.getPlaylistId()).isEqualTo(2);
+		assertThat(r.getDurationSeconds()).isEqualTo(120L);
+	}
+
+	@Test
+	void menuFilter_skipsNonMenuPlaylist_stopsAtMenu() {
+		// Object 0: PLAY_PL 1 (non-menu), PLAY_PL 2 (menu)
+		IndexBdmv index = indexWith(hdmvTitle(0), null, List.of());
+		MovieObjects mobj = mobjWith(movieObject(cmd("PLAY_PL", 1), cmd("PLAY_PL", 2)));
+
+		Map<Integer, MoviePlaylist> playlists = Map.of(1, playlist(false, 5), 2, playlist(true, 30));
+
+		FirstPlaylistFinderConfig cfg = FirstPlaylistFinderConfig.builder().stopAtMenu(true).build();
+		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj, id -> Optional.ofNullable(playlists.get(id)))
+				.find(cfg);
+
+		assertThat(r.isFound()).isTrue();
+		assertThat(r.getPlaylistId()).isEqualTo(2);
+	}
+
+	@Test
+	void loaderAbsent_skipsPlaylist_continuesSimulation() {
+		// Object 0: PLAY_PL 99 (missing from loader), PLAY_PL 100 (long, qualifies)
+		IndexBdmv index = indexWith(hdmvTitle(0), null, List.of());
+		MovieObjects mobj = mobjWith(movieObject(cmd("PLAY_PL", 99), cmd("PLAY_PL", 100)));
+
+		Map<Integer, MoviePlaylist> playlists = Map.of(100, playlist(false, 120));
+
+		FirstPlaylistFinderConfig cfg = FirstPlaylistFinderConfig.builder().minDurationSeconds(60L).build();
+		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj, id -> Optional.ofNullable(playlists.get(id)))
+				.find(cfg);
+
+		assertThat(r.isFound()).isTrue();
+		assertThat(r.getPlaylistId()).isEqualTo(100);
+	}
+
+	@Test
+	void noFilter_loaderProvidedButDisabled_terminatesAtFirstPlayPl() {
+		// No minDuration, no stopAtMenu → should terminate at first PLAY_PL regardless
+		IndexBdmv index = indexWith(hdmvTitle(0), null, List.of());
+		MovieObjects mobj = mobjWith(movieObject(cmd("PLAY_PL", 1), cmd("PLAY_PL", 2)));
+
+		Map<Integer, MoviePlaylist> playlists = Map.of(1, playlist(false, 5), 2, playlist(false, 120));
+
+		FirstPlaylistFinderConfig cfg = FirstPlaylistFinderConfig.builder().build();
+		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj, id -> Optional.ofNullable(playlists.get(id)))
+				.find(cfg);
+
+		assertThat(r.isFound()).isTrue();
+		assertThat(r.getPlaylistId()).isEqualTo(1);
+		assertThat(r.getDurationSeconds()).isEqualTo(5L);
+	}
+
+	@Test
+	void durationAndMenuFilter_stopAtMenuBeforeMinDuration() {
+		// Both options active: stop at menu even if shorter than minDuration
+		IndexBdmv index = indexWith(hdmvTitle(0), null, List.of());
+		MovieObjects mobj = mobjWith(movieObject(cmd("PLAY_PL", 1), cmd("PLAY_PL", 2)));
+
+		Map<Integer, MoviePlaylist> playlists = Map.of(1, playlist(true, 10), 2, playlist(false, 120));
+
+		FirstPlaylistFinderConfig cfg = FirstPlaylistFinderConfig.builder().minDurationSeconds(60L).stopAtMenu(true)
+				.build();
+		FirstPlaylistResult r = new FirstPlaylistFinder(index, mobj, id -> Optional.ofNullable(playlists.get(id)))
+				.find(cfg);
+
+		assertThat(r.isFound()).isTrue();
+		assertThat(r.getPlaylistId()).isEqualTo(1); // menu wins even though 10 s < 60 s
 	}
 
 }

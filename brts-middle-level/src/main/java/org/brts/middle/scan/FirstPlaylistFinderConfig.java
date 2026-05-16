@@ -45,4 +45,18 @@ public class FirstPlaylistFinderConfig {
 	@Builder.Default
 	private long maxTotalSteps = 100_000;
 
+	/**
+	 * Minimum playlist duration in seconds for a PLAY_PL* command to qualify as the final answer. Playlists shorter
+	 * than this threshold are skipped and simulation continues. {@code null} means no minimum (any duration qualifies).
+	 */
+	@Builder.Default
+	private Long minDurationSeconds = null;
+
+	/**
+	 * When {@code true}, stop at the first menu playlist (i.e. {@code MoviePlaylist.isMenu() == true}) even if it is
+	 * shorter than {@link #minDurationSeconds}. Has no effect when no playlist loader is provided.
+	 */
+	@Builder.Default
+	private boolean stopAtMenu = false;
+
 }

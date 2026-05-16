@@ -33,6 +33,9 @@ public class TitleDescriptor {
 
 	private int titleId;
 
+	/** Optional display name for menu buttons. Falls back to source MKV filename if absent. */
+	private String displayName;
+
 	/** Path to the source MKV file. */
 	private String sourceMkv;
 

@@ -46,4 +46,10 @@ public class FirstPlaylistResult {
 	/** Total number of instructions executed across all chained simulations. */
 	private long totalStepsExecuted;
 
+	/**
+	 * Duration of the matched playlist in seconds, computed from PlayItem in/out ticks at 45 kHz. {@code null} when no
+	 * playlist loader is configured or the MPLS file could not be read.
+	 */
+	private Long durationSeconds;
+
 }

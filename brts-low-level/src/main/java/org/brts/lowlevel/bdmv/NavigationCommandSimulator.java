@@ -3,6 +3,7 @@ package org.brts.lowlevel.bdmv;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
 import java.util.*;
+import java.util.function.LongPredicate;
 
 /**
  * Simulates execution of a list of HDMV {@link NavigationCommand}s.
@@ -34,13 +35,20 @@ public class NavigationCommandSimulator {
 	private final List<String> externalEffects = new ArrayList<>();
 
 	/**
+	 * Optional predicate applied to PLAY_PL/PLAY_PL_PI/PLAY_PL_PM playlist IDs. When non-null, the simulator terminates
+	 * only when the predicate returns {@code true}; otherwise it continues to the next instruction. {@code null} means
+	 * always terminate (default behaviour).
+	 */
+	private final LongPredicate playlistTerminator;
+
+	/**
 	 * @param commands the program to simulate
 	 * @param psrInit  initial PSR values (may be {@code null}); reading an uninitialised PSR at runtime will throw
 	 *                 {@link SimulationException}
 	 * @param maxSteps maximum number of instructions to execute before aborting
 	 */
 	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit, long maxSteps) {
-		this(commands, psrInit, null, maxSteps);
+		this(commands, psrInit, null, maxSteps, null);
 	}
 
 	/**
@@ -52,8 +60,23 @@ public class NavigationCommandSimulator {
 	 */
 	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit,
 			Map<Integer, Long> gprInit, long maxSteps) {
+		this(commands, psrInit, gprInit, maxSteps, null);
+	}
+
+	/**
+	 * @param commands           the program to simulate
+	 * @param psrInit            initial PSR values (may be {@code null})
+	 * @param gprInit            initial GPR values (may be {@code null})
+	 * @param maxSteps           maximum number of instructions to execute before aborting
+	 * @param playlistTerminator optional predicate on the playlist ID for PLAY_PL/PLAY_PL_PI/PLAY_PL_PM; when non-null
+	 *                           the simulator terminates only when the predicate returns {@code true}, otherwise
+	 *                           execution continues past the PLAY command
+	 */
+	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit,
+			Map<Integer, Long> gprInit, long maxSteps, LongPredicate playlistTerminator) {
 		this.commands = Objects.requireNonNull(commands);
 		this.maxSteps = maxSteps;
+		this.playlistTerminator = playlistTerminator;
 		if (psrInit != null) {
 			psrInit.forEach((idx, val) -> {
 				if (idx < 0 || idx > 127)
@@ -121,8 +144,21 @@ public class NavigationCommandSimulator {
 				incPc = false;
 			}
 
-			// ── BRANCH / PLAY — external, terminate ────────────────────
-			case PLAY_PL, PLAY_PL_PI, PLAY_PL_PM, TERMINATE_PL, LINK_PI, LINK_MK -> {
+			// ── BRANCH / PLAY_PL* — external; may be filtered by playlistTerminator ─
+			case PLAY_PL, PLAY_PL_PI, PLAY_PL_PM -> {
+				long plId = safeResolveOperand(cmd, 1, m) != null ? safeResolveOperand(cmd, 1, m) : 0L;
+				traceExternal(m, cmd, steps);
+				if (playlistTerminator == null || playlistTerminator.test(plId)) {
+					terminationReason = m.getMnemonic();
+					terminalOp1 = plId;
+					terminalOp2 = safeResolveOperand(cmd, 2, m);
+					pc = commands.size();
+					incPc = false;
+				}
+			}
+
+			// ── BRANCH / PLAY — external, always terminate ─────────────
+			case TERMINATE_PL, LINK_PI, LINK_MK -> {
 				traceExternal(m, cmd, steps);
 				terminationReason = m.getMnemonic();
 				terminalOp1 = safeResolveOperand(cmd, 1, m);

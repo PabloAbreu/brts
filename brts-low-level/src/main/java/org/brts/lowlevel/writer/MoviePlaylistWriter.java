@@ -148,9 +148,26 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			// stream_entry (length byte + content)
 			ByteArrayOutputStream entry = new ByteArrayOutputStream();
 			BinaryWriter we = new BinaryWriter(entry);
-			we.writeByte(0x01); // stream_type = in-mux
-			we.writeShort(s.getPid());
-			we.writePadding(6);
+			int streamType = s.getStreamType() != 0 ? s.getStreamType() : 0x01; // default to in-mux if not set
+			we.writeByte(streamType); // stream_type
+			switch (streamType) {
+			case 2:
+				we.writeByte(s.getSubpathId());
+				we.writeByte(s.getSubclipId());
+				we.writeShort(s.getPid());
+				we.writePadding(4);
+				break;
+			case 3:
+			case 4:
+				we.writeByte(s.getSubpathId());
+				we.writeShort(s.getPid());
+				we.writePadding(5);
+				break;
+			default: // type 1 (in-mux)
+				we.writeShort(s.getPid());
+				we.writePadding(6);
+				break;
+			}
 			byte[] entryBytes = entry.toByteArray();
 			wi.writeByte(entryBytes.length);
 			wi.writeBytes(entryBytes);
@@ -195,7 +212,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		BinaryWriter wi = new BinaryWriter(inner);
 		wi.writePadding(1);
 		wi.writeByte(sp.getSubPathType());
-		wi.writeByte(sp.isRepeatSubPath() ? 0x01 : 0x00);
+		wi.writeShort(sp.isRepeatSubPath() ? 0x01 : 0x00);
 		wi.writePadding(1);
 		wi.writeByte(spis.size());
 		for (SubPath.SubPlayItem spi : spis) {
@@ -204,11 +221,16 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			String name = spi.getClipName() != null ? spi.getClipName() : "00001";
 			ws.writeAscii(String.format("%-5s", name).substring(0, 5));
 			ws.writeAscii("M2TS");
-			ws.writePadding(1 + 1 + 1); // reserved, connection_condition, stc_id
+			// next bits 27 reserved 4 ConnectionCondition 1 IsMultiClipEntries 8 RefToSTCID
+			ws.writePadding(3);
+			ws.writeByte(spi.getConnectionCondition() << 1); // ConnectionCondition
+			ws.writeByte(0); // RefToSTCID
+
 			ws.writeInt(spi.getInTimeTicks());
 			ws.writeInt(spi.getOutTimeTicks());
 			ws.writeShort(spi.getSyncPlayItemId());
 			ws.writeInt(spi.getSyncStartPtsTicks());
+			// TODO support multiclip entries
 			byte[] spiBytes = spiInner.toByteArray();
 			wi.writeShort(spiBytes.length);
 			wi.writeBytes(spiBytes);

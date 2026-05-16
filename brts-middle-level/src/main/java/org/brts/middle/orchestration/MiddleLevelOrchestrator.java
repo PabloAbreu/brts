@@ -18,13 +18,18 @@ import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.model.bdmv.MovieObjects.MovieObject;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
+import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
+import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
 import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.brts.middle.descriptor.TitleMenuConfig;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Middle-level orchestrator: processes a {@link DiscDescriptor}, builds low-level descriptors for each title, and
@@ -41,21 +46,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *   orchestrate.sh   ← shell script invoking brt-cli low-level commands in order
  * </pre>
  */
+@Slf4j
+@RequiredArgsConstructor
 public class MiddleLevelOrchestrator {
-
 	private static final String MOVIE_OBJECT_JSON = "MovieObject.json";
 
 	private static final String INDEX_JSON = "index.json";
 
-	private static final Logger log = LoggerFactory.getLogger(MiddleLevelOrchestrator.class);
-
 	private final SimpleTitleBuilder titleBuilder;
 
 	private final ObjectMapper mapper = JsonMapperFactory.get();
-
-	public MiddleLevelOrchestrator(SimpleTitleBuilder titleBuilder) {
-		this.titleBuilder = titleBuilder;
-	}
 
 	/**
 	 * Processes the disc descriptor and writes low-level descriptors + orchestration script.
@@ -127,14 +127,47 @@ public class MiddleLevelOrchestrator {
 
 		MovieObject topMenuMovieObject = new MovieObject();
 		topMenuMovieObject.setResumeIntentionFlag(true);
-		topMenuMovieObject.setNavigationCommands(
-				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
-		movieObjects.add(topMenuMovieObject);
 
 		MovieObject firstPlayMovieObject = new MovieObject();
 		firstPlayMovieObject.setResumeIntentionFlag(true);
-		firstPlayMovieObject.setNavigationCommands(
-				List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
+
+		boolean generateTitleMenu = nbTitles > 1 && disc.getTitleMenuConfig() != null;
+
+		if (generateTitleMenu) {
+			TitleMenuConfig menuConfig = disc.getTitleMenuConfig();
+			TitleMenuDescriptor menuDescriptor = buildTitleMenuDescriptor(disc, menuConfig);
+
+			// Write descriptor to file so the CLI can reference it
+			File menuDescriptorFile = descriptorsDir.resolve("title-menu-descriptor.json").toFile();
+			mapper.writeValue(menuDescriptorFile, menuDescriptor);
+
+			Path baseDir = Paths.get(menuConfig.getBackgroundVideoPath()).toAbsolutePath().getParent();
+			if (baseDir == null) {
+				baseDir = bdmv;
+			}
+
+			// Menu playlist number (parsed from 5-digit output name)
+			int menuPlaylistNumber = Integer.parseInt(menuConfig.getOutputPlaylistName());
+
+			// Top Menu and First Play both play the menu playlist
+			topMenuMovieObject.setNavigationCommands(List.of(
+					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, menuPlaylistNumber, true, 0, false)));
+			firstPlayMovieObject.setNavigationCommands(List.of(
+					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, menuPlaylistNumber, true, 0, false)));
+
+			scriptLines.add("# Title menu");
+			scriptLines.add("$BRTS_CLI low create-title-menu --descriptor " + menuDescriptorFile.getAbsolutePath()
+					+ " --output " + bdmv + " --base-dir " + baseDir);
+			scriptLines.add("");
+		} else {
+			// No menu: jump directly to title 1
+			topMenuMovieObject.setNavigationCommands(
+					List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
+			firstPlayMovieObject.setNavigationCommands(
+					List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
+		}
+
+		movieObjects.add(topMenuMovieObject);
 		movieObjects.add(firstPlayMovieObject);
 
 		TitleEntry topMenuTitle = new TitleEntry();
@@ -168,6 +201,49 @@ public class MiddleLevelOrchestrator {
 		Files.writeString(scriptPath, String.join("\n", scriptLines) + "\n");
 		scriptPath.toFile().setExecutable(true);
 		log.info("Wrote orchestration script to {}", scriptPath);
+	}
+
+	// ── Title Menu Descriptor Builder ───────────────────────────────────────
+
+	private TitleMenuDescriptor buildTitleMenuDescriptor(DiscDescriptor disc, TitleMenuConfig menuConfig) {
+		TitleMenuDescriptor descriptor = new TitleMenuDescriptor();
+
+		BackgroundSource bgSource = new BackgroundSource();
+		bgSource.setVideoPath(menuConfig.getBackgroundVideoPath());
+		descriptor.setBackgroundMedia(bgSource);
+
+		LayoutConfig layout = new LayoutConfig();
+		layout.setType(menuConfig.getLayoutType());
+		descriptor.setLayout(layout);
+
+		List<org.brts.lowlevel.titlemenu.descriptor.TitleEntry> menuTitles = new ArrayList<>();
+		for (TitleDescriptor title : disc.getTitles()) {
+			org.brts.lowlevel.titlemenu.descriptor.TitleEntry entry = new org.brts.lowlevel.titlemenu.descriptor.TitleEntry();
+			entry.setTitleNumber(title.getTitleId());
+			entry.setDisplayName(resolveDisplayName(title));
+			entry.setSourceMediaPath(title.getSourceMkv());
+			menuTitles.add(entry);
+		}
+		descriptor.setTitles(menuTitles);
+
+		descriptor.setOutputBackgroundName(menuConfig.getOutputBackgroundName());
+		descriptor.setOutputMenuName(menuConfig.getOutputMenuName());
+		descriptor.setOutputPlaylistName(menuConfig.getOutputPlaylistName());
+		descriptor.setBackgroundLoopCount(menuConfig.getBackgroundLoopCount());
+
+		return descriptor;
+	}
+
+	private String resolveDisplayName(TitleDescriptor title) {
+		if (title.getDisplayName() != null && !title.getDisplayName().isBlank()) {
+			return title.getDisplayName();
+		}
+		// Derive from MKV filename: strip path and extension
+		String path = title.getSourceMkv();
+		int lastSep = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+		String filename = lastSep >= 0 ? path.substring(lastSep + 1) : path;
+		int dotIdx = filename.lastIndexOf('.');
+		return dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
 	}
 
 }

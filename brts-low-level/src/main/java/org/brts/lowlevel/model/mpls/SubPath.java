@@ -40,6 +40,8 @@ public class SubPath {
 
 		private String clipName;
 
+		private int connectionCondition;
+
 		private long inTimeTicks;
 
 		private long outTimeTicks;

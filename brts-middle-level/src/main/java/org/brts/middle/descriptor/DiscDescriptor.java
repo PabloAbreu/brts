@@ -36,6 +36,12 @@ public class DiscDescriptor {
 	/** If true, a top menu object will be generated (requires menu title config). */
 	private boolean hasTopMenu = false;
 
+	/**
+	 * Optional title menu configuration. When non-null and the disc has more than one title, a selectable title menu is
+	 * generated and wired as First Play and Top Menu.
+	 */
+	private TitleMenuConfig titleMenuConfig;
+
 	private List<TitleDescriptor> titles;
 
 }
