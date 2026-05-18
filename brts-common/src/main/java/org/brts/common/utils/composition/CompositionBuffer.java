@@ -94,7 +94,7 @@ public class CompositionBuffer {
 			BufferedImage overlay = getImage(ref, context.getFrameNumber());
 			double tlx = context.evalNumeric(ic.getTopLeft().getX());
 			double tly = context.evalNumeric(ic.getTopLeft().getY());
-			float opacity = (float) context.evalNumeric(ic.getOpacity());
+			float opacity = (float) context.evalNumeric(ic.getOpacity(), 1.0);
 			opacity = Math.max(0.0f, Math.min(1.0f, opacity)); // clamp to [0, 1]
 			ImageUtils.compose(background, overlay,
 					ic.toAffineTransform(context, overlay.getWidth(), overlay.getHeight()), (int) tlx, (int) tly,

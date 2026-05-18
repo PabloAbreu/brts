@@ -150,22 +150,15 @@ public class CompositedVideoGenerator {
 
 		String baseVideoPath = resolveBaseVideoPath(composition, baseDir);
 		if (baseVideoPath != null && (fps <= 0 || frameCount <= 0)) {
-			M2tsInfo baseInfo = new M2tsParser().parse(Path.of(baseVideoPath));
-			M2tsStreamInfo videoStream = findFirstVideoStream(baseInfo);
-			if (videoStream != null && fps <= 0 && videoStream.getFrameRateFps() != null
-					&& videoStream.getFrameRateFps() > 0) {
-				fps = videoStream.getFrameRateFps();
-			}
-			if (frameCount <= 0) {
-				VideoFrames vf = new M2tsVideoFrames(Path.of(baseVideoPath));
-				try {
-					frameCount = vf.getFrameCount();
-				} finally {
-					try {
-						vf.close();
-					} catch (Exception ignored) {
-					}
+			try (VideoFrames vf = VideoFramesFactory.create(Path.of(baseVideoPath))) {
+				if (fps <= 0 && vf.getFps() > 0) {
+					fps = vf.getFps();
 				}
+				if (frameCount <= 0) {
+					frameCount = vf.getFrameCount();
+				}
+			} catch (Exception e) {
+				throw new IOException("Failed to read base video: " + baseVideoPath, e);
 			}
 		}
 
@@ -234,7 +227,7 @@ public class CompositedVideoGenerator {
 	}
 
 	// -------------------------------------------------------------------------
-	// MPEG-2 encoding
+	// MPEG-4 encoding
 	// -------------------------------------------------------------------------
 
 	/**
@@ -243,7 +236,7 @@ public class CompositedVideoGenerator {
 	 * <p>
 	 * Each frame is composited via {@link CompositionBuffer}, converted from BGR24 to YUV420P using {@code sws_scale},
 	 * then handed to the H.264 encoder. The {@link MediaRepositoryImpl} is closed when encoding completes so that any
-	 * opened {@link M2tsVideoFrames} FFmpeg contexts are released promptly.
+	 * opened {@link VideoFrames} FFmpeg contexts are released promptly.
 	 */
 	private void encodeToMpeg4(ImagesComposition composition, int frameCount, double fps, Config config,
 			Path outputFile, Path baseDir) throws IOException {
@@ -480,8 +473,4 @@ public class CompositedVideoGenerator {
 		return videoPath;
 	}
 
-	private static M2tsStreamInfo findFirstVideoStream(M2tsInfo info) {
-		return info.getStreams().stream().filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
-				.findFirst().orElse(null);
-	}
 }

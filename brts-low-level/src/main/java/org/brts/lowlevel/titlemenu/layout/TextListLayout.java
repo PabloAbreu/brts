@@ -36,6 +36,7 @@ public class TextListLayout implements TitleMenuLayout {
 		int spacingY = config.effectiveSpacingY();
 
 		TextStyle globalStyle = resolveGlobalStyle(config.getTitleStyle());
+		int maxButtonWidth = config.effectiveMaxButtonWidth(screenW);
 
 		List<TitleEntry> titles = descriptor.getTitles();
 		List<LayoutResult.PositionedButton> positioned = new ArrayList<>();
@@ -44,7 +45,7 @@ public class TextListLayout implements TitleMenuLayout {
 		List<ButtonImages> rendered = new ArrayList<>();
 		for (TitleEntry title : titles) {
 			TextStyle style = resolveItemStyle(title.getStyle(), globalStyle);
-			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style);
+			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, maxButtonWidth);
 			rendered.add(images);
 		}
 

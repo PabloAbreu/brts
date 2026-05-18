@@ -56,6 +56,12 @@ public class LayoutConfig {
 	/** Whether to show the title label below each thumbnail (THUMBNAIL_GRID). Defaults to true. */
 	private Boolean showLabels;
 
+	/**
+	 * Maximum width in pixels of a rendered text button. When {@code null}, defaults to 75% of the screen width. Long
+	 * display names that exceed this width are word-wrapped onto multiple lines.
+	 */
+	private Integer maxButtonWidth;
+
 	// ── Defaults ────────────────────────────────────────────────────────────
 
 	/** Returns the effective number of columns, applying defaults based on layout type. */
@@ -103,6 +109,16 @@ public class LayoutConfig {
 
 	public boolean effectiveShowLabels() {
 		return showLabels != null ? showLabels : true;
+	}
+
+	/**
+	 * Returns the effective maximum button width in pixels. When {@link #maxButtonWidth} is set it is returned as-is;
+	 * otherwise defaults to 75% of the given screen width.
+	 *
+	 * @param screenWidth the screen width in pixels (used only when {@link #maxButtonWidth} is {@code null})
+	 */
+	public int effectiveMaxButtonWidth(int screenWidth) {
+		return maxButtonWidth != null ? maxButtonWidth : screenWidth * 3 / 4;
 	}
 
 }

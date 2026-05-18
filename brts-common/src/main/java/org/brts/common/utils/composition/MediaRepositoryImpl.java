@@ -26,7 +26,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 	public VideoFrames getVideoFrames(Path videoPath) {
 		return videoCache.computeIfAbsent(videoPath, path -> {
 			try {
-				return new M2tsVideoFrames(path);
+				return VideoFramesFactory.create(path);
 			} catch (Exception e) {
 				throw new RuntimeException("Failed to load video frames for path: " + path, e);
 			}

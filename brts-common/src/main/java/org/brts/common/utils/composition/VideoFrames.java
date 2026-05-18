@@ -13,6 +13,8 @@ public interface VideoFrames extends AutoCloseable {
 
 	int getFrameCount();
 
+	double getFps();
+
 	BufferedImage getFrame(int frameNumber);
 
 }

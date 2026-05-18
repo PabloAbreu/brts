@@ -14,6 +14,12 @@ public interface CompositionContext {
 
 	Path resolvePath(Path relativePath);
 
+	default double evalNumeric(Expression expression, double defaultValue) {
+		if (expression == null)
+			return defaultValue;
+		return evalNumeric(expression);
+	}
+
 	default double evalNumeric(Expression expression) {
 		Object value = eval(expression);
 		if (value instanceof Number) {

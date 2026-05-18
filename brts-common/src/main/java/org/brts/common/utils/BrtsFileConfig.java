@@ -2,7 +2,6 @@ package org.brts.common.utils;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,14 +81,14 @@ public class BrtsFileConfig {
 		return result;
 	}
 
-	public void fillPojo(Object pojo) {
+	public <T> T fillPojo(T pojo) {
 		// get prefix from class annotation, or default to empty string
 		BrtsValue classAnnotation = pojo.getClass().getAnnotation(BrtsValue.class);
 		String prefix = classAnnotation != null ? classAnnotation.value() : "";
-		fillPojo(pojo, prefix);
+		return fillPojo(pojo, prefix);
 	}
 
-	public void fillPojo(Object pojo, String prefix) {
+	public <T> T fillPojo(T pojo, String prefix) {
 		String effectivePrefix = prefix != null ? prefix : "";
 		effectivePrefix = effectivePrefix.isBlank() ? ""
 				: effectivePrefix.endsWith(".") ? effectivePrefix : effectivePrefix + ".";
@@ -109,6 +108,7 @@ public class BrtsFileConfig {
 				log.debug("No config value found for property key '{}', skipping field '{}'", propertyKey, fieldName);
 			}
 		}
+		return pojo;
 	}
 
 	private static String getEnvVarName(String propertyKey) {

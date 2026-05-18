@@ -1,5 +1,10 @@
 package org.brts.middle.api;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.mkv.SourceMediaParser;
 import org.brts.common.model.Timestamp;
@@ -7,16 +12,9 @@ import org.brts.lowlevel.descriptor.ClipDescriptor;
 import org.brts.lowlevel.descriptor.PlaylistDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.pid.PidAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Middle-level API for creating a simple Blu-ray title from a single MKV file.
