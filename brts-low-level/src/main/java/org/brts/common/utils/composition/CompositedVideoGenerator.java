@@ -10,7 +10,7 @@ import static org.bytedeco.ffmpeg.global.avcodec.avcodec_free_context;
 import static org.bytedeco.ffmpeg.global.avcodec.avcodec_open2;
 import static org.bytedeco.ffmpeg.global.avcodec.avcodec_receive_packet;
 import static org.bytedeco.ffmpeg.global.avcodec.avcodec_send_frame;
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
+import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGRA;
 import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_YUV420P;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_alloc;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_free;
@@ -21,10 +21,11 @@ import static org.bytedeco.ffmpeg.global.swscale.sws_getContext;
 import static org.bytedeco.ffmpeg.global.swscale.sws_scale;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -33,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsWriter;
@@ -40,9 +42,10 @@ import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.AudioUtils;
 import org.brts.common.utils.Extensions;
 import org.brts.common.utils.FileUtils;
-import org.brts.common.utils.ImageUtils;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
@@ -75,9 +78,6 @@ public class CompositedVideoGenerator {
 	/** Base PID for audio streams. */
 	private static final int BASE_AUDIO_PID = 0x1100;
 
-	/** H.264/AVC ISO 13818-1 stream_type byte. */
-	private static final int H264_STREAM_TYPE = 0x1B;
-
 	// -------------------------------------------------------------------------
 	// Configuration
 	// -------------------------------------------------------------------------
@@ -89,11 +89,10 @@ public class CompositedVideoGenerator {
 	@Getter
 	@Setter
 	public static class Config {
-
 		/**
 		 * Number of frames to generate. When ≤ 0, the generator tries to derive the count from the base video's frame
-		 * count; an {@link IllegalArgumentException} is thrown when the base is not a video and this value is not
-		 * positive.
+		 * count, then from {@link Config#extraAudioPath} duration. When neither is available, defaults to 1 minute of
+		 * frames at the configured (or defaulted) fps.
 		 */
 		private int frameCount = -1;
 
@@ -114,6 +113,11 @@ public class CompositedVideoGenerator {
 		 */
 		private int bitrateKbps = 20_000;
 
+		/**
+		 * Path to an extra audio elementary-stream file to mux into the output M2TS alongside the encoded video. Useful
+		 * when the composition has a static image base (no embedded audio). When {@code null}, no extra audio is added.
+		 */
+		private String extraAudioPath;
 	}
 
 	// -------------------------------------------------------------------------
@@ -126,7 +130,7 @@ public class CompositedVideoGenerator {
 	 * <p>
 	 * Steps performed:
 	 * <ol>
-	 * <li>Resolve fps and frameCount (from config or base video).</li>
+	 * <li>Resolve fps and frameCount (from config, base video, or extra audio duration).</li>
 	 * <li>Composite each frame via {@link CompositionBuffer} and encode to an MPEG-2 ES file.</li>
 	 * <li>Optionally extract audio streams from the base video.</li>
 	 * <li>Mux everything into a Blu-ray 192-byte source-packet M2TS using {@link M2tsWriter}.</li>
@@ -138,8 +142,7 @@ public class CompositedVideoGenerator {
 	 * @param clipName    5-digit clip name (e.g. {@code "00001"})
 	 * @param config      generation parameters
 	 * @returns the M2TS descriptor for the generated video
-	 * @throws IOException              on any I/O or encoding failure
-	 * @throws IllegalArgumentException if frameCount cannot be determined
+	 * @throws IOException on any I/O or encoding failure
 	 */
 	public M2tsDescriptor generate(ImagesComposition composition, Path outputDir, String clipName, Config config,
 			Path baseDir) throws IOException {
@@ -162,11 +165,22 @@ public class CompositedVideoGenerator {
 			}
 		}
 
-		if (frameCount <= 0) {
-			throw new IllegalArgumentException("frameCount must be explicitly set when the base image is not a video");
+		if (frameCount <= 0 && config.getExtraAudioPath() != null && !config.getExtraAudioPath().isBlank()) {
+			double audioDuration = probeAudioDurationSeconds(Path.of(config.getExtraAudioPath()));
+			if (audioDuration > 0) {
+				double effectiveFps = fps > 0 ? fps : 24.0;
+				frameCount = (int) Math.ceil(audioDuration * effectiveFps);
+				log.debug("Derived frameCount={} from audio duration {}s @ {} fps", frameCount, audioDuration,
+						effectiveFps);
+			}
 		}
 		if (fps <= 0) {
 			fps = 24.0;
+		}
+		if (frameCount <= 0) {
+			frameCount = (int) Math.round(fps * 60);
+			log.warn("Could not determine frameCount from base video or audio; defaulting to 1 minute = {} frames",
+					frameCount);
 		}
 
 		log.info("Generating composited video '{}': {} frames @ {} fps ({}×{})", clipName, frameCount, fps,
@@ -184,7 +198,7 @@ public class CompositedVideoGenerator {
 			M2tsDescriptor.StreamEntry videoEntry = new M2tsDescriptor.StreamEntry();
 			videoEntry.setFile(videoEsFile.toString());
 			videoEntry.setPid(VIDEO_PID);
-			videoEntry.setStreamTypeByte(H264_STREAM_TYPE);
+			videoEntry.setStreamTypeByte(StreamCodingType.H264_AVC.getCodingTypeByte());
 			videoEntry.setFrameRateFps(fps);
 			videoEntry.setBitrateKbps(config.getBitrateKbps());
 			streams.add(videoEntry);
@@ -192,6 +206,23 @@ public class CompositedVideoGenerator {
 			// 4. Extract audio streams from base video -------------------------
 			if (baseVideoPath != null) {
 				appendAudioEntries(baseVideoPath, tempDir, streams);
+			}
+
+			// 4b. Append extra audio ES (static-base compositions with separate audio)
+			if (config.getExtraAudioPath() != null && !config.getExtraAudioPath().isBlank()) {
+				var audioInfo = AudioUtils.probeAudioInfo(Path.of(config.getExtraAudioPath()));
+				int extraStreamTypeByte = audioInfo.streamTypeByte();
+				M2tsDescriptor.StreamEntry audioEntry = new M2tsDescriptor.StreamEntry();
+				audioEntry.setFile(config.getExtraAudioPath());
+				audioEntry.setPid(BASE_AUDIO_PID + (streams.size() - 1)); // offset past video + any base audio
+				audioEntry.setStreamTypeByte(extraStreamTypeByte);
+				audioEntry.setChannels(audioInfo.channels());
+				audioEntry.setSampleRateHz(audioInfo.sampleRateHz());
+				audioEntry.setBitrateKbps(audioInfo.bitrateKbps());
+
+				streams.add(audioEntry);
+				log.debug("  Appended extra audio ES: {} (type=0x{})", config.getExtraAudioPath(),
+						Integer.toHexString(extraStreamTypeByte));
 			}
 
 			// 5. Mux into M2TS ------------------------------------------------
@@ -209,15 +240,8 @@ public class CompositedVideoGenerator {
 			descriptor.setInitialPtsOffsetTicks(vbvBufferSeconds * 90_000L);
 
 			Path m2tsPath = outputDir.resolve(clipName + ".m2ts");
-			M2tsWriter m2tsWriter = new M2tsWriter();
-			m2tsWriter.write(descriptor, m2tsPath);
-
-			// 6. Write CLPI ---------------------------------------------------
-			ClipInfo clipInfo = m2tsWriter.buildClipInfo(descriptor, clipName);
 			Path clpiPath = outputDir.resolve(clipName + ".clpi");
-			try (OutputStream clpiOut = Files.newOutputStream(clpiPath)) {
-				new ClipInfoWriter().write(clipInfo, clpiOut);
-			}
+			M2tsClipWriterFactory.createWriter().write(descriptor, m2tsPath, clpiPath);
 
 			log.info("Wrote {} and {}", m2tsPath.getFileName(), clpiPath.getFileName());
 			return descriptor;
@@ -295,12 +319,12 @@ public class CompositedVideoGenerator {
 			av_frame_get_buffer(yuvFrame, 0);
 
 			AVFrame bgrFrame = av_frame_alloc();
-			bgrFrame.format(AV_PIX_FMT_BGR24);
+			bgrFrame.format(AV_PIX_FMT_BGRA);
 			bgrFrame.width(width);
 			bgrFrame.height(height);
-			av_frame_get_buffer(bgrFrame, 1);
+			av_frame_get_buffer(bgrFrame, 0);
 
-			SwsContext swsCtx = sws_getContext(width, height, AV_PIX_FMT_BGR24, width, height, AV_PIX_FMT_YUV420P,
+			SwsContext swsCtx = sws_getContext(width, height, AV_PIX_FMT_BGRA, width, height, AV_PIX_FMT_YUV420P,
 					SWS_BILINEAR, null, null, (double[]) null);
 
 			AVPacket packet = av_packet_alloc();
@@ -314,7 +338,7 @@ public class CompositedVideoGenerator {
 						CompositionBuffer cb = new CompositionBuffer(composition, repo, ctx);
 						BufferedImage img = cb.compose();
 
-						fillBgrFrame(img, bgrFrame, width, height);
+						fillBgraFrame(img, bgrFrame, width, height);
 
 						sws_scale(swsCtx, bgrFrame.data(), bgrFrame.linesize(), 0, height, yuvFrame.data(),
 								yuvFrame.linesize());
@@ -366,23 +390,42 @@ public class CompositedVideoGenerator {
 	}
 
 	/**
-	 * Fills a pre-allocated BGR24 {@link AVFrame} from a {@link BufferedImage}, scaling the image to the frame's
-	 * dimensions if necessary.
+	 * Fills a pre-allocated BGRA {@link AVFrame} from a {@link BufferedImage}.
+	 *
+	 * <p>
+	 * {@link org.brts.common.utils.composition.CompositionBuffer#compose()} always returns a {@code TYPE_INT_ARGB}
+	 * image. On a little-endian (x86-64) JVM, the {@code int} value {@code 0xAARRGGBB} is stored in memory as bytes
+	 * {@code BB GG RR AA}, which is exactly {@code AV_PIX_FMT_BGRA}. We therefore copy the {@code int[]} pixel array
+	 * directly into the native frame buffer via a native-order {@link IntBuffer}, with no intermediate
+	 * {@link java.awt.Graphics2D} conversion.
+	 *
+	 * <p>
+	 * The only case that falls back to a Graphics2D redraw is when the image dimensions do not match the target size
+	 * (resize path).
 	 */
-	private static void fillBgrFrame(BufferedImage img, AVFrame bgrFrame, int width, int height) {
+	private static void fillBgraFrame(BufferedImage img, AVFrame bgraFrame, int width, int height) {
 		if (img.getWidth() != width || img.getHeight() != height) {
-			img = ImageUtils.scaleImage(img, width, height);
+			// After scaling, scaleImage returns TYPE_3BYTE_BGR; convert to ARGB for the
+			// common copy path below.
+			BufferedImage scaled = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+			scaled.createGraphics().drawImage(img, 0, 0, width, height, null);
+			img = scaled;
 		}
-		if (img.getType() != BufferedImage.TYPE_3BYTE_BGR) {
-			img = ImageUtils.convertToBgr(img, width, height);
+		if (img.getType() != BufferedImage.TYPE_INT_ARGB) {
+			BufferedImage argb = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+			argb.createGraphics().drawImage(img, 0, 0, null);
+			img = argb;
 		}
 
-		byte[] bgrBytes = ((DataBufferByte) img.getRaster().getDataBuffer()).getData();
-		int linesize = bgrFrame.linesize(0);
-		ByteBuffer buf = bgrFrame.data(0).position(0).capacity((long) linesize * height).asByteBuffer();
+		// TYPE_INT_ARGB int[] on LE: 0xAARRGGBB → bytes BB GG RR AA = AV_PIX_FMT_BGRA.
+		int[] argbPixels = ((DataBufferInt) img.getRaster().getDataBuffer()).getData();
+		int byteStride = bgraFrame.linesize(0);
+		int linestride = byteStride / 4; // stride in ints (4 bytes per BGRA pixel)
+		IntBuffer buf = bgraFrame.data(0).position(0).capacity((long) byteStride * height).asByteBuffer()
+				.order(ByteOrder.nativeOrder()).asIntBuffer();
 		for (int y = 0; y < height; y++) {
-			buf.position(y * linesize);
-			buf.put(bgrBytes, y * width * 3, width * 3);
+			buf.position(y * linestride);
+			buf.put(argbPixels, y * width, width);
 		}
 	}
 
@@ -471,6 +514,16 @@ public class CompositedVideoGenerator {
 		}
 
 		return videoPath;
+	}
+
+	/**
+	 * Probes an audio file and returns its duration in seconds, or {@code -1.0} if the duration cannot be determined.
+	 *
+	 * <p>
+	 * Delegates to {@link AudioUtils#probeAudioInfo(Path)}.
+	 */
+	private static double probeAudioDurationSeconds(Path audioPath) {
+		return AudioUtils.probeAudioInfo(audioPath).durationSeconds();
 	}
 
 }

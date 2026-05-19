@@ -131,6 +131,55 @@ public final class TextRenderer {
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
 
+	/**
+	 * Renders a text-only button in all three states at an explicit {@code (width, height)}.
+	 * <p>
+	 * The background shape (if configured) fills the entire bounding box. Text is centred vertically within the padded
+	 * area. When the text exceeds {@code width − 2 × paddingX} it is word-wrapped; a single word that still exceeds the
+	 * budget is truncated with a trailing {@code …}.
+	 *
+	 * @param text   the label text
+	 * @param style  the fully-resolved text style (call {@link TextStyle#withDefaults()} first)
+	 * @param width  exact outer image width in pixels
+	 * @param height exact outer image height in pixels
+	 * @return the rendered button images at the requested dimensions
+	 */
+	public static ButtonImages renderTextButton(String text, TextStyle style, int width, int height) {
+		Font font = new Font(style.getFontName(), style.getFontStyle(), style.getFontSize());
+		BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D g = scratch.createGraphics();
+		g.setFont(font);
+		FontMetrics fm = g.getFontMetrics();
+		g.dispose();
+
+		int padX = style.getPaddingX();
+		int padY = style.getPaddingY();
+		int maxContentWidth = Math.max(1, width - 2 * padX);
+
+		int naturalWidth = (text != null && !text.isEmpty()) ? fm.stringWidth(text) : 0;
+
+		int normalColor = TextStyle.parseColor(style.getNormalColor());
+		int selectedColor = TextStyle.parseColor(style.getSelectedColor());
+		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
+
+		if (naturalWidth <= maxContentWidth) {
+			BufferedImage normalImg = renderSingleState(width, height, text, font, fm, normalColor, padX, padY, style);
+			BufferedImage selectedImg = renderSingleState(width, height, text, font, fm, selectedColor, padX, padY,
+					style);
+			BufferedImage activatedImg = renderSingleState(width, height, text, font, fm, activatedColor, padX, padY,
+					style);
+			return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
+		}
+
+		List<String> lines = wrapText(text != null ? text : "", fm, maxContentWidth);
+		BufferedImage normalImg = renderMultilineState(width, height, lines, font, fm, normalColor, padX, padY, style);
+		BufferedImage selectedImg = renderMultilineState(width, height, lines, font, fm, selectedColor, padX, padY,
+				style);
+		BufferedImage activatedImg = renderMultilineState(width, height, lines, font, fm, activatedColor, padX, padY,
+				style);
+		return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
+	}
+
 	// ── Internal ────────────────────────────────────────────────────────────
 
 	private static BufferedImage renderSingleState(int width, int height, String text, Font font, FontMetrics fm,

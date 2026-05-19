@@ -69,6 +69,47 @@ class TextListLayoutTest {
 		assertThat(btn.getTitleNumber()).isEqualTo(1);
 	}
 
+	@Test
+	void allButtons_haveSameWidth() throws Exception {
+		// Intentionally varied label lengths to catch non-uniform sizing
+		TitleMenuDescriptor desc = new TitleMenuDescriptor();
+		desc.setScreenWidth(1920);
+		desc.setScreenHeight(1080);
+		LayoutConfig layoutConfig = new LayoutConfig();
+		layoutConfig.setType(LayoutType.TEXT_LIST);
+		layoutConfig.setColumns(1);
+		desc.setLayout(layoutConfig);
+		List<TitleEntry> titles = new java.util.ArrayList<>();
+		for (String name : new String[] { "A", "A Much Longer Title Than The Others", "Mid Length" }) {
+			TitleEntry entry = new TitleEntry();
+			entry.setTitleNumber(titles.size() + 1);
+			entry.setDisplayName(name);
+			titles.add(entry);
+		}
+		desc.setTitles(titles);
+
+		LayoutResult result = new TextListLayout().layout(desc, Path.of("."));
+
+		int expectedWidth = result.getButtons().get(0).getWidth();
+		for (LayoutResult.PositionedButton btn : result.getButtons()) {
+			assertThat(btn.getWidth()).isEqualTo(expectedWidth);
+			assertThat(btn.getNormalImage().getWidth()).isEqualTo(expectedWidth);
+		}
+	}
+
+	@Test
+	void allButtons_haveSameHeight_whenSpaceAllows() throws Exception {
+		// Three short buttons, plenty of vertical space → uniform height expected
+		TitleMenuDescriptor descriptor = buildDescriptor(3, 1);
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		int expectedHeight = result.getButtons().get(0).getHeight();
+		for (LayoutResult.PositionedButton btn : result.getButtons()) {
+			assertThat(btn.getHeight()).isEqualTo(expectedHeight);
+			assertThat(btn.getNormalImage().getHeight()).isEqualTo(expectedHeight);
+		}
+	}
+
 	private TitleMenuDescriptor buildDescriptor(int titleCount, int columns) {
 		TitleMenuDescriptor desc = new TitleMenuDescriptor();
 		desc.setScreenWidth(1920);

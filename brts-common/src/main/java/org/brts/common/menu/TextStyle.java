@@ -152,6 +152,14 @@ public class TextStyle {
 		return d;
 	}
 
+	/**
+	 * Merges the non-null fields of the overlay style over the base style, returning a new TextStyle. The overlay takes
+	 * precedence over the base style.
+	 *
+	 * @param overlay the style whose non-null fields will override the base style
+	 * @param base    the base style to be overridden
+	 * @return a new TextStyle with the merged values
+	 */
 	private TextStyle coalesce(TextStyle overlay, TextStyle base) {
 		TextStyle result = new TextStyle();
 		result.fontName = coalesce(overlay.fontName, base.fontName);

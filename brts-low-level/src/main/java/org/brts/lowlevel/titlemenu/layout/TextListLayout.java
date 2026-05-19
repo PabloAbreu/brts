@@ -3,6 +3,7 @@ package org.brts.lowlevel.titlemenu.layout;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.brts.common.menu.TextRenderer;
@@ -28,8 +29,10 @@ public class TextListLayout implements TitleMenuLayout {
 	public LayoutResult layout(TitleMenuDescriptor descriptor, Path baseDir) throws IOException {
 		LayoutConfig config = descriptor.getLayout();
 		int screenW = descriptor.getScreenWidth();
+		int screenH = descriptor.getScreenHeight();
 		int columns = config.effectiveColumns();
 		int marginTop = config.effectiveMarginTop();
+		int marginBottom = config.effectiveMarginBottom();
 		int marginLeft = config.effectiveMarginLeft();
 		int marginRight = config.effectiveMarginRight();
 		int spacingX = config.effectiveSpacingX();
@@ -41,14 +44,6 @@ public class TextListLayout implements TitleMenuLayout {
 		List<TitleEntry> titles = descriptor.getTitles();
 		List<LayoutResult.PositionedButton> positioned = new ArrayList<>();
 
-		// Pre-render all buttons to determine uniform sizing
-		List<ButtonImages> rendered = new ArrayList<>();
-		for (TitleEntry title : titles) {
-			TextStyle style = resolveItemStyle(title.getStyle(), globalStyle);
-			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, maxButtonWidth);
-			rendered.add(images);
-		}
-
 		// Calculate available width per column
 		int totalMarginX = marginLeft + marginRight;
 		int totalSpacingX = (columns - 1) * spacingX;
@@ -57,19 +52,64 @@ public class TextListLayout implements TitleMenuLayout {
 		// Distribute titles across columns
 		int titlesPerColumn = (int) Math.ceil((double) titles.size() / columns);
 
+		// ── Pass 1: render each button at its natural size to discover dimensions ──
+		List<TextStyle> resolvedStyles = new ArrayList<>();
+		List<ButtonImages> rendered = new ArrayList<>();
+		for (TitleEntry title : titles) {
+			TextStyle style = resolveItemStyle(title.getStyle(), globalStyle);
+			resolvedStyles.add(style);
+			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, maxButtonWidth);
+			rendered.add(images);
+		}
+
+		// ── Uniform width: max natural width, capped at column width ──
+		int uniformWidth = 0;
+		for (ButtonImages bi : rendered) {
+			uniformWidth = Math.max(uniformWidth, bi.width());
+		}
+		uniformWidth = Math.min(uniformWidth, columnWidth);
+
+		// ── Row heights: use uniform height when vertical real estate permits ──
+		int globalMaxHeight = 0;
+		for (ButtonImages bi : rendered) {
+			globalMaxHeight = Math.max(globalMaxHeight, bi.height());
+		}
+		int availableHeight = screenH - marginTop - marginBottom;
+		boolean uniformHeight = titlesPerColumn * globalMaxHeight + (titlesPerColumn - 1) * spacingY <= availableHeight;
+
+		int[] rowHeights = new int[titlesPerColumn];
+		if (uniformHeight) {
+			Arrays.fill(rowHeights, globalMaxHeight);
+		} else {
+			// Fall back to per-row max (current behaviour preserving existing code output)
+			for (int i = 0; i < rendered.size(); i++) {
+				int row = i % titlesPerColumn;
+				rowHeights[row] = Math.max(rowHeights[row], rendered.get(i).height());
+			}
+		}
+
+		int[] rowY = new int[titlesPerColumn];
+		rowY[0] = marginTop;
+		for (int r = 1; r < titlesPerColumn; r++) {
+			rowY[r] = rowY[r - 1] + rowHeights[r - 1] + spacingY;
+		}
+
+		// ── Pass 2: re-render each button at the uniform (width, rowHeight) ──
+		int centreOffsetX = Math.max(0, (columnWidth - uniformWidth) / 2);
 		for (int i = 0; i < titles.size(); i++) {
 			TitleEntry title = titles.get(i);
-			ButtonImages images = rendered.get(i);
+			TextStyle style = resolvedStyles.get(i);
 
 			int col = i / titlesPerColumn;
 			int row = i % titlesPerColumn;
+			int targetHeight = rowHeights[row];
 
-			// Column X origin
+			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, uniformWidth,
+					targetHeight);
+
 			int colX = marginLeft + col * (columnWidth + spacingX);
-
-			// Centre button within column
-			int x = colX + Math.max(0, (columnWidth - images.width()) / 2);
-			int y = marginTop + row * (images.height() + spacingY);
+			int x = colX + centreOffsetX;
+			int y = rowY[row];
 
 			LayoutResult.PositionedButton btn = new LayoutResult.PositionedButton();
 			btn.setTitleIndex(i);
@@ -79,8 +119,8 @@ public class TextListLayout implements TitleMenuLayout {
 			btn.setNormalImage(images.normal());
 			btn.setSelectedImage(images.selected());
 			btn.setActivatedImage(images.activated());
-			btn.setWidth(images.width());
-			btn.setHeight(images.height());
+			btn.setWidth(uniformWidth);
+			btn.setHeight(targetHeight);
 			positioned.add(btn);
 		}
 
@@ -89,7 +129,8 @@ public class TextListLayout implements TitleMenuLayout {
 		result.setCompositeBackground(false);
 		result.setBackgroundComposition(null);
 
-		log.info("TextListLayout: {} titles arranged in {} column(s)", titles.size(), columns);
+		log.info("TextListLayout: {} titles arranged in {} column(s), button size {}×{} (uniform height: {})",
+				titles.size(), columns, uniformWidth, globalMaxHeight, uniformHeight);
 		return result;
 	}
 

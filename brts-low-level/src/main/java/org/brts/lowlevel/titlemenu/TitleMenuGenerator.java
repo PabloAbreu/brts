@@ -19,6 +19,7 @@ import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.Extensions;
 import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
+import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -111,7 +112,8 @@ public class TitleMenuGenerator {
 			desc = generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamDir, clipDir,
 					bgName, baseDir);
 		} else {
-			desc = generateSimpleBackground(descriptor.getBackgroundMedia(), streamDir, clipDir, bgName, baseDir);
+			desc = generateSimpleBackground(descriptor.getBackgroundMedia(), descriptor, streamDir, clipDir, bgName,
+					baseDir);
 		}
 
 		// ── 3. Build and encode IGS → menu M2TS + CLPI ─────────────────────
@@ -182,8 +184,8 @@ public class TitleMenuGenerator {
 		}
 	}
 
-	private M2tsDescriptor generateSimpleBackground(BackgroundSource bgSource, Path streamDir, Path clipDir,
-			String clipName, Path baseDir) throws IOException {
+	private M2tsDescriptor generateSimpleBackground(BackgroundSource bgSource, TitleMenuDescriptor descriptor,
+			Path streamDir, Path clipDir, String clipName, Path baseDir) throws IOException {
 		if (bgSource == null) {
 			throw new IllegalArgumentException("backgroundMedia must be specified in the descriptor");
 		}
@@ -258,13 +260,64 @@ public class TitleMenuGenerator {
 				FileUtils.deleteDir(tempDir);
 			}
 
-		} else if (bgSource.isImageWithAudio()) {
-			// Static image + separate audio: construct M2TS from image frames + audio ES
-			throw new UnsupportedOperationException(
-					"Image+audio background source not yet implemented. Use a video source or THUMBNAIL_GRID layout.");
+		} else if (bgSource.isComposition() || bgSource.isImage()) {
+			// Composition or static image: render via CompositedVideoGenerator
+			ImagesComposition composition = bgSource.isComposition() ? bgSource.getComposition()
+					: buildSingleImageComposition(bgSource.getImagePath(), baseDir);
+
+			CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
+			config.setWidth(descriptor.getScreenWidth());
+			config.setHeight(descriptor.getScreenHeight());
+
+			// If durationSeconds is set, derive frameCount from it (fps defaults to 24 when
+			// the composition has no video base); the generator will override fps/frameCount
+			// from the base video when one is present in the composition.
+			if (bgSource.getDurationSeconds() != null && bgSource.getDurationSeconds() > 0) {
+				double fps = config.getFps() > 0 ? config.getFps() : 24.0;
+				config.setFrameCount((int) Math.round(bgSource.getDurationSeconds() * fps));
+			}
+
+			// Extra audio from a separate ES file
+			if (bgSource.getAudioPath() != null && !bgSource.getAudioPath().isBlank()) {
+				String audioPath = bgSource.getAudioPath();
+				if (!Path.of(audioPath).isAbsolute()) {
+					audioPath = baseDir.resolve(audioPath).toString();
+				}
+				config.setExtraAudioPath(audioPath);
+			}
+
+			Path tempOut = Files.createTempDirectory("brts-title-bg-comp-");
+			try {
+				M2tsDescriptor generatedDesc = new CompositedVideoGenerator().generate(composition, tempOut, clipName,
+						config, baseDir);
+				Files.move(tempOut.resolve(clipName + ".m2ts"), streamDir.resolve(clipName + ".m2ts"));
+				Files.move(tempOut.resolve(clipName + ".clpi"), clipDir.resolve(clipName + ".clpi"));
+				return generatedDesc;
+			} finally {
+				FileUtils.deleteDir(tempOut);
+			}
 		} else {
-			throw new IllegalArgumentException("backgroundMedia must specify either videoPath or imagePath+audioPath");
+			throw new IllegalArgumentException(
+					"backgroundMedia must specify one of: videoPath, imagePath, or composition");
 		}
+	}
+
+	/**
+	 * Forges a trivial {@link ImagesComposition} that renders a single static image as-is. Used when
+	 * {@link BackgroundSource#getImagePath()} is set.
+	 */
+	private static ImagesComposition buildSingleImageComposition(String imagePath, Path baseDir) {
+		ImageReference ref = new ImageReference();
+		ref.setImageId("background");
+		// Use absolute path to avoid baseDir resolution issues inside the generator
+		Path resolved = Path.of(imagePath).isAbsolute() ? Path.of(imagePath) : baseDir.resolve(imagePath);
+		ref.setSourcePath(resolved.toAbsolutePath().toString());
+
+		ImagesComposition composition = new ImagesComposition();
+		composition.setImages(List.of(ref));
+		composition.setBaseImageId("background");
+		composition.setCompositions(List.of());
+		return composition;
 	}
 
 	// ── Playlist generation ─────────────────────────────────────────────────
