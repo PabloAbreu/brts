@@ -48,6 +48,9 @@ public class MkvToPlaylistCli {
 		@Option(name = "--pgs-outline-color", usage = "Outline colour for PGS as RRGGBB hex (default: 000000)")
 		String pgsOutlineColor;
 
+		@Option(name = "--popup-menu-clip-name", usage = "5-digit clip name for popup menu IGS (enables popup menu generation)")
+		String popupMenuClipName;
+
 	}
 
 	public static class Convert extends FeatureRunner<ConvertOptions> {
@@ -94,6 +97,10 @@ public class MkvToPlaylistCli {
 				pgsConfig.setOutlineColor(0xFF000000 | Integer.parseInt(opts.pgsOutlineColor, 16));
 			}
 			config.setPgsConfig(pgsConfig);
+
+			if (opts.popupMenuClipName != null && !opts.popupMenuClipName.isBlank()) {
+				config.setPopupMenuClipName(opts.popupMenuClipName);
+			}
 
 			MkvToPlaylistConverter converter = new MkvToPlaylistConverter();
 			MkvToPlaylistConverter.Result result = converter.convert(config);

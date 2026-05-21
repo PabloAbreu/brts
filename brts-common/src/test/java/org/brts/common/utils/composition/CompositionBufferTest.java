@@ -18,8 +18,7 @@ public class CompositionBufferTest {
 	private CompositionBuffer makeBuffer(String path) throws Exception {
 		ImagesComposition config = mapper.readValue(new File(path), ImagesComposition.class);
 		MediaRepository mediaRepository = new MediaRepositoryImpl();
-		return new CompositionBuffer(config, mediaRepository,
-				new CompositionContextImpl(0, config, Path.of("").toAbsolutePath()));
+		return new CompositionBuffer(config, mediaRepository, new CompositionContextImpl(0, config, Samples.root()));
 	}
 
 	@Test

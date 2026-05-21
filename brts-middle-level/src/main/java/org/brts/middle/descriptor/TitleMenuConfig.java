@@ -1,5 +1,7 @@
 package org.brts.middle.descriptor;
 
+import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
+import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
 
 import lombok.Getter;
@@ -17,9 +19,15 @@ import lombok.Setter;
 public class TitleMenuConfig {
 
 	/**
-	 * Path to a video file (MKV or M2TS) used as the menu background. Required.
+	 * Background media source for the title menu. Supports video, static image, or composition. Required.
 	 */
-	private String backgroundVideoPath;
+	private BackgroundSource backgroundSource;
+
+	/**
+	 * Optional explicit base directory for resolving relative paths in the background source. When {@code null},
+	 * auto-derived from the first resolvable path in {@link #backgroundSource} (videoPath or imagePath parent).
+	 */
+	private String baseDir;
 
 	/**
 	 * Layout type for menu buttons. Defaults to {@link LayoutType#TEXT_LIST}.
@@ -45,5 +53,11 @@ public class TitleMenuConfig {
 	 * Number of times the background clip loops in the menu playlist. Defaults to 50.
 	 */
 	private int backgroundLoopCount = 50;
+
+	/**
+	 * Optional bounding box constraining button placement. When set and valid, layout margins are ignored and buttons
+	 * are placed within this pixel rectangle. When {@code null} (default), the full screen minus margins is used.
+	 */
+	private BoundingBox boundingBox;
 
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.ProcessUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -47,10 +48,10 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 							stream.getFile(), stream.getLanguage() != null ? stream.getLanguage() : "und"));
 		});
 
-		Path muxOpts = Files.createTempFile("meta_file", "_for_ts_muxer");
 		Path parent = m2tsPath.getParent();
 		parent.toFile().mkdirs();
 		Path workDir = Files.createTempDirectory(parent, ".mux_temp");
+		Path muxOpts = Files.createTempFile(workDir, "meta_file", "_for_ts_muxer");
 		Files.writeString(muxOpts, metaFilecontents);
 		log.debug("Created tsMuxeR meta file at {}:\n{}", muxOpts, metaFilecontents);
 		log.info("Running tsMuxeR '{}' to write M2TS clip to {} …", resolveTsMuxeRBinary(), workDir);
@@ -73,12 +74,12 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 			Files.move(generatedM2ts, m2tsPath);
 			clipPath.getParent().toFile().mkdirs();
 			Files.move(generatedClpi, clipPath);
-			workDir.toFile().deleteOnExit();
-			muxOpts.toFile().deleteOnExit();
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			log.error("tsMuxeR process was interrupted", e);
 			e.printStackTrace();
+		} finally {
+			FileUtils.deleteDir(workDir);
 		}
 	}
 

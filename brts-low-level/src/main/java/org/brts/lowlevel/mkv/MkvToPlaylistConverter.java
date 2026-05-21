@@ -27,9 +27,13 @@ import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
 import org.brts.lowlevel.model.mpls.PlayMark;
+import org.brts.lowlevel.model.mpls.SubPath;
 import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.lowlevel.pgs.PgsGenerator;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
+import org.brts.lowlevel.popupmenu.PopupMenuConfig;
+import org.brts.lowlevel.popupmenu.PopupMenuGenerator;
+import org.brts.lowlevel.popupmenu.TrackDisplayNameResolver;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.slf4j.Logger;
@@ -80,8 +84,11 @@ public class MkvToPlaylistConverter {
 
 		private PgsRenderConfig pgsConfig;
 
+		/** 5-digit clip name for the popup menu IGS. When non-null, a popup menu is generated. */
+		private String popupMenuClipName;
+
 		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null);
+			this(mkvFile, outputDir, clipName, null, null, null, null);
 		}
 
 	}
@@ -176,11 +183,22 @@ public class MkvToPlaylistConverter {
 		ClipInfo clipInfo = new ClipInfoParser().parse(clpiPath);
 		// enrichClipInfo(clipInfo, selectedTracks, descriptor);
 
+		// 9b. Generate popup menu if requested
+		PopupMenuGenerator.Result popupResult = null;
+		if (config.getPopupMenuClipName() != null) {
+			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks);
+			if (popupConfig != null) {
+				PopupMenuGenerator popupGenerator = new PopupMenuGenerator();
+				popupResult = popupGenerator.generate(popupConfig, outputDir);
+			}
+		}
+
 		// 10. Write MPLS
 		Path playlistDir = outputDir.resolve("PLAYLIST");
 		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
-		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs());
+		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs(), popupResult,
+				config.getPopupMenuClipName());
 		new MoviePlaylistWriter().write(playlist, mplsPath);
 
 		log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}", m2tsPath, clpiPath, mplsPath);
@@ -287,6 +305,48 @@ public class MkvToPlaylistConverter {
 		return desc;
 	}
 
+	// ── Popup Menu Config builder ───────────────────────────────────────────
+
+	private PopupMenuConfig buildPopupMenuConfig(String popupClipName,
+			List<SourceMediaInfo.SourceTrack> selectedTracks) {
+
+		List<PopupMenuConfig.TrackEntry> audioEntries = new ArrayList<>();
+		List<PopupMenuConfig.TrackEntry> subtitleEntries = new ArrayList<>();
+
+		int audioIdx = 1; // 1-based stream index for SET_STREAM
+		int subIdx = 1;
+
+		for (SourceMediaInfo.SourceTrack track : selectedTracks) {
+			StreamCodingType ct = track.getCodingType();
+			if (ct.isAudio()) {
+				PopupMenuConfig.TrackEntry entry = new PopupMenuConfig.TrackEntry();
+				entry.setStreamIndex(audioIdx++);
+				entry.setDisplayName(TrackDisplayNameResolver.resolve(track));
+				entry.setLanguage(track.getLanguage());
+				audioEntries.add(entry);
+			} else if (ct.isSubtitle() || ct == StreamCodingType.PRESENTATION_GRAPHICS) {
+				PopupMenuConfig.TrackEntry entry = new PopupMenuConfig.TrackEntry();
+				entry.setStreamIndex(subIdx++);
+				entry.setDisplayName(TrackDisplayNameResolver.resolve(track));
+				entry.setLanguage(track.getLanguage());
+				subtitleEntries.add(entry);
+			}
+		}
+
+		// Only generate a popup if there are selectable tracks
+		if (audioEntries.size() <= 1 && subtitleEntries.size() <= 1) {
+			log.info("Skipping popup menu: not enough tracks (audio={}, subtitle={})", audioEntries.size(),
+					subtitleEntries.size());
+			return null;
+		}
+
+		PopupMenuConfig config = new PopupMenuConfig();
+		config.setOutputClipName(popupClipName);
+		config.setAudioTracks(audioEntries);
+		config.setSubtitleTracks(subtitleEntries);
+		return config;
+	}
+
 	// ── ClipInfo enrichment ─────────────────────────────────────────────────
 
 	private void enrichClipInfo(ClipInfo clipInfo, List<SourceMediaInfo.SourceTrack> tracks,
@@ -374,7 +434,8 @@ public class MkvToPlaylistConverter {
 
 	// ── MPLS builder ────────────────────────────────────────────────────────
 
-	private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo, long durationMs) {
+	private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo, long durationMs,
+			PopupMenuGenerator.Result popupResult, String popupClipName) {
 		MoviePlaylist playlist = new MoviePlaylist();
 		playlist.setPlaylistName(clipName);
 		playlist.setMenu(false);
@@ -444,6 +505,44 @@ public class MkvToPlaylistConverter {
 		mark.setMarkTimeTicks(inTime);
 		mark.setEntryEsPid(0xFFFF);
 		playlist.setPlayMarks(List.of(mark));
+
+		// Attach popup menu SubPath if generated
+		if (popupResult != null && popupClipName != null) {
+			ClipInfo popupClipInfo = null;
+			try {
+				popupClipInfo = new ClipInfoParser().parse(popupResult.igsClpi());
+			} catch (IOException e) {
+				log.warn("Could not parse popup menu CLPI, skipping SubPath attachment: {}", e.getMessage());
+			}
+			if (popupClipInfo != null) {
+				long popupIn = 0;
+				long popupOut = outTime - inTime;
+				if (popupClipInfo.getTsRecordingStartPts() != null && popupClipInfo.getTsRecordingEndPts() != null) {
+					long pIn = toMplsTicksFrom90Khz(popupClipInfo.getTsRecordingStartPts().getTicks());
+					long pOut = toMplsTicksFrom90Khz(popupClipInfo.getTsRecordingEndPts().getTicks());
+					if (pOut > pIn) {
+						popupIn = pIn;
+						popupOut = pOut;
+					}
+				}
+
+				SubPath.SubPlayItem subPlayItem = new SubPath.SubPlayItem();
+				subPlayItem.setClipName(popupClipName);
+				subPlayItem.setConnectionCondition(1);
+				subPlayItem.setInTimeTicks(popupIn);
+				subPlayItem.setOutTimeTicks(popupOut);
+				subPlayItem.setSyncPlayItemId(0);
+				subPlayItem.setSyncStartPtsTicks(inTime);
+
+				SubPath menuSubPath = new SubPath();
+				menuSubPath.setSubPathType(3);
+				menuSubPath.setRepeatSubPath(true);
+				menuSubPath.setSubPlayItems(List.of(subPlayItem));
+
+				playlist.setSubPaths(List.of(menuSubPath));
+				log.info("Popup menu SubPath attached: clip={}, timing=[{}, {}]", popupClipName, popupIn, popupOut);
+			}
+		}
 
 		return playlist;
 	}

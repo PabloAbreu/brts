@@ -1,24 +1,113 @@
 package org.brts.common.utils.composition;
 
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
-import lombok.RequiredArgsConstructor;
+import org.apache.batik.transcoder.TranscoderException;
+import org.apache.batik.transcoder.TranscoderInput;
+import org.apache.batik.transcoder.TranscoderOutput;
+import org.apache.batik.transcoder.image.ImageTranscoder;
 
-@RequiredArgsConstructor
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Renders SVG content to BufferedImage using Apache Batik. Supports inline SVG ({@code data} field) or file-based SVG
+ * ({@code srcPath} field). Animated SVGs (SMIL) are rendered at time = frameNumber / frameRate when frameRate is set.
+ * Static SVGs are rendered once and cached.
+ */
+@Slf4j
 public class SVGImageGenerator implements SyntheticImageGenerator {
 
-	private final String svgContent;
+	private final byte[] svgContent;
+	private final Double frameRate;
+	private BufferedImage cachedStaticImage;
+
+	public SVGImageGenerator(ImageReference.SyntheticImageSource content) {
+		this.frameRate = content.getFrameRate();
+		this.svgContent = resolveSvgContent(content).getBytes(StandardCharsets.UTF_8);
+	}
 
 	@Override
 	public BufferedImage generate(int frameNumber) {
-		// TODO implement SVG image generation from synthetic content
-		throw new UnsupportedOperationException("SVG image generation from synthetic content not implemented yet");
+		if (isStatic()) {
+			if (cachedStaticImage == null) {
+				cachedStaticImage = render(0f);
+			}
+			return cachedStaticImage;
+		}
+		float snapshotTime = frameNumber / frameRate.floatValue();
+		return render(snapshotTime);
 	}
 
 	@Override
-	public void close() throws Exception {
-		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'close'");
+	public void close() {
+		cachedStaticImage = null;
 	}
 
+	private boolean isStatic() {
+		return frameRate == null || frameRate <= 0;
+	}
+
+	private BufferedImage render(float snapshotTime) {
+		BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
+
+		if (!isStatic()) {
+			transcoder.addTranscodingHint(ImageTranscoder.KEY_SNAPSHOT_TIME, snapshotTime);
+		}
+
+		try (InputStream is = new ByteArrayInputStream(svgContent)) {
+			TranscoderInput input = new TranscoderInput(is);
+			transcoder.transcode(input, new TranscoderOutput());
+		} catch (TranscoderException e) {
+			throw new IllegalStateException("Failed to render SVG at snapshotTime=" + snapshotTime, e);
+		} catch (IOException e) {
+			throw new IllegalStateException("I/O error reading SVG content", e);
+		}
+
+		BufferedImage result = transcoder.getImage();
+		if (result == null) {
+			throw new IllegalStateException("Batik transcoder produced no image");
+		}
+		return result;
+	}
+
+	private static String resolveSvgContent(ImageReference.SyntheticImageSource content) {
+		if (content.getData() != null && !content.getData().isBlank()) {
+			log.debug("Using inline SVG data ({} chars)", content.getData().length());
+			return content.getData();
+		}
+		if (content.getSrcPath() != null && !content.getSrcPath().isBlank()) {
+			Path path = Path.of(content.getSrcPath());
+			log.debug("Loading SVG from file: {}", path);
+			try {
+				return Files.readString(path, StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				throw new IllegalArgumentException("Cannot read SVG file: " + path, e);
+			}
+		}
+		throw new IllegalArgumentException("SyntheticImageSource has neither 'data' nor 'srcPath' set");
+	}
+
+	/**
+	 * Custom ImageTranscoder that captures the rendered BufferedImage in memory.
+	 */
+	private static class BufferedImageTranscoder extends ImageTranscoder {
+		private @Getter BufferedImage image;
+
+		@Override
+		public BufferedImage createImage(int width, int height) {
+			return new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		}
+
+		@Override
+		public void writeImage(BufferedImage img, TranscoderOutput output) {
+			this.image = img;
+		}
+	}
 }

@@ -16,6 +16,7 @@ import org.brts.common.utils.composition.ImageComposition;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
 import org.brts.common.utils.expressions.ObjectExpression;
+import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
@@ -51,14 +52,33 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 		int screenW = descriptor.getScreenWidth();
 		int screenH = descriptor.getScreenHeight();
 		int columns = config.effectiveColumns();
-		int marginTop = config.effectiveMarginTop();
-		int marginLeft = config.effectiveMarginLeft();
-		int marginRight = config.effectiveMarginRight();
 		int spacingX = config.effectiveSpacingX();
 		int spacingY = config.effectiveSpacingY();
 		int thumbW = config.effectiveThumbnailWidth();
 		int thumbH = config.effectiveThumbnailHeight();
 		boolean showLabels = config.effectiveShowLabels();
+
+		// When a valid bounding box is set, it replaces margins entirely
+		BoundingBox box = config.getBoundingBox();
+		int originX;
+		int originY;
+		int availableWidth;
+		int availableHeight;
+		if (box != null && box.isValid()) {
+			originX = box.getX();
+			originY = box.getY();
+			availableWidth = box.getWidth();
+			availableHeight = box.getHeight();
+		} else {
+			int marginTop = config.effectiveMarginTop();
+			int marginLeft = config.effectiveMarginLeft();
+			int marginRight = config.effectiveMarginRight();
+			int marginBottom = config.effectiveMarginBottom();
+			originX = marginLeft;
+			originY = marginTop;
+			availableWidth = screenW - marginLeft - marginRight;
+			availableHeight = screenH - marginTop - marginBottom;
+		}
 
 		TextStyle globalStyle = resolveGlobalStyle(config.getTitleStyle());
 
@@ -71,12 +91,11 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 
 		// Compute grid positions
 		int totalGridW = columns * cellW + (columns - 1) * spacingX;
-		int gridStartX = marginLeft + Math.max(0, (screenW - marginLeft - marginRight - totalGridW) / 2);
+		int gridStartX = originX + Math.max(0, (availableWidth - totalGridW) / 2);
 
 		int rows = (int) Math.ceil((double) titles.size() / columns);
 		int totalGridH = rows * cellH + (rows - 1) * spacingY;
-		int gridStartY = marginTop
-				+ Math.max(0, (screenH - marginTop - config.effectiveMarginBottom() - totalGridH) / 2);
+		int gridStartY = originY + Math.max(0, (availableHeight - totalGridH) / 2);
 
 		// Build composition for background video generation
 		ImagesComposition composition = new ImagesComposition();

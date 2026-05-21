@@ -1,6 +1,7 @@
 package org.brts.highlevel.template;
 
 import org.brts.highlevel.descriptor.TvSeriesDiscDescriptor;
+import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
@@ -42,7 +43,9 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 
 		if (descriptor.isGenerateEpisodeMenu() && descriptor.getMenuBackgroundVideoPath() != null) {
 			TitleMenuConfig menuConfig = new TitleMenuConfig();
-			menuConfig.setBackgroundVideoPath(descriptor.getMenuBackgroundVideoPath());
+			BackgroundSource bgSource = new BackgroundSource();
+			bgSource.setVideoPath(descriptor.getMenuBackgroundVideoPath());
+			menuConfig.setBackgroundSource(bgSource);
 			disc.setTitleMenuConfig(menuConfig);
 		}
 

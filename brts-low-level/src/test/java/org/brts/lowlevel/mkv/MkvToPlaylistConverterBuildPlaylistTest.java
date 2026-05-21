@@ -74,10 +74,10 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 
 	private MoviePlaylist invokeBuildPlaylist(String clipName, ClipInfo clipInfo, long durationMs) throws Exception {
 		Method method = MkvToPlaylistConverter.class.getDeclaredMethod("buildPlaylist", String.class, ClipInfo.class,
-				long.class);
+				long.class, org.brts.lowlevel.popupmenu.PopupMenuGenerator.Result.class, String.class);
 		method.setAccessible(true);
 		try {
-			return (MoviePlaylist) method.invoke(converter, clipName, clipInfo, durationMs);
+			return (MoviePlaylist) method.invoke(converter, clipName, clipInfo, durationMs, null, null);
 		} catch (InvocationTargetException e) {
 			Throwable cause = e.getCause();
 			if (cause instanceof Exception exception) {

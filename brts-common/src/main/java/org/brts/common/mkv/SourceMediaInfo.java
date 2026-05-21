@@ -51,6 +51,9 @@ public class SourceMediaInfo {
 
 		private String language;
 
+		/** Human-readable track name from the container (e.g. "Director's Commentary"). May be null. */
+		private String trackName;
+
 		// --- Subtitle ---
 		private String subtitleFormat; // e.g. "ASS", "SRT", "PGS"
 

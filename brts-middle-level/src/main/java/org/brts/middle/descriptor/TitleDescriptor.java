@@ -54,6 +54,12 @@ public class TitleDescriptor {
 	/** Chapter markers expressed as seconds from stream start. */
 	private List<ChapterMarker> chapters;
 
+	/**
+	 * Controls popup menu generation for this title. Defaults to {@link PopupMenuMode#AUTO} which generates a popup
+	 * menu if the title has more than one audio or more than one subtitle track.
+	 */
+	private PopupMenuMode popupMenu = PopupMenuMode.AUTO;
+
 	// -------------------------------------------------------------------------
 
 	@Getter

@@ -9,6 +9,7 @@ import java.util.List;
 import org.brts.common.menu.TextRenderer;
 import org.brts.common.menu.TextRenderer.ButtonImages;
 import org.brts.common.menu.TextStyle;
+import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
@@ -31,23 +32,40 @@ public class TextListLayout implements TitleMenuLayout {
 		int screenW = descriptor.getScreenWidth();
 		int screenH = descriptor.getScreenHeight();
 		int columns = config.effectiveColumns();
-		int marginTop = config.effectiveMarginTop();
-		int marginBottom = config.effectiveMarginBottom();
-		int marginLeft = config.effectiveMarginLeft();
-		int marginRight = config.effectiveMarginRight();
+
+		// When a valid bounding box is set, it replaces margins entirely
+		BoundingBox box = config.getBoundingBox();
+		int originX;
+		int originY;
+		int availableWidth;
+		int availableHeight;
+		if (box != null && box.isValid()) {
+			originX = box.getX();
+			originY = box.getY();
+			availableWidth = box.getWidth();
+			availableHeight = box.getHeight();
+		} else {
+			int marginTop = config.effectiveMarginTop();
+			int marginBottom = config.effectiveMarginBottom();
+			int marginLeft = config.effectiveMarginLeft();
+			int marginRight = config.effectiveMarginRight();
+			originX = marginLeft;
+			originY = marginTop;
+			availableWidth = screenW - marginLeft - marginRight;
+			availableHeight = screenH - marginTop - marginBottom;
+		}
 		int spacingX = config.effectiveSpacingX();
 		int spacingY = config.effectiveSpacingY();
 
 		TextStyle globalStyle = resolveGlobalStyle(config.getTitleStyle());
-		int maxButtonWidth = config.effectiveMaxButtonWidth(screenW);
+		int maxButtonWidth = config.effectiveMaxButtonWidth(availableWidth);
 
 		List<TitleEntry> titles = descriptor.getTitles();
 		List<LayoutResult.PositionedButton> positioned = new ArrayList<>();
 
 		// Calculate available width per column
-		int totalMarginX = marginLeft + marginRight;
 		int totalSpacingX = (columns - 1) * spacingX;
-		int columnWidth = (screenW - totalMarginX - totalSpacingX) / columns;
+		int columnWidth = (availableWidth - totalSpacingX) / columns;
 
 		// Distribute titles across columns
 		int titlesPerColumn = (int) Math.ceil((double) titles.size() / columns);
@@ -74,7 +92,6 @@ public class TextListLayout implements TitleMenuLayout {
 		for (ButtonImages bi : rendered) {
 			globalMaxHeight = Math.max(globalMaxHeight, bi.height());
 		}
-		int availableHeight = screenH - marginTop - marginBottom;
 		boolean uniformHeight = titlesPerColumn * globalMaxHeight + (titlesPerColumn - 1) * spacingY <= availableHeight;
 
 		int[] rowHeights = new int[titlesPerColumn];
@@ -89,7 +106,7 @@ public class TextListLayout implements TitleMenuLayout {
 		}
 
 		int[] rowY = new int[titlesPerColumn];
-		rowY[0] = marginTop;
+		rowY[0] = originY;
 		for (int r = 1; r < titlesPerColumn; r++) {
 			rowY[r] = rowY[r - 1] + rowHeights[r - 1] + spacingY;
 		}
@@ -107,7 +124,7 @@ public class TextListLayout implements TitleMenuLayout {
 			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, uniformWidth,
 					targetHeight);
 
-			int colX = marginLeft + col * (columnWidth + spacingX);
+			int colX = originX + col * (columnWidth + spacingX);
 			int x = colX + centreOffsetX;
 			int y = rowY[row];
 

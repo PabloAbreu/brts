@@ -90,6 +90,11 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 						continue;
 					}
 
+					// Track name (human-readable label from MKV, e.g. "Director's Commentary")
+					if (mkvTrack.getName() != null && !mkvTrack.getName().isBlank()) {
+						track.setTrackName(mkvTrack.getName());
+					}
+
 					TrackType trackType = mkvTrack.getTrackType();
 
 					// Capture codec private data (e.g. AVCDecoderConfigurationRecord)

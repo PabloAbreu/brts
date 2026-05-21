@@ -34,13 +34,10 @@ public class MediaRepositoryImpl implements MediaRepository {
 	}
 
 	@Override
-	public SyntheticImageGenerator getSyntheticImageGenerator(Path dataPath) {
-		throw new UnsupportedOperationException("Synthetic image generator loading from data path not implemented yet");
-	}
-
-	@Override
-	public SyntheticImageGenerator getSyntheticImageGenerator(String content) {
-		return syntheticCache.computeIfAbsent(content, SyntheticImageGeneratorFactory::create);
+	public SyntheticImageGenerator getSyntheticImageGenerator(ImageReference.SyntheticImageSource content) {
+		final String cacheKey = content.getType() + ":"
+				+ (content.getSrcPath() != null ? content.getSrcPath() : content.getData());
+		return syntheticCache.computeIfAbsent(cacheKey, key -> SyntheticImageGeneratorFactory.create(content));
 	}
 
 	@Override

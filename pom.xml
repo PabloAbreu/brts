@@ -29,6 +29,7 @@
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<test.samples.dir>${maven.multiModuleProjectDirectory}/samples</test.samples.dir>
 
 		<!-- Dependency versions -->
 		<jackson.version>2.17.2</jackson.version>
@@ -41,6 +42,7 @@
 		<assertj.version>3.26.3</assertj.version>
 		<ffmpeg.version>8.0.1-1.5.13</ffmpeg.version>
 		<ffmpeg.platform>linux-x86_64</ffmpeg.platform>
+		<batik.version>1.18</batik.version>
 
 		<!-- Plugin versions -->
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -140,6 +142,18 @@
 				<scope>provided</scope>
 			</dependency>
 
+			<!-- SVG rendering (Apache Batik) -->
+			<dependency>
+				<groupId>org.apache.xmlgraphics</groupId>
+				<artifactId>batik-transcoder</artifactId>
+				<version>${batik.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.xmlgraphics</groupId>
+				<artifactId>batik-codec</artifactId>
+				<version>${batik.version}</version>
+			</dependency>
+
 			<!-- Testing -->
 			<dependency>
 				<groupId>org.junit.jupiter</groupId>
@@ -211,6 +225,11 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>${maven-surefire-plugin.version}</version>
+					<configuration>
+						<systemPropertyVariables>
+							<test.samples.dir>${test.samples.dir}</test.samples.dir>
+						</systemPropertyVariables>
+					</configuration>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>

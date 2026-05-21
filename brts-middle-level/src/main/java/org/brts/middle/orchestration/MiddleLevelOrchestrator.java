@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.mkv.SourceMediaInfo;
+import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
@@ -23,6 +25,7 @@ import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
 import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.descriptor.DiscDescriptor;
+import org.brts.middle.descriptor.PopupMenuMode;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
 
@@ -108,10 +111,19 @@ public class MiddleLevelOrchestrator {
 			SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
 
 			String clipName = result.clipDescriptor().getClipName();
+
+			// Resolve popup menu toggle
+			String popupClipName = resolvePopupMenuClipName(title, result.mediaInfo(), clipName);
+
 			// Emit script lines
 			scriptLines.add("# Title " + title.getTitleId() + " — " + title.getSourceMkv());
-			scriptLines.add("$BRTS_CLI low mkv-to-playlist --clip-name " + clipName + " --input " + title.getSourceMkv()
-					+ " --output " + bdmv);
+			StringBuilder cmd = new StringBuilder();
+			cmd.append("$BRTS_CLI low mkv-to-playlist --clip-name ").append(clipName).append(" --input ")
+					.append(title.getSourceMkv()).append(" --output ").append(bdmv);
+			if (popupClipName != null) {
+				cmd.append(" --popup-menu-clip-name ").append(popupClipName);
+			}
+			scriptLines.add(cmd.toString());
 			scriptLines.add("");
 			TitleEntry entry = new TitleEntry();
 			entry.setObjectType(1);// HDMV
@@ -141,10 +153,7 @@ public class MiddleLevelOrchestrator {
 			File menuDescriptorFile = descriptorsDir.resolve("title-menu-descriptor.json").toFile();
 			mapper.writeValue(menuDescriptorFile, menuDescriptor);
 
-			Path baseDir = Paths.get(menuConfig.getBackgroundVideoPath()).toAbsolutePath().getParent();
-			if (baseDir == null) {
-				baseDir = bdmv;
-			}
+			Path baseDir = resolveBaseDir(menuConfig, bdmv);
 
 			// Menu playlist number (parsed from 5-digit output name)
 			int menuPlaylistNumber = Integer.parseInt(menuConfig.getOutputPlaylistName());
@@ -208,12 +217,11 @@ public class MiddleLevelOrchestrator {
 	private TitleMenuDescriptor buildTitleMenuDescriptor(DiscDescriptor disc, TitleMenuConfig menuConfig) {
 		TitleMenuDescriptor descriptor = new TitleMenuDescriptor();
 
-		BackgroundSource bgSource = new BackgroundSource();
-		bgSource.setVideoPath(menuConfig.getBackgroundVideoPath());
-		descriptor.setBackgroundMedia(bgSource);
+		descriptor.setBackgroundMedia(menuConfig.getBackgroundSource());
 
 		LayoutConfig layout = new LayoutConfig();
 		layout.setType(menuConfig.getLayoutType());
+		layout.setBoundingBox(menuConfig.getBoundingBox());
 		descriptor.setLayout(layout);
 
 		List<org.brts.lowlevel.titlemenu.descriptor.TitleEntry> menuTitles = new ArrayList<>();
@@ -244,6 +252,75 @@ public class MiddleLevelOrchestrator {
 		String filename = lastSep >= 0 ? path.substring(lastSep + 1) : path;
 		int dotIdx = filename.lastIndexOf('.');
 		return dotIdx > 0 ? filename.substring(0, dotIdx) : filename;
+	}
+
+	private Path resolveBaseDir(TitleMenuConfig menuConfig, Path fallback) {
+		if (menuConfig.getBaseDir() != null) {
+			return Paths.get(menuConfig.getBaseDir()).toAbsolutePath();
+		}
+		BackgroundSource bg = menuConfig.getBackgroundSource();
+		if (bg != null) {
+			if (bg.isVideo()) {
+				Path parent = Paths.get(bg.getVideoPath()).toAbsolutePath().getParent();
+				return parent != null ? parent : fallback;
+			}
+			if (bg.isImage()) {
+				Path parent = Paths.get(bg.getImagePath()).toAbsolutePath().getParent();
+				return parent != null ? parent : fallback;
+			}
+		}
+		return fallback;
+	}
+
+	// ── Popup Menu Toggle Resolution ────────────────────────────────────────
+
+	/**
+	 * Resolves whether a popup menu should be generated for this title and returns the popup clip name, or null if no
+	 * popup is needed.
+	 */
+	private String resolvePopupMenuClipName(TitleDescriptor title, SourceMediaInfo mediaInfo, String titleClipName) {
+		PopupMenuMode mode = title.getPopupMenu() != null ? title.getPopupMenu() : PopupMenuMode.AUTO;
+
+		boolean generate;
+		switch (mode) {
+		case TRUE:
+			generate = true;
+			break;
+		case FALSE:
+			generate = false;
+			break;
+		case AUTO:
+		default:
+			generate = shouldAutoGeneratePopup(mediaInfo, title);
+			break;
+		}
+
+		if (!generate) {
+			return null;
+		}
+
+		// Allocate popup clip name: title clip number + 500 offset (e.g. "00001" → "00501")
+		int titleNum = Integer.parseInt(titleClipName);
+		return String.format("%05d", titleNum + 500);
+	}
+
+	private boolean shouldAutoGeneratePopup(SourceMediaInfo mediaInfo, TitleDescriptor title) {
+		if (mediaInfo == null || mediaInfo.getTracks() == null) {
+			return false;
+		}
+
+		long audioCount = mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null)
+				.filter(t -> t.getCodingType().isAudio()).filter(t -> title.getAudioLanguages() == null
+						|| title.getAudioLanguages().isEmpty() || title.getAudioLanguages().contains(t.getLanguage()))
+				.count();
+
+		long subCount = mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null).filter(
+				t -> t.getCodingType().isSubtitle() || t.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
+				.filter(t -> title.getSubtitleLanguages() == null || title.getSubtitleLanguages().isEmpty()
+						|| title.getSubtitleLanguages().contains(t.getLanguage()))
+				.count();
+
+		return audioCount > 1 || subCount > 1;
 	}
 
 }

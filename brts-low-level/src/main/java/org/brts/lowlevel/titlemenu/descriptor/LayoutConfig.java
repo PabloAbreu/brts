@@ -42,6 +42,12 @@ public class LayoutConfig {
 	/** Global text style for title labels. Per-title overrides are merged over this. */
 	private TextStyle titleStyle;
 
+	/**
+	 * Optional bounding box that constrains button placement. When set and valid, it replaces margin-based area
+	 * computation entirely: buttons are laid out within the box's pixel rectangle.
+	 */
+	private BoundingBox boundingBox;
+
 	// ── Thumbnail-specific ──────────────────────────────────────────────────
 
 	/** Width of each thumbnail in pixels (THUMBNAIL_GRID only). Defaults to 320. */

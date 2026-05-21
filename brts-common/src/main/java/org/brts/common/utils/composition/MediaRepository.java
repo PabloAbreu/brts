@@ -16,20 +16,12 @@ public interface MediaRepository extends AutoCloseable {
 	VideoFrames getVideoFrames(Path videoPath);
 
 	/**
-	 * Retrieves a synthetic image generator configured for the specified data path.
+	 * Retrieves a synthetic image generator configured for the specified content.
 	 *
-	 * @param dataPath the path to the data directory used by the synthetic image generator
-	 * @return a {@link SyntheticImageGenerator} instance configured with the provided data path
+	 * @param content the content used by the synthetic image generator
+	 * @return a {@link SyntheticImageGenerator} instance configured with the provided content
 	 */
-	SyntheticImageGenerator getSyntheticImageGenerator(Path dataPath);
-
-	/**
-	 * Retrieves a synthetic image generator configured for the specified inline content.
-	 *
-	 * @param content the inline content used by the synthetic image generator
-	 * @return a {@link SyntheticImageGenerator} instance configured with the provided inline content
-	 */
-	SyntheticImageGenerator getSyntheticImageGenerator(String content);
+	SyntheticImageGenerator getSyntheticImageGenerator(ImageReference.SyntheticImageSource content);
 
 	/**
 	 * Retrieves a static image from the specified file path.
