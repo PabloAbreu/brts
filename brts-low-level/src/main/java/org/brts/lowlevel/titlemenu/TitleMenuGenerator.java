@@ -76,6 +76,12 @@ public class TitleMenuGenerator {
 
 	private static final long DEFAULT_PLAYITEM_DURATION_TICKS = 10L * 45_000L;
 
+	/** Duration (90 kHz) to pad the IGS clip timeline. 10 seconds is generous; commercial discs use ~2 s. */
+	private static final long IGS_CLIP_DURATION_90KHZ = 10L * 90_000L;
+
+	/** Low mux rate for IGS-only clips (2 Mbps). Keeps file size small during timeline padding. */
+	private static final int IGS_TARGET_BITRATE_KBPS = 2_000;
+
 	/**
 	 * Generates a title menu from the given descriptor.
 	 *
@@ -122,6 +128,11 @@ public class TitleMenuGenerator {
 		TitleMenuIgsBuilder igsBuilder = new TitleMenuIgsBuilder();
 		IgsDisplaySet displaySet = igsBuilder.build(layoutResult, descriptor);
 
+		// Match IGS video descriptor frame rate to the background video so
+		// strict players accept the overlay.
+		int bgFrameRateCode = deriveBackgroundFrameRateCode(desc);
+		displaySet.getCompositionSegment().getVideoDescriptor().setFrameRateCode(bgFrameRateCode);
+
 		IgsMuxer igsMuxer = new IgsMuxer();
 		byte[] igsEs = igsMuxer.encodeDisplaySet(displaySet);
 
@@ -140,6 +151,19 @@ public class TitleMenuGenerator {
 			igsStream.setStreamTypeByte(IGS_STREAM_TYPE);
 			menuStreams.add(igsStream);
 			menuDesc.setStreams(menuStreams);
+
+			// Align IGS PTS origin with background video — strict players (e.g. PowerDVD)
+			// require both clips to share the same PTS timeline for overlay to work.
+			ClipTiming bgTimingForIgs = resolveClipTiming(bgName, outputDir);
+			menuDesc.setInitialPtsOffsetTicks(bgTimingForIgs.inTimeTicks() * 2);
+			// Extend IGS clip timeline by a short duration past its start PTS so the CLPI
+			// reports a valid non-zero range. IGS display sets are persistent once decoded
+			// (epoch start) — the clip does NOT need to span the full background duration.
+			// Commercial discs typically use ~2 s for the IGS clip.
+			menuDesc.setMinEndPtsTicks(bgTimingForIgs.inTimeTicks() * 2 + IGS_CLIP_DURATION_90KHZ);
+			// IGS-only clips carry very little actual data; use a low mux rate to avoid
+			// bloating the file with null packets during timeline padding.
+			menuDesc.setTargetBitrateKbps(IGS_TARGET_BITRATE_KBPS);
 
 			Path menuM2ts = streamDir.resolve(menuName + ".m2ts");
 			Path menuClpi = clipDir.resolve(menuName + ".clpi");
@@ -380,13 +404,19 @@ public class TitleMenuGenerator {
 
 		// Menu SubPath type 3 (out-of-mux IGS)
 		ClipTiming menuTiming = resolveClipTiming(menuName, outputDir);
+		// Sync PTS must match the PTS origin used when muxing the IGS M2TS
+		// (see menuDesc.setInitialPtsOffsetTicks above). Both are derived from the
+		// first background clip's in_time so that the player can align the IGS
+		// overlay with the main timeline. Strict players (PowerDVD) reject the IGS
+		// when this value does not match the first ICS PTS in the sub-clip.
+		ClipTiming bgTimingForSync = resolveClipTiming(bgName, outputDir);
 		SubPath.SubPlayItem menuSubPlayItem = new SubPath.SubPlayItem();
 		menuSubPlayItem.setClipName(menuName);
 		menuSubPlayItem.setConnectionCondition(1);
 		menuSubPlayItem.setInTimeTicks(menuTiming.inTimeTicks());
 		menuSubPlayItem.setOutTimeTicks(menuTiming.outTimeTicks());
 		menuSubPlayItem.setSyncPlayItemId(0); // sync to first PlayItem
-		menuSubPlayItem.setSyncStartPtsTicks(bgTiming.inTimeTicks());
+		menuSubPlayItem.setSyncStartPtsTicks(bgTimingForSync.inTimeTicks());
 
 		SubPath menuSubPath = new SubPath();
 		menuSubPath.setSubPathType(3);
@@ -455,5 +485,16 @@ public class TitleMenuGenerator {
 		if (channels <= 6)
 			return 6;
 		return 12;
+	}
+
+	/**
+	 * Derives the Blu-ray frame_rate_id for the IGS video descriptor from the background M2tsDescriptor's first video
+	 * stream. Falls back to 1 (23.976 fps) if no video stream is present.
+	 */
+	private static int deriveBackgroundFrameRateCode(M2tsDescriptor bgDesc) {
+		if (bgDesc == null || bgDesc.getStreams() == null)
+			return 1;
+		return bgDesc.getStreams().stream().filter(s -> StreamCodingType.fromByte(s.getStreamTypeByte()).isVideo())
+				.findFirst().map(s -> IStreamInfo.frameRateFromFps(s.getFrameRateFps())).orElse(1);
 	}
 }

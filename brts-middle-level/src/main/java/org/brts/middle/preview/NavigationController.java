@@ -1,12 +1,13 @@
 package org.brts.middle.preview;
 
+import java.util.List;
+
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsPage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
-import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Simulates Blu-ray remote-control navigation on an IGS display set.
@@ -14,9 +15,11 @@ import java.util.List;
  * Handles directional movement (up / down / left / right), selection (Enter), and numeric input. After each action it
  * updates the {@link DisplaySetPreviewModel} and returns a {@link NavigationResult} describing what changed.
  */
+@Slf4j
 public class NavigationController {
 
-	private static final Logger log = LoggerFactory.getLogger(NavigationController.class);
+	// 0xFFFF means "no neighbour in that direction"
+	private static final int NO_NEIGHBOUR_ID = 0xFFFF;
 
 	private final DisplaySetPreviewModel model;
 
@@ -114,8 +117,7 @@ public class NavigationController {
 		case RIGHT -> current.getRightButtonIdRef();
 		};
 
-		// 0xFFFF means "no neighbour in that direction"
-		if (targetId == 0xFFFF || targetId == current.getId()) {
+		if (targetId == NO_NEIGHBOUR_ID || targetId == current.getId()) {
 			return NavigationResult.none("No neighbour " + dir);
 		}
 
@@ -158,15 +160,15 @@ public class NavigationController {
 	 * user activates a button. Delegates to {@link ParsedNavigationCommand} for proper mnemonic decoding.
 	 */
 	private String describeNavigationCommands(IgsButton btn) {
-		List<ParsedNavigationCommand> cmds = btn.getNavigationCommands();
+		List<NavigationCommand> cmds = btn.getNavigationCommands();
 		if (cmds == null || cmds.isEmpty()) {
 			return "No navigation commands";
 		}
 
 		StringBuilder sb = new StringBuilder();
 		for (int i = 0; i < cmds.size(); i++) {
-			ParsedNavigationCommand cmd = cmds.get(i);
-			sb.append(String.format("[%d] %s: %s", i, cmd.getMnemonicString(), cmd.describe()));
+			NavigationCommand cmd = cmds.get(i);
+			sb.append(String.format("[%d] %s: %s", i, cmd.getMnemonic(), cmd.getDescription()));
 			if (i < cmds.size() - 1)
 				sb.append(" | ");
 		}

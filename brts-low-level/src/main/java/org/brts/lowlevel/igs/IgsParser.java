@@ -2,6 +2,7 @@ package org.brts.lowlevel.igs;
 
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.igs.model.*;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -309,7 +310,7 @@ public class IgsParser {
 
 		// If streamModel == 0: skip(7) + composition_timeout_pts(33),
 		// skip(7) + selection_timeout_pts(33)
-		if (ic.getStreamModel() == 0) {
+		if (ic.getStreamModel() == IgsInteractiveComposition.STREAM_MODEL_IN_MUX) {
 			if (pos + 10 > d.length)
 				return ic;
 			// composition_timeout_pts: 5 bytes (skip 7 bits, then 33-bit PTS)
@@ -518,7 +519,7 @@ public class IgsParser {
 		for (int i = 0; i < numNavCmds && pos + 12 <= d.length; i++) {
 			byte[] raw = new byte[12];
 			System.arraycopy(d, pos, raw, 0, 12);
-			btn.getNavigationCommands().add(ParsedNavigationCommand.fromRaw(raw));
+			btn.getNavigationCommands().add(NavigationCommand.fromParsed(ParsedNavigationCommand.fromRaw(raw)));
 			pos += 12;
 		}
 

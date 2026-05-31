@@ -21,6 +21,7 @@ import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.igs.model.SequenceDescriptor;
 import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.NavigationOverride;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
@@ -109,8 +110,8 @@ public class TitleMenuIgsBuilder {
 			int activatedObjId = i * 3 + 2;
 
 			// JUMP_TITLE navigation command
-			List<ParsedNavigationCommand> navCmds = List
-					.of(ParsedNavigationCommand.compile("JUMP_TITLE", pb.getTitleNumber(), true, 0, false));
+			List<NavigationCommand> navCmds = List.of(NavigationCommand
+					.fromParsed(ParsedNavigationCommand.compile("JUMP_TITLE", pb.getTitleNumber(), true, 0, false)));
 
 			IgsButton btn = new IgsButton();
 			btn.setId(buttonId);
@@ -156,9 +157,12 @@ public class TitleMenuIgsBuilder {
 		// ── Build Interactive Composition ────────────────────────────────────
 
 		IgsInteractiveComposition ic = new IgsInteractiveComposition();
-		ic.setStreamModel(1); // Out-of-Mux (SubPath type 3)
-		ic.setUiModel(0); // Always-On
-		ic.setUserTimeoutDuration(0xFF);
+		// Out-Of-Mux per spec (matches SubPath type 3). Required by strict players
+		// (e.g. PowerDVD); also gates emission of composition_timeout_pts /
+		// selection_timeout_pts in the encoded ICS.
+		ic.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX);
+		ic.setUiModel(IgsInteractiveComposition.UI_MODEL_ALWAYS_ON);
+		ic.setUserTimeoutDuration(0); // No user timeout
 		ic.getPages().add(page);
 
 		// ── Build ICS ───────────────────────────────────────────────────────

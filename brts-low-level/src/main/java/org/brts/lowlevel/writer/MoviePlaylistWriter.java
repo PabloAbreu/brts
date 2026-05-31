@@ -24,7 +24,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 	@Override
 	public void write(MoviePlaylist model, OutputStream output) throws IOException {
-		byte[] appInfoPlayListSection = buildAppInfoPlayListSection();
+		byte[] appInfoPlayListSection = buildAppInfoPlayListSection(model);
 		byte[] playlistSection = buildPlaylistSection(model);
 		byte[] markSection = buildMarkSection(model);
 
@@ -47,16 +47,16 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		w.writeBytes(markSection);
 	}
 
-	private byte[] buildAppInfoPlayListSection() throws IOException {
+	private byte[] buildAppInfoPlayListSection(MoviePlaylist model) throws IOException {
 		ByteArrayOutputStream buf = new ByteArrayOutputStream();
 		BinaryWriter w = new BinaryWriter(buf);
 		final int size = 14;
 		w.writeInt(size);
 		w.writeByte(0);// reserved
-		final int playbackType = 1;
+		final int playbackType = 1;// model.isMenu() ? 2 : 1;
 		w.writeByte(playbackType); // playback_type
 		if (playbackType == 2 || playbackType == 3) {
-			final int playbackCount = 1;
+			final int playbackCount = 0;
 			w.writeShort(playbackCount);
 		} else {
 			w.writePadding(2);
@@ -148,7 +148,8 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			// stream_entry (length byte + content)
 			ByteArrayOutputStream entry = new ByteArrayOutputStream();
 			BinaryWriter we = new BinaryWriter(entry);
-			int streamType = s.getStreamType() != 0 ? s.getStreamType() : 0x01; // default to in-mux if not set
+			// default to in-mux if not set
+			int streamType = s.getStreamType() != 0 ? s.getStreamType() : PlayItemStream.STREAM_TYPE_IN_MUX;
 			we.writeByte(streamType); // stream_type
 			switch (streamType) {
 			case 2:

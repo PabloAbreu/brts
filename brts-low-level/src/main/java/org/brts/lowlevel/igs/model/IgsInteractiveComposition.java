@@ -16,11 +16,16 @@ import java.util.List;
 @ToString
 public class IgsInteractiveComposition {
 
+	public static final int STREAM_MODEL_OUT_OF_MUX = 1;
+	public static final int STREAM_MODEL_IN_MUX = 0;
+
+	public static final int UI_MODEL_ALWAYS_ON = 0;
+	public static final int UI_MODEL_POP_UP = 1;
 	/**
 	 * Stream model (1 bit):
 	 * <ul>
-	 * <li>0 = Out-Of-Mux — timestamps determine display</li>
-	 * <li>1 = In-Mux — multiplexed with AV</li>
+	 * <li>1 = Out-Of-Mux — timestamps determine display</li>
+	 * <li>0 = In-Mux — multiplexed with AV</li>
 	 * </ul>
 	 */
 	private int streamModel;
@@ -35,12 +40,12 @@ public class IgsInteractiveComposition {
 	private int uiModel;
 
 	/**
-	 * Composition timeout PTS (33 bits, 90 kHz). Valid only when {@code streamModel == 0}.
+	 * Composition timeout PTS (33 bits, 90 kHz). useful only when {@code streamModel == 0}.
 	 */
 	private long compositionTimeoutPts;
 
 	/**
-	 * Selection timeout PTS (33 bits, 90 kHz). Valid only when {@code streamModel == 0}.
+	 * Selection timeout PTS (33 bits, 90 kHz). useful only when {@code streamModel == 0}.
 	 */
 	private long selectionTimeoutPts;
 

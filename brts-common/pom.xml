@@ -40,6 +40,11 @@
 			<groupId>org.bytedeco</groupId>
 			<artifactId>ffmpeg</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>ffmpeg</artifactId>
+			<classifier>${ffmpeg.platform}</classifier>
+		</dependency>
 
 		<!-- Jakarta EL Implementation -->
 		<dependency>

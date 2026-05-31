@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
@@ -200,6 +201,7 @@ public class CompositedVideoGenerator {
 			videoEntry.setPid(VIDEO_PID);
 			videoEntry.setStreamTypeByte(StreamCodingType.H264_AVC.getCodingTypeByte());
 			videoEntry.setFrameRateFps(fps);
+			videoEntry.setVideoFormat(IStreamInfo.VIDEO_FORMAT_1080P);
 			videoEntry.setBitrateKbps(config.getBitrateKbps());
 			streams.add(videoEntry);
 

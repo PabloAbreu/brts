@@ -1,12 +1,13 @@
 package org.brts.lowlevel.igs.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * An IGS button — a clickable menu element with three visual states (normal / selected / activated), four navigation
@@ -65,6 +66,6 @@ public class IgsButton {
 	private int activatedEndObjectIdRef;
 
 	/** Navigation commands for this button. */
-	private List<ParsedNavigationCommand> navigationCommands = new ArrayList<>();
+	private List<NavigationCommand> navigationCommands = new ArrayList<>();
 
 }

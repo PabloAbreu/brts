@@ -1,6 +1,15 @@
 package org.brts.common.m2ts;
 
 public interface IStreamInfo {
+	int VIDEO_FORMAT_480I = 1;
+	int VIDEO_FORMAT_480P = 2;
+	int VIDEO_FORMAT_720P = 3;
+	int VIDEO_FORMAT_1080I = 4;
+	int VIDEO_FORMAT_1080P = 6;
+
+	int VIDEO_FRAME_RATE_23_976 = 1;
+	int VIDEO_FRAME_RATE_24 = 2;
+	int VIDEO_FRAME_RATE_29_97 = 4;
 
 	default void setVfr(int vfr) {
 

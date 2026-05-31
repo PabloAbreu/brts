@@ -259,7 +259,13 @@ public class M2tsCli {
 			System.out.println("M2TS written → " + m2tsPath);
 
 			// --- Build and write matching CLPI ---
-			ClipInfo clipInfo = writer.buildClipInfo(descriptor, outputName);
+			int applicationType = ClipInfo.APPLICATION_TYPE_MOVIE;
+			// if only one stream and it's a IGS, set application type to interactive graphics
+			if (descriptor.getStreams().size() == 1 && descriptor.getStreams().get(0)
+					.getStreamTypeByte() == StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte()) {
+				applicationType = ClipInfo.APPLICATION_TYPE_INTERACTIVE_GRAPHICS;
+			}
+			ClipInfo clipInfo = writer.buildClipInfo(descriptor, outputName, applicationType);
 			new ClipInfoWriter().write(clipInfo, clpiPath);
 			System.out.println("CLPI written → " + clpiPath);
 		}

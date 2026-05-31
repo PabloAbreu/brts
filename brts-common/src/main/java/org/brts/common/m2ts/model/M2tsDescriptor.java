@@ -66,6 +66,17 @@ public class M2tsDescriptor {
 	 */
 	private Long initialPtsOffsetTicks;
 
+	/**
+	 * Minimum end PTS (90 kHz ticks) that the muxer must reach by emitting PCR + null packets after all elementary
+	 * stream data is written. This extends the clip's timeline beyond its actual content duration.
+	 * <p>
+	 * Used for out-of-mux IGS clips that must span the same PTS range as the associated background video clip so that
+	 * strict players (e.g. PowerDVD) can locate the overlay.
+	 * <p>
+	 * If {@code null} or ≤ 0, no timeline extension is performed.
+	 */
+	private Long minEndPtsTicks;
+
 	// -------------------------------------------------------------------------
 
 	/** One elementary stream contribution to the output M2TS. */

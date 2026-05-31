@@ -38,15 +38,6 @@
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>ffmpeg</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>ffmpeg</artifactId>
-			<classifier>${ffmpeg.platform}</classifier>
-		</dependency>
 	</dependencies>
 
 	<build>

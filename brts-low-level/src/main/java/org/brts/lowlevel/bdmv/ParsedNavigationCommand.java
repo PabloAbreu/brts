@@ -40,6 +40,8 @@ public final class ParsedNavigationCommand {
 	private static final long IMM_OP2 = NavigationCommandCompiler.IMM_OP2; // bit 22
 
 	private static final long PSR_BIT = 0x8000_0000L;
+	private static final long BUTTON_ENABLED_BIT = PSR_BIT;// for button/page
+	private static final long EFFECT_OFF_BIT = 0x4000_0000L;
 
 	private final long opcode;
 
@@ -332,11 +334,27 @@ public final class ParsedNavigationCommand {
 		// Stream/system operations
 		case SET_STREAM -> "Set stream (param=0x" + Long.toHexString(operand1) + ")";
 		case SET_NV_TIMER -> "Set navigation timer to " + describeOperand1();
-		case SET_BUTTON_PAGE ->
-			"Set button/page (button=" + ((operand1 >> 16) & 0xFFFF) + " page=" + (operand1 & 0xFFFF) + ")";
+		// SET_BUTTON_PAGE reverse-engineered from trial/compile with free version of igeditor
+		case SET_BUTTON_PAGE -> "Set button/page ("
+				+ (buttonOrPageEnabledFlag(operand1)
+						? ("button=" + describeOperandValue(isOp1Immediate(), operand1 & ~PSR_BIT))
+						: "no-button")
+				+ (buttonOrPageEnabledFlag(operand2)
+						? (", page=" + describeOperandValue(isOp2Immediate(), operand2 & ~PSR_BIT) + "(Effect "
+								+ (effectOffFlag(operand2) ? "off" : "on"))
+						: ", no-page")
+				+ ")";
 		case SET_SEC_STREAM -> "Set secondary stream (param=0x" + Long.toHexString(operand1) + ")";
 		case SET_STREAM_SS -> "Set stereoscopic stream (param=0x" + Long.toHexString(operand1) + ")";
 		};
+	}
+
+	private static boolean buttonOrPageEnabledFlag(long operand) {
+		return (operand & BUTTON_ENABLED_BIT) != 0;
+	}
+
+	private static boolean effectOffFlag(long opcode) {
+		return (opcode & EFFECT_OFF_BIT) != 0;
 	}
 
 	private static String formatBinaryOperation(NavigationCommandMnemonic mnemonic, String dst, String src) {

@@ -24,6 +24,7 @@ import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.igs.model.SequenceDescriptor;
 import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +45,8 @@ import lombok.extern.slf4j.Slf4j;
  * <li>Exit buttons → POPUP_OFF</li>
  * </ul>
  * <p>
- * The interactive composition uses {@code streamModel=0} (Out-Of-Mux) and {@code uiModel=1} (Pop-Up).
+ * The interactive composition uses {@code streamModel=IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX} (Out-Of-Mux)
+ * and {@code uiModel=IgsInteractiveComposition.UI_MODEL_POP_UP} (Pop-Up).
  */
 @Slf4j
 public class PopupMenuIgsBuilder {
@@ -152,9 +154,9 @@ public class PopupMenuIgsBuilder {
 		// ── Build Interactive Composition ────────────────────────────────────
 
 		IgsInteractiveComposition ic = new IgsInteractiveComposition();
-		ic.setStreamModel(0); // Out-of-Mux
-		ic.setUiModel(1); // Pop-Up
-		ic.setUserTimeoutDuration(0xFF);
+		ic.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX); // Out-of-Mux
+		ic.setUiModel(IgsInteractiveComposition.UI_MODEL_POP_UP); // Pop-Up
+		ic.setUserTimeoutDuration(0); // No user timeout
 		ic.getPages().add(page0);
 		ic.getPages().add(page1);
 
@@ -237,7 +239,7 @@ public class PopupMenuIgsBuilder {
 			int y = startY + i * (BUTTON_HEIGHT + BUTTON_SPACING_Y);
 
 			// Determine navigation command
-			List<ParsedNavigationCommand> navCmds = buildNavCommand(i, trackButtonCount, isAudioPage, audioTracks,
+			List<NavigationCommand> navCmds = buildNavCommand(i, trackButtonCount, isAudioPage, audioTracks,
 					subtitleTracks, pageId);
 
 			IgsButton btn = new IgsButton();
@@ -285,7 +287,7 @@ public class PopupMenuIgsBuilder {
 
 	// ── Navigation command builder ──────────────────────────────────────────
 
-	private List<ParsedNavigationCommand> buildNavCommand(int buttonIndex, int trackButtonCount, boolean isAudioPage,
+	private List<NavigationCommand> buildNavCommand(int buttonIndex, int trackButtonCount, boolean isAudioPage,
 			List<PopupMenuConfig.TrackEntry> audioTracks, List<PopupMenuConfig.TrackEntry> subtitleTracks, int pageId) {
 
 		if (buttonIndex < trackButtonCount) {
@@ -294,21 +296,25 @@ public class PopupMenuIgsBuilder {
 				int streamIndex = audioTracks.get(buttonIndex).getStreamIndex();
 				// SET_STREAM: primary audio in bits 31:24 of operand1, enable flag in bit 31
 				long op1 = (1L << 31) | ((long) (streamIndex & 0x7F) << 24);
-				return List.of(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false));
+				return List.of(NavigationCommand
+						.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false)));
 			} else {
 				int streamIndex = subtitleTracks.get(buttonIndex).getStreamIndex();
 				// SET_STREAM: PG stream in bits 15:8 of operand1, enable flag in bit 15
 				long op1 = (1L << 15) | ((long) (streamIndex & 0x7F) << 8);
-				return List.of(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false));
+				return List.of(NavigationCommand
+						.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false)));
 			}
 		} else if (buttonIndex == trackButtonCount) {
 			// Page-switch button
 			int targetPage = isAudioPage ? 1 : 0;
 			// SET_BUTTON_PAGE: operand1 = page number, operand2 = button ID (1 = first button)
-			return List.of(ParsedNavigationCommand.compile("SET_BUTTON_PAGE", targetPage, true, 1, true));
+			return List.of(NavigationCommand
+					.fromParsed(ParsedNavigationCommand.compile("SET_BUTTON_PAGE", targetPage, true, 1, true)));
 		} else {
 			// Exit button
-			return List.of(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false));
+			return List
+					.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false)));
 		}
 	}
 

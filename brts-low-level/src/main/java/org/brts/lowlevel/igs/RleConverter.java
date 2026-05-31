@@ -50,10 +50,7 @@ public class RleConverter {
 	public void convertToPng(Path rleFile, int width, int height, IgsPalette palette, Path outputFile)
 			throws IOException {
 		byte[] rleData = Files.readAllBytes(rleFile);
-		BufferedImage image = decodeRle(rleData, width, height, palette);
-		Files.createDirectories(outputFile.getParent());
-		ImageIO.write(image, "png", outputFile.toFile());
-		log.info("RLE → PNG: {} ({}×{}) → {}", rleFile.getFileName(), width, height, outputFile);
+		convertToPng(rleData, width, height, palette, outputFile);
 	}
 
 	/**
@@ -69,9 +66,13 @@ public class RleConverter {
 	public void convertToPng(byte[] rleData, int width, int height, IgsPalette palette, Path outputFile)
 			throws IOException {
 		BufferedImage image = decodeRle(rleData, width, height, palette);
-		Files.createDirectories(outputFile.getParent());
-		ImageIO.write(image, "png", outputFile.toFile());
-		log.info("RLE → PNG: ({}×{}) → {}", width, height, outputFile);
+		if (image != null) {
+			Files.createDirectories(outputFile.getParent());
+			ImageIO.write(image, "png", outputFile.toFile());
+			log.info("RLE → PNG: ({}×{}) → {}", width, height, outputFile);
+		} else {
+			log.warn("Failed to decode RLE data for output: {}", outputFile);
+		}
 	}
 
 	/**
@@ -150,6 +151,10 @@ public class RleConverter {
 	 * @return ARGB image
 	 */
 	public BufferedImage decodeRle(byte[] rleData, int width, int height, IgsPalette palette) {
+		if (width <= 0 || height <= 0 || rleData == null || palette == null || rleData.length == 0) {
+			log.warn("Invalid image. Dimensions: {}×{}", width, height);
+			return null;
+		}
 		int[] argbPalette = buildArgbPalette(palette);
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 

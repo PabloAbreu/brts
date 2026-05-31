@@ -424,6 +424,11 @@ public class ESReader implements Closeable {
 				return Math.round(90_000.0 / fps);
 			return 90_000L / 24; // default 24 fps
 		}
+		if (codingType != null && (codingType == StreamCodingType.INTERACTIVE_GRAPHICS
+				|| codingType == StreamCodingType.PRESENTATION_GRAPHICS)) {
+			// All segments within a display set share the same composition PTS.
+			return 0L;
+		}
 		if (codingType != null && codingType.isDolbyAudio()) {
 			// AC3: 1536 samples per frame at 48 kHz = 32 ms
 			return 90_000L * 1536 / 48000; // = 2880

@@ -22,6 +22,13 @@ import java.util.List;
 @Setter
 public class ClipInfo {
 
+	public static final int APPLICATION_TYPE_MOVIE = 1;
+	public static final int APPLICATION_TYPE_TIME_BASED_SLIDESHOW = 2;
+	public static final int APPLICATION_TYPE_BROWSABLE_SLIDESHOW_MAIN = 3;
+	public static final int APPLICATION_TYPE_BROWSABLE_SLIDESHOW_SUBPATH = 4;
+	public static final int APPLICATION_TYPE_INTERACTIVE_GRAPHICS = 5;
+	public static final int APPLICATION_TYPE_TEXT_SUBTITLE = 6;
+
 	/**
 	 * Base name of the associated M2TS file, without extension (5 digits, e.g. "00001").
 	 */
@@ -30,7 +37,10 @@ public class ClipInfo {
 	/** Blu-ray clip stream type (always 1 for AV clip in practice). */
 	private int clipStreamType = 1;
 
-	/** Application type (1 = Movie, 3 = Interactive menu). */
+	/**
+	 * Application type (1 = Movie, 2 = Time-based slideshow, 3 = Browsable slideshow main, 4 = Browsable slideshow
+	 * subpath, 5 = Interactive graphics, 6 = Text subtitle).
+	 */
 	private int applicationType = 1;
 
 	/** Is this clip encoded as a TS recording? */

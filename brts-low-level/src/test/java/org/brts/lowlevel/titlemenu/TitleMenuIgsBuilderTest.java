@@ -54,12 +54,12 @@ class TitleMenuIgsBuilderTest {
 		// First button should have JUMP_TITLE with title number 1
 		IgsButton btn1 = bogs.get(0).getButtons().get(0);
 		assertThat(btn1.getNavigationCommands()).hasSize(1);
-		assertThat(btn1.getNavigationCommands().get(0).getMnemonic().name()).isEqualTo("JUMP_TITLE");
+		assertThat(btn1.getNavigationCommands().get(0).getMnemonic()).isEqualTo("JUMP_TITLE");
 
 		// Second button should have JUMP_TITLE with title number 2
 		IgsButton btn2 = bogs.get(1).getButtons().get(0);
 		assertThat(btn2.getNavigationCommands()).hasSize(1);
-		assertThat(btn2.getNavigationCommands().get(0).getMnemonic().name()).isEqualTo("JUMP_TITLE");
+		assertThat(btn2.getNavigationCommands().get(0).getMnemonic()).isEqualTo("JUMP_TITLE");
 	}
 
 	@Test

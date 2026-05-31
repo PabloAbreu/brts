@@ -321,6 +321,40 @@ public class M2tsWriter {
 			for (ESReader r : readers)
 				r.close();
 
+			// ── Timeline extension ───────────────────────────────────────────
+			// If minEndPtsTicks is set and the mux ended before reaching that
+			// target, continue emitting PCR + null packets so the CLPI reports a
+			// timeline that spans the full background video duration. This is
+			// required for out-of-mux IGS clips to be found by strict players.
+			long minEnd = (descriptor.getMinEndPtsTicks() != null && descriptor.getMinEndPtsTicks() > 0)
+					? descriptor.getMinEndPtsTicks()
+					: 0L;
+			if (minEnd > 0 && lastPts90kHz < minEnd) {
+				long videoFdPad = readers.stream().filter(ESReader::isVideo).mapToLong(ESReader::frameDuration90kHz)
+						.findFirst().orElse(90_000L / 24);
+				while (pts90 < minEnd) {
+					// PCR
+					if (pcrPid >= 0 && atsOf(totalTsPackets) >= nextPcrAts) {
+						long pcr27 = atsOf(totalTsPackets);
+						writePcrPacket(rawOut, pcrPid, pcr27, cc, atsOf(totalTsPackets));
+						totalTsPackets++;
+						nextPcrAts = atsOf(totalTsPackets) + PCR_INTERVAL_27MHZ;
+					}
+					// Advance PTS and stuff null packets
+					lastPts90kHz = pts90;
+					pts90 += videoFdPad;
+					long elapsedPts90Pad = pts90 - firstPts90kHz;
+					long padExpected = (elapsedPts90Pad * targetBitrateBps + EXPECTED_PACKETS_DIVISOR - 1)
+							/ EXPECTED_PACKETS_DIVISOR;
+					while (totalTsPackets < padExpected) {
+						writeNullPacket(rawOut, atsOf(totalTsPackets));
+						totalTsPackets++;
+					}
+				}
+				lastPts90kHz = pts90;
+				log.info("Timeline extended to PTS {} (target {})", lastPts90kHz, minEnd);
+			}
+
 			// Pad to aligned-unit boundary (32 source packets = 6144 bytes).
 			// Blu-ray players read M2TS files in 6144-byte blocks; a partial
 			// trailing block causes "Read past EOF" failures.
@@ -348,11 +382,11 @@ public class M2tsWriter {
 	 * @param clipName   5-digit clip name (e.g. "00001")
 	 * @return a fully populated {@link ClipInfo}
 	 */
-	public ClipInfo buildClipInfo(M2tsDescriptor descriptor, String clipName) {
+	public ClipInfo buildClipInfo(M2tsDescriptor descriptor, String clipName, int applicationType) {
 		ClipInfo info = new ClipInfo();
 		info.setClipName(clipName);
 		info.setClipStreamType(1); // AV clip
-		info.setApplicationType(1); // movie
+		info.setApplicationType(applicationType);
 		info.setTsRecordingRate(targetBitrateBps);
 		info.setNumSourcePackets(totalTsPackets);
 
