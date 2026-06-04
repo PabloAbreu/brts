@@ -13,8 +13,7 @@ import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Simple text-list layout: renders each title as a selectable text button and arranges them vertically (or in columns).
@@ -22,9 +21,8 @@ import org.slf4j.LoggerFactory;
  * Buttons are centred horizontally within each column. Vertical spacing is automatic based on button height and
  * configured spacing.
  */
+@Slf4j
 public class TextListLayout implements TitleMenuLayout {
-
-	private static final Logger log = LoggerFactory.getLogger(TextListLayout.class);
 
 	@Override
 	public LayoutResult layout(TitleMenuDescriptor descriptor, Path baseDir) throws IOException {

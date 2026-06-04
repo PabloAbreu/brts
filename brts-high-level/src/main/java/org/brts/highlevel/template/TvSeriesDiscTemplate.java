@@ -5,8 +5,6 @@ import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -14,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Template for a TV series Blu-ray disc.
@@ -21,9 +20,8 @@ import java.util.stream.Collectors;
  * Each episode in the glob-expanded or explicit file list becomes a separate title. Titles are numbered from 1 upward
  * in sorted file-name order.
  */
+@Slf4j
 public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor> {
-
-	private static final Logger log = LoggerFactory.getLogger(TvSeriesDiscTemplate.class);
 
 	@Override
 	public String templateType() {

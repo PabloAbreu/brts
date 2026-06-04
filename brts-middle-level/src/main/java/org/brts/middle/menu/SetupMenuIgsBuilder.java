@@ -33,8 +33,7 @@ import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
 import org.brts.middle.menu.descriptor.SubtitleMenuItem;
 import org.brts.middle.menu.render.ButtonImageRenderer;
 import org.brts.middle.menu.render.ButtonImageRenderer.ButtonImages;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Builds a complete {@link IgsDisplaySet} from a {@link SetupMenuDescriptor}.
@@ -49,9 +48,8 @@ import org.slf4j.LoggerFactory;
  * <li>Compiles navigation commands for each button</li>
  * </ol>
  */
+@Slf4j
 public class SetupMenuIgsBuilder {
-
-	private static final Logger log = LoggerFactory.getLogger(SetupMenuIgsBuilder.class);
 
 	// Layout constants
 	private static final int CATEGORY_START_Y = 100;

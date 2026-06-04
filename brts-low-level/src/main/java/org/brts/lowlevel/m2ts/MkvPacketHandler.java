@@ -14,14 +14,13 @@ import org.ebml.matroska.MatroskaDocTypes;
 import org.ebml.matroska.MatroskaFileFrame;
 import org.ebml.matroska.MatroskaFileTrack;
 import org.ebml.matroska.MatroskaFileWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link M2tsPacketHandler} that writes demuxed elementary streams into a Matroska (MKV) container using the jebml
@@ -54,9 +53,8 @@ import java.util.*;
  * }
  * }</pre>
  */
+@Slf4j
 public class MkvPacketHandler implements M2tsPacketHandler {
-
-	private static final Logger log = LoggerFactory.getLogger(MkvPacketHandler.class);
 
 	private final MatroskaFileWriter mkvWriter;
 

@@ -36,8 +36,7 @@ import org.brts.lowlevel.popupmenu.PopupMenuGenerator;
 import org.brts.lowlevel.popupmenu.TrackDisplayNameResolver;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Converts an MKV file into a Blu-ray clip triplet: M2TS + CLPI + MPLS.
@@ -52,9 +51,8 @@ import org.slf4j.LoggerFactory;
  * <li>Build and write MPLS ({@link MoviePlaylistWriter})</li>
  * </ol>
  */
+@Slf4j
 public class MkvToPlaylistConverter {
-
-	private static final Logger log = LoggerFactory.getLogger(MkvToPlaylistConverter.class);
 
 	// Blu-ray conventional PID ranges
 	private static final int VIDEO_PID_BASE = 0x1011; // 4113

@@ -14,19 +14,17 @@ import org.brts.highlevel.template.MovieDiscTemplate;
 import org.brts.highlevel.template.TvSeriesDiscTemplate;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * High-level orchestrator: reads a {@link HighLevelDiscDescriptor}, selects the appropriate template, expands it to a
  * middle-level {@link DiscDescriptor}, and writes the middle-level JSON descriptors + an orchestration script that
  * calls the middle-level commands.
  */
+@Slf4j
 public class HighLevelOrchestrator {
-
-	private static final Logger log = LoggerFactory.getLogger(HighLevelOrchestrator.class);
 
 	private final Map<String, DiscTemplate<?>> templates;
 

@@ -4,8 +4,6 @@ import org.brts.common.model.Timestamp;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -14,15 +12,15 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Scans all {@code .mpls} files in a Blu-ray {@code BDMV/PLAYLIST} directory, parses each one using the low-level
  * {@link MoviePlaylistParser}, and applies configurable heuristics to select the "interesting" playlists that most
  * likely represent the main content of the disc.
  */
+@Slf4j
 public class PlaylistScanner {
-
-	private static final Logger log = LoggerFactory.getLogger(PlaylistScanner.class);
 
 	private final MoviePlaylistParser parser = new MoviePlaylistParser();
 

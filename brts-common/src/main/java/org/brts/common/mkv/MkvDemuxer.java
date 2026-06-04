@@ -5,8 +5,6 @@ import org.ebml.io.FileDataSource;
 import org.ebml.matroska.MatroskaFile;
 import org.ebml.matroska.MatroskaFileFrame;
 import org.ebml.matroska.MatroskaFileTrack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -15,6 +13,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Demuxes an MKV (Matroska) container into separate elementary stream (ES) files, one per track.
@@ -32,9 +31,8 @@ import java.util.*;
  * // files maps track number → extracted ES file path
  * }</pre>
  */
+@Slf4j
 public class MkvDemuxer {
-
-	private static final Logger log = LoggerFactory.getLogger(MkvDemuxer.class);
 
 	private static final byte[] ANNEX_B_START_CODE = { 0x00, 0x00, 0x00, 0x01 };
 

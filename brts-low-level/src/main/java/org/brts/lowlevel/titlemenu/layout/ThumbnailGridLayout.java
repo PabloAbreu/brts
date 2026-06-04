@@ -20,8 +20,7 @@ import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Grid layout with animated thumbnails extracted from source media, composited into the background video.
@@ -33,9 +32,8 @@ import org.slf4j.LoggerFactory;
  * The IGS buttons are transparent overlays that match the thumbnail positions (with a highlight border for
  * selected/activated states), giving the illusion of selectable animated thumbnails integrated into the video.
  */
+@Slf4j
 public class ThumbnailGridLayout implements TitleMenuLayout {
-
-	private static final Logger log = LoggerFactory.getLogger(ThumbnailGridLayout.class);
 
 	/** Border thickness for selected/activated thumbnail highlight. */
 	private static final int HIGHLIGHT_BORDER = 4;

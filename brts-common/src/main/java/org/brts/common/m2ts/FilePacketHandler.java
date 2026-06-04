@@ -15,8 +15,7 @@ import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.utils.Extensions;
 import org.brts.common.utils.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link M2tsPacketHandler} that writes each PID to a separate file on disk.
@@ -37,9 +36,8 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  */
+@Slf4j
 public class FilePacketHandler implements M2tsPacketHandler {
-
-	private static final Logger log = LoggerFactory.getLogger(FilePacketHandler.class);
 
 	private final Map<Integer, OutputStream> pidToStream = new LinkedHashMap<>();
 

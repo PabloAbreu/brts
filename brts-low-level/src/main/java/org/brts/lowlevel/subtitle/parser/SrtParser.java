@@ -3,8 +3,6 @@ package org.brts.lowlevel.subtitle.parser;
 import org.brts.lowlevel.subtitle.model.SubtitleCue;
 import org.brts.lowlevel.subtitle.model.SubtitlePosition;
 import org.brts.lowlevel.subtitle.model.SubtitleTrack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -12,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Parser for SubRip ({@code .srt}) subtitle files.
@@ -34,9 +33,8 @@ import java.util.regex.Pattern;
  * The SSA-style {@code {\anN}} position tag (sometimes found in SRT files) is recognised and converted to a
  * {@link SubtitlePosition}.
  */
+@Slf4j
 public class SrtParser implements SubtitleParser {
-
-	private static final Logger log = LoggerFactory.getLogger(SrtParser.class);
 
 	/**
 	 * SRT timestamp format: {@code HH:MM:SS,mmm}

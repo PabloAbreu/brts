@@ -15,8 +15,7 @@ import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Extracts a full Blu-ray playlist into a single Matroska (MKV) file.
@@ -37,9 +36,8 @@ import org.slf4j.LoggerFactory;
  * );
  * }</pre>
  */
+@Slf4j
 public class PlaylistToMkvExtractor {
-
-	private static final Logger log = LoggerFactory.getLogger(PlaylistToMkvExtractor.class);
 
 	private final M2tsParser parser = new M2tsParser();
 

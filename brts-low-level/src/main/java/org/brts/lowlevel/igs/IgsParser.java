@@ -3,14 +3,13 @@ package org.brts.lowlevel.igs;
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.igs.model.*;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Parses a raw IGS elementary stream file (PES payload bytes, as extracted by
@@ -30,9 +29,8 @@ import java.util.List;
  * <h2>PES-level parsing</h2> For the round-trip use-case we also provide a method that accepts the raw PES-encapsulated
  * bytes (before PES header stripping) so we can preserve PTS.
  */
+@Slf4j
 public class IgsParser {
-
-	private static final Logger log = LoggerFactory.getLogger(IgsParser.class);
 
 	// -------------------------------------------------------------------------
 	// Parse raw segment stream (PES-stripped .igs file)

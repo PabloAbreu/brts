@@ -3,8 +3,6 @@ package org.brts.lowlevel.subtitle.parser;
 import org.brts.lowlevel.subtitle.model.SubtitleCue;
 import org.brts.lowlevel.subtitle.model.SubtitlePosition;
 import org.brts.lowlevel.subtitle.model.SubtitleTrack;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -13,6 +11,7 @@ import java.nio.file.Path;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Parser for SubStation Alpha ({@code .ssa}) and Advanced SubStation Alpha ({@code .ass}) subtitle files.
@@ -30,9 +29,8 @@ import java.util.regex.Pattern;
  * </ul>
  * Other override tags are stripped.
  */
+@Slf4j
 public class SsaParser implements SubtitleParser {
-
-	private static final Logger log = LoggerFactory.getLogger(SsaParser.class);
 
 	private static final Pattern POS_TAG = Pattern.compile("\\\\pos\\((\\d+)[,.]\\s*(\\d+)\\)");
 

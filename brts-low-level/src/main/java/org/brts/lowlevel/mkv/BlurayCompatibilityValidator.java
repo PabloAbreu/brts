@@ -3,12 +3,11 @@ package org.brts.lowlevel.mkv;
 import org.brts.common.exception.BrtException;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Validates that source media tracks are compatible with the Blu-ray disc format.
@@ -21,9 +20,8 @@ import java.util.Set;
  * <b>Subtitles</b>: PGS (PRESENTATION_GRAPHICS) passes directly. Text-based subtitles (SRT, ASS, SSA) are flagged as
  * requiring conversion to PGS. Other subtitle formats (e.g. VOBSUB) are rejected.
  */
+@Slf4j
 public class BlurayCompatibilityValidator {
-
-	private static final Logger log = LoggerFactory.getLogger(BlurayCompatibilityValidator.class);
 
 	/** Blu-ray compatible video coding types. */
 	private static final Set<StreamCodingType> BD_VIDEO_TYPES = Set.of(StreamCodingType.MPEG2_VIDEO,

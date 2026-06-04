@@ -16,8 +16,7 @@ import java.nio.file.Path;
 import javax.imageio.ImageIO;
 
 import org.brts.common.menu.TextStyle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Renders button images for the three IGS button states (normal, selected, activated) using Java2D {@link Graphics2D}.
@@ -30,9 +29,8 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * All three states share the same dimensions but differ in text/icon colour.
  */
+@Slf4j
 public class ButtonImageRenderer {
-
-	private static final Logger log = LoggerFactory.getLogger(ButtonImageRenderer.class);
 
 	/** Gap between icon and text when both are present. */
 	private static final int ICON_TEXT_GAP = 12;

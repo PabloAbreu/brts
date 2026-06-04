@@ -2,11 +2,10 @@ package org.brts.cli;
 
 import org.brts.cli.high.HighLevelCli;
 import org.brts.cli.middle.MiddleLevelCli;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Root CLI dispatcher for the BRTStool suite.
@@ -27,9 +26,8 @@ import java.util.Map;
  *     java -jar brt-cli.jar high build          --descriptor series-disc.json --output /tmp/out
  * </pre>
  */
+@Slf4j
 public class BrtsMain {
-
-	private static final Logger log = LoggerFactory.getLogger(BrtsMain.class);
 
 	private static final Map<String, LevelDispatcher> levels = new LinkedHashMap<>();
 

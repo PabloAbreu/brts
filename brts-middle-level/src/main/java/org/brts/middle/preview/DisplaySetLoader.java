@@ -9,14 +9,13 @@ import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.igs.IgsParser;
 import org.brts.lowlevel.igs.RleConverter;
 import org.brts.lowlevel.igs.model.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Loads an M2TS file, extracts its IGS (Interactive Graphics Stream), parses the display sets, decodes all RLE objects
@@ -25,9 +24,8 @@ import java.util.*;
  * This is the "middle-level" bridge that combines low-level M2TS parsing, IGS parsing, and RLE decoding into a single
  * convenient entry point.
  */
+@Slf4j
 public class DisplaySetLoader {
-
-	private static final Logger log = LoggerFactory.getLogger(DisplaySetLoader.class);
 
 	private final M2tsParser m2tsParser = new M2tsParser();
 

@@ -10,8 +10,7 @@ import java.util.Set;
 import org.brts.common.mkv.MkvDemuxer;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link MediaSource} implementation that extracts elementary streams from an MKV (Matroska) container using the
@@ -23,9 +22,8 @@ import org.slf4j.LoggerFactory;
  * <li>Demuxing the selected video and audio tracks directly in-process</li>
  * </ol>
  */
+@Slf4j
 public class MkvMediaSource implements MediaSource {
-
-	private static final Logger log = LoggerFactory.getLogger(MkvMediaSource.class);
 
 	private final Path mkvFile;
 

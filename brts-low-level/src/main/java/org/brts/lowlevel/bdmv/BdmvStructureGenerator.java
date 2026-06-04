@@ -6,12 +6,11 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Generates the complete Blu-ray disc folder structure from the low-level model objects.
@@ -38,9 +37,8 @@ import java.nio.file.Path;
  *     BACKUP/            (placeholder, empty)
  * </pre>
  */
+@Slf4j
 public class BdmvStructureGenerator {
-
-	private static final Logger log = LoggerFactory.getLogger(BdmvStructureGenerator.class);
 
 	private final ClipInfoWriter clipInfoWriter = new ClipInfoWriter();
 

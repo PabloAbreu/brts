@@ -28,8 +28,7 @@ import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult.PositionedButton;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Builds a complete {@link IgsDisplaySet} from a title menu {@link LayoutResult}.
@@ -43,9 +42,8 @@ import org.slf4j.LoggerFactory;
  * <li>Assembles the full display set (ICS, palette, windows, objects)</li>
  * </ol>
  */
+@Slf4j
 public class TitleMenuIgsBuilder {
-
-	private static final Logger log = LoggerFactory.getLogger(TitleMenuIgsBuilder.class);
 
 	/**
 	 * Builds the complete display set from the layout result.

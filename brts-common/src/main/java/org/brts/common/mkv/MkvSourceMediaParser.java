@@ -8,14 +8,13 @@ import org.ebml.matroska.MatroskaFileTrack;
 import org.ebml.matroska.MatroskaFileTrack.MatroskaAudioTrack;
 import org.ebml.matroska.MatroskaFileTrack.MatroskaVideoTrack;
 import org.ebml.matroska.MatroskaFileTrack.TrackType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * MKV (Matroska) implementation of {@link SourceMediaParser} using the jebml library.
@@ -40,9 +39,8 @@ import java.util.List;
  * <li>S_TEXT/UTF8 → TEXT_SUBTITLE</li>
  * </ul>
  */
+@Slf4j
 public class MkvSourceMediaParser implements SourceMediaParser {
-
-	private static final Logger log = LoggerFactory.getLogger(MkvSourceMediaParser.class);
 
 	@Override
 	public String[] supportedExtensions() {
