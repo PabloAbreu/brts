@@ -364,7 +364,9 @@ public class TitleMenuGenerator {
 		for (int i = 0; i < loopCount; i++) {
 			PlayItem item = new PlayItem();
 			item.setClipName(bgName);
-			item.setConnectionCondition(5);
+			// First PlayItem uses cc=1 (non-seamless start); subsequent use cc=5
+			// (seamless continuation) — matches commercial disc convention.
+			item.setConnectionCondition(i == 0 ? 1 : 5);
 			item.setInTimeTicks(bgTiming.inTimeTicks());
 			item.setOutTimeTicks(bgTiming.outTimeTicks());
 			item.setStreams(new ArrayList<>());
@@ -404,19 +406,17 @@ public class TitleMenuGenerator {
 
 		// Menu SubPath type 3 (out-of-mux IGS)
 		ClipTiming menuTiming = resolveClipTiming(menuName, outputDir);
-		// Sync PTS must match the PTS origin used when muxing the IGS M2TS
-		// (see menuDesc.setInitialPtsOffsetTicks above). Both are derived from the
-		// first background clip's in_time so that the player can align the IGS
-		// overlay with the main timeline. Strict players (PowerDVD) reject the IGS
-		// when this value does not match the first ICS PTS in the sub-clip.
-		ClipTiming bgTimingForSync = resolveClipTiming(bgName, outputDir);
+		// sync_start_PTS_of_PlayItem must be 0 so that the SubPath starts
+		// immediately when the first PlayItem begins playback. Commercial discs
+		// use 0 here; strict players (PowerDVD) fail to trigger the IGS overlay
+		// when this equals the first frame PTS (race condition on sync check).
 		SubPath.SubPlayItem menuSubPlayItem = new SubPath.SubPlayItem();
 		menuSubPlayItem.setClipName(menuName);
 		menuSubPlayItem.setConnectionCondition(1);
 		menuSubPlayItem.setInTimeTicks(menuTiming.inTimeTicks());
 		menuSubPlayItem.setOutTimeTicks(menuTiming.outTimeTicks());
 		menuSubPlayItem.setSyncPlayItemId(0); // sync to first PlayItem
-		menuSubPlayItem.setSyncStartPtsTicks(bgTimingForSync.inTimeTicks());
+		menuSubPlayItem.setSyncStartPtsTicks(0);
 
 		SubPath menuSubPath = new SubPath();
 		menuSubPath.setSubPathType(3);

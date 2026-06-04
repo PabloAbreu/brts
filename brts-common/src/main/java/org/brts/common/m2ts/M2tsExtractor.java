@@ -5,8 +5,8 @@ import java.nio.file.Path;
 import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Extracts elementary streams from an M2TS file to separate files on disk.
@@ -26,10 +26,8 @@ import org.slf4j.LoggerFactory;
  * new M2tsExtractor().extract(inputPath, info, outputDir, Set.of(4113, 4352));
  * }</pre>
  */
+@Slf4j
 public class M2tsExtractor {
-
-	private static final Logger log = LoggerFactory.getLogger(M2tsExtractor.class);
-
 	private final M2tsDemuxer demuxer = new M2tsDemuxer();
 
 	// -------------------------------------------------------------------------

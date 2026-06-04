@@ -2,9 +2,9 @@ package org.brts.lowlevel.model.disc;
 
 import java.util.List;
 
-import org.brts.lowlevel.descriptor.PlaylistDescriptor;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -43,6 +43,6 @@ public class LowLevelDiscDescriptor {
 	/**
 	 * contents of BDMV/PLAYLIST/
 	 */
-	private List<PlaylistDescriptor> playlists;
+	private List<MoviePlaylist> playlists;
 
 }

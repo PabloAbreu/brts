@@ -532,7 +532,9 @@ public class MkvToPlaylistConverter {
 				subPlayItem.setInTimeTicks(popupIn);
 				subPlayItem.setOutTimeTicks(popupOut);
 				subPlayItem.setSyncPlayItemId(0);
-				subPlayItem.setSyncStartPtsTicks(inTime);
+				// Must be 0 for immediate SubPath start; strict players (PowerDVD)
+				// fail to overlay IGS when this equals the first frame PTS.
+				subPlayItem.setSyncStartPtsTicks(0);
 
 				SubPath menuSubPath = new SubPath();
 				menuSubPath.setSubPathType(3);

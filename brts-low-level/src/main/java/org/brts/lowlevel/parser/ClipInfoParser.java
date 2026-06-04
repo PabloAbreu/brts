@@ -31,6 +31,8 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 	private static final String VERSION_200 = "0200";
 
+	private static final String VERSION_100 = "0100";
+
 	/**
 	 * Absolute byte offset where the ClipInfo section always starts (8 bytes magic/version + 20 bytes offsets + 12
 	 * bytes reserved).
@@ -61,7 +63,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 			throw new ParseException("Not a CLPI file: expected magic '" + MAGIC + "', got '" + magic + "'");
 		}
 		String version = r.readAscii(4);
-		if (!VERSION_300.equals(version) && !VERSION_200.equals(version)) {
+		if (!VERSION_300.equals(version) && !VERSION_200.equals(version) && !VERSION_100.equals(version)) {
 			throw new ParseException("Unsupported CLPI version: " + version);
 		}
 

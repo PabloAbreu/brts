@@ -11,6 +11,8 @@ import java.util.List;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Wraps an elementary stream file, providing frame-by-frame reads and PES stream_id derivation. Detects access unit
  * (frame) boundaries based on the codec type:
@@ -23,6 +25,7 @@ import org.brts.common.model.StreamCodingType;
  * <li>Others: returns fixed-size chunks</li>
  * </ul>
  */
+@Slf4j
 public class ESReader implements Closeable {
 
 	private final M2tsDescriptor.StreamEntry entry;
@@ -154,7 +157,7 @@ public class ESReader implements Closeable {
 			framePts[i] = (long) (displayRank[i] + delay) * fd;
 			frameDts[i] = (long) i * fd;
 		}
-		M2tsWriter.log.debug("H.264 B-frame reordering: {} frames, reorder delay={} frames", n, delay);
+		log.debug("H.264 B-frame reordering: {} frames, reorder delay={} frames", n, delay);
 	}
 
 	/**
@@ -381,7 +384,7 @@ public class ESReader implements Closeable {
 				int segLen = ((esData[pos + 1] & 0xFF) << 8) | (esData[pos + 2] & 0xFF);
 				int totalLen = 3 + segLen;
 				if (pos + totalLen > esData.length) {
-					M2tsWriter.log.warn("Truncated IGS/PGS segment at offset {}, stopping", pos);
+					log.warn("Truncated IGS/PGS segment at offset {}, stopping", pos);
 					break;
 				}
 				frames.add(new int[] { pos, totalLen });

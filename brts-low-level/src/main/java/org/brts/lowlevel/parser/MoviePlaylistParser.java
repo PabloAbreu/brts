@@ -28,6 +28,8 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 
 	private static final String VERSION_200 = "0200";
 
+	private static final String VERSION_100 = "0100";
+
 	@Override
 	public MoviePlaylist parse(InputStream input) throws IOException {
 		try (BinaryReader r = new BinaryReader(input)) {
@@ -41,7 +43,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 			throw new ParseException("Not an MPLS file: expected '" + MAGIC + "', got '" + magic + "'");
 		}
 		String version = r.readAscii(4);
-		if (!VERSION_300.equals(version) && !VERSION_200.equals(version)) {
+		if (!VERSION_300.equals(version) && !VERSION_200.equals(version) && !VERSION_100.equals(version)) {
 			throw new ParseException("Unsupported MPLS version: " + version);
 		}
 
@@ -257,7 +259,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		int repeatFlag = r.readUnsignedShort(); // bit 0
 		r.skip(1); // reserved
 		int numSubPlayItems = r.readUnsignedByte();
-		log.error("spLength {}, numSubPlayItems {}, position {}", spLength, numSubPlayItems, r.getPosition());
+		log.debug("spLength {}, numSubPlayItems {}, position {}", spLength, numSubPlayItems, r.getPosition());
 
 		List<SubPath.SubPlayItem> subPlayItems = new ArrayList<>(numSubPlayItems);
 		for (int i = 0; i < numSubPlayItems; i++) {

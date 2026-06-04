@@ -10,8 +10,8 @@ import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Core MPEG-2 Transport Stream demultiplexer for Blu-ray M2TS files.
@@ -31,10 +31,8 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  */
+@Slf4j
 public class M2tsDemuxer {
-
-	private static final Logger log = LoggerFactory.getLogger(M2tsDemuxer.class);
-
 	/** Blu-ray source packet: 4-byte TP_extra_header + 188-byte TS packet. */
 	static final int SOURCE_PACKET_SIZE = 192;
 
@@ -105,8 +103,8 @@ public class M2tsDemuxer {
 				}
 
 				// Extract ATS from TP_extra_header (30-bit, 27 MHz)
-				long ats = (((long) (sp[0] & 0xFF)) << 22) | (((long) (sp[1] & 0xFF)) << 14)
-						| (((long) (sp[2] & 0xFF)) << 6) | (((long) (sp[3] & 0xFF)) >> 2);
+				long ats = (((long) (sp[0] & 0x3F)) << 24) | (((long) (sp[1] & 0xFF)) << 16)
+						| (((long) (sp[2] & 0xFF)) << 8) | (((long) (sp[3] & 0xFF)));
 
 				int b1 = sp[5] & 0xFF;
 				int b2 = sp[6] & 0xFF;
@@ -151,9 +149,6 @@ public class M2tsDemuxer {
 
 				boolean payloadUnitStart = (b1 & 0x40) != 0;
 				int payloadLen = SOURCE_PACKET_SIZE - payloadOff;
-				if (pid == 0x1400) {
-					log.debug("Payload starts with {} at packet {}", sp[payloadOff], packetIndex);
-				}
 				handler.onPayload(pid, sp, payloadOff, payloadLen, payloadUnitStart, packetIndex, ats);
 
 				packetIndex++;

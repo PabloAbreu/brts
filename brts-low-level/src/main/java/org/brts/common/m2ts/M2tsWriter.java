@@ -22,6 +22,8 @@ import org.brts.lowlevel.model.clpi.EpMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * This code was created by IA to mux ES into m2ts. But the result is still not playable. It needs to be fixed to
  * support IGS muxing along with video. Padding is also not working correctly, which causes the output file to be (a
@@ -56,10 +58,8 @@ import org.slf4j.LoggerFactory;
  * is sufficient for authoring but not broadcast-grade multiplexing.</li>
  * </ul>
  */
+@Slf4j
 public class M2tsWriter {
-
-	static final Logger log = LoggerFactory.getLogger(M2tsWriter.class);
-
 	// TS constants
 	private static final int TS_PACKET_SIZE = 188;
 
@@ -116,6 +116,9 @@ public class M2tsWriter {
 	private long targetBitrateBps = DEFAULT_TARGET_BITRATE_KBPS * 1000L;
 
 	private final List<EpMap.EpMapEntry> epEntries = new ArrayList<>();
+
+	boolean shouldExtend = false;
+	boolean shouldWriteNullPackets = true;
 
 	// -------------------------------------------------------------------------
 	// Public API
@@ -175,6 +178,12 @@ public class M2tsWriter {
 			chapterByPts.put(ch.getPtsTicks() + initialPtsOffset, ch);
 
 		log.info("Writing M2TS: {} → {}", descriptor.getOutputName(), outputPath);
+		// never write null packets if only IGS streams are present
+		boolean onlyIgs = streams.stream()
+				.allMatch(s -> s.getStreamTypeByte() == StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte()
+
+				);
+		boolean writeNullPackets = shouldWriteNullPackets && !onlyIgs;
 
 		try (OutputStream rawOut = new BufferedOutputStream(Files.newOutputStream(outputPath), 1 << 20)) {
 
@@ -311,10 +320,11 @@ public class M2tsWriter {
 				long elapsedPts90 = pts90 - firstPts90kHz;
 				long frameEndExpected = (elapsedPts90 * targetBitrateBps + EXPECTED_PACKETS_DIVISOR - 1)
 						/ EXPECTED_PACKETS_DIVISOR;
-				while (totalTsPackets < frameEndExpected) {
-					writeNullPacket(rawOut, atsOf(totalTsPackets));
-					totalTsPackets++;
-				}
+				if (writeNullPackets)
+					while (totalTsPackets < frameEndExpected) {
+						writeNullPacket(rawOut, atsOf(totalTsPackets));
+						totalTsPackets++;
+					}
 			}
 
 			// Ensure all readers are closed
@@ -326,33 +336,36 @@ public class M2tsWriter {
 			// target, continue emitting PCR + null packets so the CLPI reports a
 			// timeline that spans the full background video duration. This is
 			// required for out-of-mux IGS clips to be found by strict players.
-			long minEnd = (descriptor.getMinEndPtsTicks() != null && descriptor.getMinEndPtsTicks() > 0)
-					? descriptor.getMinEndPtsTicks()
-					: 0L;
-			if (minEnd > 0 && lastPts90kHz < minEnd) {
-				long videoFdPad = readers.stream().filter(ESReader::isVideo).mapToLong(ESReader::frameDuration90kHz)
-						.findFirst().orElse(90_000L / 24);
-				while (pts90 < minEnd) {
-					// PCR
-					if (pcrPid >= 0 && atsOf(totalTsPackets) >= nextPcrAts) {
-						long pcr27 = atsOf(totalTsPackets);
-						writePcrPacket(rawOut, pcrPid, pcr27, cc, atsOf(totalTsPackets));
-						totalTsPackets++;
-						nextPcrAts = atsOf(totalTsPackets) + PCR_INTERVAL_27MHZ;
+			if (shouldExtend) {
+				long minEnd = (descriptor.getMinEndPtsTicks() != null && descriptor.getMinEndPtsTicks() > 0)
+						? descriptor.getMinEndPtsTicks()
+						: 0L;
+				if (minEnd > 0 && lastPts90kHz < minEnd) {
+					long videoFdPad = readers.stream().filter(ESReader::isVideo).mapToLong(ESReader::frameDuration90kHz)
+							.findFirst().orElse(90_000L / 24);
+					while (pts90 < minEnd) {
+						// PCR
+						if (pcrPid >= 0 && atsOf(totalTsPackets) >= nextPcrAts) {
+							long pcr27 = atsOf(totalTsPackets);
+							writePcrPacket(rawOut, pcrPid, pcr27, cc, atsOf(totalTsPackets));
+							totalTsPackets++;
+							nextPcrAts = atsOf(totalTsPackets) + PCR_INTERVAL_27MHZ;
+						}
+						// Advance PTS and stuff null packets
+						lastPts90kHz = pts90;
+						pts90 += videoFdPad;
+						long elapsedPts90Pad = pts90 - firstPts90kHz;
+						long padExpected = (elapsedPts90Pad * targetBitrateBps + EXPECTED_PACKETS_DIVISOR - 1)
+								/ EXPECTED_PACKETS_DIVISOR;
+						if (writeNullPackets)
+							while (totalTsPackets < padExpected) {
+								writeNullPacket(rawOut, atsOf(totalTsPackets));
+								totalTsPackets++;
+							}
 					}
-					// Advance PTS and stuff null packets
 					lastPts90kHz = pts90;
-					pts90 += videoFdPad;
-					long elapsedPts90Pad = pts90 - firstPts90kHz;
-					long padExpected = (elapsedPts90Pad * targetBitrateBps + EXPECTED_PACKETS_DIVISOR - 1)
-							/ EXPECTED_PACKETS_DIVISOR;
-					while (totalTsPackets < padExpected) {
-						writeNullPacket(rawOut, atsOf(totalTsPackets));
-						totalTsPackets++;
-					}
+					log.info("Timeline extended to PTS {} (target {})", lastPts90kHz, minEnd);
 				}
-				lastPts90kHz = pts90;
-				log.info("Timeline extended to PTS {} (target {})", lastPts90kHz, minEnd);
 			}
 
 			// Pad to aligned-unit boundary (32 source packets = 6144 bytes).
@@ -795,13 +808,13 @@ public class M2tsWriter {
 	// -------------------------------------------------------------------------
 
 	private void writeSourcePacket(OutputStream out, byte[] tsPacket, long ats27) throws IOException {
-		// TP_extra_header: 30-bit ATS in bits 31..2, 2 copy-permission bits in bits
-		// 1..0
+		// TP_extra_header: 30-bit ATS in bits 29..0, 2 copy-permission bits in bits 31..30
+		// We set copy-permission to '00' (copy-free) for all packets.
 		long ats30 = ats27 & 0x3FFFFFFFL;
-		out.write((int) ((ats30 >> 22) & 0xFF));
-		out.write((int) ((ats30 >> 14) & 0xFF));
-		out.write((int) ((ats30 >> 6) & 0xFF));
-		out.write((int) ((ats30 << 2) & 0xFF)); // copy-permission = 00 (copy-free)
+		out.write((int) ((ats30 >>> 24) & 0xFF));
+		out.write((int) ((ats30 >>> 16) & 0xFF));
+		out.write((int) ((ats30 >>> 8) & 0xFF));
+		out.write((int) (ats30 & 0xFF)); // copy-permission = 00 (copy-free)
 		out.write(tsPacket);
 	}
 

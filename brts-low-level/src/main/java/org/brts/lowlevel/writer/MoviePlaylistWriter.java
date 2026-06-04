@@ -53,7 +53,8 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		final int size = 14;
 		w.writeInt(size);
 		w.writeByte(0);// reserved
-		final int playbackType = 1;// model.isMenu() ? 2 : 1;
+		final int playbackType = 1;
+		// setting playbackType to 2 for menu causes PowerDVD to crash.
 		w.writeByte(playbackType); // playback_type
 		if (playbackType == 2 || playbackType == 3) {
 			final int playbackCount = 0;

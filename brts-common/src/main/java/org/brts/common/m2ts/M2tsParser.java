@@ -12,8 +12,8 @@ import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Parser for M2TS (MPEG-2 Transport Stream) files used on Blu-ray discs.
@@ -32,10 +32,8 @@ import org.slf4j.LoggerFactory;
  * ATS values in the {@code TP_extra_header} run at 27 MHz.<br>
  * PCR values in PCR-carrying TS packets also run at 27 MHz (base×300 + ext).
  */
+@Slf4j
 public class M2tsParser {
-
-	private static final Logger log = LoggerFactory.getLogger(M2tsParser.class);
-
 	/** Size of a Blu-ray source packet (4-byte header + 188-byte TS packet). */
 	public static final int SOURCE_PACKET_SIZE = 192;
 
@@ -106,9 +104,9 @@ public class M2tsParser {
 			if (read < SOURCE_PACKET_SIZE)
 				break; // EOF
 
-			// --- TP_extra_header: 30-bit ATS (bits 31-2), 2 copy-permission bits ---
-			long atsRaw = (((long) (sp[0] & 0xFF)) << 22) | (((long) (sp[1] & 0xFF)) << 14)
-					| (((long) (sp[2] & 0xFF)) << 6) | (((long) (sp[3] & 0xFF)) >> 2);
+			// --- TP_extra_header: 30-bit ATS (bits 29-0), 2 copy-permission bits ---
+			long atsRaw = (((long) (sp[0] & 0x3F)) << 24) | (((long) (sp[1] & 0xFF)) << 16)
+					| (((long) (sp[2] & 0xFF)) << 8) | (((long) (sp[3] & 0xFF)));
 			// ATS counter wraps at 2^30; scale to 27 MHz for external use
 			ats27 = atsRaw; // already in 27 MHz ticks (modulo 2^30)
 

@@ -158,7 +158,9 @@ public class SetupMenuGenerator {
 		menuSubPlayItem.setInTimeTicks(menuTiming.inTimeTicks());
 		menuSubPlayItem.setOutTimeTicks(menuTiming.outTimeTicks());
 		menuSubPlayItem.setSyncPlayItemId(firstBackgroundPlayItemId);
-		menuSubPlayItem.setSyncStartPtsTicks(backgroundTiming.inTimeTicks());
+		// Must be 0 so SubPath starts immediately; strict players (PowerDVD)
+		// fail to trigger the IGS overlay when this equals the first frame PTS.
+		menuSubPlayItem.setSyncStartPtsTicks(0);
 
 		SubPath menuSubPath = new SubPath();
 		menuSubPath.setSubPathType(3);

@@ -1,13 +1,5 @@
 package org.brts.cli.low;
 
-import org.brts.cli.FeatureRunner;
-import org.brts.lowlevel.descriptor.PlaylistDescriptor;
-import org.brts.lowlevel.model.mpls.MoviePlaylist;
-import org.brts.lowlevel.model.mpls.PlayItem;
-import org.brts.lowlevel.model.mpls.SubPath;
-import org.brts.lowlevel.parser.MoviePlaylistParser;
-import org.kohsuke.args4j.Option;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -15,6 +7,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.model.mpls.PlayItem;
+import org.brts.lowlevel.model.mpls.SubPath;
+import org.brts.lowlevel.parser.MoviePlaylistParser;
+import org.brts.lowlevel.writer.MoviePlaylistWriter;
+import org.kohsuke.args4j.Option;
 
 /**
  * CLI for low-level MPLS (Movie Playlist) operations.
@@ -56,8 +57,8 @@ public class PlaylistCli {
 
 	public static class WriteOptions {
 
-		@Option(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
-		File descriptor;
+		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
+		MoviePlaylist descriptor;
 
 		@Option(name = "--output", required = true, usage = "Output directory (BDMV/PLAYLIST/ recommended)")
 		File outputDir;
@@ -78,9 +79,11 @@ public class PlaylistCli {
 
 		@Override
 		protected void execute(WriteOptions opts) throws Exception {
-			PlaylistDescriptor desc = loadJson(opts.descriptor, PlaylistDescriptor.class);
-			System.out.println("playlist-write: descriptor loaded for playlist '" + desc.getPlaylistName() + "'");
-			System.out.println("(Full MPLS binary generation not yet implemented — binary writer wiring pending)");
+			MoviePlaylist desc = opts.descriptor;
+			MoviePlaylistWriter writer = new MoviePlaylistWriter();
+			Path outputPath = opts.outputDir.toPath().resolve(desc.getPlaylistName() + ".mpls");
+			writer.write(desc, outputPath);
+			System.out.println("Wrote MPLS \u2192 " + outputPath);
 		}
 
 	}
