@@ -1,9 +1,7 @@
 package org.brts.cli.low;
 
 import org.brts.cli.FeatureRunner;
-import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsExtractor;
-import org.brts.common.m2ts.M2tsPacketHandler;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
@@ -12,19 +10,18 @@ import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.igs.IgsDemuxer;
 import org.brts.lowlevel.igs.IgsMuxer;
+import org.brts.lowlevel.m2ts.M2tsDumpFormatter;
+import org.brts.lowlevel.m2ts.M2tsDumpTableFormatter;
+import org.brts.lowlevel.m2ts.M2tsDumper;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.kohsuke.args4j.Option;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -293,6 +290,9 @@ public class M2tsCli {
 		@Option(name = "--ansi-colors", usage = "Enable ANSI colors in the output")
 		boolean ansiColors = false;
 
+		@Option(name = "--format", usage = "Output format: table (default)")
+		String format = "table";
+
 	}
 
 	public static class Dump extends FeatureRunner<DumpOptions> {
@@ -332,174 +332,18 @@ public class M2tsCli {
 
 			System.out.printf("Dumping packets %d..%d of %s (%d total packets)%n", start, stop, inputPath.getFileName(),
 					totalPackets);
-			System.out.printf("%-10s %-10s %-10s %-12s %-6s  %-7s %-12s (ms)     %-12s (ms)     %-7s%n", "Packet#",
-					"Nb Packets", "Pkts totl", "ATS", "PID", "Type", "PTS", "DTS", "PES LN");
 
-			try (DumpPacketHandler handler = new DumpPacketHandler(info)) {
-				new M2tsDemuxer().demux(inputPath, info, handler, null, start, stop, opts.keepTables);
+			M2tsDumpFormatter formatter = createFormatter(opts, info);
+			new M2tsDumper(info, formatter).dump(inputPath, start, stop, opts.keepTables);
+		}
+
+		private M2tsDumpFormatter createFormatter(DumpOptions opts, M2tsInfo info) {
+			switch (opts.format) {
+			case "table":
+				return new M2tsDumpTableFormatter(info, opts.ansiColors);
+			default:
+				throw new IllegalArgumentException("Unknown dump format: '" + opts.format + "'. Supported: table");
 			}
-		}
-
-	}
-
-	private static float convertPtsToSeconds(long pts) {
-		return pts / 90000f;
-	}
-
-	/**
-	 * {@link M2tsPacketHandler} that prints a summary line for each group of consecutive packets sharing the same PID.
-	 */
-	private static class DumpPacketHandler implements M2tsPacketHandler {
-
-		// for faster access
-		private final Map<Integer, M2tsStreamInfo> pidToStreamInfo = new LinkedHashMap<>();
-
-		private final M2tsInfo info;
-
-		private int previousPid = -1;
-
-		private long groupStartPacket;
-
-		private long groupCount;
-
-		private long groupAts;
-
-		private long groupPts;
-
-		private long groupDts;
-
-		private long groupPesLength;
-
-		// maintain a running count of packets per PID to show totals in the dump output
-		private Map<Integer, Long> pidToPacketCount = new HashMap<>();
-
-		// output PID → ANSI color code for better readability of dumps with many
-		// interleaved PIDs
-		private Map<Integer, String> pidToColor = new HashMap<>();
-
-		private static final String DEFAULT_ANSI_COLOR = "\u001B[0m";
-
-		private static final String[] ANSI_COLORS = { "\u001B[31m", // red
-				"\u001B[32m", // green
-				"\u001B[33m", // yellow
-				"\u001B[34m", // blue
-				"\u001B[35m", // magenta
-				"\u001B[36m", // cyan
-		};
-
-		DumpPacketHandler(M2tsInfo info) {
-			int colorIndex = 0;
-			if (info.getStreams() != null) {
-				for (M2tsStreamInfo s : info.getStreams()) {
-					int pid = s.getPid();
-					pidToStreamInfo.put(pid, s);
-					if (colorIndex < ANSI_COLORS.length) {
-						pidToColor.put(pid, ANSI_COLORS[colorIndex++]);
-					} else {
-						pidToColor.put(pid, DEFAULT_ANSI_COLOR);
-					}
-				}
-			}
-			this.info = info;
-		}
-
-		private long parsePts(byte[] payload, int offset) {
-			int PTS_DTS_flags = payload[offset + 1] & 0xC0;
-			if ((PTS_DTS_flags & 0x80) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 3);
-			}
-			return -1;
-		}
-
-		private long parseDts(byte[] payload, int offset) {
-			int PTS_DTS_flags = payload[offset + 1] & 0xC0;
-			if ((PTS_DTS_flags & 0x40) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 8);
-			}
-			return -1;
-		}
-
-		private static long parsePtsOrDtsTimestamp(byte[] data, int offset) {
-			return ((long) (data[offset] & 0x0E) << 29) | ((data[offset + 1] & 0xFF) << 22)
-					| ((data[offset + 2] & 0xFE) << 14) | ((data[offset + 3] & 0xFF) << 7)
-					| ((data[offset + 4] & 0xFE) >> 1);
-		}
-
-		@Override
-		public void onPayload(int pid, byte[] payload, int offset, int length, boolean payloadUnitStart,
-				long packetIndex, long ats) throws IOException {
-			if (pid != previousPid) {
-				flushGroup();
-				groupStartPacket = packetIndex;
-				groupCount = 1;
-				groupAts = ats;
-				groupPesLength = -1;
-
-				// decode PES header when new group starts
-				if (payloadUnitStart && detectPesStart(payload, offset, length)) {
-					groupPesLength = ((payload[offset + 4] & 0xFF) << 8) | (payload[offset + 5] & 0xFF);
-					// if PES header is complete, try to extract PTS and DTS values
-					if (length >= 12) {
-						long pts = parsePts(payload, offset + 6);
-						long dts = parseDts(payload, offset + 6);
-						if (pts >= 0) {
-							groupPts = pts;
-						}
-						if (dts >= 0) {
-							groupDts = dts;
-						}
-					}
-				} else {
-					groupPts = -1;
-					groupDts = -1;
-				}
-			} else {
-				groupCount++;
-			}
-			previousPid = pid;
-		}
-
-		private boolean detectPesStart(byte[] payload, int offset, int length) {
-			return length >= 6 && payload[offset] == 0x00 && payload[offset + 1] == 0x00 && payload[offset + 2] == 0x01;
-		}
-
-		@Override
-		public void close() {
-			flushGroup();
-		}
-
-		private void flushGroup() {
-			if (previousPid < 0)
-				return;
-			M2tsStreamInfo stream = pidToStreamInfo.get(previousPid);
-			String streamType = "UNKNOWN";
-			if (stream != null) {
-				StreamCodingType codingType = stream.getCodingType();
-				if (codingType != null)
-					streamType = stream.getCategory();
-			} else {
-				if (previousPid == 0) {
-					streamType = "PAT";
-				} else if (previousPid == info.getPmtPid()) {
-					streamType = "PMT";
-				} else if (previousPid == info.getPcrPid()) {
-					streamType = "PCR";
-				} else if (previousPid == 0x1FFF) {
-					streamType = "NULL";// padding
-				}
-			}
-			// update total count of packets for this PID
-			long packetsSoFar = pidToPacketCount.compute(previousPid,
-					(k, v) -> (v == null) ? groupCount : v + groupCount);
-			// output stats with color if enabled and available for this PID
-			String color = pidToColor.getOrDefault(previousPid, DEFAULT_ANSI_COLOR);
-			System.out.print(color);
-			float ptsSeconds = convertPtsToSeconds(groupPts);
-			float dtsSeconds = convertPtsToSeconds(groupDts);
-			System.out.printf("%-10d %-10d %-10d %-12d 0x%04X  %-7s %-12d (%.3f) %-12d (%.3f) %-7d%n", groupStartPacket,
-					groupCount, packetsSoFar, groupAts, previousPid, streamType, groupPts, ptsSeconds, groupDts,
-					dtsSeconds, groupPesLength);
-			System.out.print(DEFAULT_ANSI_COLOR);
 		}
 
 	}

@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Top-level result of inspecting an M2TS file.
@@ -47,9 +48,19 @@ public class M2tsInfo {
 	private long lastPcr27MHz = -1;
 
 	/**
-	 * Program Map Table PID (normally 0x100 = 256 on Blu-ray).
+	 * Program Map Table PID (normally 0x100 = 256 on Blu-ray). Set to the first program's PMT PID found in the PAT.
 	 */
 	private int pmtPid = -1;
+
+	/**
+	 * All programs found in the PAT: program_number -> PMT PID. Program 0 (NIT) is excluded.
+	 */
+	private Map<Integer, Integer> programPidMap;
+
+	/**
+	 * PID of the Selection Information Table (SIT), as listed in the PAT. {@code -1} if no SIT entry was present.
+	 */
+	private int sitPid = -1;
 
 	/**
 	 * PCR PID reported by the PMT.

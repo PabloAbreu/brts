@@ -115,6 +115,8 @@ public class M2tsDemuxer {
 				int adaptCtrl = (b3 >> 4) & 0x03;
 
 				if (transportError || !activePids.contains(pid)) {
+					log.debug("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex, pid,
+							transportError, adaptCtrl);
 					packetIndex++;
 					continue;
 				}
@@ -127,6 +129,7 @@ public class M2tsDemuxer {
 						// FIXME call that for PCR in other cases too
 						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
 					}
+					log.debug("Skipped adaptation field only packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}
@@ -136,6 +139,7 @@ public class M2tsDemuxer {
 					payloadOff += 1 + afLen;
 
 					if (payloadOff >= SOURCE_PACKET_SIZE) {
+						log.debug("Skipped adaptation field + payload packet at index {}", packetIndex);
 						packetIndex++;
 						continue;
 					}
@@ -143,6 +147,7 @@ public class M2tsDemuxer {
 				// adaptCtrl == 1: payload only (payloadOff stays as-is)
 
 				if (payloadOff >= SOURCE_PACKET_SIZE) {
+					log.debug("Skipped payloadOff too big packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}
@@ -173,10 +178,19 @@ public class M2tsDemuxer {
 		}
 		if (keepTables) {
 			allPids.add(0); // PAT
-			allPids.add(info.getPmtPid());
+			if (info.getProgramPidMap() != null && !info.getProgramPidMap().isEmpty()) {
+				allPids.addAll(info.getProgramPidMap().values()); // all PMT PIDs
+			} else {
+				allPids.add(info.getPmtPid()); // backward compat
+			}
 			allPids.add(info.getPcrPid());
+			if (info.getSitPid() >= 0) {
+				allPids.add(info.getSitPid()); // SIT
+			}
 			allPids.add(0x1FFF); // Null packet PID
-			log.debug("Added table PIDs: PAT=0, PMT={}, PCR={}", info.getPmtPid(), info.getPcrPid());
+			log.debug("Added table PIDs: PAT=0, PMT(s)={}, PCR={}, SIT={}",
+					info.getProgramPidMap() != null ? info.getProgramPidMap().values() : info.getPmtPid(),
+					info.getPcrPid(), info.getSitPid());
 		}
 		if (pidFilter != null && !pidFilter.isEmpty()) {
 			allPids.retainAll(pidFilter);

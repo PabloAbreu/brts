@@ -5,8 +5,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
@@ -42,6 +45,9 @@ public class M2tsParser {
 
 	/** PAT (Program Association Table) PID. */
 	private static final int PAT_PID = 0x0000;
+
+	/** PID of the Selection Information Table (SIT) on Blu-ray/ARIB discs. */
+	private static final int SIT_PID = 0x001F;
 
 	/** Maximum number of source packets to scan for PAT/PMT. */
 	private static final int MAX_SCAN_PACKETS = 50_000;
@@ -84,13 +90,16 @@ public class M2tsParser {
 
 		byte[] sp = new byte[SOURCE_PACKET_SIZE];
 
-		// PIDs we're interested in, discovered progressively
-		int pmtPid = -1;
-		boolean pmtParsed = false;
-		// Track PCR PID once PMT is parsed
+		// PIDs we're interested in, discovered from the PAT
+		boolean patParsed = false;
+		Set<Integer> pmtPids = new LinkedHashSet<>();
+		Set<Integer> parsedPmtPids = new HashSet<>();
+		int sitPid = -1;
+		boolean sitParsed = false;
+		// Track PCR PID once the first PMT is parsed
 		int pcrPid = -1;
 
-		// Stream map (PID → info), built from PMT
+		// Stream map (PID → info), built from all parsed PMTs
 		Map<Integer, M2tsStreamInfo> streamMap = new LinkedHashMap<>();
 
 		long firstAts = -1;
@@ -136,27 +145,51 @@ public class M2tsParser {
 			// ---------------------------------------------------------------
 			// PAT
 			// ---------------------------------------------------------------
-			if (pid == PAT_PID && payloadUnitStart && pmtPid < 0) {
-				pmtPid = parsePat(sp);
-				if (pmtPid >= 0) {
-					info.setPmtPid(pmtPid);
-					log.debug("PAT found: PMT PID = 0x{}", Integer.toHexString(pmtPid));
+			if (pid == PAT_PID && payloadUnitStart && !patParsed) {
+				PatParseResult pat = parsePat(sp);
+				if (pat != null) {
+					patParsed = true;
+					pmtPids.addAll(pat.programs.values());
+					sitPid = pat.sitPid;
+					if (!pmtPids.isEmpty()) {
+						info.setPmtPid(pmtPids.iterator().next());
+					}
+					info.setProgramPidMap(pat.programs);
+					if (sitPid >= 0) {
+						info.setSitPid(sitPid);
+						log.debug("PAT found: {} program(s), SIT PID=0x{}", pmtPids.size(),
+								Integer.toHexString(sitPid));
+					} else {
+						log.debug("PAT found: {} program(s)", pmtPids.size());
+					}
 				}
 				continue;
 			}
 
 			// ---------------------------------------------------------------
-			// PMT
+			// PMT (any program found in the PAT)
 			// ---------------------------------------------------------------
-			if (pid == pmtPid && payloadUnitStart && !pmtParsed) {
+			if (pmtPids.contains(pid) && payloadUnitStart && !parsedPmtPids.contains(pid)) {
 				PmtParseResult pmt = parsePmt(sp);
 				if (pmt != null) {
-					pmtParsed = true;
-					pcrPid = pmt.pcrPid;
-					info.setPcrPid(pcrPid);
-					streamMap = pmt.streams;
-					log.debug("PMT parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pcrPid), streamMap.size());
+					parsedPmtPids.add(pid);
+					if (pcrPid < 0) {
+						pcrPid = pmt.pcrPid;
+						info.setPcrPid(pcrPid);
+					}
+					streamMap.putAll(pmt.streams);
+					log.debug("PMT 0x{} parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pid),
+							Integer.toHexString(pmt.pcrPid), pmt.streams.size());
 				}
+				continue;
+			}
+
+			// ---------------------------------------------------------------
+			// SIT
+			// ---------------------------------------------------------------
+			if (sitPid >= 0 && pid == sitPid && payloadUnitStart && !sitParsed) {
+				parseSit(sp);
+				sitParsed = true;
 				continue;
 			}
 
@@ -172,8 +205,9 @@ public class M2tsParser {
 				}
 			}
 
-			// Stop scanning once we have full PMT and some PCR readings
-			if (pmtParsed && firstPcr >= 0 && i > 500) {
+			// Stop scanning once we have all PMTs, SIT, and some PCR readings
+			if (patParsed && parsedPmtPids.containsAll(pmtPids) && (sitPid < 0 || sitParsed) && firstPcr >= 0
+					&& i > 500) {
 				// Continue scanning to get a decent lastPcr sample — stop at max
 			}
 		}
@@ -189,10 +223,21 @@ public class M2tsParser {
 	// PAT parser
 	// -------------------------------------------------------------------------
 
+	private static class PatParseResult {
+
+		/** All non-NIT programs: program_number -> PMT PID. */
+		Map<Integer, Integer> programs = new LinkedHashMap<>();
+
+		/** SIT PID if a PAT entry pointed to {@link M2tsParser#SIT_PID}, otherwise -1. */
+		int sitPid = -1;
+
+	}
+
 	/**
-	 * Extracts the PMT PID from a PAT (Program Association Table) TS packet. Returns -1 if parsing fails.
+	 * Extracts all program entries from a PAT (Program Association Table) TS packet. Returns {@code null} if the packet
+	 * is not a valid PAT.
 	 */
-	private int parsePat(byte[] sp) {
+	private PatParseResult parsePat(byte[] sp) {
 		// TS payload starts at offset 4 + (possibly) adaptation field
 		int tsOff = 4; // offset into sp[] of the TS packet
 		int b3 = sp[tsOff + 3] & 0xFF;
@@ -209,26 +254,30 @@ public class M2tsParser {
 		payloadStart += 1 + pointer;
 
 		// Table header
-		// table_id (1), section_syntax_indicator+flags (1), section_length (2)
-		// transport_stream_id (2), version+current (1), section_number (1),
-		// last_section_number (1)
 		int tableId = sp[payloadStart] & 0xFF;
 		if (tableId != 0x00)
-			return -1; // not a PAT
+			return null; // not a PAT
 
 		int sectionLength = ((sp[payloadStart + 1] & 0x0F) << 8) | (sp[payloadStart + 2] & 0xFF);
 		// program loop starts at offset +8 from section start
 		int loopStart = payloadStart + 8;
 		int loopEnd = payloadStart + 3 + sectionLength - 4; // exclude 4-byte CRC
 
+		PatParseResult result = new PatParseResult();
 		for (int pos = loopStart; pos + 3 < loopEnd && pos + 3 < sp.length; pos += 4) {
 			int programNumber = ((sp[pos] & 0xFF) << 8) | (sp[pos + 1] & 0xFF);
 			int mapPid = ((sp[pos + 2] & 0x1F) << 8) | (sp[pos + 3] & 0xFF);
-			if (programNumber != 0) {
-				return mapPid; // return the first actual program's PMT PID
+			if (programNumber == 0) {
+				// program 0 is the NIT PID — not a PMT
+				// continue;
+			}
+			if (mapPid == SIT_PID) {
+				result.sitPid = mapPid;
+			} else {
+				result.programs.put(programNumber, mapPid);
 			}
 		}
-		return -1;
+		return result;
 	}
 
 	// -------------------------------------------------------------------------
@@ -438,6 +487,52 @@ public class M2tsParser {
 		}
 
 		return result;
+	}
+
+	// -------------------------------------------------------------------------
+	// SIT parser
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Parses a SIT (Selection Information Table, table_id 0x7F) TS packet and logs its service entries.
+	 */
+	private void parseSit(byte[] sp) {
+		int tsOff = 4;
+		int b3 = sp[tsOff + 3] & 0xFF;
+		int adaptCtrl = (b3 >> 4) & 0x03;
+
+		int payloadStart = tsOff + 4;
+		if (adaptCtrl == 3) {
+			int afLen = sp[payloadStart] & 0xFF;
+			payloadStart += 1 + afLen;
+		}
+
+		int pointer = sp[payloadStart] & 0xFF;
+		payloadStart += 1 + pointer;
+
+		int tableId = sp[payloadStart] & 0xFF;
+		if (tableId != 0x7F) {
+			log.warn("SIT: unexpected table_id 0x{}", Integer.toHexString(tableId));
+			return;
+		}
+
+		int sectionLength = ((sp[payloadStart + 1] & 0x0F) << 8) | (sp[payloadStart + 2] & 0xFF);
+		// bytes 3-4: reserved (0xFFFF)
+		// bytes 5-7: version/current_next, section_number, last_section_number
+		int selectionInfoLength = ((sp[payloadStart + 8] & 0x0F) << 8) | (sp[payloadStart + 9] & 0xFF);
+
+		int serviceLoopStart = payloadStart + 10 + selectionInfoLength;
+		int serviceLoopEnd = payloadStart + 3 + sectionLength - 4; // exclude CRC
+
+		log.debug("SIT parsed: sectionLength={}, selectionInfoLength={}", sectionLength, selectionInfoLength);
+
+		for (int pos = serviceLoopStart; pos + 3 < serviceLoopEnd && pos + 3 < sp.length;) {
+			int serviceId = ((sp[pos] & 0xFF) << 8) | (sp[pos + 1] & 0xFF);
+			int runningStatus = (sp[pos + 2] >> 4) & 0x07;
+			int serviceLoopLength = ((sp[pos + 2] & 0x0F) << 8) | (sp[pos + 3] & 0xFF);
+			log.debug("  SIT service: id=0x{}, running_status={}", Integer.toHexString(serviceId), runningStatus);
+			pos += 4 + serviceLoopLength;
+		}
 	}
 
 	// -------------------------------------------------------------------------
