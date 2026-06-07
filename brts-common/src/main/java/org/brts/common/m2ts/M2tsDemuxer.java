@@ -115,8 +115,10 @@ public class M2tsDemuxer {
 				int adaptCtrl = (b3 >> 4) & 0x03;
 
 				if (transportError || !activePids.contains(pid)) {
-					log.debug("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex, pid,
-							transportError, adaptCtrl);
+					// log only if unknown PID
+					if (pid != 0x1FFF && pid != 0 && pid != 0x100 && pid != 0x1F && pid != 0x1001)
+						log.debug("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex,
+								pid, transportError, adaptCtrl);
 					packetIndex++;
 					continue;
 				}
@@ -128,8 +130,8 @@ public class M2tsDemuxer {
 					if (pid == info.getPcrPid()) {
 						// FIXME call that for PCR in other cases too
 						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
-					}
-					log.debug("Skipped adaptation field only packet at index {}", packetIndex);
+					} else
+						log.debug("Skipped adaptation field only packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}

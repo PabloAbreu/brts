@@ -11,6 +11,7 @@ import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsClipWriterImpl;
 import org.brts.common.m2ts.M2tsExtractor;
+import org.brts.common.m2ts.M2tsIgsMuxer;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
@@ -21,6 +22,7 @@ import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
+import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.model.clpi.ClipInfo;
@@ -36,6 +38,7 @@ import org.brts.lowlevel.titlemenu.layout.LayoutResult;
 import org.brts.lowlevel.titlemenu.layout.TextListLayout;
 import org.brts.lowlevel.titlemenu.layout.ThumbnailGridLayout;
 import org.brts.lowlevel.titlemenu.layout.TitleMenuLayout;
+import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 
 import lombok.extern.slf4j.Slf4j;
@@ -141,37 +144,46 @@ public class TitleMenuGenerator {
 			Path igsEsFile = workDir.resolve("menu.igs");
 			Files.write(igsEsFile, igsEs);
 			log.info("IGS ES written: {} bytes", igsEs.length);
-
-			// Mux IGS into its own M2TS + CLPI
-			M2tsDescriptor menuDesc = new M2tsDescriptor();
-			List<M2tsDescriptor.StreamEntry> menuStreams = new ArrayList<>();
-			M2tsDescriptor.StreamEntry igsStream = new M2tsDescriptor.StreamEntry();
-			igsStream.setFile(igsEsFile.toAbsolutePath().toString());
-			igsStream.setPid(IGS_PID);
-			igsStream.setStreamTypeByte(IGS_STREAM_TYPE);
-			menuStreams.add(igsStream);
-			menuDesc.setStreams(menuStreams);
-
-			// Align IGS PTS origin with background video — strict players (e.g. PowerDVD)
-			// require both clips to share the same PTS timeline for overlay to work.
-			ClipTiming bgTimingForIgs = resolveClipTiming(bgName, outputDir);
-			menuDesc.setInitialPtsOffsetTicks(bgTimingForIgs.inTimeTicks() * 2);
-			// Extend IGS clip timeline by a short duration past its start PTS so the CLPI
-			// reports a valid non-zero range. IGS display sets are persistent once decoded
-			// (epoch start) — the clip does NOT need to span the full background duration.
-			// Commercial discs typically use ~2 s for the IGS clip.
-			menuDesc.setMinEndPtsTicks(bgTimingForIgs.inTimeTicks() * 2 + IGS_CLIP_DURATION_90KHZ);
-			// IGS-only clips carry very little actual data; use a low mux rate to avoid
-			// bloating the file with null packets during timeline padding.
-			menuDesc.setTargetBitrateKbps(IGS_TARGET_BITRATE_KBPS);
-
 			Path menuM2ts = streamDir.resolve(menuName + ".m2ts");
 			Path menuClpi = clipDir.resolve(menuName + ".clpi");
-			// TsMuxerM2tsClipWriter does not support IGS muxing; hardwire to M2tsClipWriterImpl.
-			M2tsClipWriter writer = new M2tsClipWriterImpl();
-			writer.write(menuDesc, menuM2ts, menuClpi);
+			boolean newImplementation = true;
+			if (newImplementation) {
+				M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
+				m2tsigsMuxer.mux(igsEsFile, menuM2ts);
 
-			log.info("Menu M2TS written: {}", menuM2ts.getFileName());
+				ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(menuM2ts, menuName);
+
+				new ClipInfoWriter().write(clipInfo, menuClpi);
+				log.info("Menu M2TS and CLPI written: {}, {}", menuM2ts.getFileName(), menuClpi.getFileName());
+			} else {
+				// Mux IGS into its own M2TS + CLPI
+				M2tsDescriptor menuDesc = new M2tsDescriptor();
+				List<M2tsDescriptor.StreamEntry> menuStreams = new ArrayList<>();
+				M2tsDescriptor.StreamEntry igsStream = new M2tsDescriptor.StreamEntry();
+				igsStream.setFile(igsEsFile.toAbsolutePath().toString());
+				igsStream.setPid(IGS_PID);
+				igsStream.setStreamTypeByte(IGS_STREAM_TYPE);
+				menuStreams.add(igsStream);
+				menuDesc.setStreams(menuStreams);
+
+				// Align IGS PTS origin with background video — strict players (e.g. PowerDVD)
+				// require both clips to share the same PTS timeline for overlay to work.
+				ClipTiming bgTimingForIgs = resolveClipTiming(bgName, outputDir);
+				menuDesc.setInitialPtsOffsetTicks(bgTimingForIgs.inTimeTicks() * 2);
+				// Extend IGS clip timeline by a short duration past its start PTS so the CLPI
+				// reports a valid non-zero range. IGS display sets are persistent once decoded
+				// (epoch start) — the clip does NOT need to span the full background duration.
+				// Commercial discs typically use ~2 s for the IGS clip.
+				menuDesc.setMinEndPtsTicks(bgTimingForIgs.inTimeTicks() * 2 + IGS_CLIP_DURATION_90KHZ);
+				// IGS-only clips carry very little actual data; use a low mux rate to avoid
+				// bloating the file with null packets during timeline padding.
+				menuDesc.setTargetBitrateKbps(IGS_TARGET_BITRATE_KBPS);
+
+				// TsMuxerM2tsClipWriter does not support IGS muxing; hardwire to M2tsClipWriterImpl.
+				M2tsClipWriter writer = new M2tsClipWriterImpl();
+				writer.write(menuDesc, menuM2ts, menuClpi);
+				log.info("Menu M2TS written: {}", menuM2ts.getFileName());
+			}
 
 		} finally {
 			FileUtils.deleteDir(workDir);

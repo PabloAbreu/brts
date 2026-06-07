@@ -15,7 +15,8 @@ import java.util.*;
 public final class PaletteBuilder {
 
 	/** Maximum palette entries in a PG/IG palette. */
-	private static final int MAX_ENTRIES = 256;
+	// found on commercial blu-rays : 1..254, not 0..255
+	private static final int MAX_ENTRIES = 255;// 256;
 
 	private PaletteBuilder() {
 	}
@@ -100,16 +101,15 @@ public final class PaletteBuilder {
 		palette.setId(paletteId);
 		palette.setVersion(0);
 
-		// Index 0 = transparent
+		int nextId = 1;
+		// Index 1 = transparent
 		PaletteEntry transparentEntry = new PaletteEntry();
-		transparentEntry.setEntryId(0);
+		transparentEntry.setEntryId(nextId++);
 		transparentEntry.setY(16);
 		transparentEntry.setCb(128);
 		transparentEntry.setCr(128);
 		transparentEntry.setAlpha(0);
 		palette.getEntries().add(transparentEntry);
-
-		int nextId = 1;
 		for (Map.Entry<Integer, Integer> e : sorted) {
 			if (nextId >= MAX_ENTRIES)
 				break;
@@ -128,6 +128,7 @@ public final class PaletteBuilder {
 	 * @param colors    ARGB colour values (duplicates are ignored)
 	 * @return the palette
 	 */
+	// AI generated, unused
 	public static IgsPalette buildFromColors(int paletteId, int... colors) {
 		IgsPalette palette = new IgsPalette();
 		palette.setId(paletteId);

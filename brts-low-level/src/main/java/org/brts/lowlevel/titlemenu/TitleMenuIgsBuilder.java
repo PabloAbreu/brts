@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.igs.PaletteBuilder;
 import org.brts.lowlevel.igs.RleEncoder;
@@ -44,6 +45,9 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class TitleMenuIgsBuilder {
+	// has no effect on decoding, but matches the button IDs used in the JUMP_TITLE commands emitted by the layout
+	// algorithms
+	private static final int BUTTON_BASE_ID = 1;
 
 	/**
 	 * Builds the complete display set from the layout result.
@@ -58,6 +62,7 @@ public class TitleMenuIgsBuilder {
 		int screenW = descriptor.getScreenWidth();
 		int screenH = descriptor.getScreenHeight();
 		List<PositionedButton> buttons = layoutResult.getButtons();
+		boolean hasStartupPage = !buttons.isEmpty();
 
 		// ── Collect all button images for palette building ───────────────────
 
@@ -100,7 +105,7 @@ public class TitleMenuIgsBuilder {
 		List<IgsBog> bogs = new ArrayList<>();
 		for (int i = 0; i < buttons.size(); i++) {
 			PositionedButton pb = buttons.get(i);
-			int buttonId = i + 1; // 1-based button IDs
+			int buttonId = i + BUTTON_BASE_ID; // 1-based button IDs
 
 			// Object IDs: 3 images per button (normal, selected, activated)
 			int normalObjId = i * 3;
@@ -140,17 +145,9 @@ public class TitleMenuIgsBuilder {
 
 		wireNeighbours(bogs, buttons, descriptor);
 
-		// ── Build IGS page ──────────────────────────────────────────────────
+		// ── Build IGS pages ─────────────────────────────────────────────────
 
-		IgsPage page = new IgsPage();
-		page.setId(0);
-		page.setVersion(0);
-		page.setUoMaskTable(new byte[8]);
-		page.setAnimationFrameRateCode(0);
-		page.setDefaultSelectedButtonIdRef(buttons.isEmpty() ? 0xFFFF : 1);
-		page.setDefaultActivatedButtonIdRef(0xFFFF);
-		page.setPaletteIdRef(0);
-		page.setBogs(bogs);
+		IgsPage menuPage = buildMenuPage(bogs, hasStartupPage ? 1 : 0, buttons.isEmpty() ? 0xFFFF : BUTTON_BASE_ID);
 
 		// ── Build Interactive Composition ────────────────────────────────────
 
@@ -161,7 +158,10 @@ public class TitleMenuIgsBuilder {
 		ic.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX);
 		ic.setUiModel(IgsInteractiveComposition.UI_MODEL_ALWAYS_ON);
 		ic.setUserTimeoutDuration(0); // No user timeout
-		ic.getPages().add(page);
+		if (hasStartupPage) {
+			ic.getPages().add(buildStartupPage());
+		}
+		ic.getPages().add(menuPage);
 
 		// ── Build ICS ───────────────────────────────────────────────────────
 
@@ -203,7 +203,7 @@ public class TitleMenuIgsBuilder {
 		displaySet.setComplete(true);
 		displaySet.setCompositionSegment(ics);
 		displaySet.getPalettes().add(palette);
-		displaySet.getWindowDefinitions().add(wds);
+		// displaySet.getWindowDefinitions().add(wds);
 		displaySet.setObjects(objects);
 
 		log.info("Title menu IGS built: {} buttons, {} objects, palette with {} entries", buttons.size(),
@@ -222,7 +222,6 @@ public class TitleMenuIgsBuilder {
 
 		for (int i = 0; i < bogs.size(); i++) {
 			IgsButton btn = bogs.get(i).getButtons().get(0);
-			int buttonId = i + 1;
 
 			// Grid-based auto-wiring
 			int col = i % columns;
@@ -260,15 +259,79 @@ public class TitleMenuIgsBuilder {
 				}
 			}
 
-			btn.setUpperButtonIdRef(upIdx + 1); // 1-based
-			btn.setLowerButtonIdRef(downIdx + 1);
-			btn.setLeftButtonIdRef(leftIdx + 1);
-			btn.setRightButtonIdRef(rightIdx + 1);
+			btn.setUpperButtonIdRef(upIdx + BUTTON_BASE_ID); // 1-based
+			btn.setLowerButtonIdRef(downIdx + BUTTON_BASE_ID);
+			btn.setLeftButtonIdRef(leftIdx + BUTTON_BASE_ID);
+			btn.setRightButtonIdRef(rightIdx + BUTTON_BASE_ID);
 		}
 	}
 
 	private static int clamp(int value, int min, int max) {
 		return Math.max(min, Math.min(max, value));
+	}
+
+	/**
+	 * Builds the startup page that auto-switches into the actual title-menu page.
+	 *
+	 * As is, this page is useless. But it serves as a template for inserting custom commands that need to run before
+	 * the menu is shown.
+	 *
+	 * @return a startup page with a single auto-action button that issues SET_BUTTON_PAGE to page 1, button 1
+	 */
+	private static IgsPage buildStartupPage() {
+		IgsButton btn = new IgsButton();
+		btn.setId(BUTTON_BASE_ID);
+		btn.setNumericSelectValue(0xFFFF);
+		btn.setAutoAction(true);
+		btn.setXPos(0);
+		btn.setYPos(0);
+		btn.setUpperButtonIdRef(BUTTON_BASE_ID);
+		btn.setLowerButtonIdRef(BUTTON_BASE_ID);
+		btn.setLeftButtonIdRef(BUTTON_BASE_ID);
+		btn.setRightButtonIdRef(BUTTON_BASE_ID);
+		btn.setNormalStartObjectIdRef(0xFFFF);
+		btn.setNormalEndObjectIdRef(0xFFFF);
+		btn.setSelectedSoundIdRef(0xFF);
+		btn.setSelectedStartObjectIdRef(0xFFFF);
+		btn.setSelectedEndObjectIdRef(0xFFFF);
+		btn.setActivatedSoundIdRef(0xFF);
+		btn.setActivatedStartObjectIdRef(0xFFFF);
+		btn.setActivatedEndObjectIdRef(0xFFFF);
+		// the values 1234,1235 below are hard-coded, but should not.
+		btn.setNavigationCommands(List.of(
+				NavigationCommand.fromParsed(ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, 1234,
+						false, BUTTON_BASE_ID, true)),
+				NavigationCommand.fromParsed(
+						ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, 1235, false, 1, true)),
+				NavigationCommand.fromParsed(ParsedNavigationCommand.generateSetButtonPageCommand(1234, 1235, true))));
+
+		IgsBog bog = new IgsBog();
+		bog.setDefaultValidButtonIdRef(BUTTON_BASE_ID);
+		bog.getButtons().add(btn);
+
+		IgsPage page = new IgsPage();
+		page.setId(0);
+		page.setVersion(0);
+		page.setUoMaskTable(new byte[8]);
+		page.setAnimationFrameRateCode(0);
+		page.setDefaultSelectedButtonIdRef(BUTTON_BASE_ID);
+		page.setDefaultActivatedButtonIdRef(0xFFFF);
+		page.setPaletteIdRef(0);
+		page.getBogs().add(bog);
+		return page;
+	}
+
+	private static IgsPage buildMenuPage(List<IgsBog> bogs, int pageId, int defaultSelectedButtonIdRef) {
+		IgsPage page = new IgsPage();
+		page.setId(pageId);
+		page.setVersion(0);
+		page.setUoMaskTable(new byte[8]);
+		page.setAnimationFrameRateCode(0);
+		page.setDefaultSelectedButtonIdRef(defaultSelectedButtonIdRef);
+		page.setDefaultActivatedButtonIdRef(0xFFFF);
+		page.setPaletteIdRef(0);
+		page.setBogs(bogs);
+		return page;
 	}
 
 }

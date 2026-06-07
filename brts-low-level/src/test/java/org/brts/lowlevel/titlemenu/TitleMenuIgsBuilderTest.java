@@ -34,9 +34,10 @@ class TitleMenuIgsBuilderTest {
 
 		// 3 buttons × 3 states = 9 objects
 		assertThat(displaySet.getObjects()).hasSize(9);
+		assertThat(displaySet.getCompositionSegment().getInteractiveComposition().getPages()).hasSize(2);
 
 		// 3 BOGs (one per button)
-		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0).getBogs();
+		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1).getBogs();
 		assertThat(bogs).hasSize(3);
 	}
 
@@ -49,7 +50,7 @@ class TitleMenuIgsBuilderTest {
 		TitleMenuIgsBuilder builder = new TitleMenuIgsBuilder();
 		IgsDisplaySet displaySet = builder.build(layoutResult, descriptor);
 
-		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0).getBogs();
+		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1).getBogs();
 
 		// First button should have JUMP_TITLE with title number 1
 		IgsButton btn1 = bogs.get(0).getButtons().get(0);
@@ -71,7 +72,7 @@ class TitleMenuIgsBuilderTest {
 		TitleMenuIgsBuilder builder = new TitleMenuIgsBuilder();
 		IgsDisplaySet displaySet = builder.build(layoutResult, descriptor);
 
-		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0).getBogs();
+		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1).getBogs();
 
 		// Button 1 (id=1): up wraps to button 3, down goes to button 2
 		IgsButton btn1 = bogs.get(0).getButtons().get(0);
@@ -103,6 +104,26 @@ class TitleMenuIgsBuilderTest {
 
 		assertThat(displaySet.getCompositionSegment().getVideoDescriptor().getWidth()).isEqualTo(1280);
 		assertThat(displaySet.getCompositionSegment().getVideoDescriptor().getHeight()).isEqualTo(720);
+	}
+
+	@Test
+	void build_includesStartupPageWithAutoAction() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(1);
+		TextListLayout layout = new TextListLayout();
+		LayoutResult layoutResult = layout.layout(descriptor, Path.of("."));
+
+		TitleMenuIgsBuilder builder = new TitleMenuIgsBuilder();
+		IgsDisplaySet displaySet = builder.build(layoutResult, descriptor);
+
+		var pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		assertThat(pages).hasSize(2);
+
+		IgsButton startupButton = pages.get(0).getBogs().get(0).getButtons().get(0);
+		assertThat(startupButton.isAutoAction()).isTrue();
+		assertThat(startupButton.getNavigationCommands()).hasSize(1);
+		assertThat(startupButton.getNavigationCommands().get(0).getMnemonic()).isEqualTo("SET_BUTTON_PAGE");
+		assertThat(pages.get(1).getId()).isEqualTo(1);
+		assertThat(pages.get(1).getDefaultSelectedButtonIdRef()).isEqualTo(1);
 	}
 
 	private TitleMenuDescriptor buildDescriptor(int titleCount) {

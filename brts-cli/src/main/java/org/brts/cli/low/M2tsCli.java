@@ -2,12 +2,14 @@ package org.brts.cli.low;
 
 import org.brts.cli.FeatureRunner;
 import org.brts.common.m2ts.M2tsExtractor;
+import org.brts.common.m2ts.M2tsIgsMuxer;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsDemuxer;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.m2ts.M2tsDumpFormatter;
@@ -264,6 +266,63 @@ public class M2tsCli {
 			}
 			ClipInfo clipInfo = writer.buildClipInfo(descriptor, outputName, applicationType);
 			new ClipInfoWriter().write(clipInfo, clpiPath);
+			System.out.println("CLPI written → " + clpiPath);
+		}
+
+	}
+
+	// =========================================================================
+	// m2ts-igs-mux
+	// =========================================================================
+
+	public static class M2tsIgsMuxOptions {
+
+		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
+		File descriptor;
+
+		@Option(name = "--output", required = true, usage = "Output directory for the .m2ts file (e.g. BDMV/STREAM/)")
+		File outputDir;
+
+		@Option(name = "--clpi", usage = "Output directory for the matching .clpi file (e.g. BDMV/CLIPINF/); "
+				+ "if omitted the CLPI is written next to the M2TS")
+		File clpiDir;
+
+	}
+
+	public static class M2tsIgsMux extends FeatureRunner<M2tsIgsMuxOptions> {
+
+		@Override
+		public String getCommandName() {
+			return "m2ts-igs-mux";
+		}
+
+		@Override
+		public String getDescription() {
+			return "Mux an IGS stream into a new M2TS file with matching CLPI";
+		}
+
+		@Override
+		protected void execute(M2tsIgsMuxOptions opts) throws Exception {
+			M2tsDescriptor descriptor = loadJson(opts.descriptor, M2tsDescriptor.class);
+
+			String outputName = descriptor.getOutputName();
+			if (outputName == null || outputName.isBlank()) {
+				throw new IllegalArgumentException("'outputName' is required in the descriptor");
+			}
+
+			Path outputDir = opts.outputDir.toPath();
+			Path m2tsPath = outputDir.resolve(outputName + ".m2ts");
+
+			Path clpiDir = opts.clpiDir != null ? opts.clpiDir.toPath() : outputDir;
+			Path clpiPath = clpiDir.resolve(outputName + ".clpi");
+
+			M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
+			m2tsigsMuxer.mux(Path.of(descriptor.getStreams().get(0).getFile()), m2tsPath);
+
+			ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(m2tsPath, outputName);
+
+			new ClipInfoWriter().write(clipInfo, clpiPath);
+
 			System.out.println("CLPI written → " + clpiPath);
 		}
 

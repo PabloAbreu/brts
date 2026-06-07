@@ -229,6 +229,7 @@ public class IgsMuxer {
 	 * Writes a segment: 1-byte type + 2-byte BE length + data.
 	 */
 	private void writeSegment(OutputStream out, IgsSegmentType type, byte[] data) throws IOException {
+		log.debug("Writing segment: type={}, length={}", type, data.length);
 		out.write(type.getCode());
 		out.write((data.length >> 8) & 0xFF);
 		out.write(data.length & 0xFF);

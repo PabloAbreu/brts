@@ -357,6 +357,15 @@ public final class ParsedNavigationCommand {
 		return (opcode & EFFECT_OFF_BIT) != 0;
 	}
 
+	public static ParsedNavigationCommand generateSetButtonPageCommand(long buttonId, long pageId, boolean effectOff) {
+		long op1 = buttonId | BUTTON_ENABLED_BIT;
+		long op2 = pageId | BUTTON_ENABLED_BIT;
+		if (effectOff) {
+			op2 |= EFFECT_OFF_BIT;
+		}
+		return compile(NavigationCommandMnemonic.SET_BUTTON_PAGE, op1, false, op2, false);
+	}
+
 	private static String formatBinaryOperation(NavigationCommandMnemonic mnemonic, String dst, String src) {
 		return switch (mnemonic) {
 		case MOVE -> dst + " ← " + src;

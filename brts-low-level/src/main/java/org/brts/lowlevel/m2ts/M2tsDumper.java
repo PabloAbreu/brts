@@ -55,6 +55,8 @@ public class M2tsDumper {
 
 		private int previousPid = -1;
 
+		private long previousPacketIndex = -1;
+
 		private long groupStartPacket;
 
 		private long groupCount;
@@ -80,7 +82,8 @@ public class M2tsDumper {
 		@Override
 		public void onPayload(int pid, byte[] payload, int offset, int length, boolean payloadUnitStart,
 				long packetIndex, long ats) throws IOException {
-			if (pid != previousPid) {
+			if (pid != previousPid || (previousPid >= 0 && packetIndex != previousPacketIndex + 1)
+					|| (payloadUnitStart && detectPesStart(payload, offset, length))) {
 				flushGroup();
 				groupStartPacket = packetIndex;
 				groupCount = 1;
@@ -90,6 +93,8 @@ public class M2tsDumper {
 				if (payloadUnitStart && detectPesStart(payload, offset, length)) {
 					groupPesLength = ((payload[offset + 4] & 0xFF) << 8) | (payload[offset + 5] & 0xFF);
 					if (length >= 12) {
+						groupPts = -1;
+						groupDts = -1;
 						long pts = parsePts(payload, offset + 6);
 						long dts = parseDts(payload, offset + 6);
 						if (pts >= 0) {
@@ -107,6 +112,7 @@ public class M2tsDumper {
 				groupCount++;
 			}
 			previousPid = pid;
+			previousPacketIndex = packetIndex;
 		}
 
 		@Override

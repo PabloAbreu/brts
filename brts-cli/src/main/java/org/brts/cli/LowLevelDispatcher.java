@@ -33,10 +33,10 @@ public class LowLevelDispatcher {
 				.register(new MovieObjectsCli.Write()).register(new BdjoCli.Parse()).register(new BdjoCli.Write())
 				.register(new MkvCli.Info()).register(new M2tsCli.Info()).register(new M2tsCli.Extract())
 				.register(new M2tsCli.Create()).register(new M2tsCli.Dump()).register(new M2tsCli.IgsDemux())
-				.register(new M2tsCli.IgsMux()).register(new PgsCli.Create()).register(new RleConverterCli.Convert())
-				.register(new PlaylistToMkvCli.Extract()).register(new MkvToPlaylistCli.Convert())
-				.register(new BrtsInfoCli.Info()).register(new NavSimulCli.Simul()).register(new DiscCli.Create())
-				.register(new TitleMenuCli.Create());
+				.register(new M2tsCli.M2tsIgsMux()).register(new M2tsCli.IgsMux()).register(new PgsCli.Create())
+				.register(new RleConverterCli.Convert()).register(new PlaylistToMkvCli.Extract())
+				.register(new MkvToPlaylistCli.Convert()).register(new BrtsInfoCli.Info())
+				.register(new NavSimulCli.Simul()).register(new DiscCli.Create()).register(new TitleMenuCli.Create());
 	}
 
 	public LevelDispatcher getLevelDispatcher() {
