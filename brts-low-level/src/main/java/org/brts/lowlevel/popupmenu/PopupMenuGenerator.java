@@ -3,15 +3,14 @@ package org.brts.lowlevel.popupmenu;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
-import org.brts.common.m2ts.M2tsClipWriter;
-import org.brts.common.m2ts.M2tsClipWriterImpl;
-import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.m2ts.M2tsIgsMuxer;
 import org.brts.common.utils.FileUtils;
+import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.writer.ClipInfoWriter;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,13 +21,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class PopupMenuGenerator {
-
-	/** Standard Blu-ray IGS stream type byte (0x91). */
-	private static final int IGS_STREAM_TYPE = 0x91;
-
-	/** Standard Blu-ray IGS PID. */
-	private static final int IGS_PID = 0x1400;
-
 	/**
 	 * Result of popup menu generation.
 	 *
@@ -67,22 +59,16 @@ public class PopupMenuGenerator {
 		try {
 			Path igsEsFile = workDir.resolve("popup.igs");
 			Files.write(igsEsFile, igsEs);
-			log.info("Popup menu IGS ES: {} bytes", igsEs.length);
-
-			M2tsDescriptor menuDesc = new M2tsDescriptor();
-			List<M2tsDescriptor.StreamEntry> streams = new ArrayList<>();
-			M2tsDescriptor.StreamEntry igsStream = new M2tsDescriptor.StreamEntry();
-			igsStream.setFile(igsEsFile.toAbsolutePath().toString());
-			igsStream.setPid(IGS_PID);
-			igsStream.setStreamTypeByte(IGS_STREAM_TYPE);
-			streams.add(igsStream);
-			menuDesc.setStreams(streams);
-
 			Path igsM2ts = streamDir.resolve(clipName + ".m2ts");
 			Path igsClpi = clipDir.resolve(clipName + ".clpi");
 
-			M2tsClipWriter writer = new M2tsClipWriterImpl();
-			writer.write(menuDesc, igsM2ts, igsClpi);
+			M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
+			m2tsigsMuxer.mux(igsEsFile, igsM2ts);
+
+			ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(igsM2ts, clipName);
+
+			new ClipInfoWriter().write(clipInfo, igsClpi);
+			log.info("Popup menu IGS ES: {} bytes", igsEs.length);
 
 			log.info("Popup menu generated: M2TS={}, CLPI={}", igsM2ts, igsClpi);
 			return new Result(igsM2ts, igsClpi);

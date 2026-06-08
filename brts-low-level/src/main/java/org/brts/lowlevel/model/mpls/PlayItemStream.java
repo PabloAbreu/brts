@@ -15,6 +15,8 @@ import org.brts.common.model.StreamCodingType;
 public class PlayItemStream implements IStreamInfo {
 	public static final int STREAM_TYPE_IN_MUX = 0x01;
 	public static final int STREAM_TYPE_OUT_OF_MUX = 0x02;
+	// so says chatgpt
+	public static final int STREAM_TYPE_REPEATABLE_OUT_OF_MUX = 0x03;
 	private int pid;
 
 	private int streamType; // 0x01=in-mux, 0x02=out-of-mux, etc.

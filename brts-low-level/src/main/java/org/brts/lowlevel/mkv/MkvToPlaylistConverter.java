@@ -61,6 +61,9 @@ public class MkvToPlaylistConverter {
 
 	private static final int PGS_PID_BASE = 0x1200; // 4608
 
+	/** Standard Blu-ray IGS PID. */
+	private static final int IGS_PID = 0x1400;
+
 	private static final long MPLS_TICKS_PER_MILLISECOND = Timestamp.MPLS_TICKS_PER_SECOND / 1000L;
 
 	/**
@@ -165,6 +168,7 @@ public class MkvToPlaylistConverter {
 		}
 
 		// 8. Build M2tsDescriptor
+		boolean needsPopupMenu = config.getPopupMenuClipName() != null;
 		M2tsDescriptor descriptor = buildDescriptor(clipName, selectedTracks, demuxedFiles, pgsConvertedFiles,
 				textSubTrackNos);
 
@@ -183,7 +187,7 @@ public class MkvToPlaylistConverter {
 
 		// 9b. Generate popup menu if requested
 		PopupMenuGenerator.Result popupResult = null;
-		if (config.getPopupMenuClipName() != null) {
+		if (needsPopupMenu) {
 			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks);
 			if (popupConfig != null) {
 				PopupMenuGenerator popupGenerator = new PopupMenuGenerator();
@@ -434,9 +438,10 @@ public class MkvToPlaylistConverter {
 
 	private MoviePlaylist buildPlaylist(String clipName, ClipInfo clipInfo, long durationMs,
 			PopupMenuGenerator.Result popupResult, String popupClipName) {
+		boolean needsPopupMenu = popupResult != null && popupClipName != null;
 		MoviePlaylist playlist = new MoviePlaylist();
 		playlist.setPlaylistName(clipName);
-		playlist.setMenu(false);
+		playlist.setMenu(needsPopupMenu);
 
 		long mkvDurationTicks = toMplsTicksFromMilliseconds(durationMs);
 		long inTime = 0;
@@ -505,7 +510,7 @@ public class MkvToPlaylistConverter {
 		playlist.setPlayMarks(List.of(mark));
 
 		// Attach popup menu SubPath if generated
-		if (popupResult != null && popupClipName != null) {
+		if (needsPopupMenu) {
 			ClipInfo popupClipInfo = null;
 			try {
 				popupClipInfo = new ClipInfoParser().parse(popupResult.igsClpi());
@@ -536,10 +541,22 @@ public class MkvToPlaylistConverter {
 
 				SubPath menuSubPath = new SubPath();
 				menuSubPath.setSubPathType(3);
-				menuSubPath.setRepeatSubPath(true);
+				menuSubPath.setRepeatSubPath(false);
 				menuSubPath.setSubPlayItems(List.of(subPlayItem));
 
 				playlist.setSubPaths(List.of(menuSubPath));
+
+				// add pseudo-stream
+
+				PlayItemStream s = new PlayItemStream();
+				s.setPid(IGS_PID);
+				s.setStreamType(PlayItemStream.STREAM_TYPE_OUT_OF_MUX);
+				s.setSubpathId(0); // index of menu SubPath
+				s.setSubclipId(0); // first clip in that SubPath
+				s.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
+				s.setLanguage("eng");// TODO better
+				streams.add(s);
+
 				log.info("Popup menu SubPath attached: clip={}, timing=[{}, {}]", popupClipName, popupIn, popupOut);
 			}
 		}
