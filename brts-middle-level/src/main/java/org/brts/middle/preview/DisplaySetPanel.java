@@ -124,7 +124,7 @@ public class DisplaySetPanel extends JPanel {
 	protected void paintComponent(Graphics g) {
 		super.paintComponent(g);
 		Graphics2D g2 = (Graphics2D) g.create();
-		StopWatch sw = new StopWatch(log::debug);
+		StopWatch sw = new StopWatch(log::trace);
 		try {
 			g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -231,7 +231,7 @@ public class DisplaySetPanel extends JPanel {
 
 		int bx = btn.getXPos();
 		int by = btn.getYPos();
-		log.debug("Drawing button #{} at ({}, {}){}{}", btn.getId(), bx, by, isSelected ? " [SELECTED]" : "",
+		log.trace("Drawing button #{} at ({}, {}){}{}", btn.getId(), bx, by, isSelected ? " [SELECTED]" : "",
 				isActivated ? " [ACTIVATED]" : "");
 
 		// Pick the image matching the button's current visual state:

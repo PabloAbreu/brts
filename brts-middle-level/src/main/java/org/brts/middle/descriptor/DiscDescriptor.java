@@ -1,5 +1,7 @@
 package org.brts.middle.descriptor;
 
+import org.brts.common.menu.TextStyle;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -41,6 +43,19 @@ public class DiscDescriptor {
 	 * generated and wired as First Play and Top Menu.
 	 */
 	private TitleMenuConfig titleMenuConfig;
+
+	/**
+	 * Global text style for all disc menus (title menu and popup menus). Serves as the base style that more specific
+	 * overrides (title menu style, popup style) are merged over. When {@code null}, defaults are resolved from
+	 * {@code textStyle.*} properties in brts.conf at the lowest layer.
+	 */
+	private TextStyle style;
+
+	/**
+	 * Disc-wide popup menu style override. When non-null, merged over {@link #style} to produce the effective style for
+	 * all popup menus on this disc. When {@code null}, the global {@link #style} (or brts.conf defaults) is used.
+	 */
+	private TextStyle popupStyle;
 
 	private List<TitleDescriptor> titles;
 

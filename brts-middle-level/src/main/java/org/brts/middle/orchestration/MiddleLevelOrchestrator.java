@@ -11,10 +11,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.menu.TextStyle;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
+import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
@@ -98,6 +100,15 @@ public class MiddleLevelOrchestrator {
 		List<MovieObject> movieObjects = new ArrayList<>();
 		int nbTitles = disc.getTitles().size();
 		Set<Integer> titleIds = new HashSet<>();
+
+		// Resolve disc-wide popup style: popupStyle merged over global style (null-safe)
+		TextStyle resolvedPopupStyle = resolvePopupStyle(disc);
+		File popupStyleFile = null;
+		if (resolvedPopupStyle != null) {
+			popupStyleFile = descriptorsDir.resolve("popup-style.json").toFile();
+			mapper.writeValue(popupStyleFile, resolvedPopupStyle);
+		}
+
 		for (TitleDescriptor title : disc.getTitles()) {
 			// first check that the title ID is valid (1-based, sequential)
 			if (title.getTitleId() < 1 || title.getTitleId() > nbTitles) {
@@ -122,6 +133,9 @@ public class MiddleLevelOrchestrator {
 					.append(title.getSourceMkv()).append(" --output ").append(bdmv);
 			if (popupClipName != null) {
 				cmd.append(" --popup-menu-clip-name ").append(popupClipName);
+				if (popupStyleFile != null) {
+					cmd.append(" --popup-menu-style ").append(popupStyleFile.getAbsolutePath());
+				}
 			}
 			scriptLines.add(cmd.toString());
 			scriptLines.add("");
@@ -159,10 +173,8 @@ public class MiddleLevelOrchestrator {
 			int menuPlaylistNumber = Integer.parseInt(menuConfig.getOutputPlaylistName());
 
 			// Top Menu and First Play both play the menu playlist
-			topMenuMovieObject.setNavigationCommands(List.of(
-					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, menuPlaylistNumber, true, 0, false)));
-			firstPlayMovieObject.setNavigationCommands(List.of(
-					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, menuPlaylistNumber, true, 0, false)));
+			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
+			firstPlayMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
 
 			scriptLines.add("# Title menu");
 			scriptLines.add("$BRTS_CLI low create-title-menu --descriptor " + menuDescriptorFile.getAbsolutePath()
@@ -170,10 +182,8 @@ public class MiddleLevelOrchestrator {
 			scriptLines.add("");
 		} else {
 			// No menu: jump directly to title 1
-			topMenuMovieObject.setNavigationCommands(
-					List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
-			firstPlayMovieObject.setNavigationCommands(
-					List.of(NavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, 1, true, 0, false)));
+			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.jumpTitle(1));
+			firstPlayMovieObject.setNavigationCommands(NavigationCommandUtils.jumpTitle(1));
 		}
 
 		movieObjects.add(topMenuMovieObject);
@@ -222,6 +232,13 @@ public class MiddleLevelOrchestrator {
 		LayoutConfig layout = new LayoutConfig();
 		layout.setType(menuConfig.getLayoutType());
 		layout.setBoundingBox(menuConfig.getBoundingBox());
+
+		// Cascade title menu style: titleMenuConfig.style merged over disc.style
+		TextStyle resolvedTitleMenuStyle = resolveTitleMenuStyle(disc, menuConfig);
+		if (resolvedTitleMenuStyle != null) {
+			layout.setTitleStyle(resolvedTitleMenuStyle);
+		}
+
 		descriptor.setLayout(layout);
 
 		List<org.brts.lowlevel.titlemenu.descriptor.TitleEntry> menuTitles = new ArrayList<>();
@@ -270,6 +287,40 @@ public class MiddleLevelOrchestrator {
 			}
 		}
 		return fallback;
+	}
+
+	// ── Style Resolution ────────────────────────────────────────────────────
+
+	/**
+	 * Resolves the effective popup menu style by merging disc-wide popupStyle over the global disc style. Returns
+	 * {@code null} if neither is set (letting the low-level apply brts.conf defaults).
+	 */
+	private TextStyle resolvePopupStyle(DiscDescriptor disc) {
+		TextStyle global = disc.getStyle();
+		TextStyle popup = disc.getPopupStyle();
+		if (popup != null && global != null) {
+			return popup.mergeOver(global);
+		}
+		if (popup != null) {
+			return popup;
+		}
+		return global; // may be null
+	}
+
+	/**
+	 * Resolves the effective title menu style by merging titleMenuConfig.style over the global disc style. Returns
+	 * {@code null} if neither is set (letting the low-level apply brts.conf defaults).
+	 */
+	private TextStyle resolveTitleMenuStyle(DiscDescriptor disc, TitleMenuConfig menuConfig) {
+		TextStyle global = disc.getStyle();
+		TextStyle menuStyle = menuConfig.getStyle();
+		if (menuStyle != null && global != null) {
+			return menuStyle.mergeOver(global);
+		}
+		if (menuStyle != null) {
+			return menuStyle;
+		}
+		return global; // may be null
 	}
 
 	// ── Popup Menu Toggle Resolution ────────────────────────────────────────

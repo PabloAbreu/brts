@@ -120,8 +120,9 @@ class TitleMenuIgsBuilderTest {
 
 		IgsButton startupButton = pages.get(0).getBogs().get(0).getButtons().get(0);
 		assertThat(startupButton.isAutoAction()).isTrue();
-		assertThat(startupButton.getNavigationCommands()).hasSize(1);
-		assertThat(startupButton.getNavigationCommands().get(0).getMnemonic()).isEqualTo("SET_BUTTON_PAGE");
+		// NavigationCommandUtils.setButtonPage emits 2 MOVE + 1 SET_BUTTON_PAGE
+		assertThat(startupButton.getNavigationCommands()).hasSize(3);
+		assertThat(startupButton.getNavigationCommands().get(2).getMnemonic()).isEqualTo("SET_BUTTON_PAGE");
 		assertThat(pages.get(1).getId()).isEqualTo(1);
 		assertThat(pages.get(1).getDefaultSelectedButtonIdRef()).isEqualTo(1);
 	}

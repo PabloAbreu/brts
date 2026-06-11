@@ -153,14 +153,6 @@ public class DisplaySetLoader {
 			IgsInteractiveComposition ic = ics.getInteractiveComposition();
 			model.setUiModel(ic.getUiModel());
 			model.setPages(ic.getPages());
-
-			for (IgsPage page : ic.getPages()) {
-				for (IgsBog bog : page.getBogs()) {
-					for (IgsButton btn : bog.getButtons()) {
-						model.getAllButtons().put(btn.getId(), btn);
-					}
-				}
-			}
 		}
 
 		// Decode RLE objects into BufferedImage

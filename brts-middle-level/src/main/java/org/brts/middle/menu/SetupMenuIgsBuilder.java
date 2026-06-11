@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.brts.common.menu.TextStyle;
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
+import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.igs.PaletteBuilder;
 import org.brts.lowlevel.igs.RleEncoder;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
@@ -258,7 +258,8 @@ public class SetupMenuIgsBuilder {
 		for (AudioMenuItem item : items) {
 			TextStyle style = resolveItemStyle(item.getStyle(), globalStyle);
 			ButtonImages images = ButtonImageRenderer.renderTextButton(item.getDescription(), style);
-			y = registerButton(item, images, compileAudioCommand(item.getStreamNumber()), startX, screenW, y);
+			y = registerButton(item, images, NavigationCommandUtils.setAudio(item.getStreamNumber()), startX, screenW,
+					y);
 		}
 		return y;
 	}
@@ -269,7 +270,8 @@ public class SetupMenuIgsBuilder {
 		for (SubtitleMenuItem item : items) {
 			TextStyle style = resolveItemStyle(item.getStyle(), globalStyle);
 			ButtonImages images = ButtonImageRenderer.renderTextButton(item.getDescription(), style);
-			y = registerButton(item, images, compileSubtitleCommand(item.getStreamNumber()), startX, screenW, y);
+			y = registerButton(item, images, NavigationCommandUtils.setSubtitle(item.getStreamNumber()), startX,
+					screenW, y);
 		}
 		return y;
 	}
@@ -281,7 +283,14 @@ public class SetupMenuIgsBuilder {
 			TextStyle style = resolveItemStyle(item.getStyle(), globalStyle);
 			Path iconPath = item.getIcon() != null ? Path.of(item.getIcon()) : null;
 			ButtonImages images = ButtonImageRenderer.renderButton(item.getDescription(), iconPath, style);
-			y = registerButton(item, images, compileMiscCommand(item), startX, screenW, y);
+			List<NavigationCommand> navCmds = switch (item.getType()) {
+			case LAUNCH -> NavigationCommandUtils.playPlaylist(Integer.parseInt(item.getTarget()));
+			case GO_BACK ->
+				NavigationCommandUtils.jumpTitle(item.getTarget() != null ? Integer.parseInt(item.getTarget()) : 0);
+			case POPUP_OFF -> NavigationCommandUtils.popupOff();
+			case RESUME -> NavigationCommandUtils.resume();
+			};
+			y = registerButton(item, images, navCmds, startX, screenW, y);
 		}
 		return y;
 	}
@@ -374,75 +383,6 @@ public class SetupMenuIgsBuilder {
 		log.warn("Unresolved nav.{} reference '{}' on button '{}' — falling back to auto-wired neighbour", direction,
 				ref, source != null ? source.description() : "?");
 		return autoValue;
-	}
-
-	// ── Command compilation ─────────────────────────────────────────────────
-
-	/**
-	 * Compiles a SET_STREAM command for audio: writes the audio stream number into PSR1 (primary audio stream).
-	 * <p>
-	 * SET_STREAM's operand1 encodes audio/subtitle/IG stream numbers in a packed 32-bit value: bits[31:16] = primary
-	 * audio (1-based), other bits left zero.
-	 */
-	private List<NavigationCommand> compileAudioCommand(int streamNumber) {
-		// SET_STREAM: op1 = packed stream numbers
-		// For primary audio: bits 31..16 = stream number, bits 15..0 = 0 (no change)
-		// SET_STREAM operand format: [31:24]=primary_audio_flag|primary_audio_number
-		// [23:16]=reserved [15:8]=PG_textST_flag|PG_textST_number [7:0]=IG_stream_number
-		// For just setting audio: flag=1 in bit 31, number in bits 30..24
-		// Simplified: operand1 = (1 << 31) | (streamNumber << 24)
-		long op1 = (1L << 31) | ((long) (streamNumber & 0x7F) << 24);
-		long op2 = 0;
-
-		return List
-				.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, op2, false)));
-	}
-
-	/**
-	 * Compiles a SET_STREAM command for subtitles: writes the subtitle stream number into PSR2 (PG/subtitle stream).
-	 * <p>
-	 * For subtitle: bits 15..8 encode PG/textST flag + number.
-	 */
-	private List<NavigationCommand> compileSubtitleCommand(int streamNumber) {
-		// For subtitle: flag in bit 15, number in bits 14..8
-		// streamNumber=0 means subtitles off
-		long op1;
-		if (streamNumber > 0) {
-			op1 = (1L << 15) | ((long) (streamNumber & 0x7F) << 8);
-		} else {
-			op1 = 0; // subtitles off
-		}
-		long op2 = 0;
-
-		return List
-				.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, op2, false)));
-	}
-
-	/**
-	 * Compiles navigation commands for miscellaneous items.
-	 */
-	private List<NavigationCommand> compileMiscCommand(MiscMenuItem item) {
-		return switch (item.getType()) {
-		case LAUNCH -> {
-			// PLAY_PL <playlist_number>
-			int playlistNumber = Integer.parseInt(item.getTarget());
-			yield List.of(NavigationCommand
-					.fromParsed(ParsedNavigationCommand.compile("PLAY_PL", playlistNumber, true, 0, false)));
-		}
-		case GO_BACK -> {
-			// JUMP_TITLE <title_number>
-			int titleNumber = item.getTarget() != null ? Integer.parseInt(item.getTarget()) : 0;
-			yield List.of(NavigationCommand
-					.fromParsed(ParsedNavigationCommand.compile("JUMP_TITLE", titleNumber, true, 0, false)));
-		}
-		case POPUP_OFF -> {
-			yield List
-					.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false)));
-		}
-		case RESUME -> {
-			yield List.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("RESUME", 0, false, 0, false)));
-		}
-		};
 	}
 
 	// ── Style resolution ────────────────────────────────────────────────────

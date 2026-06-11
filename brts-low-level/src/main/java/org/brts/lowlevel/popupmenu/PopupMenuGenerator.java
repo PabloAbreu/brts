@@ -35,7 +35,7 @@ public class PopupMenuGenerator {
 	 *
 	 * @param config    popup menu configuration
 	 * @param outputDir root output directory (parent of STREAM/ and CLIPINF/)
-	 * @return paths to the generated files
+	 * @return paths to the generated files, or {@code null} if the IGS builder produced no display set
 	 * @throws IOException on I/O or encoding error
 	 */
 	public Result generate(PopupMenuConfig config, Path outputDir) throws IOException {
@@ -49,6 +49,10 @@ public class PopupMenuGenerator {
 		// 1. Build IGS display set
 		PopupMenuIgsBuilder igsBuilder = new PopupMenuIgsBuilder();
 		IgsDisplaySet displaySet = igsBuilder.build(config);
+		if (displaySet == null) {
+			log.info("Popup menu skipped for clip {}: IgsBuilder returned null", clipName);
+			return null;
+		}
 
 		// 2. Encode to ES bytes
 		IgsMuxer igsMuxer = new IgsMuxer();

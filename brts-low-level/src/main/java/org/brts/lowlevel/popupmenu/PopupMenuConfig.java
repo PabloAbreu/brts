@@ -2,6 +2,8 @@ package org.brts.lowlevel.popupmenu;
 
 import java.util.List;
 
+import org.brts.common.menu.TextStyle;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -28,6 +30,12 @@ public class PopupMenuConfig {
 
 	/** Screen height in pixels. */
 	private int screenHeight = 1080;
+
+	/**
+	 * Optional text style for popup menu buttons. When {@code null}, defaults are resolved from {@code textStyle.*}
+	 * properties in brts.conf (via {@link TextStyle#withDefaults()}).
+	 */
+	private TextStyle style;
 
 	// -------------------------------------------------------------------------
 

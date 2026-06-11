@@ -332,7 +332,7 @@ public final class ParsedNavigationCommand {
 		case PLAY_PL_PM -> "Play playlist " + describeOperand1() + ", mark " + describeOperand2();
 
 		// Stream/system operations
-		case SET_STREAM -> "Set stream (param=0x" + Long.toHexString(operand1) + ")";
+		case SET_STREAM -> describeSetStream(operand1, operand2);
 		case SET_NV_TIMER -> "Set navigation timer to " + describeOperand1();
 		// SET_BUTTON_PAGE reverse-engineered from trial/compile with free version of igeditor
 		case SET_BUTTON_PAGE -> "Set button/page ("
@@ -347,6 +347,40 @@ public final class ParsedNavigationCommand {
 		case SET_SEC_STREAM -> "Set secondary stream (param=0x" + Long.toHexString(operand1) + ")";
 		case SET_STREAM_SS -> "Set stereoscopic stream (param=0x" + Long.toHexString(operand1) + ")";
 		};
+	}
+
+	/**
+	 * Decodes and describes the SET_STREAM operands field by field, following libbluray _set_stream():
+	 * <ul>
+	 * <li>operand1 bit 31: primary audio enable; bits [27:16]: primary audio stream ID</li>
+	 * <li>operand1 bit 15: PG TextST enable; bit 14: display flag; bits [11:0]: PG TextST stream ID</li>
+	 * <li>operand2 bit 31: IG stream enable; bits [23:16]: IG stream ID</li>
+	 * <li>operand2 bit 15: angle enable; bits [7:0]: angle number</li>
+	 * </ul>
+	 */
+	private static String describeSetStream(long dst, long src) {
+		StringBuilder sb = new StringBuilder("SET_STREAM");
+		if ((dst & 0x8000_0000L) != 0) {
+			sb.append(" audio=").append((dst >> 16) & 0xFFF);
+		}
+		if ((dst & 0x8000L) != 0) {
+			sb.append(" pg=").append(dst & 0xFFF);
+			sb.append(" display=").append((dst & 0x4000L) != 0 ? "on" : "off");
+		} else if ((dst & 0x4000L) != 0) {
+			// display flag written unconditionally even when enable=0
+			sb.append(" display=off");
+		}
+		if ((src & 0x8000_0000L) != 0) {
+			sb.append(" IG=").append((src >> 16) & 0xFF);
+		}
+		if ((src & 0x8000L) != 0) {
+			sb.append(" angle=").append(src & 0xFF);
+		}
+		if (sb.length() == "SET_STREAM".length()) {
+			sb.append(" (no-op: op1=0x").append(Long.toHexString(dst)).append(" op2=0x").append(Long.toHexString(src))
+					.append(")");
+		}
+		return sb.toString();
 	}
 
 	private static boolean buttonOrPageEnabledFlag(long operand) {

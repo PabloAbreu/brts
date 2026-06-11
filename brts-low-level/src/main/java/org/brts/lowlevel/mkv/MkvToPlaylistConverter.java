@@ -16,11 +16,13 @@ import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.menu.TextStyle;
 import org.brts.common.mkv.MkvDemuxer;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.model.Timestamp;
+import org.brts.common.utils.FileUtils;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
@@ -88,8 +90,11 @@ public class MkvToPlaylistConverter {
 		/** 5-digit clip name for the popup menu IGS. When non-null, a popup menu is generated. */
 		private String popupMenuClipName;
 
+		/** Optional text style for the popup menu. Passed through to {@link PopupMenuConfig}. */
+		private TextStyle popupMenuStyle;
+
 		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null, null);
+			this(mkvFile, outputDir, clipName, null, null, null, null, null);
 		}
 
 	}
@@ -188,7 +193,8 @@ public class MkvToPlaylistConverter {
 		// 9b. Generate popup menu if requested
 		PopupMenuGenerator.Result popupResult = null;
 		if (needsPopupMenu) {
-			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks);
+			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks,
+					config.getPopupMenuStyle());
 			if (popupConfig != null) {
 				PopupMenuGenerator popupGenerator = new PopupMenuGenerator();
 				popupResult = popupGenerator.generate(popupConfig, outputDir);
@@ -204,7 +210,7 @@ public class MkvToPlaylistConverter {
 		new MoviePlaylistWriter().write(playlist, mplsPath);
 
 		log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}", m2tsPath, clpiPath, mplsPath);
-		workDir.toFile().deleteOnExit(); // clean up demuxed files on JVM exit
+		FileUtils.deleteDir(workDir);
 		return new Result(m2tsPath, clpiPath, mplsPath);
 	}
 
@@ -346,6 +352,15 @@ public class MkvToPlaylistConverter {
 		config.setOutputClipName(popupClipName);
 		config.setAudioTracks(audioEntries);
 		config.setSubtitleTracks(subtitleEntries);
+		return config;
+	}
+
+	private PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
+			TextStyle popupMenuStyle) {
+		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
+		if (config != null && popupMenuStyle != null) {
+			config.setStyle(popupMenuStyle);
+		}
 		return config;
 	}
 

@@ -231,17 +231,17 @@ public class DisplaySetPreviewFrame extends JFrame {
 	}
 
 	private void onPrevPage() {
-		int idx = model.getCurrentPageIndex() - 1;
-		if (idx >= 0) {
-			nav.goToPage(model.getPages().get(idx).getId());
+		int idx = model.getCurrentPageIndex();
+		if (idx > 0) {
+			nav.goToPage(model.getPages().get(idx - 1).getId());
 			panel.repaint();
 		}
 	}
 
 	private void onNextPage() {
-		int idx = model.getCurrentPageIndex() + 1;
-		if (idx < model.getPages().size()) {
-			nav.goToPage(model.getPages().get(idx).getId());
+		int idx = model.getCurrentPageIndex();
+		if (idx < model.getPages().size() - 1) {
+			nav.goToPage(model.getPages().get(idx + 1).getId());
 			panel.repaint();
 		}
 	}

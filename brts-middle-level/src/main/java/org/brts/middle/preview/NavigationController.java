@@ -54,7 +54,7 @@ public class NavigationController {
 	 * describing them.
 	 */
 	public NavigationResult activate() {
-		IgsButton btn = model.getAllButtons().get(model.getSelectedButtonId());
+		IgsButton btn = model.getCurrentButton();
 		if (btn == null) {
 			return NavigationResult.none("No button selected");
 		}
@@ -86,10 +86,14 @@ public class NavigationController {
 	public NavigationResult goToPage(int pageId) {
 		for (int i = 0; i < model.getPages().size(); i++) {
 			if (model.getPages().get(i).getId() == pageId) {
+				int oldPageIndex = model.getCurrentPageIndex();
 				model.setCurrentPageIndex(i);
 				model.resetBogState();
 				model.resetSelectedButton();
-				log.info("Switched to page #{}", pageId);
+				log.info("Switched to page ID#{} from page idx {}", pageId, oldPageIndex);
+				IgsPage page = model.getCurrentPage();
+				log.debug("Current page: {} (palette {}, {} BOGs, {} buttons)", page.getId(), page.getPaletteIdRef(),
+						page.getBogs().size(), page.getBogs().stream().mapToInt(b -> b.getButtons().size()).sum());
 				return new NavigationResult(NavigationResult.Type.PAGE_CHANGED, pageId, "Page " + pageId);
 			}
 		}
@@ -105,7 +109,7 @@ public class NavigationController {
 	}
 
 	private NavigationResult moveToNeighbour(Direction dir) {
-		IgsButton current = model.getAllButtons().get(model.getSelectedButtonId());
+		IgsButton current = model.getCurrentButton();
 		if (current == null) {
 			return NavigationResult.none("No button selected");
 		}
@@ -122,7 +126,7 @@ public class NavigationController {
 		}
 
 		// Verify the target button exists and is enabled
-		if (!model.getAllButtons().containsKey(targetId)) {
+		if (model.findButtonOnCurrentPage(targetId) == null) {
 			return NavigationResult.none("Neighbour button " + targetId + " not found");
 		}
 

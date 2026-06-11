@@ -1,5 +1,15 @@
 package org.brts.lowlevel.popupmenu;
 
+import static org.brts.common.utils.BrtsI18NLabels.MENU_BACK;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_EXIT;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_AUDIO;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_SUBTITLES;
+import static org.brts.common.utils.BrtsI18NLabels.getLabel;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.popupOff;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setAudio;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setButtonPage;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setSubtitle;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -8,7 +18,6 @@ import java.util.List;
 import org.brts.common.menu.TextRenderer;
 import org.brts.common.menu.TextRenderer.ButtonImages;
 import org.brts.common.menu.TextStyle;
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
 import org.brts.lowlevel.igs.PaletteBuilder;
 import org.brts.lowlevel.igs.RleEncoder;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
@@ -31,18 +40,18 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Builds an {@link IgsDisplaySet} for a popup audio/subtitle selection menu.
  * <p>
- * The popup menu has two pages:
+ * The menu structure depends on how many selectable track groups exist:
  * <ul>
- * <li><b>Page 0 (Audio)</b>: one button per audio track + "Subtitles &gt;" page-switch + "Exit" button</li>
- * <li><b>Page 1 (Subtitles)</b>: one button per subtitle track + "&lt; Audio" page-switch + "Exit" button</li>
+ * <li><b>Both groups (audio &gt; 1 and subtitles &gt; 1)</b>:
+ * <ul>
+ * <li>Page 0 (Root): "Audio &#9658;" + "Subtitles &#9658;" + "Exit" navigation buttons</li>
+ * <li>Page 1 (Audio): one button per audio track + "&#9668; Back" + "Exit"</li>
+ * <li>Page 2 (Subtitles): one button per subtitle track + "&#9668; Back" + "Exit"</li>
  * </ul>
- * <p>
- * Navigation commands:
- * <ul>
- * <li>Audio buttons → SET_STREAM (primary audio stream number in bits 31:24 of operand 1)</li>
- * <li>Subtitle buttons → SET_STREAM (PG stream number in bits 15:8 of operand 1)</li>
- * <li>Page-switch buttons → SET_BUTTON_PAGE</li>
- * <li>Exit buttons → POPUP_OFF</li>
+ * </li>
+ * <li><b>Audio only (audio &gt; 1, subtitles &le; 1)</b>: Page 0 lists audio tracks + "Exit" directly.</li>
+ * <li><b>Subtitles only (subtitles &gt; 1, audio &le; 1)</b>: Page 0 lists subtitle tracks + "Exit" directly.</li>
+ * <li><b>Neither</b>: {@link #build(PopupMenuConfig)} returns {@code null}.</li>
  * </ul>
  * <p>
  * The interactive composition uses {@code streamModel=IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX} (Out-Of-Mux)
@@ -57,15 +66,23 @@ public class PopupMenuIgsBuilder {
 
 	private static final int BUTTON_SPACING_Y = 8;
 
-	private static final int GROUP_SPACING_X = 60;
-
 	private static final int MARGIN_BOTTOM = 80;
+
+	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands) {
+	}
+
+	private TextStyle style;
+
+	private ButtonSpec render(String text, List<NavigationCommand> commands) throws IOException {
+		return new ButtonSpec(TextRenderer.renderTextButton(text, style, BUTTON_MAX_WIDTH), commands);
+	}
 
 	/**
 	 * Builds the popup menu IGS display set.
 	 *
 	 * @param config the popup menu configuration
-	 * @return a fully-populated {@link IgsDisplaySet}
+	 * @return a fully-populated {@link IgsDisplaySet}, or {@code null} if neither audio nor subtitle tracks warrant a
+	 *         menu (both groups have &le; 1 entry)
 	 * @throws IOException on rendering errors
 	 */
 	public IgsDisplaySet build(PopupMenuConfig config) throws IOException {
@@ -78,42 +95,74 @@ public class PopupMenuIgsBuilder {
 				? config.getSubtitleTracks()
 				: List.of();
 
-		TextStyle style = buildStyle();
+		boolean needsAudio = audioTracks.size() > 1;
+		boolean needsSubs = subtitleTracks.size() > 1;
 
-		// ── Render all button images ────────────────────────────────────────
-
-		// Page 0: audio buttons + "Subtitles >" + "Exit"
-		List<ButtonImages> page0Images = new ArrayList<>();
-		for (PopupMenuConfig.TrackEntry entry : audioTracks) {
-			page0Images.add(TextRenderer.renderTextButton(entry.getDisplayName(), style, BUTTON_MAX_WIDTH));
+		if (!needsAudio && !needsSubs) {
+			log.info("Popup menu skipped: neither audio ({}) nor subtitle ({}) tracks warrant a menu",
+					audioTracks.size(), subtitleTracks.size());
+			return null;
 		}
-		ButtonImages page0SwitchImg = TextRenderer.renderTextButton("Subtitles \u25B6", style, BUTTON_MAX_WIDTH);
-		page0Images.add(page0SwitchImg);
-		ButtonImages page0ExitImg = TextRenderer.renderTextButton("Exit", style, BUTTON_MAX_WIDTH);
-		page0Images.add(page0ExitImg);
 
-		// Page 1: subtitle buttons + "< Audio" + "Exit"
-		List<ButtonImages> page1Images = new ArrayList<>();
-		for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
-			page1Images.add(TextRenderer.renderTextButton(entry.getDisplayName(), style, BUTTON_MAX_WIDTH));
+		style = resolveStyle(config.getStyle());
+
+		// ── Build per-page button specs with nav commands ────────────────────
+
+		List<List<ButtonSpec>> pages = new ArrayList<>();
+
+		if (needsAudio && needsSubs) {
+			// BOTH: root page (0) + audio sub-page (1) + subtitle sub-page (2)
+			List<ButtonSpec> rootSpecs = new ArrayList<>();
+			setButtonPage(1, 1);
+			rootSpecs.add(render(getLabel(MENU_TO_AUDIO), setButtonPage(1, 1)));
+			rootSpecs.add(render(getLabel(MENU_TO_SUBTITLES), setButtonPage(2, 1)));
+			rootSpecs.add(render(getLabel(MENU_EXIT), popupOff()));
+			pages.add(rootSpecs);
+
+			List<ButtonSpec> audioSpecs = new ArrayList<>();
+			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
+				audioSpecs.add(render(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
+			}
+			audioSpecs.add(render(getLabel(MENU_BACK), setButtonPage(0, 1)));
+			audioSpecs.add(render(getLabel(MENU_EXIT), popupOff()));
+			pages.add(audioSpecs);
+
+			List<ButtonSpec> subSpecs = new ArrayList<>();
+			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
+				subSpecs.add(render(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
+			}
+			subSpecs.add(render(getLabel(MENU_BACK), setButtonPage(0, 1)));
+			subSpecs.add(render(getLabel(MENU_EXIT), popupOff()));
+			pages.add(subSpecs);
+
+		} else if (needsAudio) {
+			// AUDIO_ONLY: direct track list on page 0
+			List<ButtonSpec> audioSpecs = new ArrayList<>();
+			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
+				audioSpecs.add(render(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
+			}
+			audioSpecs.add(render(getLabel(MENU_EXIT), popupOff()));
+			pages.add(audioSpecs);
+
+		} else {
+			// SUBS_ONLY: direct track list on page 0
+			List<ButtonSpec> subSpecs = new ArrayList<>();
+			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
+				subSpecs.add(render(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
+			}
+			subSpecs.add(render(getLabel(MENU_EXIT), popupOff()));
+			pages.add(subSpecs);
 		}
-		ButtonImages page1SwitchImg = TextRenderer.renderTextButton("\u25C0 Audio", style, BUTTON_MAX_WIDTH);
-		page1Images.add(page1SwitchImg);
-		ButtonImages page1ExitImg = TextRenderer.renderTextButton("Exit", style, BUTTON_MAX_WIDTH);
-		page1Images.add(page1ExitImg);
 
 		// ── Collect all images for shared palette ────────────────────────────
 
 		List<BufferedImage> allImages = new ArrayList<>();
-		for (ButtonImages bi : page0Images) {
-			allImages.add(bi.normal());
-			allImages.add(bi.selected());
-			allImages.add(bi.activated());
-		}
-		for (ButtonImages bi : page1Images) {
-			allImages.add(bi.normal());
-			allImages.add(bi.selected());
-			allImages.add(bi.activated());
+		for (List<ButtonSpec> pageSpecs : pages) {
+			for (ButtonSpec spec : pageSpecs) {
+				allImages.add(spec.images().normal());
+				allImages.add(spec.images().selected());
+				allImages.add(spec.images().activated());
+			}
 		}
 
 		IgsPalette palette = PaletteBuilder.buildFromImages(0, allImages.toArray(new BufferedImage[0]));
@@ -143,22 +192,17 @@ public class PopupMenuIgsBuilder {
 
 		// ── Build pages ─────────────────────────────────────────────────────
 
-		int page0ObjectBase = 0;
-		int page1ObjectBase = page0Images.size() * 3;
-
-		IgsPage page0 = buildPage(0, page0Images, audioTracks.size(), screenW, screenH, page0ObjectBase, true,
-				audioTracks, subtitleTracks);
-		IgsPage page1 = buildPage(1, page1Images, subtitleTracks.size(), screenW, screenH, page1ObjectBase, false,
-				audioTracks, subtitleTracks);
-
-		// ── Build Interactive Composition ────────────────────────────────────
-
 		IgsInteractiveComposition ic = new IgsInteractiveComposition();
 		ic.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX); // Out-of-Mux
 		ic.setUiModel(IgsInteractiveComposition.UI_MODEL_POP_UP); // Pop-Up
 		ic.setUserTimeoutDuration(0); // No user timeout
-		ic.getPages().add(page0);
-		ic.getPages().add(page1);
+
+		int objectBase = 0;
+		for (int pageId = 0; pageId < pages.size(); pageId++) {
+			List<ButtonSpec> specs = pages.get(pageId);
+			ic.getPages().add(buildPage(pageId, specs, objectBase, screenW, screenH));
+			objectBase += specs.size() * 3;
+		}
 
 		// ── Build ICS ───────────────────────────────────────────────────────
 
@@ -203,31 +247,18 @@ public class PopupMenuIgsBuilder {
 		displaySet.getWindowDefinitions().add(wds);
 		displaySet.setObjects(objects);
 
-		log.info("Popup menu IGS built: page0={} buttons, page1={} buttons, {} objects", page0Images.size(),
-				page1Images.size(), objects.size());
+		log.info("Popup menu IGS built: {} page(s), {} objects", pages.size(), objects.size());
 
 		return displaySet;
 	}
 
 	// ── Page builder ────────────────────────────────────────────────────────
 
-	private IgsPage buildPage(int pageId, List<ButtonImages> images, int trackButtonCount, int screenW, int screenH,
-			int objectBase, boolean isAudioPage, List<PopupMenuConfig.TrackEntry> audioTracks,
-			List<PopupMenuConfig.TrackEntry> subtitleTracks) {
-
-		int totalButtons = images.size(); // track buttons + switch + exit
+	private IgsPage buildPage(int pageId, List<ButtonSpec> specs, int objectBase, int screenW, int screenH) {
+		int totalButtons = specs.size();
 		int totalHeight = totalButtons * BUTTON_HEIGHT + (totalButtons - 1) * BUTTON_SPACING_Y;
 		int startY = screenH - MARGIN_BOTTOM - totalHeight;
-
-		// Centre the button group horizontally
-		int groupX;
-		if (isAudioPage) {
-			groupX = screenW / 2 - BUTTON_MAX_WIDTH - GROUP_SPACING_X / 2;
-		} else {
-			groupX = screenW / 2 + GROUP_SPACING_X / 2;
-		}
-		// Clamp to reasonable bounds
-		groupX = Math.max(40, Math.min(groupX, screenW - BUTTON_MAX_WIDTH - 40));
+		int groupX = Math.max(40, Math.min((screenW - BUTTON_MAX_WIDTH) / 2, screenW - BUTTON_MAX_WIDTH - 40));
 
 		List<IgsBog> bogs = new ArrayList<>();
 		for (int i = 0; i < totalButtons; i++) {
@@ -237,10 +268,6 @@ public class PopupMenuIgsBuilder {
 			int activatedObjId = objectBase + i * 3 + 2;
 
 			int y = startY + i * (BUTTON_HEIGHT + BUTTON_SPACING_Y);
-
-			// Determine navigation command
-			List<NavigationCommand> navCmds = buildNavCommand(i, trackButtonCount, isAudioPage, audioTracks,
-					subtitleTracks, pageId);
 
 			IgsButton btn = new IgsButton();
 			btn.setId(buttonId);
@@ -258,9 +285,9 @@ public class PopupMenuIgsBuilder {
 			btn.setActivatedEndObjectIdRef(activatedObjId);
 			btn.setActivatedSoundIdRef(0xFF);
 
-			btn.setNavigationCommands(navCmds);
+			btn.setNavigationCommands(specs.get(i).commands());
 
-			// D-pad wiring: vertical list
+			// D-pad wiring: vertical list with wrap
 			btn.setUpperButtonIdRef(i == 0 ? totalButtons : i); // wrap to last
 			btn.setLowerButtonIdRef(i == totalButtons - 1 ? 1 : i + 2); // wrap to first
 			btn.setLeftButtonIdRef(buttonId); // stay
@@ -285,57 +312,13 @@ public class PopupMenuIgsBuilder {
 		return page;
 	}
 
-	// ── Navigation command builder ──────────────────────────────────────────
-
-	private List<NavigationCommand> buildNavCommand(int buttonIndex, int trackButtonCount, boolean isAudioPage,
-			List<PopupMenuConfig.TrackEntry> audioTracks, List<PopupMenuConfig.TrackEntry> subtitleTracks, int pageId) {
-
-		if (buttonIndex < trackButtonCount) {
-			// Track selection button
-			if (isAudioPage) {
-				int streamIndex = audioTracks.get(buttonIndex).getStreamIndex();
-				// SET_STREAM: primary audio in bits 31:24 of operand1, enable flag in bit 31
-				long op1 = (1L << 31) | ((long) (streamIndex & 0x7F) << 24);
-				return List.of(NavigationCommand
-						.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false)));
-			} else {
-				int streamIndex = subtitleTracks.get(buttonIndex).getStreamIndex();
-				// SET_STREAM: PG stream in bits 15:8 of operand1, enable flag in bit 15
-				long op1 = (1L << 15) | ((long) (streamIndex & 0x7F) << 8);
-				return List.of(NavigationCommand
-						.fromParsed(ParsedNavigationCommand.compile("SET_STREAM", op1, true, 0, false)));
-			}
-		} else if (buttonIndex == trackButtonCount) {
-			// Page-switch button
-			int targetPage = isAudioPage ? 1 : 0;
-			// SET_BUTTON_PAGE: operand1 = page number, operand2 = button ID (1 = first button)
-			return List.of(NavigationCommand
-					.fromParsed(ParsedNavigationCommand.compile("SET_BUTTON_PAGE", targetPage, true, 1, true)));
-		} else {
-			// Exit button
-			return List
-					.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false)));
-		}
-	}
-
 	// ── Style ───────────────────────────────────────────────────────────────
 
-	private TextStyle buildStyle() {
-		TextStyle style = new TextStyle();
-		style.setFontName("SansSerif");
-		style.setFontSize(24);
-		style.setFontStyle(0); // PLAIN
-		style.setNormalColor("#C0FFFFFF"); // semi-transparent white
-		style.setSelectedColor("#FFFFD700"); // gold
-		style.setActivatedColor("#FFFF6600"); // orange
-		style.setOutline(true);
-		style.setOutlineColor("#FF000000");
-		style.setOutlineWidth(1.5f);
-		style.setBackgroundShape(TextStyle.BackgroundShape.ROUNDED_RECTANGLE);
-		style.setBackgroundColor("#80000000"); // 50% black
-		style.setPaddingX(16);
-		style.setPaddingY(8);
-		return style.withDefaults();
+	private TextStyle resolveStyle(TextStyle input) {
+		if (input != null) {
+			return input.withDefaults();
+		}
+		return new TextStyle().withDefaults();
 	}
 
 }

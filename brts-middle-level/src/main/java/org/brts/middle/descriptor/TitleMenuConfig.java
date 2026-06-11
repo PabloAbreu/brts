@@ -1,5 +1,6 @@
 package org.brts.middle.descriptor;
 
+import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
@@ -59,5 +60,12 @@ public class TitleMenuConfig {
 	 * are placed within this pixel rectangle. When {@code null} (default), the full screen minus margins is used.
 	 */
 	private BoundingBox boundingBox;
+
+	/**
+	 * Optional title menu style override. When non-null, merged over the disc-wide {@link DiscDescriptor#getStyle()} to
+	 * produce the effective style for title menu buttons. When {@code null}, the disc-wide style (or brts.conf
+	 * defaults) is used directly.
+	 */
+	private TextStyle style;
 
 }

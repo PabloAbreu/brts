@@ -5,8 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
-import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
+import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.igs.PaletteBuilder;
 import org.brts.lowlevel.igs.RleEncoder;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
@@ -29,6 +28,7 @@ import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult.PositionedButton;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -45,8 +45,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class TitleMenuIgsBuilder {
-	// has no effect on decoding, but matches the button IDs used in the JUMP_TITLE commands emitted by the layout
-	// algorithms
+	// has no effect on decoding by players, but matches the button IDs used in the JUMP_TITLE
+	// commands emitted by the layout algorithms
 	private static final int BUTTON_BASE_ID = 1;
 
 	/**
@@ -113,8 +113,7 @@ public class TitleMenuIgsBuilder {
 			int activatedObjId = i * 3 + 2;
 
 			// JUMP_TITLE navigation command
-			List<NavigationCommand> navCmds = List.of(NavigationCommand
-					.fromParsed(ParsedNavigationCommand.compile("JUMP_TITLE", pb.getTitleNumber(), true, 0, false)));
+			List<NavigationCommand> navCmds = NavigationCommandUtils.jumpTitle(pb.getTitleNumber());
 
 			IgsButton btn = new IgsButton();
 			btn.setId(buttonId);
@@ -297,13 +296,8 @@ public class TitleMenuIgsBuilder {
 		btn.setActivatedSoundIdRef(0xFF);
 		btn.setActivatedStartObjectIdRef(0xFFFF);
 		btn.setActivatedEndObjectIdRef(0xFFFF);
-		// the values 1234,1235 below are hard-coded, but should not.
-		btn.setNavigationCommands(List.of(
-				NavigationCommand.fromParsed(ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, 1234,
-						false, BUTTON_BASE_ID, true)),
-				NavigationCommand.fromParsed(
-						ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, 1235, false, 1, true)),
-				NavigationCommand.fromParsed(ParsedNavigationCommand.generateSetButtonPageCommand(1234, 1235, true))));
+
+		btn.setNavigationCommands(NavigationCommandUtils.setButtonPage(1, BUTTON_BASE_ID));
 
 		IgsBog bog = new IgsBog();
 		bog.setDefaultValidButtonIdRef(BUTTON_BASE_ID);

@@ -34,9 +34,6 @@ public class DisplaySetPreviewModel {
 	/** Map from object id → pre-decoded ARGB image. */
 	private Map<Integer, BufferedImage> objectImages = new HashMap<>();
 
-	/** All buttons across all pages, indexed by button id. */
-	private Map<Integer, IgsButton> allButtons = new HashMap<>();
-
 	/** UI model: 0 = always-on, 1 = pop-up. */
 	private int uiModel;
 
@@ -109,6 +106,23 @@ public class DisplaySetPreviewModel {
 				return;
 			}
 		}
+	}
+
+	public IgsButton getCurrentButton() {
+		return findButtonOnCurrentPage(selectedButtonId);
+	}
+
+	public IgsButton findButtonOnCurrentPage(int buttonId) {
+		IgsPage page = getCurrentPage();
+		if (page == null)
+			return null;
+		for (IgsBog bog : page.getBogs()) {
+			for (IgsButton btn : bog.getButtons()) {
+				if (btn.getId() == buttonId)
+					return btn;
+			}
+		}
+		return null;
 	}
 
 }

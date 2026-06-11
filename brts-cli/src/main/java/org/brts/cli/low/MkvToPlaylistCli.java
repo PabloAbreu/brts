@@ -1,6 +1,8 @@
 package org.brts.cli.low;
 
 import org.brts.cli.FeatureRunner;
+import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.mkv.MkvToPlaylistConverter;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.kohsuke.args4j.Option;
@@ -51,6 +53,9 @@ public class MkvToPlaylistCli {
 		@Option(name = "--popup-menu-clip-name", usage = "5-digit clip name for popup menu IGS (enables popup menu generation)")
 		String popupMenuClipName;
 
+		@Option(name = "--popup-menu-style", usage = "Path to JSON file with TextStyle for popup menu buttons")
+		File popupMenuStyleFile;
+
 	}
 
 	public static class Convert extends FeatureRunner<ConvertOptions> {
@@ -100,6 +105,11 @@ public class MkvToPlaylistCli {
 
 			if (opts.popupMenuClipName != null && !opts.popupMenuClipName.isBlank()) {
 				config.setPopupMenuClipName(opts.popupMenuClipName);
+			}
+
+			if (opts.popupMenuStyleFile != null) {
+				TextStyle popupStyle = JsonMapperFactory.get().readValue(opts.popupMenuStyleFile, TextStyle.class);
+				config.setPopupMenuStyle(popupStyle);
 			}
 
 			MkvToPlaylistConverter converter = new MkvToPlaylistConverter();
