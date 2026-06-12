@@ -2,6 +2,8 @@ package org.brts.common.utils.composition;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.brts.common.utils.expressions.Expression;
@@ -49,6 +51,7 @@ public class CompositionContextImpl implements CompositionContext {
 	private final ELContext elContext = elManager.getELContext();
 
 	private final VariableMapper variableMapper = elContext.getVariableMapper();
+	private final List<String> variableDefinitionOrder = new ArrayList<>();
 
 	// base path to resolve relative paths against
 	private final Path basePath;
@@ -68,11 +71,16 @@ public class CompositionContextImpl implements CompositionContext {
 	}
 
 	public void setVariable(String name, Expression value) {
-		// Use lazy evaluation to support out-of-order variable definitions
-		variableMapper.setVariable(name, new LazyValueExpression(value, this));
+		if (value.isValue()) {
+			setVariable(name, value.getValue());
+		} else {
+			variableDefinitionOrder.add(name);
+			variableMapper.setVariable(name, new LazyValueExpression(value, this));
+		}
 	}
 
-	public void setVariable(String name, Object value) {
+	private void setVariable(String name, Object value) {
+		variableDefinitionOrder.add(name);
 		variableMapper.setVariable(name, factory.createValueExpression(value, Object.class));
 	}
 
@@ -81,7 +89,14 @@ public class CompositionContextImpl implements CompositionContext {
 		if (expression.isValue())
 			return expression.getValue();
 		ValueExpression exp = factory.createValueExpression(elContext, expression.getExpression(), Object.class);
-		return exp.getValue(elContext);
+		try {
+			return exp.getValue(elContext);
+		} catch (Exception e) {
+			// log all available context variables for debugging
+			log.error("Error evaluating expression '{}'. Available variables: {}", expression.getExpression(),
+					variableDefinitionOrder);
+			throw new RuntimeException("Failed to evaluate expression: " + expression.getExpression(), e);
+		}
 	}
 
 	@Override

@@ -4,6 +4,7 @@ import org.brts.common.utils.expressions.Expression;
 
 import jakarta.el.ELContext;
 import jakarta.el.ValueExpression;
+import lombok.RequiredArgsConstructor;
 
 /**
  * A ValueExpression that lazily evaluates an Expression when requested by the EL engine.
@@ -18,6 +19,7 @@ import jakarta.el.ValueExpression;
  * "a"'s value when evaluated, regardless of definition order.
  * </p>
  */
+@RequiredArgsConstructor
 class LazyValueExpression extends ValueExpression {
 
 	private static final long serialVersionUID = 1L;
@@ -25,11 +27,6 @@ class LazyValueExpression extends ValueExpression {
 	private final Expression expression;
 
 	private final CompositionContextImpl context;
-
-	public LazyValueExpression(Expression expression, CompositionContextImpl context) {
-		this.expression = expression;
-		this.context = context;
-	}
 
 	@Override
 	public Object getValue(ELContext elContext) {

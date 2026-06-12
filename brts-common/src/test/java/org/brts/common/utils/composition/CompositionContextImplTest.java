@@ -65,4 +65,39 @@ class CompositionContextImplTest {
 		assertThat(context.evalNumeric(ObjectExpression.expr("${b}"))).isEqualTo(15);
 		assertThat(context.evalNumeric(ObjectExpression.expr("${a}"))).isEqualTo(5);
 	}
+
+	@Test
+	void testRuntimeEvaluation() throws Exception {
+		// Test that variables can be set at runtime and reference other variables
+		ImagesComposition config = new ImagesComposition();
+		config.setBaseImageId("base");
+		Map<String, ObjectExpression> constants = new LinkedHashMap<>();
+		constants.put("x", ObjectExpression.expr("${y*2}"));
+		constants.put("z", ObjectExpression.expr("${x+10}"));
+		constants.put("y", ObjectExpression.of(20));
+		config.setConstants(constants);
+		CompositionContextImpl context = new CompositionContextImpl(5, config, Path.of("src/test/resources"));
+
+		assertThat(context.evalNumeric(ObjectExpression.expr("${x+10}"))).isEqualTo(50);
+		assertThat(context.evalNumeric(ObjectExpression.expr("${x+10 * frameNumber}"))).isEqualTo(90);
+	}
+
+	@Test
+	void yetAnotherTest() throws Exception {
+		// Test that variables can be set at runtime and reference other variables
+		ImagesComposition config = new ImagesComposition();
+		config.setBaseImageId("base");
+		Map<String, ObjectExpression> constants = new LinkedHashMap<>();
+		/*
+		 * "constants" : { "x_space" : 300, "x0" : 200, "x1" : "${x0+x_space}" },
+		 */
+		constants.put("x_space", ObjectExpression.of(300));
+		constants.put("x0", ObjectExpression.of(200));
+		constants.put("x1", ObjectExpression.expr("${x0+x_space}"));
+		config.setConstants(constants);
+		CompositionContextImpl context = new CompositionContextImpl(5, config, Path.of("src/test/resources"));
+
+		assertThat(context.eval(ObjectExpression.expr("${x0}"))).isEqualTo(200);
+		assertThat(context.eval(ObjectExpression.expr("${x1}"))).isEqualTo(500L);
+	}
 }
