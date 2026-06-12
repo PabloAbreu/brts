@@ -17,6 +17,7 @@ import org.brts.cli.low.PlaylistCli;
 import org.brts.cli.low.PlaylistToMkvCli;
 import org.brts.cli.low.RleConverterCli;
 import org.brts.cli.low.TitleMenuCli;
+import org.brts.cli.low.VideoGenCli;
 
 /**
  * Dispatches low-level subcommands.
@@ -38,7 +39,7 @@ public class LowLevelDispatcher {
 				.register(new PgsCli.Create()).register(new RleConverterCli.Convert())
 				.register(new PlaylistToMkvCli.Extract()).register(new MkvToPlaylistCli.Convert())
 				.register(new BrtsInfoCli.Info()).register(new NavSimulCli.Simul()).register(new DiscCli.Create())
-				.register(new TitleMenuCli.Create());
+				.register(new TitleMenuCli.Create()).register(new VideoGenCli.Generate());
 	}
 
 	public LevelDispatcher getLevelDispatcher() {

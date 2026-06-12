@@ -7,9 +7,11 @@ import java.util.Map;
 import org.brts.common.utils.expressions.Expression;
 import org.brts.common.utils.expressions.ObjectExpression;
 
+import jakarta.el.ELContext;
 import jakarta.el.ELManager;
 import jakarta.el.ExpressionFactory;
 import jakarta.el.ValueExpression;
+import jakarta.el.VariableMapper;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,6 +46,10 @@ public class CompositionContextImpl implements CompositionContext {
 
 	private final ExpressionFactory factory = ELManager.getExpressionFactory();
 
+	private final ELContext elContext = elManager.getELContext();
+
+	private final VariableMapper variableMapper = elContext.getVariableMapper();
+
 	// base path to resolve relative paths against
 	private final Path basePath;
 
@@ -52,30 +58,30 @@ public class CompositionContextImpl implements CompositionContext {
 		setVariable("frameNumber", frameNumber);
 		// insert all constants from configuration into context
 		Map<String, ObjectExpression> constants = configuration.getConstants();
-		if (constants != null)
-			constants.forEach(this::setVariable);
 		// set base path variable if not overriden by constants
 		if (constants == null || !constants.containsKey("basePath"))
 			setVariable("basePath", basePath.toFile().getAbsolutePath());
+		if (constants != null)
+			constants.forEach(this::setVariable);
 		this.basePath = Paths.get((String) eval(ObjectExpression.expr("${basePath}")));
 		log.debug("Initialized CompositionContextImpl with frameNumber={}, basePath={}", frameNumber, this.basePath);
 	}
 
 	public void setVariable(String name, Expression value) {
-		setVariable(name, eval(value));
+		// Use lazy evaluation to support out-of-order variable definitions
+		variableMapper.setVariable(name, new LazyValueExpression(value, this));
 	}
 
 	public void setVariable(String name, Object value) {
-		elManager.getELContext().getELResolver().setValue(elManager.getELContext(), null, name, value);
+		variableMapper.setVariable(name, factory.createValueExpression(value, Object.class));
 	}
 
 	@Override
 	public Object eval(Expression expression) {
 		if (expression.isValue())
 			return expression.getValue();
-		ValueExpression exp = factory.createValueExpression(elManager.getELContext(), expression.getExpression(),
-				Object.class);
-		return exp.getValue(elManager.getELContext());
+		ValueExpression exp = factory.createValueExpression(elContext, expression.getExpression(), Object.class);
+		return exp.getValue(elContext);
 	}
 
 	@Override

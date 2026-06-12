@@ -112,7 +112,7 @@ public class AudioUtils {
 	 * @param codecId FFmpeg codec identifier
 	 * @return the stream_type byte, or {@code 0} if the codec is not mapped
 	 */
-	private static int codecIdToStreamTypeByte(int codecId) {
+	static int codecIdToStreamTypeByte(int codecId) {
 		if (codecId == AV_CODEC_ID_AC3) {
 			return 0x81; // Dolby Digital AC-3
 		}

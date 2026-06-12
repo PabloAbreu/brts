@@ -59,8 +59,8 @@ public class ImageComposition {
 			double y = context.evalNumeric(br.y);
 			double tlx = context.evalNumeric(topLeft.x);
 			double tly = context.evalNumeric(topLeft.y);
-			double scaleX = (double) x / tlx;// FIXME this makes no sense
-			double scaleY = (double) y / tly;
+			double scaleX = (double) (x - tlx) / w;
+			double scaleY = (double) (y - tly) / h;
 			result.scale(scaleX, scaleY);
 		}
 		if (rotation != null) {

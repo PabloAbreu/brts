@@ -128,11 +128,12 @@ public class ImageUtils {
 			int x, int y, float opacity) {
 		Graphics2D g = background.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-		g.setTransform(transform);
+		g.translate(x, y);
+		g.transform(transform);
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
 		log.debug("Composing image at ({}, {}) with opacity {} and transform {}. background size : {}x{}", x, y,
 				opacity, transform, background.getWidth(), background.getHeight());
-		g.drawImage(overlay, x, y, null);
+		g.drawImage(overlay, 0, 0, null);
 		g.dispose();
 		return background;
 	}

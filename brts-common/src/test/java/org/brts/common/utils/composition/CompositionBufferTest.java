@@ -2,7 +2,6 @@ package org.brts.common.utils.composition;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.nio.file.Path;
 
 import javax.imageio.ImageIO;
 

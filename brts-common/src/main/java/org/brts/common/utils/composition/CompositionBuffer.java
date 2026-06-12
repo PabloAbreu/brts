@@ -51,6 +51,10 @@ public class CompositionBuffer {
 	public CompositionBuffer(ImagesComposition configuration, MediaRepository mediaRepository,
 			CompositionContext context) {
 		this.configuration = configuration;
+		// if base image is not set, use the first image in the list as base
+		if (configuration.getBaseImageId() == null && !configuration.getImages().isEmpty()) {
+			configuration.setBaseImageId(configuration.getImages().get(0).getImageId());
+		}
 		this.mediaRepository = mediaRepository;
 		this.context = context;
 		references = configuration.getImages().stream().collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r),

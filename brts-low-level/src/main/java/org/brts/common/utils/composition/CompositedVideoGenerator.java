@@ -30,24 +30,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
-import org.brts.common.m2ts.M2tsExtractor;
-import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
-import org.brts.common.m2ts.model.M2tsInfo;
-import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.AudioUtils;
-import org.brts.common.utils.Extensions;
+import org.brts.common.utils.FfmpegAudioExtractor;
 import org.brts.common.utils.FileUtils;
-import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
@@ -440,51 +433,36 @@ public class CompositedVideoGenerator {
 	 * {@link M2tsDescriptor.StreamEntry} objects to {@code streams}.
 	 *
 	 * <p>
-	 * Output files are produced by {@link M2tsExtractor} and are named {@code pid_<hex>.<ext>} inside a temporary
-	 * subdirectory.
+	 * Delegates to {@link FfmpegAudioExtractor}, which supports any container format that FFmpeg can demux (MKV, MP4,
+	 * M2TS, …).
 	 */
 	private void appendAudioEntries(String baseVideoPath, Path tempDir, List<M2tsDescriptor.StreamEntry> streams)
 			throws IOException {
-		M2tsInfo info = new M2tsParser().parse(Path.of(baseVideoPath));
-		List<M2tsStreamInfo> audioStreams = info.getStreams().stream()
-				.filter(s -> s.getCodingType() != null && s.getCodingType().isAudio()).toList();
+		Path audioDir = tempDir.resolve("audio");
+		Files.createDirectories(audioDir);
+
+		List<FfmpegAudioExtractor.ExtractedAudio> audioStreams = new FfmpegAudioExtractor()
+				.extract(Path.of(baseVideoPath), audioDir);
 
 		if (audioStreams.isEmpty()) {
 			log.debug("No audio streams found in '{}'", baseVideoPath);
 			return;
 		}
 
-		Set<Integer> audioPids = new LinkedHashSet<>();
-		for (M2tsStreamInfo as : audioStreams) {
-			audioPids.add(as.getPid());
-		}
-
-		Path audioDir = tempDir.resolve("audio");
-		Files.createDirectories(audioDir);
-		new M2tsExtractor().extract(Path.of(baseVideoPath), info, audioDir, audioPids);
-
 		int nextPid = BASE_AUDIO_PID;
-		for (M2tsStreamInfo as : audioStreams) {
-			// FilePacketHandler names files as "pid_<hex>.<ext>"
-			String ext = Extensions.extensionForStream(as);
-			Path esFile = audioDir.resolve(String.format("pid_%04x.%s", as.getPid(), ext));
-			if (!Files.exists(esFile)) {
-				log.warn("Audio ES file not found for PID 0x{}: {}", Integer.toHexString(as.getPid()),
-						esFile.getFileName());
-				continue;
-			}
-
+		for (FfmpegAudioExtractor.ExtractedAudio as : audioStreams) {
 			M2tsDescriptor.StreamEntry entry = new M2tsDescriptor.StreamEntry();
-			entry.setFile(esFile.toString());
+			entry.setFile(as.esFile().toString());
 			entry.setPid(nextPid++);
-			entry.setStreamTypeByte(as.getStreamTypeByte());
-			entry.setLanguage(as.getLanguage());
-			entry.setBitrateKbps(as.getBitrateKbps());
-			entry.setChannels(as.getChannels());
-			entry.setSampleRateHz(as.getSampleRateHz());
+			entry.setStreamTypeByte(as.streamTypeByte());
+			entry.setLanguage(as.language());
+			entry.setBitrateKbps(as.bitrateKbps());
+			entry.setChannels(as.channels());
+			entry.setSampleRateHz(as.sampleRateHz());
 			streams.add(entry);
 
-			log.debug("  Added audio PID 0x{} ({})", Integer.toHexString(as.getPid()), as.getCodingType());
+			log.debug("  Added audio stream from '{}' (type=0x{})", as.esFile().getFileName(),
+					Integer.toHexString(as.streamTypeByte()));
 		}
 	}
 

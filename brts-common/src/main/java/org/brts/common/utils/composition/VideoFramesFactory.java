@@ -28,6 +28,7 @@ public class VideoFramesFactory {
 		return switch (ext) {
 		case "m2ts" -> new M2tsVideoFrames(path);
 		case "mkv" -> new MkvVideoFrames(path);
+		case "mp4", "mov" -> new Mp4VideoFrames(path);
 		default -> throw new IllegalArgumentException("Unsupported video format: " + fileName);
 		};
 	}
