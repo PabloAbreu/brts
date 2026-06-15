@@ -141,11 +141,9 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 				topLeft.setY(ObjectExpression.of(thumbY));
 				overlay.setTopLeft(topLeft);
 
-				ImageComposition.ResizedImageComposition resize = new ImageComposition.ResizedImageComposition();
-				ImageComposition.Point bottomRight = new ImageComposition.Point();
-				bottomRight.setX(ObjectExpression.of(thumbX + thumbW));
-				bottomRight.setY(ObjectExpression.of(thumbY + thumbH));
-				resize.setBottomRight(bottomRight);
+				ImageComposition.Size resize = new ImageComposition.Size();
+				resize.setWidth(ObjectExpression.of(thumbW));
+				resize.setHeight(ObjectExpression.of(thumbH));
 				overlay.setResize(resize);
 
 				compositions.add(overlay);

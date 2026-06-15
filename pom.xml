@@ -42,6 +42,8 @@
 		<assertj.version>3.26.3</assertj.version>
 		<ffmpeg.version>8.0.1-1.5.13</ffmpeg.version>
 		<ffmpeg.platform>linux-x86_64</ffmpeg.platform>
+		<opencv.version>4.13.0-1.5.13</opencv.version>
+		<opencv.platform>linux-x86_64</opencv.platform>
 		<batik.version>1.18</batik.version>
 
 		<!-- Plugin versions -->
@@ -133,6 +135,17 @@
 				<artifactId>ffmpeg</artifactId>
 				<version>${ffmpeg.version}</version>
 				<classifier>${ffmpeg.platform}</classifier>
+			</dependency>
+			<dependency>
+				<groupId>org.bytedeco</groupId>
+				<artifactId>opencv</artifactId>
+				<version>${opencv.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bytedeco</groupId>
+				<artifactId>opencv</artifactId>
+				<version>${opencv.version}</version>
+				<classifier>${opencv.platform}</classifier>
 			</dependency>
 
 			<dependency>

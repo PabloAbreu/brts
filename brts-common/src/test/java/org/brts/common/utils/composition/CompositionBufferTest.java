@@ -24,8 +24,9 @@ public class CompositionBufferTest {
 	public void testBuffer() {
 		try {
 			CompositionBuffer compositionBuffer = makeBuffer("src/test/resources/images_composition.json");
-			BufferedImage result = compositionBuffer.compose();
-			writePng(result, "src/test/resources/composition_result.png");
+			try (ImageFrame result = compositionBuffer.compose()) {
+				writePng(result.toBufferedImage(), "src/test/resources/composition_result.png");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -47,8 +48,9 @@ public class CompositionBufferTest {
 	public void testBufferWithVideo() {
 		try {
 			CompositionBuffer compositionBuffer = makeBuffer("src/test/resources/images_composition2.json");
-			BufferedImage result = compositionBuffer.compose();
-			writePng(result, "src/test/resources/composition_result2.png");
+			try (ImageFrame result = compositionBuffer.compose()) {
+				writePng(result.toBufferedImage(), "src/test/resources/composition_result2.png");
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}

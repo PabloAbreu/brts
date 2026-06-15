@@ -1,11 +1,8 @@
 package org.brts.common.utils.composition;
 
-import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.brts.common.utils.ImageUtils;
 
 public class MediaRepositoryImpl implements MediaRepository {
 
@@ -17,7 +14,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 
 	/** Cache for static images, by path */
 	// FIXME : cap max size of the cache to avoid OOM
-	private final Map<Path, BufferedImage> imageCache = new HashMap<>();
+	private final Map<Path, ImageFrame> imageCache = new HashMap<>();
 
 	/** Cache for synthetic image generators, by content */
 	private final Map<String, SyntheticImageGenerator> syntheticCache = new HashMap<>();
@@ -41,8 +38,8 @@ public class MediaRepositoryImpl implements MediaRepository {
 	}
 
 	@Override
-	public BufferedImage getStaticImage(Path imagePath) {
-		return imageCache.computeIfAbsent(imagePath, ImageUtils::create);
+	public ImageFrame getStaticImage(Path imagePath) {
+		return imageCache.computeIfAbsent(imagePath, p -> CompositionEngineFactory.get().load(p));
 	}
 
 	@Override
@@ -55,6 +52,9 @@ public class MediaRepositoryImpl implements MediaRepository {
 				// just ignore
 			}
 		});
+		// free all cached static images
+		imageCache.values().forEach(f -> f.close());
+		imageCache.clear();
 		// free all synthetic image generators
 		syntheticCache.values().forEach(s -> {
 			try {

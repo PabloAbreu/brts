@@ -43,12 +43,15 @@ import org.bytedeco.ffmpeg.avformat.AVStream;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Abstract base class for {@link VideoFrames} implementations that decode frames using bytedeco/FFmpeg.
  * <p>
  * Handles format/codec opening, sequential frame decoding with LRU caching, color-space conversion, and resource
  * cleanup. Subclasses only need to supply stream-selection logic via the constructor.
  */
+@Slf4j
 public abstract class FfmpegVideoFrames implements VideoFrames {
 
 	private static final int CACHE_CAPACITY = 300;
@@ -67,10 +70,14 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 
 	private int currentFrameIndex = -1;
 
-	private final LinkedHashMap<Integer, BufferedImage> cache = new LinkedHashMap<>(16, 0.75f, true) {
+	private final LinkedHashMap<Integer, ImageFrame> cache = new LinkedHashMap<>(16, 0.75f, true) {
 		@Override
-		protected boolean removeEldestEntry(Map.Entry<Integer, BufferedImage> eldest) {
-			return size() > CACHE_CAPACITY;
+		protected boolean removeEldestEntry(Map.Entry<Integer, ImageFrame> eldest) {
+			if (size() > CACHE_CAPACITY) {
+				eldest.getValue().close();
+				return true;
+			}
+			return false;
 		}
 	};
 
@@ -143,14 +150,22 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 
 		// Estimate frame count
 		long nb = videoStream.nb_frames();
+		log.debug("videoStream.nb_frames() = {}", nb);
 		if (nb > 0) {
 			this.frameCount = (int) nb;
+			log.debug("Using nb_frames for frameCount: {}", this.frameCount);
 		} else {
-			double duration = videoStream.duration() * av_q2d(videoStream.time_base());
+			double timeBase = av_q2d(videoStream.time_base());
+			double duration = videoStream.duration() * timeBase;
+			log.debug("videoStream.duration() = {}, time_base = {}, detected fps = {}", videoStream.duration(),
+					timeBase, this.fps);
+			log.debug("Computed duration (seconds) = {}", duration);
 			if (duration > 0 && this.fps > 0) {
 				this.frameCount = (int) (duration * this.fps);
+				log.debug("Estimated frameCount from duration * fps = {}", this.frameCount);
 			} else {
 				this.frameCount = -1;
+				log.debug("Could not estimate frameCount; set to -1");
 			}
 		}
 	}
@@ -173,8 +188,8 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 	}
 
 	@Override
-	public BufferedImage getFrame(int frameNumber) {
-		BufferedImage cached = cache.get(frameNumber);
+	public ImageFrame getFrame(int frameNumber) {
+		ImageFrame cached = cache.get(frameNumber);
 		if (cached != null) {
 			return cached;
 		}
@@ -187,7 +202,6 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 				avcodec_flush_buffers(codecCtx);
 				currentFrameIndex = -1;
 			}
-
 			AVPacket packet = av_packet_alloc();
 			AVFrame frame = av_frame_alloc();
 			try {
@@ -206,9 +220,9 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 					while (avcodec_receive_frame(codecCtx, frame) >= 0) {
 						currentFrameIndex++;
 						if (currentFrameIndex == frameNumber) {
-							BufferedImage image = convertFrameToImage(frame);
-							cache.put(frameNumber, image);
-							return image;
+							ImageFrame imageFrame = convertFrameToImageFrame(frame);
+							cache.put(frameNumber, imageFrame);
+							return imageFrame;
 						}
 					}
 				}
@@ -218,9 +232,9 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 				while (avcodec_receive_frame(codecCtx, frame) >= 0) {
 					currentFrameIndex++;
 					if (currentFrameIndex == frameNumber) {
-						BufferedImage image = convertFrameToImage(frame);
-						cache.put(frameNumber, image);
-						return image;
+						ImageFrame imageFrame = convertFrameToImageFrame(frame);
+						cache.put(frameNumber, imageFrame);
+						return imageFrame;
 					}
 				}
 			} finally {
@@ -232,6 +246,11 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 		}
 
 		return null;
+	}
+
+	private ImageFrame convertFrameToImageFrame(AVFrame frame) {
+		BufferedImage image = convertFrameToImage(frame);
+		return CompositionEngineFactory.get().fromBufferedImage(image);
 	}
 
 	private BufferedImage convertFrameToImage(AVFrame frame) {
@@ -278,6 +297,8 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 		}
 		avcodec_free_context(codecCtx);
 		avformat_close_input(formatCtx);
+		cache.values().forEach(ImageFrame::close);
+		cache.values().forEach(ImageFrame::close);
 		cache.clear();
 	}
 

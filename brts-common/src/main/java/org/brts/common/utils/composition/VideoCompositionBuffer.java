@@ -33,7 +33,9 @@ public class VideoCompositionBuffer {
 
 	public BufferedImage composeFrame(int frameNumber) {
 		CompositionBuffer buffer = createCompositionBuffer(frameNumber);
-		return buffer.compose();
+		try (ImageFrame frame = buffer.compose()) {
+			return frame.toBufferedImage();
+		}
 	}
 
 }

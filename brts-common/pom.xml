@@ -45,6 +45,20 @@
 			<artifactId>ffmpeg</artifactId>
 			<classifier>${ffmpeg.platform}</classifier>
 		</dependency>
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>opencv</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>opencv</artifactId>
+			<classifier>${opencv.platform}</classifier>
+		</dependency>
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>openblas-platform</artifactId>
+			<version>0.3.31-1.5.13</version>
+		</dependency>
 
 		<!-- Jakarta EL Implementation -->
 		<dependency>

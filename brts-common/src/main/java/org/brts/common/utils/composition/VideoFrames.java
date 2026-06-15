@@ -1,13 +1,12 @@
 package org.brts.common.utils.composition;
 
-import java.awt.image.BufferedImage;
-
 /**
  * Able to produce frames from a video.
  *
- * getFrame() might be called multiple times with the same frameNumber, or with frameNumbers that loop around the total
- * frame count.
- *
+ * <p>
+ * {@link #getFrame} may be called multiple times with the same frameNumber, or with frameNumbers that loop around the
+ * total frame count. Returned frames are <em>borrowed</em> (owned by the implementation's cache); callers must
+ * <strong>not</strong> call {@link ImageFrame#close()} on them.
  */
 public interface VideoFrames extends AutoCloseable {
 
@@ -15,6 +14,9 @@ public interface VideoFrames extends AutoCloseable {
 
 	double getFps();
 
-	BufferedImage getFrame(int frameNumber);
+	/**
+	 * Returns a borrowed {@link ImageFrame} for the given frame index. Do not close the returned frame.
+	 */
+	ImageFrame getFrame(int frameNumber);
 
 }

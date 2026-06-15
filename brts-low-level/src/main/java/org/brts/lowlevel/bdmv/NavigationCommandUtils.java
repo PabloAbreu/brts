@@ -17,18 +17,28 @@ public class NavigationCommandUtils {
 	private static final int GPR_PAGE = 1235;
 
 	public static List<NavigationCommand> setButtonPage(int page, int button) {
+		return list(ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, GPR_BUTTON, false, button, true),
+				ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, GPR_PAGE, false, page, true),
+				ParsedNavigationCommand.generateSetButtonPageCommand(GPR_BUTTON, GPR_PAGE, true));
+
+	}
+
+	private static List<NavigationCommand> list(ParsedNavigationCommand... parsedCommands) {
 		List<NavigationCommand> result = new ArrayList<>();
-		result.add(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, GPR_BUTTON, false, button, true)));
-		result.add(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, GPR_PAGE, false, page, true)));
-		result.add(NavigationCommand
-				.fromParsed(ParsedNavigationCommand.generateSetButtonPageCommand(GPR_BUTTON, GPR_PAGE, true)));
+		for (ParsedNavigationCommand parsed : parsedCommands) {
+			result.add(NavigationCommand.fromParsed(parsed));
+		}
 		return result;
 	}
 
+	// shorter version when list has a single element
+	private static List<NavigationCommand> cmdList(NavigationCommandMnemonic mnemonic, long op1, boolean op1IsImmediate,
+			long op2, boolean op2IsImmediate) {
+		return list(ParsedNavigationCommand.compile(mnemonic, op1, op1IsImmediate, op2, op2IsImmediate));
+	}
+
 	public static List<NavigationCommand> popupOff() {
-		return List.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("POPUP_OFF", 0, false, 0, false)));
+		return cmdList(NavigationCommandMnemonic.POPUP_OFF, 0, false, 0, false);
 	}
 
 	/**
@@ -38,8 +48,7 @@ public class NavigationCommandUtils {
 	 */
 	public static List<NavigationCommand> setAudio(int streamIndex) {
 		long op1 = (1L << 31) | ((long) (streamIndex & 0xFFF) << 16);
-		return List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.SET_STREAM, op1, true, 0, false)));
+		return cmdList(NavigationCommandMnemonic.SET_STREAM, op1, true, 0, false);
 	}
 
 	/**
@@ -50,24 +59,21 @@ public class NavigationCommandUtils {
 	 */
 	public static List<NavigationCommand> setSubtitle(int streamIndex) {
 		long op1 = streamIndex > 0 ? (1L << 15) | (1L << 14) | (streamIndex & 0xFFFL) : 0;
-		return List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.SET_STREAM, op1, true, 0, false)));
+		return cmdList(NavigationCommandMnemonic.SET_STREAM, op1, true, 0, false);
 	}
 
 	/** JUMP_TITLE command targeting the given title number (immediate operand). */
 	public static List<NavigationCommand> jumpTitle(int titleNumber) {
-		return List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.JUMP_TITLE, titleNumber, true, 0, false)));
+		return cmdList(NavigationCommandMnemonic.JUMP_TITLE, titleNumber, true, 0, false);
 	}
 
 	/** PLAY_PL command targeting the given playlist number (immediate operand). */
 	public static List<NavigationCommand> playPlaylist(int playlistNumber) {
-		return List.of(NavigationCommand.fromParsed(
-				ParsedNavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, playlistNumber, true, 0, false)));
+		return cmdList(NavigationCommandMnemonic.PLAY_PL, playlistNumber, true, 0, false);
 	}
 
 	/** RESUME command (no operands). */
 	public static List<NavigationCommand> resume() {
-		return List.of(NavigationCommand.fromParsed(ParsedNavigationCommand.compile("RESUME", 0, false, 0, false)));
+		return cmdList(NavigationCommandMnemonic.RESUME, 0, false, 0, false);
 	}
 }

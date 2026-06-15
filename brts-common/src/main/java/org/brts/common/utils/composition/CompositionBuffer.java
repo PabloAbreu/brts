@@ -1,14 +1,14 @@
 package org.brts.common.utils.composition;
 
-import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.brts.common.utils.ImageUtils;
+import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Manages composition and caching of images for video composition operations.
@@ -30,7 +30,16 @@ import lombok.Getter;
  * @author brt-common
  * @version 1.0
  */
+@Slf4j
 public class CompositionBuffer {
+	static {
+		try {
+			String v = Loader.Detector.getPlatform();
+			System.out.println("\n\nOpenCV platform: " + v + "\n\n");
+		} catch (Throwable t) {
+			log.warn("Failed to load OpenCV native libraries: {}", t.getMessage());
+		}
+	}
 
 	private final @Getter ImagesComposition configuration;
 
@@ -70,13 +79,16 @@ public class CompositionBuffer {
 		return getReference(imageId);
 	}
 
-	private BufferedImage getImage(ImageReference ref, int frameNumber) {
+	private ImageFrame getImage(ImageReference ref, int frameNumber) {
 		if (ref.isStatic()) {
 			return mediaRepository.getStaticImage(resolvePath(ref.getSourcePath()));
 		} else if (ref.isVideo()) {
 			VideoFrames videoFrames = getVideoFrames(ref);
 			// loop video if frameNumber exceeds total frames
-			return videoFrames.getFrame(frameNumber % videoFrames.getFrameCount());
+			int count = videoFrames.getFrameCount();
+			int frameIndex = count <= 0 ? frameNumber : frameNumber % videoFrames.getFrameCount();
+			log.debug("Fetching video frame {} / {}", frameIndex, videoFrames.getFrameCount());
+			return videoFrames.getFrame(frameIndex);
 		} else if (ref.isSynthetic()) {
 			SyntheticImageGenerator generator = getSyntheticGenerator(ref);
 			return generator.generate(frameNumber);
@@ -91,18 +103,19 @@ public class CompositionBuffer {
 		return context.resolvePath(relative);
 	}
 
-	public BufferedImage compose() {
-		BufferedImage background = ImageUtils.copy(getImage(getBackgroundReference(), context.getFrameNumber()));
+	public ImageFrame compose() {
+		CompositionEngine engine = CompositionEngineFactory.get();
+		// background is owned by this scope; overlays are borrowed (do not close)
+		ImageFrame background = engine.copy(getImage(getBackgroundReference(), context.getFrameNumber()));
 		for (ImageComposition ic : configuration.getCompositions()) {
 			ImageReference ref = getReference(ic.getImageId());
-			BufferedImage overlay = getImage(ref, context.getFrameNumber());
+			ImageFrame overlay = getImage(ref, context.getFrameNumber());
 			double tlx = context.evalNumeric(ic.getTopLeft().getX());
 			double tly = context.evalNumeric(ic.getTopLeft().getY());
 			float opacity = (float) context.evalNumeric(ic.getOpacity(), 1.0);
 			opacity = Math.max(0.0f, Math.min(1.0f, opacity)); // clamp to [0, 1]
-			ImageUtils.compose(background, overlay,
-					ic.toAffineTransform(context, overlay.getWidth(), overlay.getHeight()), (int) tlx, (int) tly,
-					opacity);
+			engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
+					(int) tlx, (int) tly, opacity);
 		}
 		return background;
 	}

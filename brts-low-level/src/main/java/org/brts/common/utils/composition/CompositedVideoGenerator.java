@@ -331,10 +331,9 @@ public class CompositedVideoGenerator {
 					for (int i = 0; i < frameCount; i++) {
 						CompositionContextImpl ctx = new CompositionContextImpl(i, composition, baseDir);
 						CompositionBuffer cb = new CompositionBuffer(composition, repo, ctx);
-						BufferedImage img = cb.compose();
-
-						fillBgraFrame(img, bgrFrame, width, height);
-
+						try (ImageFrame frame = cb.compose()) {
+							fillBgraFrame(frame.toBufferedImage(), bgrFrame, width, height);
+						}
 						sws_scale(swsCtx, bgrFrame.data(), bgrFrame.linesize(), 0, height, yuvFrame.data(),
 								yuvFrame.linesize());
 

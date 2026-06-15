@@ -128,6 +128,10 @@ public class ImageUtils {
 			int x, int y, float opacity) {
 		Graphics2D g = background.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+		g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+		g.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_QUALITY);
 		g.translate(x, y);
 		g.transform(transform);
 		g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity));
@@ -141,7 +145,7 @@ public class ImageUtils {
 	public static BufferedImage scaleImage(BufferedImage src, int w, int h) {
 		BufferedImage dst = new BufferedImage(w, h, BufferedImage.TYPE_3BYTE_BGR);
 		Graphics2D g = dst.createGraphics();
-		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 		g.drawImage(src, 0, 0, w, h, null);
 		g.dispose();
 		return dst;

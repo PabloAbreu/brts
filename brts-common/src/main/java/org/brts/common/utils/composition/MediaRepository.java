@@ -1,17 +1,15 @@
 package org.brts.common.utils.composition;
 
-import java.awt.image.BufferedImage;
-import java.io.IOException;
 import java.nio.file.Path;
 
-/** Repository for media assets */
+/** Repository for media assets used during frame composition. */
 public interface MediaRepository extends AutoCloseable {
 
 	/**
 	 * Retrieves video frames from the specified video file.
 	 *
 	 * @param videoPath the path to the video file
-	 * @return a {@link VideoFrames} object fetching the extracted frames from the video
+	 * @return a {@link VideoFrames} object for extracting frames from the video
 	 */
 	VideoFrames getVideoFrames(Path videoPath);
 
@@ -26,11 +24,12 @@ public interface MediaRepository extends AutoCloseable {
 	/**
 	 * Retrieves a static image from the specified file path.
 	 *
+	 * <p>
+	 * The returned frame is <em>borrowed</em> (owned by an internal cache); do not close it.
+	 *
 	 * @param imagePath the {@link Path} to the image file to be loaded
-	 * @return a {@link BufferedImage} object representing the loaded image
-	 * @throws IOException              if an I/O error occurs while reading the image file
-	 * @throws IllegalArgumentException if the imagePath is null or invalid
+	 * @return a borrowed {@link ImageFrame} representing the loaded image
 	 */
-	BufferedImage getStaticImage(Path imagePath);
+	ImageFrame getStaticImage(Path imagePath);
 
 }

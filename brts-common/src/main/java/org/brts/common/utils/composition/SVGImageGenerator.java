@@ -26,7 +26,7 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 
 	private final byte[] svgContent;
 	private final Double frameRate;
-	private BufferedImage cachedStaticImage;
+	private ImageFrame cachedStaticFrame;
 
 	public SVGImageGenerator(ImageReference.SyntheticImageSource content) {
 		this.frameRate = content.getFrameRate();
@@ -34,20 +34,23 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 	}
 
 	@Override
-	public BufferedImage generate(int frameNumber) {
+	public ImageFrame generate(int frameNumber) {
 		if (isStatic()) {
-			if (cachedStaticImage == null) {
-				cachedStaticImage = render(0f);
+			if (cachedStaticFrame == null) {
+				cachedStaticFrame = CompositionEngineFactory.get().fromBufferedImage(render(0f));
 			}
-			return cachedStaticImage;
+			return cachedStaticFrame;
 		}
 		float snapshotTime = frameNumber / frameRate.floatValue();
-		return render(snapshotTime);
+		return CompositionEngineFactory.get().fromBufferedImage(render(snapshotTime));
 	}
 
 	@Override
 	public void close() {
-		cachedStaticImage = null;
+		if (cachedStaticFrame != null) {
+			cachedStaticFrame.close();
+			cachedStaticFrame = null;
+		}
 	}
 
 	private boolean isStatic() {

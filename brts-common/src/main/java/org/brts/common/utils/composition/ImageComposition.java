@@ -19,27 +19,19 @@ public class ImageComposition {
 
 	private ObjectExpression opacity; // 0.0 to 1.0, applied to the applied image
 
-	private ResizedImageComposition resize;
+	private Size resize;
 
 	private RotatedImageComposition rotation;
 
-	@Getter
-	@Setter
-	public static class ResizedImageComposition {
-
-		private Point bottomRight;
-
-		private ObjectExpression width;
-
-		private ObjectExpression height;
-
-	}
+	// TODO : crop the input image to a rectangle defined by its own topLeft and size
 
 	@Getter
 	@Setter
-	public static class RotatedImageComposition extends ResizedImageComposition {
+	public static class RotatedImageComposition {
 
 		private ObjectExpression angle;
+		// TODO : center of rotation (x,y) can be added in the future, but for now it is assumed to be the center of the
+		// image.
 
 	}
 
@@ -57,45 +49,34 @@ public class ImageComposition {
 		if (resize == null && rotation == null) {
 			return result; // identity
 		}
+		double scaleX = 1.0;
+		double scaleY = 1.0;
 		if (resize != null) {
-			if (resize.getBottomRight() != null && (resize.getWidth() != null || resize.getHeight() != null)) {
-				throw new IllegalArgumentException("resize cannot specify both bottomRight and width/height");
+			var width = resize.getWidth();
+			var height = resize.getHeight();
+			if (width == null && height == null) {
+				throw new IllegalArgumentException("resize cannot miss both width/height");
 			}
-			double tlx = context.evalNumeric(topLeft.x);
-			double tly = context.evalNumeric(topLeft.y);
-			double scaleX;
-			double scaleY;
-			if (resize.getBottomRight() != null) {
-				Point br = resize.getBottomRight();
-				scaleX = (context.evalNumeric(br.x) - tlx) / w;
-				scaleY = (context.evalNumeric(br.y) - tly) / h;
-			} else {
-				scaleX = resize.getWidth() != null ? context.evalNumeric(resize.getWidth()) / w : 1.0;
-				scaleY = resize.getHeight() != null ? context.evalNumeric(resize.getHeight()) / h : 1.0;
+			if (width != null && height != null) {
+				double wi = context.evalNumeric(width);
+				double he = context.evalNumeric(height);
+				scaleX = wi / w;
+				scaleY = he / h;
+			} else if (width != null) {
+				double wi = context.evalNumeric(width);
+				scaleX = wi / w;
+				scaleY = scaleX; // keep aspect ratio
+			} else if (height != null) {
+				double he = context.evalNumeric(height);
+				scaleY = he / h;
+				scaleX = scaleY; // keep aspect ratio
 			}
 			result.scale(scaleX, scaleY);
 		}
-		if (rotation != null) {
-			if (rotation.getBottomRight() != null && (rotation.getWidth() != null || rotation.getHeight() != null)) {
-				throw new IllegalArgumentException("rotation cannot specify both bottomRight and width/height");
-			}
-			double tlx = context.evalNumeric(topLeft.x);
-			double tly = context.evalNumeric(topLeft.y);
-			Point br = rotation.getBottomRight();
-			double brx;
-			double bry;
-			if (br != null) {
-				brx = br.x != null ? context.evalNumeric(br.x) : (tlx + w);
-				bry = br.y != null ? context.evalNumeric(br.y) : (tly + h);
-			} else {
-				brx = tlx + (rotation.getWidth() != null ? context.evalNumeric(rotation.getWidth()) : w);
-				bry = tly + (rotation.getHeight() != null ? context.evalNumeric(rotation.getHeight()) : h);
-			}
-			double centerX = (tlx + brx) / 2.0;
-			double centerY = (tly + bry) / 2.0;
+		if (rotation != null && rotation.getAngle() != null) {
+			double centerX = w / 2.0;
+			double centerY = h / 2.0;
 			double angle = context.evalNumeric(rotation.getAngle());
-			log.debug("input params for rotation: tl=({}, {}), br=({}, {}), center=({}, {}), angle={}", tlx, tly, brx,
-					bry, centerX, centerY, angle);
 			log.debug("Applying rotation: angle={} center=({}, {})", angle, centerX, centerY);
 			result.rotate(Math.toRadians(angle), centerX, centerY);
 		}
@@ -105,11 +86,15 @@ public class ImageComposition {
 	@Getter
 	@Setter
 	public static class Point {
-
 		private ObjectExpression x;
-
 		private ObjectExpression y;
+	}
 
+	@Getter
+	@Setter
+	public static class Size {
+		private ObjectExpression width;
+		private ObjectExpression height;
 	}
 
 }

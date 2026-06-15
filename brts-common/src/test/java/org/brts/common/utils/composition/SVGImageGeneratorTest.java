@@ -3,7 +3,6 @@ package org.brts.common.utils.composition;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -33,11 +32,11 @@ class SVGImageGeneratorTest {
 		source.setData(SIMPLE_SVG);
 
 		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
-			BufferedImage image = generator.generate(0);
+			ImageFrame image = generator.generate(0);
 
 			assertThat(image).isNotNull();
-			assertThat(image.getWidth()).isEqualTo(200);
-			assertThat(image.getHeight()).isEqualTo(100);
+			assertThat(image.width()).isEqualTo(200);
+			assertThat(image.height()).isEqualTo(100);
 		}
 	}
 
@@ -48,8 +47,8 @@ class SVGImageGeneratorTest {
 		source.setData(SIMPLE_SVG);
 
 		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
-			BufferedImage first = generator.generate(0);
-			BufferedImage second = generator.generate(5);
+			ImageFrame first = generator.generate(0);
+			ImageFrame second = generator.generate(5);
 
 			assertThat(first).isSameAs(second);
 		}
@@ -65,11 +64,11 @@ class SVGImageGeneratorTest {
 		source.setSrcPath(svgFile.toString());
 
 		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
-			BufferedImage image = generator.generate(0);
+			ImageFrame image = generator.generate(0);
 
 			assertThat(image).isNotNull();
-			assertThat(image.getWidth()).isEqualTo(200);
-			assertThat(image.getHeight()).isEqualTo(100);
+			assertThat(image.width()).isEqualTo(200);
+			assertThat(image.height()).isEqualTo(100);
 		}
 	}
 
@@ -81,13 +80,13 @@ class SVGImageGeneratorTest {
 		source.setFrameRate(24.0);
 
 		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
-			BufferedImage frame0 = generator.generate(0);
-			BufferedImage frame48 = generator.generate(48);
+			ImageFrame frame0 = generator.generate(0);
+			ImageFrame frame48 = generator.generate(48);
 
 			assertThat(frame0).isNotNull();
 			assertThat(frame48).isNotNull();
-			assertThat(frame0.getWidth()).isEqualTo(100);
-			assertThat(frame48.getWidth()).isEqualTo(100);
+			assertThat(frame0.width()).isEqualTo(100);
+			assertThat(frame48.width()).isEqualTo(100);
 			// Different frames should be different object instances (not cached)
 			assertThat(frame0).isNotSameAs(frame48);
 		}
