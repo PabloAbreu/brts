@@ -33,9 +33,8 @@ import java.awt.image.DataBufferByte;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
 import java.util.Map;
-
+import org.brts.common.utils.CacheUtils;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
@@ -54,7 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class FfmpegVideoFrames implements VideoFrames {
 
-	private static final int CACHE_CAPACITY = 300;
+	private static final int CACHE_CAPACITY = 30;
 
 	private final AVFormatContext formatCtx;
 
@@ -70,16 +69,7 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 
 	private int currentFrameIndex = -1;
 
-	private final LinkedHashMap<Integer, ImageFrame> cache = new LinkedHashMap<>(16, 0.75f, true) {
-		@Override
-		protected boolean removeEldestEntry(Map.Entry<Integer, ImageFrame> eldest) {
-			if (size() > CACHE_CAPACITY) {
-				eldest.getValue().close();
-				return true;
-			}
-			return false;
-		}
-	};
+	private final Map<Integer, ImageFrame> cache = CacheUtils.lruCache(CACHE_CAPACITY, ImageFrame::close);
 
 	/**
 	 * Opens the video file and selects a stream.

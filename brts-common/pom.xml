@@ -49,17 +49,8 @@
 			<groupId>org.bytedeco</groupId>
 			<artifactId>opencv</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>opencv</artifactId>
-			<classifier>${opencv.platform}</classifier>
-		</dependency>
-		<dependency>
-			<groupId>org.bytedeco</groupId>
-			<artifactId>openblas-platform</artifactId>
-			<version>0.3.31-1.5.13</version>
-		</dependency>
-
+		<!--
+	-->
 		<!-- Jakarta EL Implementation -->
 		<dependency>
 			<groupId>org.glassfish.expressly</groupId>
@@ -79,4 +70,28 @@
 		</dependency>
 
 	</dependencies>
+	<!-- inclusion of opencv is only done when this profile is active -->
+	<profiles>
+		<profile>
+			<id>opencv</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+				<property>
+					<name>enableOpenCV</name>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>org.bytedeco</groupId>
+					<artifactId>opencv</artifactId>
+					<classifier>${opencv.platform}</classifier>
+				</dependency>
+				<dependency>
+					<groupId>org.bytedeco</groupId>
+					<artifactId>openblas-platform</artifactId>
+					<version>0.3.31-1.5.13</version>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 </project>

@@ -5,6 +5,8 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.CacheUtils;
 import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;
@@ -41,6 +43,8 @@ public class CompositionBuffer {
 		}
 	}
 
+	private static final int RESIZE_CACHE_CAPACITY = 20;
+
 	private final @Getter ImagesComposition configuration;
 
 	private final MediaRepository mediaRepository;
@@ -48,6 +52,10 @@ public class CompositionBuffer {
 	private final Map<String, ImageReference> references;
 
 	private final CompositionContext context;
+
+	private final boolean twoStepComposition;
+
+	private final Map<String, ImageFrame> resizedImageCache;
 
 	private VideoFrames getVideoFrames(ImageReference ref) {
 		return mediaRepository.getVideoFrames(resolvePath(ref.getVideoPath()));
@@ -66,8 +74,12 @@ public class CompositionBuffer {
 		}
 		this.mediaRepository = mediaRepository;
 		this.context = context;
+		resizedImageCache = mediaRepository.getImageCache("resized");
 		references = configuration.getImages().stream().collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r),
 				HashMap::putAll);
+		this.twoStepComposition = Boolean
+				.parseBoolean(BrtsFileConfig.getInstance().getProperty("brts.composition.twoStep"));
+		log.debug("twoStepComposition={}", this.twoStepComposition);
 	}
 
 	private ImageReference getReference(String imageId) {
@@ -114,10 +126,39 @@ public class CompositionBuffer {
 			double tly = context.evalNumeric(ic.getTopLeft().getY());
 			float opacity = (float) context.evalNumeric(ic.getOpacity(), 1.0);
 			opacity = Math.max(0.0f, Math.min(1.0f, opacity)); // clamp to [0, 1]
-			engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
-					(int) tlx, (int) tly, opacity);
+			// twoStepComposition was an attempt to improve quality of resizing and rotation, but it seems to
+			// have little discernible effect on quality, and it adds complexity and memory usage. So it is disabled by
+			// default.
+			if (twoStepComposition && ic.getResize() != null) {
+				overlay = getOrCreateResized(engine, ic, ref, overlay);
+				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
+						(int) tlx, (int) tly, opacity);
+			} else {
+				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
+						(int) tlx, (int) tly, opacity);
+			}
 		}
 		return background;
+	}
+
+	/**
+	 * Returns a pre-resized overlay from the LRU cache, computing and caching it on first access.
+	 *
+	 * <p>
+	 * Cache key encodes: imageId + whether the source is static or frame-specific + target dimensions. Static images
+	 * always produce the same output for a given target size; video/synthetic frames are keyed by frame number.
+	 */
+	private ImageFrame getOrCreateResized(CompositionEngine engine, ImageComposition ic, ImageReference ref,
+			ImageFrame overlay) {
+		int[] targetSize = ic.computeTargetSize(context, overlay.width(), overlay.height());
+		int targetW = targetSize[0];
+		int targetH = targetSize[1];
+		String sourceKey = ref.isStatic() ? "s" : String.valueOf(context.getFrameNumber());
+		String cacheKey = ic.getImageId() + "|" + sourceKey + "|" + targetW + "x" + targetH;
+		return resizedImageCache.computeIfAbsent(cacheKey, k -> {
+			log.debug("Resizing overlay '{}' to {}x{} (cache miss, key={})", ic.getImageId(), targetW, targetH, k);
+			return engine.resize(overlay, targetW, targetH);
+		});
 	}
 
 }

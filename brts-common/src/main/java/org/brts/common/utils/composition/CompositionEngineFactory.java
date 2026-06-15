@@ -44,7 +44,7 @@ public final class CompositionEngineFactory {
 	private static CompositionEngine create() {
 		String value = BrtsFileConfig.getInstance().getProperty(ENGINE_PROPERTY);
 		if (ENGINE_OPENCV.equalsIgnoreCase(value)) {
-			log.info("Composition engine: OpenCV (INTER_LANCZOS4)");
+			log.info("Composition engine: OpenCV (INTER_AREA)");
 			return new OpenCvCompositionEngine();
 		}
 		if (value != null && !value.isBlank() && !ENGINE_JAVA2D.equalsIgnoreCase(value)) {

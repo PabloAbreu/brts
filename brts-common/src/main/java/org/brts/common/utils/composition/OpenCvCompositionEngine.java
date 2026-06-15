@@ -17,10 +17,13 @@ import static org.bytedeco.opencv.global.opencv_core.CV_8UC4;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.IMREAD_UNCHANGED;
 import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
 import static org.bytedeco.opencv.global.opencv_imgproc.INTER_LANCZOS4;
+import static org.bytedeco.opencv.global.opencv_imgproc.INTER_AREA;
 import static org.bytedeco.opencv.global.opencv_imgproc.warpAffine;
 
 /**
  * {@link CompositionEngine} implementation backed by OpenCV.
+ *
+ * Lit
  *
  * <p>
  * Overlay transforms are applied via {@code warpAffine} with {@code INTER_LANCZOS4} interpolation, which produces
@@ -70,6 +73,15 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 		Mat srcMat = toMat(src);
 		Mat copy = srcMat.clone();
 		return new OpenCvImageFrame(copy);
+	}
+
+	@Override
+	public ImageFrame resize(ImageFrame source, int targetWidth, int targetHeight) {
+		Mat srcMat = toMat(source);
+		Mat dst = new Mat();
+		org.bytedeco.opencv.global.opencv_imgproc.resize(srcMat, dst, new Size(targetWidth, targetHeight), 0, 0,
+				INTER_AREA);// since we are downscaling, INTER_AREA is better than INTER_LANCZOS4
+		return new OpenCvImageFrame(dst);
 	}
 
 	@Override

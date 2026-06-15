@@ -4,11 +4,12 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.brts.common.utils.CacheUtils;
+
 public class MediaRepositoryImpl implements MediaRepository {
 
 	/**
-	 * map of videoPath to VideoFrames instances, to "cache" loaded videos Note that VideoFrames instances do their own
-	 * caching for frames
+	 * map of videoPath to VideoFrames instances, to "cache" loaded videos
 	 */
 	private final Map<Path, VideoFrames> videoCache = new HashMap<>();
 
@@ -65,4 +66,10 @@ public class MediaRepositoryImpl implements MediaRepository {
 		});
 	}
 
+	private final Map<String, Map<String, ImageFrame>> caches = new HashMap<>();
+
+	@Override
+	public Map<String, ImageFrame> getImageCache(String cacheName) {
+		return caches.computeIfAbsent(cacheName, k -> CacheUtils.lruCache(20, ImageFrame::close));
+	}
 }

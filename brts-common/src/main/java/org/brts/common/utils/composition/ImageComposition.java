@@ -35,13 +35,40 @@ public class ImageComposition {
 
 	}
 
-	public boolean remainsConstantOverTime() {
-		return true;
-		// All numerical parameters (topLeft, bottomRight, angle) are constant for now,
-		// but they might be time-varying in the future.
-		// they will be defined as strings with placeholders for frameNumber, and the
-		// actual values will be computed in toAffineTransform()
-		// based on the current frame number.
+	/**
+	 * Computes the target pixel dimensions after applying the {@code resize} specification to a source of size
+	 * {@code srcW x srcH}.
+	 *
+	 * @return a two-element array {@code [targetWidth, targetHeight]}, or {@code null} when no resize is configured.
+	 */
+	public int[] computeTargetSize(CompositionContext context, int srcW, int srcH) {
+		if (resize == null) {
+			return null;
+		}
+		var width = resize.getWidth();
+		var height = resize.getHeight();
+		if (width == null && height == null) {
+			throw new IllegalArgumentException("resize cannot miss both width/height");
+		}
+		double scaleX;
+		double scaleY;
+		if (width != null && height != null) {
+			double wi = context.evalNumeric(width);
+			double he = context.evalNumeric(height);
+			scaleX = wi / srcW;
+			scaleY = he / srcH;
+		} else if (width != null) {
+			double wi = context.evalNumeric(width);
+			scaleX = wi / srcW;
+			scaleY = scaleX;
+		} else {
+			double he = context.evalNumeric(height);
+			scaleY = he / srcH;
+			scaleX = scaleY;
+		}
+		int targetW = (int) Math.round(srcW * scaleX);
+		int targetH = (int) Math.round(srcH * scaleY);
+		return new int[] { targetW, targetH };
 	}
 
 	public AffineTransform toAffineTransform(CompositionContext context, int w, int h) {

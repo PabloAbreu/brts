@@ -46,6 +46,15 @@ public interface CompositionEngine {
 	ImageFrame copy(ImageFrame src);
 
 	/**
+	 * Returns a new {@link ImageFrame} that is a scaled copy of {@code source} with the given dimensions.
+	 *
+	 * <p>
+	 * The interpolation quality matches the engine (bicubic for Java2D, Lanczos-4 for OpenCV). The returned frame is
+	 * owned by the caller; call {@link ImageFrame#close()} when done. {@code source} is not modified and not closed.
+	 */
+	ImageFrame resize(ImageFrame source, int targetWidth, int targetHeight);
+
+	/**
 	 * Composites {@code overlay} onto {@code background} using SRC_OVER alpha blending.
 	 *
 	 * <p>

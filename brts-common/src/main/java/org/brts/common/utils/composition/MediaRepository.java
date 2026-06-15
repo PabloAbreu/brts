@@ -1,6 +1,7 @@
 package org.brts.common.utils.composition;
 
 import java.nio.file.Path;
+import java.util.Map;
 
 /** Repository for media assets used during frame composition. */
 public interface MediaRepository extends AutoCloseable {
@@ -31,5 +32,13 @@ public interface MediaRepository extends AutoCloseable {
 	 * @return a borrowed {@link ImageFrame} representing the loaded image
 	 */
 	ImageFrame getStaticImage(Path imagePath);
+
+	/**
+	 * Retrieves a named image cache for storing resized images.
+	 *
+	 * @param cacheName the name of the cache
+	 * @return a map representing the image cache
+	 */
+	Map<String, ImageFrame> getImageCache(String cacheName);
 
 }
