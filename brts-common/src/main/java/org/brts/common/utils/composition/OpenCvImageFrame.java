@@ -5,6 +5,9 @@ import java.awt.image.DataBufferInt;
 
 import org.bytedeco.opencv.opencv_core.Mat;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import static org.bytedeco.opencv.global.opencv_core.CV_8UC4;
 import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_BGR2BGRA;
 import static org.bytedeco.opencv.global.opencv_imgproc.COLOR_GRAY2BGRA;
@@ -17,23 +20,15 @@ import static org.bytedeco.opencv.global.opencv_imgproc.cvtColor;
  * {@link #close()} releases the native Mat memory. The Mat is assumed to be contiguous (no row padding), which is
  * guaranteed for all Mats created within this framework.
  */
+@RequiredArgsConstructor
 public class OpenCvImageFrame implements ImageFrame {
-
-	private Mat mat;
 
 	/**
 	 * Takes ownership of {@code mat}. The Mat must be 4-channel BGRA (CV_8UC4) and contiguous.
 	 *
 	 * @param mat CV_8UC4 Mat; this frame becomes the owner and will release it on {@link #close()}
 	 */
-	public OpenCvImageFrame(Mat mat) {
-		this.mat = mat;
-	}
-
-	/** Returns the underlying Mat. Valid only while this frame has not been closed. */
-	public Mat getMat() {
-		return mat;
-	}
+	private @Getter Mat mat;
 
 	@Override
 	public int width() {

@@ -68,6 +68,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 				log.error("tsMuxeR error output:\n{}", errors);
 			}
 			String output = outputGobbler.getOutput();
+			if (!output.isBlank())
 			log.info("tsMuxeR output:\n{}", output);
 			Path generatedM2ts = workDir.resolve("BDMV/STREAM/00000.m2ts");
 			Path generatedClpi = workDir.resolve("BDMV/CLIPINF/00000.clpi");

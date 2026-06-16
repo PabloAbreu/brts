@@ -3,18 +3,19 @@ package org.brts.common.io;
 import java.io.IOException;
 import java.io.InputStream;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
  * Reads big-endian binary data from an InputStream. All Blu-ray binary structures use big-endian byte ordering.
  */
+@RequiredArgsConstructor
 public class BinaryReader implements AutoCloseable {
 
 	private final InputStream in;
 
-	private long position = 0;
-
-	public BinaryReader(InputStream in) {
-		this.in = in;
-	}
+	/** The number of bytes read so far. */
+	private @Getter long position = 0;
 
 	public int readUnsignedByte() throws IOException {
 		int b = in.read();
@@ -67,14 +68,8 @@ public class BinaryReader implements AutoCloseable {
 		}
 	}
 
-	/** Returns the number of bytes read so far. */
-	public long getPosition() {
-		return position;
-	}
-
 	@Override
 	public void close() throws IOException {
 		in.close();
 	}
-
 }

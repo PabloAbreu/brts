@@ -4,18 +4,18 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 /**
  * Writes big-endian binary data to an OutputStream. All Blu-ray binary structures use big-endian byte ordering.
  */
+@RequiredArgsConstructor
 public class BinaryWriter implements AutoCloseable {
-
 	private final OutputStream out;
 
-	private long position = 0;
-
-	public BinaryWriter(OutputStream out) {
-		this.out = out;
-	}
+	/** the number of bytes written so far. */
+	private @Getter long position = 0;
 
 	public void writeByte(int value) throws IOException {
 		out.write(value & 0xFF);
@@ -60,11 +60,6 @@ public class BinaryWriter implements AutoCloseable {
 		position += count;
 	}
 
-	/** Returns the number of bytes written so far. */
-	public long getPosition() {
-		return position;
-	}
-
 	@Override
 	public void close() throws IOException {
 		out.close();
@@ -78,5 +73,4 @@ public class BinaryWriter implements AutoCloseable {
 			writePadding(4 - (int) (getPosition() % 4));
 		}
 	}
-
 }
