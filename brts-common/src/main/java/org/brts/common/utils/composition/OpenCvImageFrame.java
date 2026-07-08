@@ -28,7 +28,7 @@ public class OpenCvImageFrame implements ImageFrame {
 	 *
 	 * @param mat CV_8UC4 Mat; this frame becomes the owner and will release it on {@link #close()}
 	 */
-	private @Getter Mat mat;
+	private final @Getter Mat mat;
 
 	@Override
 	public int width() {
@@ -79,7 +79,7 @@ public class OpenCvImageFrame implements ImageFrame {
 	public void close() {
 		if (mat != null && !mat.isNull()) {
 			mat.release();
-			mat = null;
+			// mat = null; // mat is final, cannot be reassigned
 		}
 	}
 

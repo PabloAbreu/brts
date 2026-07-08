@@ -10,6 +10,7 @@ import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -32,9 +33,10 @@ import lombok.extern.slf4j.Slf4j;
  * }</pre>
  */
 @Slf4j
-public class MkvDemuxer {
+public class MkvDemuxer implements EsDemuxer {
 
 	private static final byte[] ANNEX_B_START_CODE = { 0x00, 0x00, 0x00, 0x01 };
+	private static final long SRT_FALLBACK_DURATION_MS = 2_000L;
 
 	/**
 	 * Demuxes all tracks from the given MKV file into separate ES files.
@@ -60,6 +62,8 @@ public class MkvDemuxer {
 	public Map<Integer, Path> demux(Path mkvPath, Path outputDir, Set<Integer> trackFilter) throws IOException {
 		Files.createDirectories(outputDir);
 		Map<Integer, Path> result = new LinkedHashMap<>();
+		Map<Integer, PendingSrtCue> pendingSrtCues = new HashMap<>();
+		Map<Integer, Integer> srtCueCounter = new HashMap<>();
 
 		try (FileDataSource dataSource = new FileDataSource(mkvPath.toAbsolutePath().toString())) {
 			MatroskaFile mkv = new MatroskaFile(dataSource);
@@ -110,8 +114,8 @@ public class MkvDemuxer {
 					// For H.264 tracks, write SPS/PPS from codec private data first
 					if ("V_MPEG4/ISO/AVC".equals(t.getCodecID())) {
 						writeAvcParameterSets(t.getCodecPrivate(), os);
-					} else if (t.getCodecID().startsWith("S_TEXT/") && t.getCodecPrivate() != null
-							&& t.getCodecPrivate().hasRemaining()) {
+					} else if (("S_TEXT/ASS".equals(t.getCodecID()) || "S_TEXT/SSA".equals(t.getCodecID()))
+							&& t.getCodecPrivate() != null && t.getCodecPrivate().hasRemaining()) {
 						byte[] buf = new byte[t.getCodecPrivate().remaining()];
 						t.getCodecPrivate().get(buf);
 						os.write(buf);
@@ -161,6 +165,26 @@ public class MkvDemuxer {
 						} else {
 							os.write(buf);
 						}
+					} else if (codecID.equals("S_TEXT/UTF8")) {
+						byte[] buf = new byte[data.remaining()];
+						data.get(buf);
+						String text = new String(buf, StandardCharsets.UTF_8);
+						if (text.trim().isEmpty()) {
+							continue;
+						}
+
+						long start = frame.getTimecode();
+						long duration = frame.getDuration();
+						long fallbackEnd = start + (duration > 0 ? duration : SRT_FALLBACK_DURATION_MS);
+
+						PendingSrtCue previous = pendingSrtCues.get(trackNo);
+						if (previous != null) {
+							writeSrtCue(os, previous.number, previous.startMs, previous.endMs, previous.text, start);
+						}
+
+						int cueNumber = srtCueCounter.getOrDefault(trackNo, 0) + 1;
+						srtCueCounter.put(trackNo, cueNumber);
+						pendingSrtCues.put(trackNo, new PendingSrtCue(cueNumber, start, fallbackEnd, text));
 					} else {
 						// Raw copy
 						byte[] buf = new byte[data.remaining()];
@@ -168,6 +192,15 @@ public class MkvDemuxer {
 						os.write(buf);
 					}
 					frameCount++;
+				}
+
+				for (Map.Entry<Integer, PendingSrtCue> entry : pendingSrtCues.entrySet()) {
+					OutputStream os = outputs.get(entry.getKey());
+					PendingSrtCue cue = entry.getValue();
+					if (os == null || cue == null) {
+						continue;
+					}
+					writeSrtCue(os, cue.number, cue.startMs, cue.endMs, cue.text, null);
 				}
 
 				log.info("Demuxed {} frames from {} tracks in {}", frameCount, outputs.size(), mkvPath.getFileName());
@@ -192,6 +225,50 @@ public class MkvDemuxer {
 	}
 
 	private static final byte[] SSA_DIALOGUE = "Dialogue: ".getBytes();
+
+	private void writeSrtCue(OutputStream os, int cueNumber, long startMs, long endMs, String text, Long nextStartMs)
+			throws IOException {
+		long safeEndMs = endMs;
+		if (nextStartMs != null) {
+			safeEndMs = Math.min(safeEndMs, nextStartMs.longValue());
+		}
+		if (safeEndMs < startMs) {
+			safeEndMs = startMs;
+		}
+
+		os.write(Integer.toString(cueNumber).getBytes(StandardCharsets.UTF_8));
+		os.write('\n');
+		os.write(srtTimestampFrom(startMs).getBytes(StandardCharsets.UTF_8));
+		os.write(" --> ".getBytes(StandardCharsets.UTF_8));
+		os.write(srtTimestampFrom(safeEndMs).getBytes(StandardCharsets.UTF_8));
+		os.write('\n');
+		os.write(text.getBytes(StandardCharsets.UTF_8));
+		os.write('\n');
+		os.write('\n');
+	}
+
+	private static String srtTimestampFrom(long timecode) {
+		long totalSeconds = timecode / 1000;
+		long hours = totalSeconds / 3600;
+		long minutes = (totalSeconds % 3600) / 60;
+		long seconds = totalSeconds % 60;
+		long milliseconds = timecode % 1000;
+		return String.format("%02d:%02d:%02d,%03d", hours, minutes, seconds, milliseconds);
+	}
+
+	private static final class PendingSrtCue {
+		private final int number;
+		private final long startMs;
+		private final long endMs;
+		private final String text;
+
+		private PendingSrtCue(int number, long startMs, long endMs, String text) {
+			this.number = number;
+			this.startMs = startMs;
+			this.endMs = endMs;
+			this.text = text;
+		}
+	}
 
 	/**
 	 * Writes SPS and PPS NAL units from the AVCDecoderConfigurationRecord (codec private data) using Annex B start

@@ -53,10 +53,4 @@ public final class CompositionEngineFactory {
 		log.info("Composition engine: Java2D");
 		return new Java2DCompositionEngine();
 	}
-
-	/** Resets the singleton — for testing purposes only. */
-	static void reset() {
-		instance = null;
-	}
-
 }

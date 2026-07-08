@@ -17,7 +17,7 @@ import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.menu.TextStyle;
-import org.brts.common.mkv.MkvDemuxer;
+import org.brts.common.mkv.MkvDemuxerFactory;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
@@ -152,8 +152,7 @@ public class MkvToPlaylistConverter {
 		// 6. Demux MKV
 		Path workDir = outputDir.resolve(".mkv_work_" + clipName);
 		log.info("Demuxing MKV to {}", workDir);
-		MkvDemuxer demuxer = new MkvDemuxer();
-		Map<Integer, Path> demuxedFiles = demuxer.demux(mkvFile, workDir, demuxTrackNos);
+		Map<Integer, Path> demuxedFiles = MkvDemuxerFactory.get().demux(mkvFile, workDir, demuxTrackNos);
 
 		// 7. Convert text subtitles to PGS
 		PgsRenderConfig pgsConfig = config.getPgsConfig() != null ? config.getPgsConfig() : new PgsRenderConfig();

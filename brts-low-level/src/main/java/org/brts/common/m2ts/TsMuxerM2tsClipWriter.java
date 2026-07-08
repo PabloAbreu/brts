@@ -61,26 +61,24 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		ProcessUtils.StringStreamGobbler outputGobbler = new ProcessUtils.StringStreamGobbler(process.getInputStream());
 		ProcessUtils.StringStreamGobbler errorGobbler = new ProcessUtils.StringStreamGobbler(process.getErrorStream());
 		try {
-			process.waitFor();
-			log.debug("tsMuxeR ended");
+			int result = process.waitFor();
+			log.debug("tsMuxeR ended with exit code {}", result);
 			String errors = errorGobbler.getOutput();
 			if (!errors.isBlank()) {
 				log.error("tsMuxeR error output:\n{}", errors);
 			}
 			String output = outputGobbler.getOutput();
 			if (!output.isBlank())
-			log.info("tsMuxeR output:\n{}", output);
+				log.info("tsMuxeR output:\n{}", output);
 			Path generatedM2ts = workDir.resolve("BDMV/STREAM/00000.m2ts");
 			Path generatedClpi = workDir.resolve("BDMV/CLIPINF/00000.clpi");
 			Files.move(generatedM2ts, m2tsPath);
 			clipPath.getParent().toFile().mkdirs();
 			Files.move(generatedClpi, clipPath);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			log.error("tsMuxeR process was interrupted", e);
-			e.printStackTrace();
 		} finally {
-			FileUtils.deleteDir(workDir);
+			// FileUtils.deleteDir(workDir);
 		}
 	}
 
@@ -90,6 +88,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		case 0x24 -> "V_MPEG4/ISO/HEVC"; // H.265
 		case 0x06 -> "A_AC3"; // AC-3
 		case 0x81 -> "A_AC3"; // E-AC-3
+		case 0x84 -> "A_AC3"; // E-AC-3
 		case 0x90 -> "S_HDMV/PGS"; // subs
 		default ->
 			throw new IllegalArgumentException(String.format("Unsupported stream type byte: 0x%02X", streamTypeByte));

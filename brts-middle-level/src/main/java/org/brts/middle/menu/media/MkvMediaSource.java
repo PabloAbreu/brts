@@ -7,14 +7,14 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.brts.common.mkv.MkvDemuxer;
+import org.brts.common.mkv.MkvDemuxerFactory;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * {@link MediaSource} implementation that extracts elementary streams from an MKV (Matroska) container using the
- * pure-Java {@link MkvDemuxer}.
+ * configured demuxer strategy from {@link MkvDemuxerFactory}.
  * <p>
  * The extraction is done by:
  * <ol>
@@ -74,7 +74,7 @@ public class MkvMediaSource implements MediaSource {
 			throw new IOException("No video track found in " + mkvFile);
 		}
 
-		// 3. Demux the selected tracks using pure-Java MkvDemuxer
+		// 3. Demux the selected tracks using the configured MKV demuxer
 		Set<Integer> trackFilter = new LinkedHashSet<>();
 		trackFilter.add(videoTrack.getTrackNumber());
 		if (audioTrack != null) {
@@ -82,12 +82,11 @@ public class MkvMediaSource implements MediaSource {
 		}
 
 		log.info("Demuxing ES from MKV: {} (tracks {})", mkvFile.getFileName(), trackFilter);
-		MkvDemuxer demuxer = new MkvDemuxer();
-		Map<Integer, Path> demuxed = demuxer.demux(mkvFile, workDir, trackFilter);
+		Map<Integer, Path> demuxed = MkvDemuxerFactory.get().demux(mkvFile, workDir, trackFilter);
 
 		Path videoEsFile = demuxed.get(videoTrack.getTrackNumber());
 		if (videoEsFile == null) {
-			throw new IOException("MkvDemuxer did not produce output for video track " + videoTrack.getTrackNumber());
+			throw new IOException("MKV demuxer did not produce output for video track " + videoTrack.getTrackNumber());
 		}
 		Path audioEsFile = audioTrack != null ? demuxed.get(audioTrack.getTrackNumber()) : null;
 
