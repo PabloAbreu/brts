@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.brts.common.utils.BrtsFileConfig;
-import org.brts.common.utils.CacheUtils;
 import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
 import org.brts.common.utils.composition.sources.video.VideoFrames;
 import org.bytedeco.javacpp.Loader;
@@ -44,8 +43,6 @@ public class CompositionBuffer {
 			log.warn("Failed to load OpenCV native libraries: {}", t.getMessage());
 		}
 	}
-
-	private static final int RESIZE_CACHE_CAPACITY = 20;
 
 	private final @Getter ImagesComposition configuration;
 

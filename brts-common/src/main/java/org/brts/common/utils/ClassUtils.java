@@ -67,6 +67,7 @@ public class ClassUtils {
 		return null;
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public static Object convertValueForSetter(String valueAsString, Method setter) {
 		Class<?> paramType = setter.getParameterTypes()[0];
 		if (paramType == String.class) {
