@@ -7,6 +7,8 @@ import java.util.Map;
 
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.utils.CacheUtils;
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
 import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.sources.video;
 
 import static org.bytedeco.ffmpeg.global.avcodec.av_packet_alloc;
 import static org.bytedeco.ffmpeg.global.avcodec.av_packet_free;
@@ -17,8 +17,8 @@ import static org.bytedeco.ffmpeg.global.avformat.av_seek_frame;
 import static org.bytedeco.ffmpeg.global.avformat.avformat_close_input;
 import static org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info;
 import static org.bytedeco.ffmpeg.global.avformat.avformat_open_input;
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
 import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO;
+import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_alloc;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_free;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_get_buffer;
@@ -34,7 +34,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Map;
+
 import org.brts.common.utils.CacheUtils;
+import org.brts.common.utils.composition.CompositionEngineFactory;
+import org.brts.common.utils.composition.ImageFrame;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;

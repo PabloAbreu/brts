@@ -1,4 +1,6 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.sources.video;
+
+import org.brts.common.utils.composition.ImageFrame;
 
 /**
  * Able to produce frames from a video.
