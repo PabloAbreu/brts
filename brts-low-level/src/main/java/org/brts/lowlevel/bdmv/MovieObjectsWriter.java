@@ -73,10 +73,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 			}
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 }

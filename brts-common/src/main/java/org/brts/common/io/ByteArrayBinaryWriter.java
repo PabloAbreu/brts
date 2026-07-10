@@ -65,4 +65,11 @@ public class ByteArrayBinaryWriter {
 		return out.toByteArray();
 	}
 
+	public byte[] toSizePrefixedByteArray() throws IOException {
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(Integer.BYTES + size());
+		w.writeInt(size());
+		w.writeBytes(toByteArray());
+		return w.toByteArray();
+	}
+
 }

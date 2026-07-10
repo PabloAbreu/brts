@@ -84,8 +84,6 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	// -------------------------------------------------------------------------
 
 	private byte[] buildClipInfoSection(ClipInfo m) throws IOException {
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-
 		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(2); // reserved (2 bytes per spec)
 		wi.writeByte(m.getClipStreamType());
@@ -101,9 +99,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeAscii("HDMV");// always seems to be there
 		wi.writePadding(25);// up to 32 bytes total for ts_type_info_block with length
 
-		w.writeInt(wi.size()); // section length
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	private byte[] buildSequenceInfoSection(ClipInfo m) throws IOException {
@@ -124,9 +120,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeInt(startPts45); // presentation_start_time (45 kHz)
 		wi.writeInt(endPts45); // presentation_end_time (45 kHz)
 
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-
+		w.writeBytes(wi.toSizePrefixedByteArray());
 		w.padToFour();
 		return w.toByteArray();
 	}
@@ -187,8 +181,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			wi.writePadding(4);
 		}
 
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
+		w.writeBytes(wi.toSizePrefixedByteArray());
 		w.padToFour();
 		return w.toByteArray();
 	}
@@ -263,9 +256,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			wi.writeBytes(block);
 		}
 
-		w.writeInt(wi.size()); // section length
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	/**

@@ -177,10 +177,7 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 			writeTitleEntry(wi, t);
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(4 + wi.size());
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	/**

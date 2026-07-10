@@ -94,10 +94,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			wi.writeBytes(buildSubPath(sp));
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	private byte[] buildPlayItem(PlayItem item) throws IOException {
@@ -229,10 +226,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			wi.writeShort(spiBytes.length);
 			wi.writeBytes(spiBytes);
 		}
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	private byte[] buildMarkSection(MoviePlaylist pl) throws IOException {
@@ -247,10 +241,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			wi.writeShort(m.getEntryEsPid());
 			wi.writeInt(m.getDurationTicks());
 		}
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 }

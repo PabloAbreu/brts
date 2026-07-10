@@ -137,10 +137,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 			wi.writePadding(3); // padding (24 bits)
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	// =====================================================================
@@ -166,10 +163,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 			wi.writePadding(1); // padding
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	// =====================================================================
@@ -190,10 +184,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 			writeAppEntry(wi, app);
 		}
 
-		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
-		w.writeInt(wi.size());
-		w.writeBytes(wi.toByteArray());
-		return w.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	/**
