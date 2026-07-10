@@ -86,9 +86,16 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 
 	@Override
 	public ImageFrame compose(ImageFrame background, ImageFrame overlay, AffineTransform transform, int x, int y,
-			float opacity) {
+			float opacity, ImageFrame mask) {
 		Mat bgMat = toMat(background);
 		Mat ovMat = toMat(overlay);
+
+		// Apply transparency mask (pre-warp, in overlay pixel space)
+		boolean maskedCopy = false;
+		if (mask != null) {
+			ovMat = applyMask(ovMat, toMat(mask));
+			maskedCopy = true;
+		}
 
 		int bgW = bgMat.cols();
 		int bgH = bgMat.rows();
@@ -115,6 +122,9 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 		// Per-pixel SRC_OVER alpha blend: warped → bgMat (in place)
 		blendSrcOver(bgMat, warped, opacity);
 		warped.release();
+		if (maskedCopy) {
+			ovMat.release();
+		}
 
 		log.debug("Composed overlay onto background {}×{} at ({},{}) opacity={}", bgW, bgH, x, y, opacity);
 		return background;
@@ -134,6 +144,62 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 		}
 		// Fallback: convert via BufferedImage (should not happen in normal usage)
 		return OpenCvImageFrame.fromBufferedImage(frame.toBufferedImage());
+	}
+
+	/**
+	 * Returns a new CV_8UC4 BGRA {@link Mat} that is a clone of {@code ovMat} with its alpha channel multiplied
+	 * per-pixel by the corresponding grayscale value from {@code maskMat}.
+	 *
+	 * <p>
+	 * The mask is interpreted as an 8-bit grayscale image loaded via the standard BGRA pipeline (all three colour
+	 * channels equal the original grey value, alpha is 255). Channel 0 (B) is used as the mask value. If the mask
+	 * dimensions differ from the overlay's, it is resized to match using bilinear interpolation.
+	 *
+	 * <p>
+	 * The returned Mat is a new allocation owned by the caller; the caller must release it.
+	 *
+	 * @param ovMat   overlay Mat (CV_8UC4 BGRA, unmodified)
+	 * @param maskMat mask Mat (CV_8UC4 BGRA with R=G=B=grey, A=255)
+	 * @return new Mat with modified alpha channel
+	 */
+	private static Mat applyMask(Mat ovMat, Mat maskMat) {
+		int ovW = ovMat.cols();
+		int ovH = ovMat.rows();
+
+		// Resize mask if dimensions differ
+		Mat resizedMask;
+		boolean releaseMask;
+		if (maskMat.cols() != ovW || maskMat.rows() != ovH) {
+			resizedMask = new Mat();
+			org.bytedeco.opencv.global.opencv_imgproc.resize(maskMat, resizedMask, new Size(ovW, ovH), 0, 0,
+					org.bytedeco.opencv.global.opencv_imgproc.INTER_LINEAR);
+			releaseMask = true;
+		} else {
+			resizedMask = maskMat;
+			releaseMask = false;
+		}
+
+		int n = ovW * ovH;
+		byte[] ovData = new byte[n * 4];
+		byte[] maskData = new byte[n * 4];
+		ovMat.data().position(0).get(ovData);
+		resizedMask.data().position(0).get(maskData);
+
+		byte[] result = ovData.clone();
+		for (int i = 0; i < n; i++) {
+			int si = i * 4;
+			int origAlpha = result[si + 3] & 0xFF;
+			int maskValue = maskData[si] & 0xFF; // channel 0 (B) equals the grey value
+			result[si + 3] = (byte) ((origAlpha * maskValue) / 255);
+		}
+
+		Mat out = ovMat.clone();
+		out.data().position(0).put(result);
+
+		if (releaseMask) {
+			resizedMask.release();
+		}
+		return out;
 	}
 
 	/**

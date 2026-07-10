@@ -63,12 +63,19 @@ public interface CompositionEngine {
 	 * {@code [0,1]} further scales the overlay's alpha channel.
 	 *
 	 * <p>
-	 * {@code background} is modified in place and returned. The caller continues to own both {@code background} and
-	 * {@code overlay}; this method does not close either.
+	 * When {@code mask} is non-null it must be an 8-bit grayscale image (loaded from a grayscale PNG). Its pixel values
+	 * are applied to the overlay's alpha channel <em>before</em> the affine warp: for each pixel {@code i},
+	 * {@code effectiveAlpha[i] = overlayAlpha[i] * maskValue[i] / 255}. The mask is automatically resized to the
+	 * overlay's dimensions when they differ. When {@code mask} is {@code null} the behaviour is unchanged.
 	 *
+	 * <p>
+	 * {@code background} is modified in place and returned. The caller continues to own {@code background},
+	 * {@code overlay}, and {@code mask}; this method does not close any of them.
+	 *
+	 * @param mask nullable grayscale mask; {@code null} means no mask
 	 * @return {@code background} (same instance, modified)
 	 */
 	ImageFrame compose(ImageFrame background, ImageFrame overlay, AffineTransform transform, int x, int y,
-			float opacity);
+			float opacity, ImageFrame mask);
 
 }

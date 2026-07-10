@@ -22,4 +22,8 @@ public class ImagesComposition {
 	// you might compose the same image multiple times with different transforms
 	private List<ImageComposition> compositions;
 
+	// optional list of 8-bit grayscale images used as transparency masks;
+	// each ImageComposition can reference one by maskImageId
+	private List<ImageReference> transparencyMasks;
+
 }
