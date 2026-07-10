@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.common.m2ts.IStreamInfo;
+import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsClipWriterImpl;
@@ -397,7 +398,8 @@ public class TitleMenuGenerator {
 						s.setPid(audioStream.getPid());
 						s.setCodingType(StreamCodingType.fromByte(audioStream.getStreamTypeByte()));
 						s.setSampleRate(deriveSampleRateCode(audioStream.getSampleRateHz()));
-						s.setAudioChannelLayout(deriveChannelLayoutCode(audioStream.getChannels()));
+						s.setAudioChannelLayout(
+								AudioChannelLayoutConverter.channelsToLayout(audioStream.getChannels()));
 						s.setLanguage(audioStream.getLanguage());
 						item.getStreams().add(s);
 					});
@@ -484,16 +486,6 @@ public class TitleMenuGenerator {
 		if (sampleRateHz <= 96000)
 			return 4;
 		return 5;
-	}
-
-	private static int deriveChannelLayoutCode(Integer channels) {
-		if (channels == null || channels <= 1)
-			return 1;
-		if (channels <= 2)
-			return 3;
-		if (channels <= 6)
-			return 6;
-		return 12;
 	}
 
 	/**

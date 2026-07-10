@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.brts.common.exception.BrtException;
+import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsWriter;
@@ -389,7 +390,7 @@ public class MkvToPlaylistConverter {
 				cs.setFrameRate(deriveFrameRateCode(st));
 				cs.setAspectRatio(3); // 16:9
 			} else if (cs.getCodingType() != null && cs.getCodingType().isAudio()) {
-				cs.setAudioChannelLayout(deriveChannelLayout(st));
+				cs.setAudioChannelLayout(AudioChannelLayoutConverter.channelsToLayout(st.getChannels()));
 				cs.setSampleRate(deriveSampleRateCode(st));
 			}
 		}
@@ -423,19 +424,6 @@ public class MkvToPlaylistConverter {
 		if (fps < 51.0)
 			return 6; // 50
 		return 7; // 59.94
-	}
-
-	private int deriveChannelLayout(SourceMediaInfo.SourceTrack track) {
-		Integer ch = track.getChannels();
-		if (ch == null)
-			return 3; // stereo
-		if (ch <= 1)
-			return 1; // mono
-		if (ch <= 2)
-			return 3; // stereo
-		if (ch <= 6)
-			return 6; // 5.1
-		return 12; // 7.1
 	}
 
 	private int deriveSampleRateCode(SourceMediaInfo.SourceTrack track) {

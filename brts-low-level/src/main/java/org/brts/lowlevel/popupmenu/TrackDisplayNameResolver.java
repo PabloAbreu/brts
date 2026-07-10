@@ -2,6 +2,7 @@ package org.brts.lowlevel.popupmenu;
 
 import java.util.Locale;
 
+import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 
@@ -51,7 +52,7 @@ public final class TrackDisplayNameResolver {
 
 		// Channel layout for audio
 		if (ct != null && ct.isAudio() && track.getChannels() != null) {
-			sb.append(" ").append(channelLayoutName(track.getChannels()));
+			sb.append(" ").append(AudioChannelLayoutConverter.channelsDisplayName(track.getChannels()));
 		}
 
 		return sb.toString();
@@ -84,16 +85,6 @@ public final class TrackDisplayNameResolver {
 		case MPEG2_VIDEO -> "MPEG-2";
 		case VC1 -> "VC-1";
 		case INTERACTIVE_GRAPHICS -> "IGS";
-		};
-	}
-
-	private static String channelLayoutName(int channels) {
-		return switch (channels) {
-		case 1 -> "Mono";
-		case 2 -> "2.0";
-		case 6 -> "5.1";
-		case 8 -> "7.1";
-		default -> channels + "ch";
 		};
 	}
 
