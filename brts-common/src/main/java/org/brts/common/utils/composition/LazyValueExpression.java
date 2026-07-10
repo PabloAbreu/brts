@@ -30,7 +30,7 @@ class LazyValueExpression extends ValueExpression {
 
 	@SuppressWarnings("unchecked")
 	@Override
-	public <T> T  getValue(ELContext elContext) {
+	public <T> T getValue(ELContext elContext) {
 		return (T) context.eval(expression);
 	}
 

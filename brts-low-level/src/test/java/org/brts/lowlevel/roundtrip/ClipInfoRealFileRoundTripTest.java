@@ -1,12 +1,5 @@
 package org.brts.lowlevel.roundtrip;
 
-import org.brts.lowlevel.model.clpi.ClipInfo;
-import org.brts.lowlevel.model.clpi.ClipStream;
-import org.brts.lowlevel.model.clpi.EpMap;
-import org.brts.lowlevel.parser.ClipInfoParser;
-import org.brts.lowlevel.writer.ClipInfoWriter;
-import org.junit.jupiter.api.Test;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -15,6 +8,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
+import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.model.clpi.ClipStream;
+import org.brts.lowlevel.model.clpi.EpMap;
+import org.brts.lowlevel.parser.ClipInfoParser;
+import org.brts.lowlevel.writer.ClipInfoWriter;
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.data.Offset.offset;
@@ -25,20 +27,20 @@ import static org.assertj.core.data.Offset.offset;
  * For each sample: parse the real file, write the model back to bytes, re-parse the written bytes, and compare the two
  * parsed models.
  */
+@RequiresSamples("PB/BDMV/CLIPINF")
 class ClipInfoRealFileRoundTripTest {
 
-	private static final Path SAMPLES_DIR = Path.of("samples/PB/BDMV/CLIPINF");
+	private static final Path SAMPLES_DIR = Samples.sample("PB/BDMV/CLIPINF");
 
 	private final ClipInfoParser parser = new ClipInfoParser();
 
 	private final ClipInfoWriter writer = new ClipInfoWriter();
 
 	@Test
+	@RequiresSamples("PB/BDMV/CLIPINF/00705.clpi")
 	void roundTrip_largestSampleFile_allFieldsPreserved() throws Exception {
 		// 00705.clpi is the largest sample (~39 KB, has EP_map data)
 		Path sampleFile = SAMPLES_DIR.resolve("00705.clpi");
-		if (!Files.exists(sampleFile))
-			return; // skip if samples not present
 
 		ClipInfo first = parser.parse(sampleFile);
 		ClipInfo second = writeAndReparse(first);
@@ -47,11 +49,10 @@ class ClipInfoRealFileRoundTripTest {
 	}
 
 	@Test
+	@RequiresSamples("PB/BDMV/CLIPINF/00748.clpi")
 	void roundTrip_mediumSampleFile_allFieldsPreserved() throws Exception {
 		// 00748.clpi is a medium-sized sample with EP_map
 		Path sampleFile = SAMPLES_DIR.resolve("00748.clpi");
-		if (!Files.exists(sampleFile))
-			return;
 
 		ClipInfo first = parser.parse(sampleFile);
 		ClipInfo second = writeAndReparse(first);
@@ -60,11 +61,10 @@ class ClipInfoRealFileRoundTripTest {
 	}
 
 	@Test
+	@RequiresSamples("PB/BDMV/CLIPINF/00300.clpi")
 	void roundTrip_smallSampleFile_allFieldsPreserved() throws Exception {
 		// 00300.clpi — a smaller sample
 		Path sampleFile = SAMPLES_DIR.resolve("00300.clpi");
-		if (!Files.exists(sampleFile))
-			return;
 
 		ClipInfo first = parser.parse(sampleFile);
 		ClipInfo second = writeAndReparse(first);
@@ -74,9 +74,6 @@ class ClipInfoRealFileRoundTripTest {
 
 	@Test
 	void roundTrip_allSamples_basicFieldsPreserved() throws Exception {
-		if (!Files.isDirectory(SAMPLES_DIR))
-			return;
-
 		List<Path> sampleFiles = new ArrayList<>();
 		try (DirectoryStream<Path> ds = Files.newDirectoryStream(SAMPLES_DIR, "*.clpi")) {
 			ds.forEach(sampleFiles::add);

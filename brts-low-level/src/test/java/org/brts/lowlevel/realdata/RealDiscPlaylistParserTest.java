@@ -1,22 +1,21 @@
 package org.brts.lowlevel.realdata;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayMark;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Integration tests against real MPLS files from a physical Blu-ray disc.
@@ -31,17 +30,12 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * <li>All MPLS files are version "0200".</li>
  * </ul>
  */
+@RequiresSamples("PB/BDMV/PLAYLIST")
 class RealDiscPlaylistParserTest {
 
-	private static final Path PLAYLIST = Paths.get("../samples/PB/BDMV/PLAYLIST");
+	private static final Path PLAYLIST = Samples.sample("PB/BDMV/PLAYLIST");
 
 	private final MoviePlaylistParser parser = new MoviePlaylistParser();
-
-	@BeforeAll
-	static void requireSampleData() {
-		assumeThat(Files.isDirectory(PLAYLIST)).as("sample disc data must be present at " + PLAYLIST.toAbsolutePath())
-				.isTrue();
-	}
 
 	// ------------------------------------------------------------------
 	// Helpers

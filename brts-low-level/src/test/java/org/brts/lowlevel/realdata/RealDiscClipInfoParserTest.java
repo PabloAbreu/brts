@@ -1,16 +1,15 @@
 package org.brts.lowlevel.realdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.parser.ClipInfoParser;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -21,18 +20,13 @@ import org.junit.jupiter.params.provider.ValueSource;
  * All tests use the sample disc at {@code samples/PB/BDMV/CLIPINF/}. Tests are skipped if the sample directory is not
  * present (e.g. on a CI agent that does not have the disc files checked out).
  */
+@RequiresSamples("PB/BDMV/CLIPINF")
 class RealDiscClipInfoParserTest {
 
 	/** Root of the sample disc. Relative to the Maven multi-module root. */
-	private static final Path CLIPINF = Paths.get("../samples/PB/BDMV/CLIPINF");
+	private static final Path CLIPINF = Samples.sample("PB/BDMV/CLIPINF");
 
 	private final ClipInfoParser parser = new ClipInfoParser();
-
-	@BeforeAll
-	static void requireSampleData() {
-		assumeThat(Files.isDirectory(CLIPINF)).as("sample disc data must be present at " + CLIPINF.toAbsolutePath())
-				.isTrue();
-	}
 
 	// ------------------------------------------------------------------
 	// Helpers

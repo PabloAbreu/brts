@@ -1,27 +1,31 @@
 package org.brts.lowlevel.bdmv;
 
-import org.brts.common.exception.WriteException;
-import org.brts.common.io.ByteArrayBinaryWriter;
-import org.brts.common.io.BinaryWriter;
-import org.brts.lowlevel.model.bdmv.IndexBdmv;
-import org.brts.lowlevel.writer.BlurayFileWriter;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
+
+import org.brts.common.exception.WriteException;
+import org.brts.common.io.BinaryWriter;
+import org.brts.common.io.ByteArrayBinaryWriter;
+import org.brts.lowlevel.model.bdmv.IndexBdmv;
+import org.brts.lowlevel.writer.BlurayFileWriter;
 
 /**
  * Writer for {@code BDMV/index.bdmv}.
  * <p>
- * The version written is taken from {@link IndexBdmv#getVersion()}; if {@code null} or blank, {@code "0300"} is used as
+ * The version written is taken from {@link IndexBdmv#getVersion()}; if
+ * {@code null} or blank, {@code "0300"} is used as
  * a safe default (broadest BD-ROM compatibility).
  * <p>
  * Version-specific constraints enforced at write time:
  * <ul>
- * <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are not supported and will cause a
+ * <li>{@code "0100"} (AVCHD) — BD-J title entries ({@code objectType == 2}) are
+ * not supported and will cause a
  * {@link WriteException}.</li>
- * <li>{@code "0200"} / {@code "0300"} — both HDMV and BD-J entries are accepted.</li>
+ * <li>{@code "0200"} / {@code "0300"} — both HDMV and BD-J entries are
+ * accepted.</li>
  * </ul>
  * <p>
  * Binary layout written (big-endian throughout):
@@ -61,13 +65,18 @@ import java.util.List;
 public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 
 	private static final String MAGIC = "INDX";
-
-	private static final String DEFAULT_VERSION = "0300";
+	// AVCHD not supported anywhere in BRTS for now
+	// private static final String VERSION_0100 = "0100";
+	private static final String VERSION_0200 = "0200"; // BLU RAY
+	private static final String VERSION_0300 = "0300"; // 4k ?
+	private static final String DEFAULT_VERSION = VERSION_0200;
 
 	/** Versions that support BD-J title entries. */
-	private static final java.util.Set<String> BDJ_CAPABLE_VERSIONS = java.util.Set.of("0200", "0300");
+	private static final Set<String> BDJ_CAPABLE_VERSIONS = Set.of(VERSION_0200, VERSION_0300);
 
-	/** Fixed offset of the IndexTable section (header + AppInfoBDMV = 40 + 38 = 78). */
+	/**
+	 * Fixed offset of the IndexTable section (header + AppInfoBDMV = 40 + 38 = 78).
+	 */
 	private static final int INDEX_TABLE_ADDR = 0x4e;
 
 	/** Fixed body length of the AppInfoBDMV section. */
@@ -115,7 +124,8 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Validates that the model is compatible with the target version. Throws {@link WriteException} if an incompatible
+	 * Validates that the model is compatible with the target version. Throws
+	 * {@link WriteException} if an incompatible
 	 * combination is found.
 	 */
 	private void validate(IndexBdmv model, String version) throws IOException {
@@ -142,7 +152,8 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) + flags(1) + content_provider_name(32).
+	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) +
+	 * flags(1) + content_provider_name(32).
 	 */
 	private byte[] buildAppInfoSection(IndexBdmv model) throws IOException {
 		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(4 + APP_INFO_BODY_LEN);
@@ -181,7 +192,8 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	}
 
 	/**
-	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12 zero bytes (reserved / no-object
+	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12
+	 * zero bytes (reserved / no-object
 	 * slot).
 	 */
 	private void writeTitleEntry(ByteArrayBinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
