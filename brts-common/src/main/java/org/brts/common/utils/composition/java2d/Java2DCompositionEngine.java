@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.java2d;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -7,6 +7,8 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 
 import org.brts.common.utils.ImageUtils;
+import org.brts.common.utils.composition.CompositionEngine;
+import org.brts.common.utils.composition.ImageFrame;
 
 /**
  * {@link CompositionEngine} implementation backed by Java2D {@link java.awt.Graphics2D}.

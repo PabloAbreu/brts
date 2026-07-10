@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.opencv;
 
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
@@ -7,6 +7,8 @@ import java.nio.file.Path;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.brts.common.utils.composition.CompositionEngine;
+import org.brts.common.utils.composition.ImageFrame;
 import org.bytedeco.javacpp.DoublePointer;
 
 import lombok.extern.slf4j.Slf4j;

@@ -1,6 +1,8 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.java2d;
 
 import java.awt.image.BufferedImage;
+
+import org.brts.common.utils.composition.ImageFrame;
 
 import lombok.RequiredArgsConstructor;
 

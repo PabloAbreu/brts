@@ -4,6 +4,9 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 
+import org.brts.common.utils.composition.java2d.Java2DCompositionEngine;
+import org.brts.common.utils.composition.opencv.OpenCvCompositionEngine;
+
 /**
  * Strategy interface for image loading and compositing operations.
  *
