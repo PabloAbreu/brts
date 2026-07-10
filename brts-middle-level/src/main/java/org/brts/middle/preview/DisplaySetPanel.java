@@ -579,7 +579,7 @@ public class DisplaySetPanel extends JPanel {
 		g2.fillRect(0, barY, getWidth(), barH);
 		g2.setColor(new Color(0xDD, 0xAA, 0xAA));
 		g2.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-		g2.drawString(status, 8, barY + (int) (barH * 2 / 3));// looks good with 2/3
+		g2.drawString(status, 8, barY + (barH * 2 / 3));// looks good with 2/3
 	}
 
 	// ── Checkerboard tile ───────────────────────────────────────────────────
