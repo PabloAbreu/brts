@@ -1,10 +1,10 @@
 package org.brts.lowlevel.bdmv;
 
+import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
 import org.brts.lowlevel.model.bdmv.Bdjo;
 import org.brts.lowlevel.writer.BlurayFileWriter;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -94,29 +94,27 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	private byte[] buildTerminalInfoSection(Bdjo.TerminalInfo ti) throws IOException {
 		if (ti == null)
 			ti = new Bdjo.TerminalInfo();
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			int bodyLength = 10; // fixed size
-			w.writeInt(bodyLength); // section_length
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		int bodyLength = 10; // fixed size
+		w.writeInt(bodyLength); // section_length
 
-			// default_font (5 bytes)
-			writeFixedAscii(w, ti.getDefaultFont(), 5);
+		// default_font (5 bytes)
+		writeFixedAscii(w, ti.getDefaultFont(), 5);
 
-			// flags: havi_config(4) | menu_call_mask(1) | title_search_mask(1) |
-			// padding(2)
-			int flags = ((ti.getInitialHaviConfigId() & 0x0F) << 4) | ((ti.isMenuCallMask() ? 1 : 0) << 3)
-					| ((ti.isTitleSearchMask() ? 1 : 0) << 2);
-			w.writeByte(flags);
+		// flags: havi_config(4) | menu_call_mask(1) | title_search_mask(1) |
+		// padding(2)
+		int flags = ((ti.getInitialHaviConfigId() & 0x0F) << 4) | ((ti.isMenuCallMask() ? 1 : 0) << 3)
+				| ((ti.isTitleSearchMask() ? 1 : 0) << 2);
+		w.writeByte(flags);
 
-			// Write stored padding bytes (preserved for round-trip fidelity)
-			byte[] rawPadding = ti.getRawPadding();
-			if (rawPadding != null && rawPadding.length > 0) {
-				w.writeBytes(rawPadding);
-			} else {
-				w.writePadding(4); // default padding
-			}
+		// Write stored padding bytes (preserved for round-trip fidelity)
+		byte[] rawPadding = ti.getRawPadding();
+		if (rawPadding != null && rawPadding.length > 0) {
+			w.writeBytes(rawPadding);
+		} else {
+			w.writePadding(4); // default padding
 		}
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	// =====================================================================
@@ -129,24 +127,20 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	private byte[] buildAppCacheInfoSection(Bdjo.AppCacheInfo aci) throws IOException {
 		List<Bdjo.AppCacheItem> items = (aci != null && aci.getItems() != null) ? aci.getItems() : List.of();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		try (BinaryWriter wi = new BinaryWriter(inner)) {
-			wi.writeByte(items.size());
-			wi.writePadding(1); // padding
-			for (Bdjo.AppCacheItem item : items) {
-				wi.writeByte(item.getType());
-				writeFixedAscii(wi, item.getRefToName(), 5);
-				writeFixedAscii(wi, item.getLanguageCode(), 3);
-				wi.writePadding(3); // padding (24 bits)
-			}
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
+		wi.writeByte(items.size());
+		wi.writePadding(1); // padding
+		for (Bdjo.AppCacheItem item : items) {
+			wi.writeByte(item.getType());
+			writeFixedAscii(wi, item.getRefToName(), 5);
+			writeFixedAscii(wi, item.getLanguageCode(), 3);
+			wi.writePadding(3); // padding (24 bits)
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			w.writeInt(inner.size());
-			w.writeBytes(inner.toByteArray());
-		}
-		return buf.toByteArray();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	// =====================================================================
@@ -161,25 +155,21 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 			ap = new Bdjo.AccessiblePlaylists();
 		List<String> plNames = ap.getPlaylistNames() != null ? ap.getPlaylistNames() : List.of();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		try (BinaryWriter wi = new BinaryWriter(inner)) {
-			// num_pl(11 bits) | access_to_all(1) | autostart_first(1) | padding(19 bits)
-			int flags32 = ((plNames.size() & 0x7FF) << 21) | ((ap.isAccessToAllFlag() ? 1 : 0) << 20)
-					| ((ap.isAutostartFirstPlaylistFlag() ? 1 : 0) << 19);
-			wi.writeInt(flags32);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
+		// num_pl(11 bits) | access_to_all(1) | autostart_first(1) | padding(19 bits)
+		int flags32 = ((plNames.size() & 0x7FF) << 21) | ((ap.isAccessToAllFlag() ? 1 : 0) << 20)
+				| ((ap.isAutostartFirstPlaylistFlag() ? 1 : 0) << 19);
+		wi.writeInt(flags32);
 
-			for (String name : plNames) {
-				writeFixedAscii(wi, name, 5);
-				wi.writePadding(1); // padding
-			}
+		for (String name : plNames) {
+			writeFixedAscii(wi, name, 5);
+			wi.writePadding(1); // padding
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			w.writeInt(inner.size());
-			w.writeBytes(inner.toByteArray());
-		}
-		return buf.toByteArray();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	// =====================================================================
@@ -193,27 +183,23 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 		if (apps == null)
 			apps = List.of();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		try (BinaryWriter wi = new BinaryWriter(inner)) {
-			wi.writeByte(apps.size());
-			wi.writePadding(1); // padding
-			for (Bdjo.BdjoApp app : apps) {
-				writeAppEntry(wi, app);
-			}
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
+		wi.writeByte(apps.size());
+		wi.writePadding(1); // padding
+		for (Bdjo.BdjoApp app : apps) {
+			writeAppEntry(wi, app);
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			w.writeInt(inner.size());
-			w.writeBytes(inner.toByteArray());
-		}
-		return buf.toByteArray();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	/**
 	 * Writes a single application entry.
 	 */
-	private void writeAppEntry(BinaryWriter w, Bdjo.BdjoApp app) throws IOException {
+	private void writeAppEntry(ByteArrayBinaryWriter w, Bdjo.BdjoApp app) throws IOException {
 		// control_code(8) + type(4) + padding(4)
 		w.writeByte(app.getControlCode());
 		w.writeByte((app.getType() & 0x0F) << 4);
@@ -245,44 +231,42 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	 * Builds the application descriptor body (everything after the 10-byte tag+length header).
 	 */
 	private byte[] buildAppDescriptorBody(Bdjo.BdjoApp app) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			List<Bdjo.AppProfile> profiles = app.getProfiles() != null ? app.getProfiles() : List.of();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		List<Bdjo.AppProfile> profiles = app.getProfiles() != null ? app.getProfiles() : List.of();
 
-			// num_profile(4 bits) + padding(12 bits)
-			w.writeShort((profiles.size() & 0x0F) << 12);
+		// num_profile(4 bits) + padding(12 bits)
+		w.writeShort((profiles.size() & 0x0F) << 12);
 
-			for (Bdjo.AppProfile prof : profiles) {
-				w.writeShort(prof.getProfileNumber());
-				w.writeByte(prof.getMajorVersion());
-				w.writeByte(prof.getMinorVersion());
-				w.writeByte(prof.getMicroVersion());
-				w.writePadding(1); // padding
-			}
-
-			// priority(8) + binding(2) + visibility(2) + padding(4)
-			w.writeByte(app.getPriority());
-			int bindVisByte = ((app.getBinding() & 0x03) << 6) | ((app.getVisibility() & 0x03) << 4);
-			w.writeByte(bindVisByte);
-
-			// Application names
-			writeAppNames(w, app.getNames());
-
-			// icon_locator (word-aligned)
-			writeAppString(w, app.getIconLocator());
-
-			// icon_flags (16 bits)
-			w.writeShort(app.getIconFlags());
-
-			// base_dir, classpath_extension, initial_class (all word-aligned)
-			writeAppString(w, app.getBaseDir());
-			writeAppString(w, app.getClasspathExtension());
-			writeAppString(w, app.getInitialClass());
-
-			// Application parameters
-			writeAppParams(w, app.getParameters());
+		for (Bdjo.AppProfile prof : profiles) {
+			w.writeShort(prof.getProfileNumber());
+			w.writeByte(prof.getMajorVersion());
+			w.writeByte(prof.getMinorVersion());
+			w.writeByte(prof.getMicroVersion());
+			w.writePadding(1); // padding
 		}
-		return buf.toByteArray();
+
+		// priority(8) + binding(2) + visibility(2) + padding(4)
+		w.writeByte(app.getPriority());
+		int bindVisByte = ((app.getBinding() & 0x03) << 6) | ((app.getVisibility() & 0x03) << 4);
+		w.writeByte(bindVisByte);
+
+		// Application names
+		writeAppNames(w, app.getNames());
+
+		// icon_locator (word-aligned)
+		writeAppString(w, app.getIconLocator());
+
+		// icon_flags (16 bits)
+		w.writeShort(app.getIconFlags());
+
+		// base_dir, classpath_extension, initial_class (all word-aligned)
+		writeAppString(w, app.getBaseDir());
+		writeAppString(w, app.getClasspathExtension());
+		writeAppString(w, app.getInitialClass());
+
+		// Application parameters
+		writeAppParams(w, app.getParameters());
+		return w.toByteArray();
 	}
 
 	/**
@@ -292,19 +276,17 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	 *   data_length(16) + names... + word-align
 	 * </pre>
 	 */
-	private void writeAppNames(BinaryWriter w, List<Bdjo.AppName> names) throws IOException {
+	private void writeAppNames(ByteArrayBinaryWriter w, List<Bdjo.AppName> names) throws IOException {
 		if (names == null)
 			names = List.of();
 
 		// Build name data to compute length
-		ByteArrayOutputStream nameData = new ByteArrayOutputStream();
-		try (BinaryWriter nw = new BinaryWriter(nameData)) {
-			for (Bdjo.AppName name : names) {
-				writeFixedAscii(nw, name.getLanguage(), 3);
-				byte[] nameBytes = name.getName().getBytes(StandardCharsets.UTF_8);
-				nw.writeByte(nameBytes.length);
-				nw.writeBytes(nameBytes);
-			}
+		ByteArrayBinaryWriter nameData = new ByteArrayBinaryWriter();
+		for (Bdjo.AppName name : names) {
+			writeFixedAscii(nameData, name.getLanguage(), 3);
+			byte[] nameBytes = name.getName().getBytes(StandardCharsets.UTF_8);
+			nameData.writeByte(nameBytes.length);
+			nameData.writeBytes(nameBytes);
 		}
 
 		int dataLength = nameData.size();
@@ -324,7 +306,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	 *   length(8) + string(length) + padding(1 if length is even)
 	 * </pre>
 	 */
-	private void writeAppString(BinaryWriter w, String s) throws IOException {
+	private void writeAppString(ByteArrayBinaryWriter w, String s) throws IOException {
 		if (s == null)
 			s = "";
 		byte[] bytes = s.getBytes(StandardCharsets.US_ASCII);
@@ -345,17 +327,15 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	 *   data_length(8) + params... + word-align
 	 * </pre>
 	 */
-	private void writeAppParams(BinaryWriter w, List<String> params) throws IOException {
+	private void writeAppParams(ByteArrayBinaryWriter w, List<String> params) throws IOException {
 		if (params == null)
 			params = List.of();
 
-		ByteArrayOutputStream paramData = new ByteArrayOutputStream();
-		try (BinaryWriter pw = new BinaryWriter(paramData)) {
-			for (String param : params) {
-				byte[] bytes = param.getBytes(StandardCharsets.UTF_8);
-				pw.writeByte(bytes.length);
-				pw.writeBytes(bytes);
-			}
+		ByteArrayBinaryWriter paramData = new ByteArrayBinaryWriter();
+		for (String param : params) {
+			byte[] bytes = param.getBytes(StandardCharsets.UTF_8);
+			paramData.writeByte(bytes.length);
+			paramData.writeBytes(bytes);
 		}
 
 		int dataLength = paramData.size();
@@ -381,20 +361,18 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	private byte[] buildKeyInterestTableSection(Bdjo.KeyInterestTable kit) throws IOException {
 		if (kit == null)
 			kit = new Bdjo.KeyInterestTable();
-		ByteArrayOutputStream buf = new ByteArrayOutputStream(4);
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			int b0 = (kit.isVkPlay() ? 0x80 : 0) | (kit.isVkStop() ? 0x40 : 0) | (kit.isVkFfw() ? 0x20 : 0)
-					| (kit.isVkRew() ? 0x10 : 0) | (kit.isVkTrackNext() ? 0x08 : 0) | (kit.isVkTrackPrev() ? 0x04 : 0)
-					| (kit.isVkPause() ? 0x02 : 0) | (kit.isVkStillOff() ? 0x01 : 0);
-			w.writeByte(b0);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(4);
+		int b0 = (kit.isVkPlay() ? 0x80 : 0) | (kit.isVkStop() ? 0x40 : 0) | (kit.isVkFfw() ? 0x20 : 0)
+				| (kit.isVkRew() ? 0x10 : 0) | (kit.isVkTrackNext() ? 0x08 : 0) | (kit.isVkTrackPrev() ? 0x04 : 0)
+				| (kit.isVkPause() ? 0x02 : 0) | (kit.isVkStillOff() ? 0x01 : 0);
+		w.writeByte(b0);
 
-			int b1 = (kit.isVkSecAudioEnaDis() ? 0x80 : 0) | (kit.isVkSecVideoEnaDis() ? 0x40 : 0)
-					| (kit.isPgTextstEnaDis() ? 0x20 : 0);
-			w.writeByte(b1);
+		int b1 = (kit.isVkSecAudioEnaDis() ? 0x80 : 0) | (kit.isVkSecVideoEnaDis() ? 0x40 : 0)
+				| (kit.isPgTextstEnaDis() ? 0x20 : 0);
+		w.writeByte(b1);
 
-			w.writePadding(2); // remaining 16 bits padding
-		}
-		return buf.toByteArray();
+		w.writePadding(2); // remaining 16 bits padding
+		return w.toByteArray();
 	}
 
 	// =====================================================================
@@ -412,18 +390,16 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 		if (fileAccessInfo == null)
 			fileAccessInfo = "";
 		byte[] pathBytes = fileAccessInfo.getBytes(StandardCharsets.US_ASCII);
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			w.writeShort(pathBytes.length);
-			if (pathBytes.length > 0) {
-				w.writeBytes(pathBytes);
-			}
-			// Word-align: pad if path length is odd
-			if ((pathBytes.length & 1) != 0) {
-				w.writePadding(1);
-			}
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		w.writeShort(pathBytes.length);
+		if (pathBytes.length > 0) {
+			w.writeBytes(pathBytes);
 		}
-		return buf.toByteArray();
+		// Word-align: pad if path length is odd
+		if ((pathBytes.length & 1) != 0) {
+			w.writePadding(1);
+		}
+		return w.toByteArray();
 	}
 
 	// =====================================================================
@@ -433,7 +409,7 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 	/**
 	 * Writes a fixed-length ASCII string, null-padded if shorter, truncated if longer.
 	 */
-	private void writeFixedAscii(BinaryWriter w, String s, int length) throws IOException {
+	private void writeFixedAscii(ByteArrayBinaryWriter w, String s, int length) throws IOException {
 		byte[] bytes = (s != null ? s : "").getBytes(StandardCharsets.US_ASCII);
 		int writeLen = Math.min(bytes.length, length);
 		for (int i = 0; i < writeLen; i++) {

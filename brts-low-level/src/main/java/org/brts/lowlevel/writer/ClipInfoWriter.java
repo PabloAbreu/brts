@@ -1,11 +1,11 @@
 package org.brts.lowlevel.writer;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.model.clpi.ClipInfo;
@@ -54,6 +54,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		int clipMarkOffset = cpiOffset + cpiSection.length;
 		int extensionOffset = clipMarkOffset + clipMarkSection.length;
 
+		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);
 
 		// File header (40 bytes)
@@ -83,11 +84,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	// -------------------------------------------------------------------------
 
 	private byte[] buildClipInfoSection(ClipInfo m) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(2); // reserved (2 bytes per spec)
 		wi.writeByte(m.getClipStreamType());
 		wi.writeByte(m.getApplicationType());
@@ -102,17 +101,15 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeAscii("HDMV");// always seems to be there
 		wi.writePadding(25);// up to 32 bytes total for ts_type_info_block with length
 
-		w.writeInt(inner.size()); // section length
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		w.writeInt(wi.size()); // section length
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	private byte[] buildSequenceInfoSection(ClipInfo m) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(1); // reserved
 		wi.writeByte(1); // num_atc_sequence
 		// ATC sequence
@@ -127,19 +124,17 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		wi.writeInt(startPts45); // presentation_start_time (45 kHz)
 		wi.writeInt(endPts45); // presentation_end_time (45 kHz)
 
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
 
 		w.padToFour();
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	private byte[] buildProgramInfoSection(ClipInfo m) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(1); // reserved
 		wi.writeByte(1); // num_program = 1
 
@@ -192,23 +187,21 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			wi.writePadding(4);
 		}
 
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
 		w.padToFour();
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	private byte[] buildCpiSection(ClipInfo m) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
 		if (m.getEpMap() == null || m.getEpMap().getStreams() == null || m.getEpMap().getStreams().isEmpty()) {
 			w.writeInt(0); // empty CPI
-			return buf.toByteArray();
+			return w.toByteArray();
 		}
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 
 		// 12 reserved bits + 4-bit CPI type = 2 bytes
 		wi.writeShort(0x0001); // type = 1 (EP_map)
@@ -270,9 +263,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			wi.writeBytes(block);
 		}
 
-		w.writeInt(inner.size()); // section length
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		w.writeInt(wi.size()); // section length
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	/**
@@ -281,9 +274,9 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	 */
 	private byte[] buildEpMapStreamData(List<EpMap.EpMapEntry> entries) throws IOException {
 		if (entries.isEmpty()) {
-			ByteArrayOutputStream buf = new ByteArrayOutputStream();
-			new BinaryWriter(buf).writeInt(4); // fine_start = after this field itself
-			return buf.toByteArray();
+			ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+			w.writeInt(4); // fine_start = after this field itself
+			return w.toByteArray();
 		}
 
 		// Decompose into coarse/fine
@@ -318,8 +311,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			fineList.add(new int[] { fineBlock });
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
 		// fine_start_offset: 4 bytes for this field + coarse entries (8 bytes each)
 		int fineStartOffset = 4 + coarseList.size() * 8;
@@ -337,7 +329,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 			w.writeInt(f[0] & 0xFFFFFFFFL);
 		}
 
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	/** Computes the number of coarse entries for a set of EP entries. */
@@ -363,13 +355,12 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 	}
 
 	private byte[] buildClipMarkSection() throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 		w.writeInt(0);// found in real files
 		// or maybe it could be more complicated:
 		// w.writeInt(2); // section length = 2
 		// w.writeShort(0); // num_clip_mark = 0
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 }

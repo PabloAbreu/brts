@@ -1,11 +1,11 @@
 package org.brts.lowlevel.bdmv;
 
 import org.brts.common.exception.WriteException;
+import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.writer.BlurayFileWriter;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -145,56 +145,49 @@ public class IndexBdmvWriter implements BlurayFileWriter<IndexBdmv> {
 	 * Builds the 38-byte AppInfoBDMV section: section_length(4) + reserved(1) + flags(1) + content_provider_name(32).
 	 */
 	private byte[] buildAppInfoSection(IndexBdmv model) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + APP_INFO_BODY_LEN);
-		try (BinaryWriter w = new BinaryWriter(buf)) {
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(4 + APP_INFO_BODY_LEN);
 
-			w.writeInt(APP_INFO_BODY_LEN); // section_length = 34
-			w.writePadding(1); // reserved
-			w.writeByte(0); // flags (initial_output_mode=0, content_exist=0)
+		w.writeInt(APP_INFO_BODY_LEN); // section_length = 34
+		w.writePadding(1); // reserved
+		w.writeByte(0); // flags (initial_output_mode=0, content_exist=0)
 
-			// content_provider_name: up to 32 ASCII bytes, null-padded
-			String name = model.getContentProviderName();
-			byte[] nameBytes = (name != null) ? name.getBytes(StandardCharsets.US_ASCII) : new byte[0];
-			int writeLen = Math.min(nameBytes.length, PROVIDER_NAME_LEN);
-			for (int i = 0; i < writeLen; i++)
-				w.writeByte(nameBytes[i] & 0xFF);
-			w.writePadding(PROVIDER_NAME_LEN - writeLen);
+		// content_provider_name: up to 32 ASCII bytes, null-padded
+		String name = model.getContentProviderName();
+		byte[] nameBytes = (name != null) ? name.getBytes(StandardCharsets.US_ASCII) : new byte[0];
+		int writeLen = Math.min(nameBytes.length, PROVIDER_NAME_LEN);
+		for (int i = 0; i < writeLen; i++)
+			w.writeByte(nameBytes[i] & 0xFF);
+		w.writePadding(PROVIDER_NAME_LEN - writeLen);
 
-		} // end try
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	/**
 	 * Builds the IndexTable section (4-byte length prefix + body).
 	 */
 	private byte[] buildIndexTableSection(IndexBdmv model) throws IOException {
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		try (BinaryWriter wi = new BinaryWriter(inner)) {
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 
-			writeTitleEntry(wi, model.getFirstPlayTitle());
-			writeTitleEntry(wi, model.getTopMenuTitle());
+		writeTitleEntry(wi, model.getFirstPlayTitle());
+		writeTitleEntry(wi, model.getTopMenuTitle());
 
-			List<IndexBdmv.TitleEntry> titles = model.getTitles() != null ? model.getTitles() : List.of();
-			wi.writeShort(titles.size());
-			for (IndexBdmv.TitleEntry t : titles) {
-				writeTitleEntry(wi, t);
-			}
+		List<IndexBdmv.TitleEntry> titles = model.getTitles() != null ? model.getTitles() : List.of();
+		wi.writeShort(titles.size());
+		for (IndexBdmv.TitleEntry t : titles) {
+			writeTitleEntry(wi, t);
+		}
 
-		} // end try
-
-		ByteArrayOutputStream buf = new ByteArrayOutputStream(4 + inner.size());
-		try (BinaryWriter w = new BinaryWriter(buf)) {
-			w.writeInt(inner.size());
-			w.writeBytes(inner.toByteArray());
-		} // end try
-		return buf.toByteArray();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter(4 + wi.size());
+		w.writeInt(wi.size());
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	/**
 	 * Writes a single 12-byte title entry. A {@code null} entry is written as 12 zero bytes (reserved / no-object
 	 * slot).
 	 */
-	private void writeTitleEntry(BinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
+	private void writeTitleEntry(ByteArrayBinaryWriter w, IndexBdmv.TitleEntry entry) throws IOException {
 		if (entry == null) {
 			w.writePadding(ENTRY_SIZE);
 			return;
