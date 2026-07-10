@@ -68,21 +68,21 @@ class IndexBdmvRoundTripTest {
 	}
 
 	@Test
-	void roundTrip_nullVersion_defaultsTo0300() throws Exception {
+	void roundTrip_nullVersion_defaultsTo0200() throws Exception {
 		IndexBdmv original = buildHdmvIndex(null, 1);
 
 		IndexBdmv reparsed = roundTrip(original);
 
-		assertThat(reparsed.getVersion()).isEqualTo("0300");
+		assertThat(reparsed.getVersion()).isEqualTo("0200");
 	}
 
 	@Test
-	void roundTrip_blankVersion_defaultsTo0300() throws Exception {
+	void roundTrip_blankVersion_defaultsTo0200() throws Exception {
 		IndexBdmv original = buildHdmvIndex("", 1);
 
 		IndexBdmv reparsed = roundTrip(original);
 
-		assertThat(reparsed.getVersion()).isEqualTo("0300");
+		assertThat(reparsed.getVersion()).isEqualTo("0200");
 	}
 
 	@Test

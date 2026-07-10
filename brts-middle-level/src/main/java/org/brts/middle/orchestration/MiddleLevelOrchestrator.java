@@ -15,6 +15,7 @@ import org.brts.common.menu.TextStyle;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.paths.BrPath.BrRoot;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
@@ -75,8 +76,8 @@ public class MiddleLevelOrchestrator {
 																// discName, maybe
 																// annotations on
 																// descriptors
-
-		Path bdmv = discPath.resolve("BDMV");
+		BrRoot brRoot = BrRoot.root(discPath, true);
+		Path bdmv = brRoot.bdmv().getPath();
 		Files.createDirectories(descriptorsDir);
 
 		List<String> scriptLines = new ArrayList<>();
