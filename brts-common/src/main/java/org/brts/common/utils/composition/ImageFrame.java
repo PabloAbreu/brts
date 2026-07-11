@@ -2,6 +2,10 @@ package org.brts.common.utils.composition;
 
 import java.awt.image.BufferedImage;
 
+import org.brts.common.utils.composition.java2d.Java2DImageFrame;
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
+
 /**
  * Implementation-independent handle to a single image in the composition pipeline.
  *

@@ -1,18 +1,17 @@
 package org.brts.lowlevel.realdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
 import org.brts.lowlevel.bdmv.BdjoWriter;
 import org.brts.lowlevel.model.bdmv.Bdjo;
 import org.brts.lowlevel.parser.BdjoParser;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -30,9 +29,10 @@ import org.junit.jupiter.api.Test;
  * <li>Organization ID is consistently {@code 0x7FFF0C8E}.</li>
  * </ul>
  */
+@RequiresSamples({ "PB/BDMV/BDJO/00000.bdjo", "PB/BDMV/BDJO/00001.bdjo", "PB/BDMV/BDJO/12345.bdjo" })
 class RealDiscBdjoParserTest {
 
-	private static final Path BDJO_DIR = Paths.get("../samples/PB/BDMV/BDJO");
+	private static final Path BDJO_DIR = Samples.sample("PB/BDMV/BDJO");
 
 	private static final Path BDJO_00000 = BDJO_DIR.resolve("00000.bdjo");
 
@@ -41,12 +41,6 @@ class RealDiscBdjoParserTest {
 	private static final Path BDJO_12345 = BDJO_DIR.resolve("12345.bdjo");
 
 	private final BdjoParser parser = new BdjoParser();
-
-	@BeforeAll
-	static void requireSampleData() {
-		assumeThat(Files.isRegularFile(BDJO_00000))
-				.as("sample disc data must be present at " + BDJO_00000.toAbsolutePath()).isTrue();
-	}
 
 	// ------------------------------------------------------------------
 	// Basic parseability

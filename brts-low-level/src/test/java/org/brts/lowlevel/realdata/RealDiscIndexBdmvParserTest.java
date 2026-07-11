@@ -1,20 +1,19 @@
 package org.brts.lowlevel.realdata;
 
-import org.brts.lowlevel.model.bdmv.IndexBdmv;
-import org.brts.lowlevel.parser.IndexBdmvParser;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
+import org.brts.lowlevel.model.bdmv.IndexBdmv;
+import org.brts.lowlevel.parser.IndexBdmvParser;
+import org.junit.jupiter.api.Test;
+
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Integration tests for {@link IndexBdmvParser} against the real disc sample at {@code samples/PB/BDMV/index.bdmv}.
@@ -32,21 +31,16 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  * <li>All BDJO names referenced in title entries correspond to files actually present under {@code BDMV/BDJO/}.</li>
  * </ul>
  */
+@RequiresSamples({ "PB/BDMV/index.bdmv", "PB/BDMV/BDJO" })
 class RealDiscIndexBdmvParserTest {
 
-	private static final Path BDMV_DIR = Paths.get("../samples/PB/BDMV");
+	private static final Path BDMV_DIR = Samples.sample("PB/BDMV");
 
 	private static final Path INDEX_FILE = BDMV_DIR.resolve("index.bdmv");
 
 	private static final Path BDJO_DIR = BDMV_DIR.resolve("BDJO");
 
 	private final IndexBdmvParser parser = new IndexBdmvParser();
-
-	@BeforeAll
-	static void requireSampleData() {
-		assumeThat(Files.isRegularFile(INDEX_FILE))
-				.as("sample disc data must be present at " + INDEX_FILE.toAbsolutePath()).isTrue();
-	}
 
 	// ------------------------------------------------------------------
 	// Basic parseability
@@ -231,9 +225,6 @@ class RealDiscIndexBdmvParserTest {
 	 */
 	@Test
 	void allBdjoNames_haveCorrespondingFileOnDisc() throws IOException {
-		assumeThat(Files.isDirectory(BDJO_DIR)).as("BDJO directory must be present at " + BDJO_DIR.toAbsolutePath())
-				.isTrue();
-
 		Set<String> availableBdjos = Files.list(BDJO_DIR).map(p -> p.getFileName().toString())
 				.filter(n -> n.endsWith(".bdjo")).map(n -> n.substring(0, n.length() - 5)) // strip ".bdjo"
 				.collect(Collectors.toSet());
@@ -267,9 +258,6 @@ class RealDiscIndexBdmvParserTest {
 	 */
 	@Test
 	void referencedBdjoNames_matchExactlyFilesOnDisc() throws IOException {
-		assumeThat(Files.isDirectory(BDJO_DIR)).as("BDJO directory must be present at " + BDJO_DIR.toAbsolutePath())
-				.isTrue();
-
 		Set<String> availableBdjos = Files.list(BDJO_DIR).map(p -> p.getFileName().toString())
 				.filter(n -> n.endsWith(".bdjo")).map(n -> n.substring(0, n.length() - 5)).collect(Collectors.toSet());
 

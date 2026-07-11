@@ -106,8 +106,8 @@ public class MkvSourceMediaParser implements SourceMediaParser {
 					if (trackType == TrackType.VIDEO) {
 						MatroskaVideoTrack video = mkvTrack.getVideo();
 						if (video != null) {
-							track.setWidthPixels((int) (video.getPixelWidth() & 0xFFFF));
-							track.setHeightPixels((int) (video.getPixelHeight() & 0xFFFF));
+							track.setWidthPixels(video.getPixelWidth() & 0xFFFF);
+							track.setHeightPixels(video.getPixelHeight() & 0xFFFF);
 						}
 						// DefaultDuration is in nanoseconds; convert to fps
 						long defaultDurationNs = mkvTrack.getDefaultDuration();

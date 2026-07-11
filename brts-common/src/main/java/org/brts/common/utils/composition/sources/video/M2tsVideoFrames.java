@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.sources.video;
 
 import java.io.IOException;
 import java.nio.file.Path;

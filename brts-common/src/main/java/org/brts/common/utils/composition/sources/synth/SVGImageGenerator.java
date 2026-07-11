@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.sources.synth;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
@@ -12,6 +12,9 @@ import org.apache.batik.transcoder.TranscoderException;
 import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
 import org.apache.batik.transcoder.image.ImageTranscoder;
+import org.brts.common.utils.composition.CompositionEngineFactory;
+import org.brts.common.utils.composition.ImageFrame;
+import org.brts.common.utils.composition.ImageReference;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;

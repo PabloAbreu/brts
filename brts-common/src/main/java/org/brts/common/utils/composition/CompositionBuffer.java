@@ -6,7 +6,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.brts.common.utils.BrtsFileConfig;
-import org.brts.common.utils.CacheUtils;
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
 import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;
@@ -43,8 +44,6 @@ public class CompositionBuffer {
 		}
 	}
 
-	private static final int RESIZE_CACHE_CAPACITY = 20;
-
 	private final @Getter ImagesComposition configuration;
 
 	private final MediaRepository mediaRepository;
@@ -56,6 +55,8 @@ public class CompositionBuffer {
 	private final boolean twoStepComposition;
 
 	private final Map<String, ImageFrame> resizedImageCache;
+
+	private final Map<String, ImageReference> maskReferences;
 
 	private VideoFrames getVideoFrames(ImageReference ref) {
 		return mediaRepository.getVideoFrames(resolvePath(ref.getVideoPath()));
@@ -77,6 +78,8 @@ public class CompositionBuffer {
 		resizedImageCache = mediaRepository.getImageCache("resized");
 		references = configuration.getImages().stream().collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r),
 				HashMap::putAll);
+		maskReferences = configuration.getTransparencyMasks() != null ? configuration.getTransparencyMasks().stream()
+				.collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r), HashMap::putAll) : new HashMap<>();
 		this.twoStepComposition = Boolean
 				.parseBoolean(BrtsFileConfig.getInstance().getProperty("brts.composition.twoStep"));
 		log.debug("twoStepComposition={}", this.twoStepComposition);
@@ -126,16 +129,17 @@ public class CompositionBuffer {
 			double tly = context.evalNumeric(ic.getTopLeft().getY());
 			float opacity = (float) context.evalNumeric(ic.getOpacity(), 1.0);
 			opacity = Math.max(0.0f, Math.min(1.0f, opacity)); // clamp to [0, 1]
+			ImageFrame mask = resolveMask(ic);
 			// twoStepComposition was an attempt to improve quality of resizing and rotation, but it seems to
 			// have little discernible effect on quality, and it adds complexity and memory usage. So it is disabled by
 			// default.
 			if (twoStepComposition && ic.getResize() != null) {
 				overlay = getOrCreateResized(engine, ic, ref, overlay);
 				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
-						(int) tlx, (int) tly, opacity);
+						(int) tlx, (int) tly, opacity, mask);
 			} else {
 				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
-						(int) tlx, (int) tly, opacity);
+						(int) tlx, (int) tly, opacity, mask);
 			}
 		}
 		return background;
@@ -159,6 +163,22 @@ public class CompositionBuffer {
 			log.debug("Resizing overlay '{}' to {}x{} (cache miss, key={})", ic.getImageId(), targetW, targetH, k);
 			return engine.resize(overlay, targetW, targetH);
 		});
+	}
+
+	/**
+	 * Returns the mask {@link ImageFrame} referenced by {@code ic.getMaskImageId()}, or {@code null} if no mask is
+	 * configured. The returned frame is borrowed from the media repository and must not be closed by the caller.
+	 */
+	private ImageFrame resolveMask(ImageComposition ic) {
+		if (ic.getMaskImageId() == null) {
+			return null;
+		}
+		ImageReference maskRef = maskReferences.get(ic.getMaskImageId());
+		if (maskRef == null) {
+			throw new IllegalArgumentException(
+					"maskImageId '" + ic.getMaskImageId() + "' not found in transparencyMasks list");
+		}
+		return getImage(maskRef, context.getFrameNumber());
 	}
 
 }

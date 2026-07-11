@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
 import org.brts.common.m2ts.M2tsParser;
@@ -259,7 +260,7 @@ public class M2tsClpiRegenBuilder {
 				cs.setAspectRatio(si.getAspectRatio() != null ? si.getAspectRatio() : 3); // default
 																							// 16:9
 			} else if (si.getCodingType().isAudio()) {
-				cs.setAudioChannelLayout(channelsToLayout(si.getChannels()));
+				cs.setAudioChannelLayout(AudioChannelLayoutConverter.channelsToLayout(si.getChannels()));
 				cs.setSampleRate(sampleRateToCode(si.getSampleRateHz()));
 				cs.setLanguage(si.getLanguage() != null ? si.getLanguage() : "und");
 			} else {
@@ -448,21 +449,6 @@ public class M2tsClpiRegenBuilder {
 	// =========================================================================
 	// Blu-ray attribute code mappings
 	// =========================================================================
-
-	/**
-	 * Maps a raw channel count (from PMT descriptors) to the Blu-ray {@code audio_channel_layout} code used in CLPI.
-	 */
-	private static int channelsToLayout(Integer channels) {
-		if (channels == null)
-			return 0x03; // stereo default
-		return switch (channels) {
-		case 1 -> 0x01; // mono
-		case 2 -> 0x03; // stereo
-		case 6 -> 0x06; // multi-channel (5.1)
-		case 8 -> 0x07; // multi-channel (7.1)
-		default -> 0x03;
-		};
-	}
 
 	/**
 	 * Maps a sample rate in Hz to the Blu-ray {@code audio_sample_rate} code used in CLPI. Defaults to {@code 0x01} (48

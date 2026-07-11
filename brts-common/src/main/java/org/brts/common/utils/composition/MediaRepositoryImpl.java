@@ -5,6 +5,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.brts.common.utils.CacheUtils;
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGeneratorFactory;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
+import org.brts.common.utils.composition.sources.video.VideoFramesFactory;
 
 public class MediaRepositoryImpl implements MediaRepository {
 

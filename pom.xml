@@ -225,11 +225,16 @@
 					<version>${maven-compiler-plugin.version}</version>
 					<configuration>
 						<release>${java.version}</release>
+						<showWarnings>true</showWarnings>
+						<showDeprecation>true</showDeprecation>
+						<compilerArgs>
+							<arg>-Xlint:all,-serial</arg>
+						</compilerArgs>
 						<annotationProcessorPaths>
 							<path>
 								<groupId>org.projectlombok</groupId>
 								<artifactId>lombok</artifactId>
-								<version>1.18.38</version>
+								<version>1.18.46</version>
 							</path>
 						</annotationProcessorPaths>
 					</configuration>

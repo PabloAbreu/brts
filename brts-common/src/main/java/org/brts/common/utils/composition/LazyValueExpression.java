@@ -28,9 +28,10 @@ class LazyValueExpression extends ValueExpression {
 
 	private final CompositionContextImpl context;
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public Object getValue(ELContext elContext) {
-		return context.eval(expression);
+	public <T> T getValue(ELContext elContext) {
+		return (T) context.eval(expression);
 	}
 
 	@Override

@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.common.m2ts.IStreamInfo;
+import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsClipWriterImpl;
@@ -22,6 +23,8 @@ import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BrRoot;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -94,14 +97,11 @@ public class TitleMenuGenerator {
 	 * @throws IOException on any I/O or generation error
 	 */
 	public void generate(TitleMenuDescriptor descriptor, Path outputDir, Path baseDir) throws IOException {
-		Files.createDirectories(outputDir);
+		BrRoot brRoot = BrRoot.root(outputDir, true);
 
-		Path streamDir = outputDir.resolve("STREAM");
-		Path clipDir = outputDir.resolve("CLIPINF");
-		Path playlistDir = outputDir.resolve("PLAYLIST");
-		Files.createDirectories(streamDir);
-		Files.createDirectories(clipDir);
-		Files.createDirectories(playlistDir);
+		BrPath.BdmvPath bdmv = brRoot.bdmv();
+		Path streamDir = bdmv.stream().getPath();
+		Path clipDir = bdmv.clipinf().getPath();
 
 		// ── 1. Resolve layout ────────────────────────────────────────────────
 
@@ -114,8 +114,6 @@ public class TitleMenuGenerator {
 		// ── 2. Generate/mux background M2TS + CLPI ──────────────────────────
 
 		String bgName = descriptor.getOutputBackgroundName();
-		Path bgM2ts = streamDir.resolve(bgName + ".m2ts");
-		Path bgClpi = clipDir.resolve(bgName + ".clpi");
 		M2tsDescriptor desc = null;
 		if (layoutResult.isCompositeBackground() && layoutResult.getBackgroundComposition() != null) {
 			desc = generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamDir, clipDir,
@@ -400,7 +398,8 @@ public class TitleMenuGenerator {
 						s.setPid(audioStream.getPid());
 						s.setCodingType(StreamCodingType.fromByte(audioStream.getStreamTypeByte()));
 						s.setSampleRate(deriveSampleRateCode(audioStream.getSampleRateHz()));
-						s.setAudioChannelLayout(deriveChannelLayoutCode(audioStream.getChannels()));
+						s.setAudioChannelLayout(
+								AudioChannelLayoutConverter.channelsToLayout(audioStream.getChannels()));
 						s.setLanguage(audioStream.getLanguage());
 						item.getStreams().add(s);
 					});
@@ -487,16 +486,6 @@ public class TitleMenuGenerator {
 		if (sampleRateHz <= 96000)
 			return 4;
 		return 5;
-	}
-
-	private static int deriveChannelLayoutCode(Integer channels) {
-		if (channels == null || channels <= 1)
-			return 1;
-		if (channels <= 2)
-			return 3;
-		if (channels <= 6)
-			return 6;
-		return 12;
 	}
 
 	/**

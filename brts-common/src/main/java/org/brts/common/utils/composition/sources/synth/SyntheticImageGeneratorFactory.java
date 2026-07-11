@@ -1,4 +1,6 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.sources.synth;
+
+import org.brts.common.utils.composition.ImageReference;
 
 public class SyntheticImageGeneratorFactory {
 

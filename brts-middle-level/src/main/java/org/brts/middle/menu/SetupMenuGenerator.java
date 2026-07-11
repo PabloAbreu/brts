@@ -11,6 +11,9 @@ import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
+import org.brts.common.utils.paths.BrPath.PlaylistPath;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.model.clpi.ClipInfo;
@@ -61,9 +64,9 @@ public class SetupMenuGenerator {
 	 */
 	public void generate(SetupMenuDescriptor descriptor, Path outputDir) throws IOException {
 		Files.createDirectories(outputDir);
-		Path bdmv = outputDir;
-		if (!bdmv.endsWith("BDMV"))
-			bdmv = outputDir.resolve("BDMV");
+		BdmvPath bdmv = new BdmvPath(outputDir.endsWith("BDMV") ? outputDir : BrPath.root(outputDir).bdmv().getPath());
+
+		Path bdmvPath = bdmv.getPath();
 		Path workDir = outputDir.resolve("work");
 		Files.createDirectories(workDir);
 
@@ -126,10 +129,9 @@ public class SetupMenuGenerator {
 	 * @throws IOException
 	 */
 	private void generatePlaylist(String outputIntroName, String outputName, String outputMenuName,
-			String outputPlaylistName, Path bdmv) throws IOException {
-		Path playlistDir = bdmv.resolve("PLAYLIST");
-		Files.createDirectories(playlistDir);
-		Path playlistPath = playlistDir.resolve(outputPlaylistName + ".mpls");
+			String outputPlaylistName, BdmvPath bdmv) throws IOException {
+		PlaylistPath playlistDir = bdmv.playlist();
+		Path playlistPath = playlistDir.mpls(outputPlaylistName);
 		MoviePlaylistWriter playlistWriter = new MoviePlaylistWriter();
 		MoviePlaylist playlist = new MoviePlaylist();
 		playlist.setMenu(true);
@@ -181,8 +183,8 @@ public class SetupMenuGenerator {
 		return item;
 	}
 
-	private ClipTiming resolveClipTiming(String clipName, Path bdmv, ClipTiming fallbackTiming) {
-		Path clpiPath = bdmv.resolve("CLIPINF").resolve(clipName + ".clpi");
+	private ClipTiming resolveClipTiming(String clipName, BdmvPath bdmv, ClipTiming fallbackTiming) {
+		Path clpiPath = bdmv.clipinf(clipName);
 		if (!Files.exists(clpiPath)) {
 			log.warn("CLPI file not found for clip {} ({}), using fallback timing [{}, {})", clipName, clpiPath,
 					fallbackTiming.inTimeTicks(), fallbackTiming.outTimeTicks());
@@ -211,7 +213,7 @@ public class SetupMenuGenerator {
 		return fallbackTiming;
 	}
 
-	private void muxMenu(Path igsStreamPath, PidAllocator pids, String outputName, Path bdmv) throws IOException {
+	private void muxMenu(Path igsStreamPath, PidAllocator pids, String outputName, BdmvPath bdmv) throws IOException {
 
 		M2tsDescriptor m2tsDesc = new M2tsDescriptor();
 		List<M2tsDescriptor.StreamEntry> streams = new ArrayList<>();
@@ -227,23 +229,18 @@ public class SetupMenuGenerator {
 
 	}
 
-	private void mux(M2tsDescriptor m2tsDesc, String outputName, Path bdmv) throws IOException {
-
-		Path stream = bdmv.resolve("STREAM");
-		Files.createDirectories(stream);
-		Path clipDir = bdmv.resolve("CLIPINF");
-		Files.createDirectories(clipDir);
-		Path m2tsOutput = stream.resolve(outputName + ".m2ts");
-		Path clpiOutput = clipDir.resolve(outputName + ".clpi");
+	private void mux(M2tsDescriptor m2tsDesc, String outputName, BdmvPath bdmv) throws IOException {
+		Path m2tsOutput = bdmv.stream(outputName);
+		Path clpiOutput = bdmv.clipinf(outputName);
 
 		M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
 		writer.write(m2tsDesc, m2tsOutput, clpiOutput);
-		Path descOutPath = bdmv.resolve(outputName + ".m2ts-descriptor.json");
+		Path descOutPath = bdmv.getPath().resolve(outputName + ".m2ts-descriptor.json");
 		mapper.writerWithDefaultPrettyPrinter().writeValue(descOutPath.toFile(), m2tsDesc);
 	}
 
-	private void muxIntoM2ts(MediaSource.ExtractionResult extraction, PidAllocator pids, String outputName, Path bdmv)
-			throws IOException {
+	private void muxIntoM2ts(MediaSource.ExtractionResult extraction, PidAllocator pids, String outputName,
+			BdmvPath bdmv) throws IOException {
 
 		if (extraction == null)
 			return;

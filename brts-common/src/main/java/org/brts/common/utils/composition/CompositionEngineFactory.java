@@ -1,6 +1,8 @@
 package org.brts.common.utils.composition;
 
 import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.composition.java2d.Java2DCompositionEngine;
+import org.brts.common.utils.composition.opencv.OpenCvCompositionEngine;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -1,10 +1,10 @@
 package org.brts.lowlevel.bdmv;
 
+import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.writer.BlurayFileWriter;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
@@ -25,6 +25,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 		// Header: 4 + 4 + 4 + 28 reserved = 40 bytes
 		int extensionOffset = 0;
 
+		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);
 		w.writeAscii(MAGIC);
 		w.writeAscii(VERSION);
@@ -37,8 +38,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 	private byte[] buildObjectsSection(MovieObjects model) throws IOException {
 		List<MovieObjects.MovieObject> objects = model.getMovieObjects() != null ? model.getMovieObjects() : List.of();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		org.brts.common.io.BinaryWriter wi = new org.brts.common.io.BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 
 		wi.writePadding(4); // reserved
 		wi.writeShort(objects.size());
@@ -73,11 +73,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 			}
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 }

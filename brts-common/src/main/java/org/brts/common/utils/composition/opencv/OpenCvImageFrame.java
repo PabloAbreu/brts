@@ -1,8 +1,9 @@
-package org.brts.common.utils.composition;
+package org.brts.common.utils.composition.opencv;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
+import org.brts.common.utils.composition.ImageFrame;
 import org.bytedeco.opencv.opencv_core.Mat;
 
 import lombok.Getter;
@@ -79,7 +80,6 @@ public class OpenCvImageFrame implements ImageFrame {
 	public void close() {
 		if (mat != null && !mat.isNull()) {
 			mat.release();
-			// mat = null; // mat is final, cannot be reassigned
 		}
 	}
 

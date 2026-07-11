@@ -3,6 +3,9 @@ package org.brts.common.utils.composition;
 import java.nio.file.Path;
 import java.util.Map;
 
+import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
+
 /** Repository for media assets used during frame composition. */
 public interface MediaRepository extends AutoCloseable {
 

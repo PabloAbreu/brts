@@ -1,10 +1,10 @@
 package org.brts.lowlevel.writer;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 
+import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
@@ -34,6 +34,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		int playlistMarkOffset = playlistOffset + playlistSection.length;
 		int extensionOffset = 0;
 
+		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);
 		w.writeAscii(MAGIC);
 		w.writeAscii(VERSION);
@@ -48,18 +49,18 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 	}
 
 	private byte[] buildAppInfoPlayListSection(MoviePlaylist model) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 		final int size = 14;
 		w.writeInt(size);
 		w.writeByte(0);// reserved
 		final int playbackType = 1;
 		// setting playbackType to 2 for menu causes PowerDVD to crash.
-		w.writeByte(playbackType); // playback_type
-		if (playbackType == 2 || playbackType == 3) {
-			final int playbackCount = 0;
-			w.writeShort(playbackCount);
-		} else {
+		w.writeByte(playbackType);
+		// playback_type
+		/*
+		 * if (playbackType == 2 || playbackType == 3) { final int playbackCount = 0; w.writeShort(playbackCount); }
+		 * else
+		 */ {
 			w.writePadding(2);
 		}
 		// UOMaskTable
@@ -69,14 +70,13 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		final int accessFlags = 0;
 		w.writeByte(accessFlags);// flags, unset and unused for now
 		w.writeByte(0);// reserved
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	// -------------------------------------------------------------------------
 
 	private byte[] buildPlaylistSection(MoviePlaylist pl) throws IOException {
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 
 		List<PlayItem> items = pl.getPlayItems() != null ? pl.getPlayItems() : List.of();
 		List<SubPath> subPaths = pl.getSubPaths() != null ? pl.getSubPaths() : List.of();
@@ -94,16 +94,11 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			wi.writeBytes(buildSubPath(sp));
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	private byte[] buildPlayItem(PlayItem item) throws IOException {
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
 		String clipName = item.getClipName() != null ? item.getClipName() : "00001";
 		w.writeAscii(String.format("%-5s", clipName).substring(0, 5));
@@ -121,7 +116,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 		// STN
 		w.writeBytes(buildStn(item));
-		return buf.toByteArray();
+		return w.toByteArray();
 	}
 
 	private byte[] buildStn(PlayItem item) throws IOException {
@@ -131,8 +126,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		long numPg = streams.stream().filter(s -> s.getCodingType() != null && s.getCodingType().isSubtitle()).count();
 		long numIg = streams.stream().filter(s -> s.getCodingType() != null && s.getCodingType().isMenu()).count();
 
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(2); // reserved
 		wi.writeByte((int) numVideo);
 		wi.writeByte((int) numAudio);
@@ -147,8 +141,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 
 		for (PlayItemStream s : streams) {
 			// stream_entry (length byte + content)
-			ByteArrayOutputStream entry = new ByteArrayOutputStream();
-			BinaryWriter we = new BinaryWriter(entry);
+			ByteArrayBinaryWriter we = new ByteArrayBinaryWriter();
 			// default to in-mux if not set
 			int streamType = s.getStreamType() != 0 ? s.getStreamType() : PlayItemStream.STREAM_TYPE_IN_MUX;
 			we.writeByte(streamType); // stream_type
@@ -170,13 +163,12 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 				we.writePadding(6);
 				break;
 			}
-			byte[] entryBytes = entry.toByteArray();
+			byte[] entryBytes = we.toByteArray();
 			wi.writeByte(entryBytes.length);
 			wi.writeBytes(entryBytes);
 
 			// stream_attributes
-			ByteArrayOutputStream attr = new ByteArrayOutputStream();
-			BinaryWriter wa = new BinaryWriter(attr);
+			ByteArrayBinaryWriter wa = new ByteArrayBinaryWriter();
 			if (s.getCodingType() != null) {
 				wa.writeByte(s.getCodingType().getCodingTypeByte());
 				if (s.getCodingType().isVideo()) {
@@ -196,30 +188,27 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 					wa.writePadding(1); // reserved
 				}
 			}
-			byte[] attrBytes = attr.toByteArray();
+			byte[] attrBytes = wa.toByteArray();
 			wi.writeByte(attrBytes.length);
 			wi.writeBytes(attrBytes);
 		}
 
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
-		w.writeShort(inner.size());
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
+		w.writeShort(wi.size());
+		w.writeBytes(wi.toByteArray());
+		return w.toByteArray();
 	}
 
 	private byte[] buildSubPath(SubPath sp) throws IOException {
 		List<SubPath.SubPlayItem> spis = sp.getSubPlayItems() != null ? sp.getSubPlayItems() : List.of();
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writePadding(1);
 		wi.writeByte(sp.getSubPathType());
 		wi.writeShort(sp.isRepeatSubPath() ? 0x01 : 0x00);
 		wi.writePadding(1);
 		wi.writeByte(spis.size());
 		for (SubPath.SubPlayItem spi : spis) {
-			ByteArrayOutputStream spiInner = new ByteArrayOutputStream();
-			BinaryWriter ws = new BinaryWriter(spiInner);
+			ByteArrayBinaryWriter ws = new ByteArrayBinaryWriter();
 			String name = spi.getClipName() != null ? spi.getClipName() : "00001";
 			ws.writeAscii(String.format("%-5s", name).substring(0, 5));
 			ws.writeAscii("M2TS");
@@ -233,21 +222,16 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			ws.writeShort(spi.getSyncPlayItemId());
 			ws.writeInt(spi.getSyncStartPtsTicks());
 			// TODO support multiclip entries
-			byte[] spiBytes = spiInner.toByteArray();
+			byte[] spiBytes = ws.toByteArray();
 			wi.writeShort(spiBytes.length);
 			wi.writeBytes(spiBytes);
 		}
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 	private byte[] buildMarkSection(MoviePlaylist pl) throws IOException {
 		List<PlayMark> marks = pl.getPlayMarks() != null ? pl.getPlayMarks() : List.of();
-		ByteArrayOutputStream inner = new ByteArrayOutputStream();
-		BinaryWriter wi = new BinaryWriter(inner);
+		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
 		wi.writeShort(marks.size());
 		for (PlayMark m : marks) {
 			wi.writePadding(1);
@@ -257,11 +241,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 			wi.writeShort(m.getEntryEsPid());
 			wi.writeInt(m.getDurationTicks());
 		}
-		ByteArrayOutputStream buf = new ByteArrayOutputStream();
-		BinaryWriter w = new BinaryWriter(buf);
-		w.writeInt(inner.size());
-		w.writeBytes(inner.toByteArray());
-		return buf.toByteArray();
+		return wi.toSizePrefixedByteArray();
 	}
 
 }

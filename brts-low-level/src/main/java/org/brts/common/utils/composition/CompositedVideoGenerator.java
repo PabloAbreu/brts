@@ -41,6 +41,8 @@ import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.AudioUtils;
 import org.brts.common.utils.FfmpegAudioExtractor;
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.composition.sources.video.VideoFrames;
+import org.brts.common.utils.composition.sources.video.VideoFramesFactory;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
@@ -52,7 +54,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Makes use of the {@link VideoCompositionBuffer} to generate composited videos.
+ * Makes use of the {@link CompositionBuffer} to generate composited videos.
  *
  * <p>
  * Outputs an H.264 M2TS video file (with the corresponding CLPI) by compositing frames according to the provided
@@ -325,7 +327,7 @@ public class CompositedVideoGenerator {
 			AVPacket packet = av_packet_alloc();
 
 			try (OutputStream out = Files.newOutputStream(outputFile)) {
-				MediaRepositoryImpl repo = new MediaRepositoryImpl();
+				MediaRepository repo = new MediaRepositoryImpl();
 				try {
 
 					for (int i = 0; i < frameCount; i++) {

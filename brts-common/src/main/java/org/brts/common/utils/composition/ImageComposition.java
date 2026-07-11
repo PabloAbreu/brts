@@ -15,6 +15,10 @@ public class ImageComposition {
 
 	private String imageId; // to find ImageReference
 
+	// optional reference to an entry in ImagesComposition.transparencyMasks;
+	// the 8-bit grayscale mask is multiplied with the overlay's alpha before compositing
+	private String maskImageId;
+
 	private Point topLeft;
 
 	private ObjectExpression opacity; // 0.0 to 1.0, applied to the applied image
