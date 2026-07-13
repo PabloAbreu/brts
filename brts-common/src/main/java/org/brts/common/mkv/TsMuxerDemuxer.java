@@ -3,17 +3,22 @@ package org.brts.common.mkv;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.ProcessUtils;
 import org.brts.common.utils.TsMuxerUtils;
 
@@ -21,6 +26,20 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * MKV demuxer implementation backed by the external tsMuxeR CLI.
+ * This class does not work as is.
+ * 
+ * There is an unsolved issue with tsMuxeR where it will fail to demux text subtitles
+ * because it cannot find the font specified in the demux meta file. This is a known
+ * bug: it seems it misinterprets the font name/family. It works only when 
+ * font family == font name == font file name.
+ * 
+ * https://github.com/justdan96/tsMuxer/issues/459
+ * 
+ * https://github.com/justdan96/tsMuxer/issues/170
+ * 
+ * Another (related) issue is that tsMuxer does not actually demux text subtitles: it just
+ * converts them to PGS subtitles.
+ * 
  */
 @Slf4j
 public class TsMuxerDemuxer implements EsDemuxer {
@@ -48,37 +67,29 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		}
 
 		Path workDir = Files.createTempDirectory(outputDir, ".tsmuxer_demux_");
-		Map<Integer, Path> demuxed = new LinkedHashMap<>();
 		try {
 			String tsmuxerBinary = TsMuxerUtils.resolveTsMuxeRBinary();
 			long timeoutMs = resolveTimeoutMs();
+			SubtitleMeta subtitleMeta = resolveSubtitleMeta(tracksByNumber.values());
 
-			for (SourceMediaInfo.SourceTrack track : tracksByNumber.values()) {
-				int trackNo = track.getTrackNumber();
-				Path perTrackDir = Files.createDirectories(workDir.resolve("track_" + trackNo));
-				Path rawOutput = demuxWithTsMuxer(tsmuxerBinary, sourcePath, track, perTrackDir, timeoutMs);
+			Path rawOutputDir = Files.createDirectories(workDir.resolve("raw_demux"));
+			Path metaFile = workDir.resolve("demux.meta");
+			Files.writeString(metaFile, buildDemuxMeta(sourcePath, tracksByNumber.values(), subtitleMeta));
 
-				String ext = extensionForTrack(track);
-				Path normalized = outputDir.resolve("track_" + trackNo + "." + ext);
-				Files.move(rawOutput, normalized);
-				demuxed.put(trackNo, normalized);
-			}
+			runTsMuxerDemux(tsmuxerBinary, metaFile, rawOutputDir, timeoutMs);
+			Map<Integer, Path> mappedRaw = mapRawOutputsToTracks(rawOutputDir, metaFile, tracksByNumber);
 
-			// Keep parity for text subtitle tracks if the tsMuxeR output extension differs.
-			Set<Integer> textTracks = tracksByNumber.values().stream()
-					.filter(t -> t.getCodingType() == StreamCodingType.TEXT_SUBTITLE)
-					.map(SourceMediaInfo.SourceTrack::getTrackNumber).collect(Collectors.toSet());
-			if (!textTracks.isEmpty()) {
-				Map<Integer, Path> textFromFallback = new MkvDemuxer().demux(sourcePath,
-						workDir.resolve("text_fallback"), textTracks);
-				for (Map.Entry<Integer, Path> entry : textFromFallback.entrySet()) {
-					if (!demuxed.containsKey(entry.getKey())) {
-						SourceMediaInfo.SourceTrack track = tracksByNumber.get(entry.getKey());
-						Path normalized = outputDir.resolve("track_" + entry.getKey() + "." + extensionForTrack(track));
-						Files.move(entry.getValue(), normalized);
-						demuxed.put(entry.getKey(), normalized);
-					}
+			Map<Integer, Path> demuxed = new LinkedHashMap<>();
+			for (Map.Entry<Integer, SourceMediaInfo.SourceTrack> entry : tracksByNumber.entrySet()) {
+				Integer trackNo = entry.getKey();
+				SourceMediaInfo.SourceTrack track = entry.getValue();
+				Path rawOutput = mappedRaw.get(trackNo);
+				if (rawOutput == null) {
+					throw new IOException("tsMuxeR demux produced no output for requested track " + trackNo);
 				}
+				Path normalized = outputDir.resolve("track_" + trackNo + "." + extensionForTrack(track));
+				Files.move(rawOutput, normalized, StandardCopyOption.REPLACE_EXISTING);
+				demuxed.put(trackNo, normalized);
 			}
 
 			// Preserve input order by track number map insertion order.
@@ -91,18 +102,13 @@ public class TsMuxerDemuxer implements EsDemuxer {
 			}
 			return ordered;
 		} finally {
-			deleteRecursively(workDir);
+			FileUtils.deleteDir(workDir);
 		}
 	}
 
-	private static Path demuxWithTsMuxer(String tsmuxerBinary, Path sourcePath, SourceMediaInfo.SourceTrack track,
-			Path perTrackDir, long timeoutMs) throws IOException {
-		Path metaFile = perTrackDir.resolve("demux.meta");
-		String meta = "MUXOPT --demux\n" + TsMuxerUtils.tsmuxerCodecFor(track) + ", \"" + sourcePath.toAbsolutePath()
-				+ "\", track=" + track.getTrackNumber();
-		Files.writeString(metaFile, meta);
-
-		Process process = new ProcessBuilder(tsmuxerBinary, metaFile.toString(), perTrackDir.toString()).start();
+	private static void runTsMuxerDemux(String tsmuxerBinary, Path metaFile, Path outputDir, long timeoutMs)
+			throws IOException {
+		Process process = new ProcessBuilder(tsmuxerBinary, metaFile.toString(), outputDir.toString()).start();
 		ProcessUtils.StringStreamGobbler outputGobbler = new ProcessUtils.StringStreamGobbler(process.getInputStream());
 		ProcessUtils.StringStreamGobbler errorGobbler = new ProcessUtils.StringStreamGobbler(process.getErrorStream());
 		outputGobbler.start();
@@ -112,49 +118,257 @@ public class TsMuxerDemuxer implements EsDemuxer {
 			boolean finished = process.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
 			if (!finished) {
 				process.destroyForcibly();
-				throw new IOException("tsMuxeR demux timeout for track " + track.getTrackNumber());
+				throw new IOException("tsMuxeR demux timeout");
 			}
 			int exit = process.exitValue();
 			outputGobbler.join(2_000L);
 			errorGobbler.join(2_000L);
 
 			if (exit != 0) {
-				throw new IOException("tsMuxeR demux failed for track " + track.getTrackNumber() + " (exit=" + exit
-						+ "): " + errorGobbler.getOutput());
+				throw new IOException("tsMuxeR demux failed (exit=" + exit + ").\nstdout: " + outputGobbler.getOutput()
+						+ "\nstderr: " + errorGobbler.getOutput());
 			}
-
-			Path output = resolveDemuxedOutput(perTrackDir, metaFile);
-			if (output == null) {
-				throw new IOException("tsMuxeR demux produced no output for track " + track.getTrackNumber() + ".\n"
-						+ "stdout: " + outputGobbler.getOutput() + "\nstderr: " + errorGobbler.getOutput());
-			}
-			return output;
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			process.destroyForcibly();
-			throw new IOException("tsMuxeR demux interrupted for track " + track.getTrackNumber(), e);
+			throw new IOException("tsMuxeR demux interrupted", e);
 		}
 	}
 
-	private static Path resolveDemuxedOutput(Path perTrackDir, Path metaFile) throws IOException {
-		try (Stream<Path> stream = Files.walk(perTrackDir)) {
+	private static List<Path> listDemuxedOutputs(Path outputDir, Path metaFile) throws IOException {
+		try (Stream<Path> stream = Files.walk(outputDir)) {
 			List<Path> candidates = stream.filter(Files::isRegularFile).filter(p -> !p.equals(metaFile))
 					.filter(p -> !p.getFileName().toString().endsWith(".txt"))
 					.filter(p -> !p.getFileName().toString().endsWith(".meta")).collect(Collectors.toList());
-			if (candidates.isEmpty()) {
-				return null;
-			}
-			candidates.sort(Comparator.comparingLong(TsMuxerDemuxer::fileSize).reversed());
-			return candidates.get(0);
+			candidates.sort(Comparator.comparing(Path::toString));
+			return candidates;
 		}
 	}
 
-	private static long fileSize(Path path) {
-		try {
-			return Files.size(path);
-		} catch (IOException e) {
-			return -1L;
+	private static Map<Integer, Path> mapRawOutputsToTracks(Path rawOutputDir, Path metaFile,
+			Map<Integer, SourceMediaInfo.SourceTrack> tracksByNumber) throws IOException {
+		List<Path> available = new ArrayList<>(listDemuxedOutputs(rawOutputDir, metaFile));
+		if (available.isEmpty()) {
+			throw new IOException(
+					"tsMuxeR demux produced no output files for requested tracks " + tracksByNumber.keySet());
 		}
+
+		Map<Integer, Path> mapped = new LinkedHashMap<>();
+		Set<Path> used = new HashSet<>();
+
+		for (Map.Entry<Integer, SourceMediaInfo.SourceTrack> entry : tracksByNumber.entrySet()) {
+			int trackNo = entry.getKey();
+			Path match = available.stream().filter(p -> !used.contains(p))
+					.filter(p -> fileNameContainsTrackNumberToken(p.getFileName().toString(), trackNo)).findFirst()
+					.orElse(null);
+			if (match != null) {
+				mapped.put(trackNo, match);
+				used.add(match);
+			}
+		}
+
+		Map<String, List<Integer>> tracksByExt = new LinkedHashMap<>();
+		for (Map.Entry<Integer, SourceMediaInfo.SourceTrack> entry : tracksByNumber.entrySet()) {
+			if (mapped.containsKey(entry.getKey())) {
+				continue;
+			}
+			String ext = extensionForTrack(entry.getValue()).toLowerCase(Locale.ROOT);
+			tracksByExt.computeIfAbsent(ext, k -> new ArrayList<>()).add(entry.getKey());
+		}
+
+		for (Map.Entry<String, List<Integer>> entry : tracksByExt.entrySet()) {
+			String ext = entry.getKey();
+			List<Integer> trackNos = entry.getValue();
+			List<Path> candidates = available.stream().filter(p -> !used.contains(p))
+					.filter(p -> extensionOf(p).equalsIgnoreCase(ext)).sorted(Comparator.comparing(Path::toString))
+					.collect(Collectors.toList());
+
+			if (candidates.size() != trackNos.size()) {
+				throw new IOException("Cannot map tsMuxeR outputs for extension '" + ext + "': expected "
+						+ trackNos.size() + " file(s) for tracks " + trackNos + " but found " + candidates.size()
+						+ " candidate(s): " + candidates.stream().map(Path::getFileName).collect(Collectors.toList()));
+			}
+
+			for (int i = 0; i < trackNos.size(); i++) {
+				Path candidate = candidates.get(i);
+				mapped.put(trackNos.get(i), candidate);
+				used.add(candidate);
+			}
+		}
+
+		if (mapped.size() != tracksByNumber.size()) {
+			Set<Integer> missing = new HashSet<>(tracksByNumber.keySet());
+			missing.removeAll(mapped.keySet());
+			throw new IOException("Cannot map demux output(s) for track(s): " + missing + ". Available files: "
+					+ available.stream().map(Path::getFileName).collect(Collectors.toList()));
+		}
+
+		return mapped;
+	}
+
+	private static String buildDemuxMeta(Path sourcePath, java.util.Collection<SourceMediaInfo.SourceTrack> tracks,
+			SubtitleMeta subtitleMeta) {
+		StringBuilder meta = new StringBuilder(
+				"MUXOPT --no-pcr-on-video-pid --new-audio-pes --demux --vbr --vbv-len=500");
+		for (SourceMediaInfo.SourceTrack track : tracks) {
+			meta.append('\n');
+			meta.append(buildMetaTrackLine(sourcePath, track, subtitleMeta));
+		}
+		String metaContent = meta.toString();
+		log.debug("tsMuxeR demux meta file content:\n{}", metaContent);
+		return metaContent;
+	}
+
+	private static String buildMetaTrackLine(Path sourcePath, SourceMediaInfo.SourceTrack track,
+			SubtitleMeta subtitleMeta) {
+		StringBuilder line = new StringBuilder();
+		line.append(TsMuxerUtils.tsmuxerCodecFor(track));
+		line.append(", \"").append(sourcePath.toAbsolutePath()).append("\"");
+
+		if (track.getCodingType() == StreamCodingType.TEXT_SUBTITLE) {
+			if (subtitleMeta == null) {
+				throw new IllegalStateException("subtitle metadata is required for text subtitle demux");
+			}
+			line.append(", font-name=\"").append(subtitleMeta.fontName).append("\"");
+			line.append(", font-size=").append(subtitleMeta.fontSize);
+			line.append(", font-color=").append(subtitleMeta.fontColorHex);
+			line.append(", bottom-offset=").append(subtitleMeta.bottomOffset);
+			line.append(", font-border=").append(subtitleMeta.fontBorder);
+			line.append(", text-align=").append(subtitleMeta.textAlign);
+			line.append(", video-width=").append(subtitleMeta.videoWidth);
+			line.append(", video-height=").append(subtitleMeta.videoHeight);
+			line.append(", fps=").append(formatFps(subtitleMeta.fps));
+		}
+
+		line.append(", track=").append(track.getTrackNumber());
+		line.append(", lang=")
+				.append(track.getLanguage() == null || track.getLanguage().isBlank() ? "und" : track.getLanguage());
+		return line.toString();
+	}
+
+	private static SubtitleMeta resolveSubtitleMeta(java.util.Collection<SourceMediaInfo.SourceTrack> tracks)
+			throws IOException {
+		boolean hasTextSubtitle = tracks.stream().anyMatch(t -> t.getCodingType() == StreamCodingType.TEXT_SUBTITLE);
+		if (!hasTextSubtitle) {
+			return null;
+		}
+
+		SourceMediaInfo.SourceTrack videoTrack = tracks.stream()
+				.filter(t -> t.getCodingType() != null && t.getCodingType().isVideo()).findFirst().orElse(null);
+		if (videoTrack == null || videoTrack.getWidthPixels() == null || videoTrack.getHeightPixels() == null
+				|| videoTrack.getFrameRateFps() == null || videoTrack.getFrameRateFps() <= 0) {
+			throw new IOException(
+					"Cannot build mandatory tsMuxeR text subtitle metadata: missing video width/height/fps from first selected video track");
+		}
+
+		BrtsFileConfig config = BrtsFileConfig.getInstance();
+		String fontName = propertyOrDefault(config, "pgs.render.fontName", "SansSerif");
+		int fontSize = parseIntProperty(config, "pgs.render.fontSize", 48);
+		String fontColorHex = parseColorProperty(config, "pgs.render.fontColor", "0xffffffff");
+		int fontBorder = Math.max(1, Math.round(parseFloatProperty(config, "pgs.render.outlineWidth", 3.0f)));
+		double verticalRatio = parseDoubleProperty(config, "pgs.render.verticalPositionRatio", 0.90d);
+		int bottomOffset = deriveBottomOffset(videoTrack.getHeightPixels(), verticalRatio);
+
+		return new SubtitleMeta(videoTrack.getWidthPixels(), videoTrack.getHeightPixels(), videoTrack.getFrameRateFps(),
+				fontName, fontSize, fontColorHex, fontBorder, bottomOffset, "center");
+	}
+
+	private static int deriveBottomOffset(int videoHeight, double verticalRatio) {
+		double clamped = Math.max(0.0d, Math.min(1.0d, verticalRatio));
+		int offset = (int) Math.round((1.0d - clamped) * videoHeight);
+		return Math.max(0, Math.min(videoHeight - 1, offset));
+	}
+
+	private static String formatFps(double fps) {
+		if (Math.abs(fps - Math.rint(fps)) < 0.0001d) {
+			return Integer.toString((int) Math.rint(fps));
+		}
+		String formatted = String.format(Locale.ROOT, "%.3f", fps);
+		return formatted.replaceAll("0+$", "").replaceAll("\\.$", "");
+	}
+
+	private static boolean fileNameContainsTrackNumberToken(String fileName, int trackNo) {
+		String lower = fileName.toLowerCase(Locale.ROOT);
+		return lower.matches(".*(^|[^0-9])track[_-]?" + trackNo + "([^0-9]|$).*");
+	}
+
+	private static String extensionOf(Path path) {
+		String name = path.getFileName().toString();
+		int idx = name.lastIndexOf('.');
+		return idx >= 0 ? name.substring(idx + 1) : "";
+	}
+
+	private static String propertyOrDefault(BrtsFileConfig config, String key, String fallback) {
+		String value = config.getProperty(key);
+		return value == null || value.isBlank() ? fallback : value;
+	}
+
+	private static int parseIntProperty(BrtsFileConfig config, String key, int fallback) {
+		String value = config.getProperty(key);
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid integer '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	private static float parseFloatProperty(BrtsFileConfig config, String key, float fallback) {
+		String value = config.getProperty(key);
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		try {
+			return Float.parseFloat(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid float '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	private static double parseDoubleProperty(BrtsFileConfig config, String key, double fallback) {
+		String value = config.getProperty(key);
+		if (value == null || value.isBlank()) {
+			return fallback;
+		}
+		try {
+			return Double.parseDouble(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid double '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	private static String parseColorProperty(BrtsFileConfig config, String key, String fallback) {
+		String value = config.getProperty(key);
+		String raw = (value == null || value.isBlank()) ? fallback : value;
+		String normalized = raw.trim().toLowerCase(Locale.ROOT);
+		if (normalized.startsWith("#")) {
+			normalized = "0x" + normalized.substring(1);
+		}
+		if (normalized.startsWith("0x")) {
+			try {
+				long parsed = Long.parseUnsignedLong(normalized.substring(2), 16);
+				return String.format(Locale.ROOT, "0x%08x", parsed & 0xFFFFFFFFL);
+			} catch (NumberFormatException e) {
+				log.warn("Invalid color '{}' for {}, using default {}", raw, key, fallback);
+				return fallback;
+			}
+		}
+		try {
+			long parsed = Long.parseUnsignedLong(normalized, 16);
+			return String.format(Locale.ROOT, "0x%08x", parsed & 0xFFFFFFFFL);
+		} catch (NumberFormatException e) {
+			log.warn("Invalid color '{}' for {}, using default {}", raw, key, fallback);
+			return fallback;
+		}
+	}
+
+	private record SubtitleMeta(int videoWidth, int videoHeight, double fps, String fontName, int fontSize,
+			String fontColorHex, int fontBorder, int bottomOffset, String textAlign) {
 	}
 
 	private static String extensionForTrack(SourceMediaInfo.SourceTrack track) {
@@ -195,23 +409,6 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		} catch (NumberFormatException e) {
 			log.warn("Invalid timeout '{}' for {}, using default {} ms", value, TSMUXER_TIMEOUT_MS, DEFAULT_TIMEOUT_MS);
 			return DEFAULT_TIMEOUT_MS;
-		}
-	}
-
-	private static void deleteRecursively(Path root) {
-		if (root == null || !Files.exists(root)) {
-			return;
-		}
-		try (Stream<Path> stream = Files.walk(root)) {
-			stream.sorted(Comparator.reverseOrder()).forEach(path -> {
-				try {
-					Files.deleteIfExists(path);
-				} catch (IOException e) {
-					log.debug("Cannot delete temporary file {}: {}", path, e.getMessage());
-				}
-			});
-		} catch (IOException e) {
-			log.debug("Cannot delete temporary directory {}: {}", root, e.getMessage());
 		}
 	}
 }
