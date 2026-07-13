@@ -47,7 +47,7 @@ import lombok.extern.slf4j.Slf4j;
  * Demuxes MKV containers into elementary streams using FFmpeg.
  */
 @Slf4j
-public class FfmpegDemuxer extends MkvDemuxer {
+public class FfmpegDemuxer implements EsDemuxer {
 
 	private static final byte[] ANNEX_B_START_CODE = { 0x00, 0x00, 0x00, 0x01 };
 

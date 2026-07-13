@@ -1,6 +1,5 @@
 package org.brts.common.m2ts;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -8,16 +7,13 @@ import java.util.List;
 
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
-import org.brts.common.utils.BrtsFileConfig;
-import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.ProcessUtils;
+import org.brts.common.utils.TsMuxerUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
-
-	private static final String TSMUXER_BINARY = "tsmuxer.binary";
 
 	private static String ptsToTimeString(long ptsTicks) {
 		long milliseconds = ptsTicks / 90;
@@ -43,9 +39,9 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		}
 		// TODO manage timeshift
 		descriptor.getStreams().forEach(stream -> {
-			metaFilecontents
-					.append(String.format("\n%s, \"%s\", lang=%s", translateCodecToTsMuxer(stream.getStreamTypeByte()),
-							stream.getFile(), stream.getLanguage() != null ? stream.getLanguage() : "und"));
+			metaFilecontents.append(String.format("\n%s, \"%s\", lang=%s",
+					TsMuxerUtils.translateCodecToTsMuxer(stream.getStreamTypeByte()), stream.getFile(),
+					stream.getLanguage() != null ? stream.getLanguage() : "und"));
 		});
 
 		Path parent = m2tsPath.getParent();
@@ -54,8 +50,9 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		Path muxOpts = Files.createTempFile(workDir, "meta_file", "_for_ts_muxer");
 		Files.writeString(muxOpts, metaFilecontents);
 		log.debug("Created tsMuxeR meta file at {}:\n{}", muxOpts, metaFilecontents);
-		log.info("Running tsMuxeR '{}' to write M2TS clip to {} …", resolveTsMuxeRBinary(), workDir);
-		ProcessBuilder builder = new ProcessBuilder(resolveTsMuxeRBinary(), muxOpts.toString(), workDir.toString());
+		log.info("Running tsMuxeR '{}' to write M2TS clip to {} …", TsMuxerUtils.resolveTsMuxeRBinary(), workDir);
+		ProcessBuilder builder = new ProcessBuilder(TsMuxerUtils.resolveTsMuxeRBinary(), muxOpts.toString(),
+				workDir.toString());
 		Process process = builder.start();
 		log.debug("Started tsMuxeR process with PID {}", process.pid());
 		ProcessUtils.StringStreamGobbler outputGobbler = new ProcessUtils.StringStreamGobbler(process.getInputStream());
@@ -81,47 +78,4 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 			// FileUtils.deleteDir(workDir);
 		}
 	}
-
-	private static String translateCodecToTsMuxer(int streamTypeByte) {
-		return switch (streamTypeByte) {
-		case 0x1B -> "V_MPEG4/ISO/AVC"; // H.264
-		case 0x24 -> "V_MPEG4/ISO/HEVC"; // H.265
-		case 0x06 -> "A_AC3"; // AC-3
-		case 0x81 -> "A_AC3"; // E-AC-3
-		case 0x84 -> "A_AC3"; // E-AC-3
-		case 0x90 -> "S_HDMV/PGS"; // subs
-		default ->
-			throw new IllegalArgumentException(String.format("Unsupported stream type byte: 0x%02X", streamTypeByte));
-		};
-	}
-
-	static String resolveTsMuxeRBinary() {
-		String error = "";
-		String tsmuxer = BrtsFileConfig.getInstance().getProperty(TSMUXER_BINARY);
-		if (tsmuxer == null) {
-			error += "Property 'tsmuxer.binary' is not set. Please set it to the path of the tsMuxeR CLI binary.";
-			tsmuxer = ProcessUtils.findFullPath("tsMuxeR");
-		}
-		if (tsmuxer == null) {
-			error += " tsMuxeR binary not found in system PATH either.";
-			throw new IllegalStateException(error);
-		}
-		File tsmuxerFile = new File(tsmuxer);
-		if (!tsmuxerFile.exists() || !tsmuxerFile.isFile() || !tsmuxerFile.canExecute()) {
-			throw new IllegalStateException(
-					"Invalid tsMuxeR binary path: " + tsmuxer + ". Please ensure the file exists and is executable.");
-		}
-		return tsmuxer;
-	}
-
-	static boolean isTsMuxeRAvailable() {
-		try {
-			resolveTsMuxeRBinary();
-			return true;
-		} catch (IllegalStateException e) {
-			log.warn("tsMuxeR binary not available: {}", e.getMessage());
-			return false;
-		}
-	}
-
 }
