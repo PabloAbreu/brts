@@ -4,15 +4,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.Locale;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -25,21 +26,19 @@ import org.brts.common.utils.TsMuxerUtils;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * MKV demuxer implementation backed by the external tsMuxeR CLI.
- * This class does not work as is.
- * 
- * There is an unsolved issue with tsMuxeR where it will fail to demux text subtitles
- * because it cannot find the font specified in the demux meta file. This is a known
- * bug: it seems it misinterprets the font name/family. It works only when 
- * font family == font name == font file name.
- * 
+ * MKV demuxer implementation backed by the external tsMuxeR CLI. This class does not work as is.
+ *
+ * There is an unsolved issue with tsMuxeR where it will fail to demux text subtitles because it cannot find the font
+ * specified in the demux meta file. This is a known bug: it seems it misinterprets the font name/family. It works only
+ * when font family == font name == font file name.
+ *
  * https://github.com/justdan96/tsMuxer/issues/459
- * 
+ *
  * https://github.com/justdan96/tsMuxer/issues/170
- * 
- * Another (related) issue is that tsMuxer does not actually demux text subtitles: it just
- * converts them to PGS subtitles.
- * 
+ *
+ * Another (related) issue is that tsMuxer does not actually demux text subtitles: it just converts them to PGS
+ * subtitles, which is not exactly what we want here.
+ *
  */
 @Slf4j
 public class TsMuxerDemuxer implements EsDemuxer {
@@ -246,8 +245,7 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		return line.toString();
 	}
 
-	private static SubtitleMeta resolveSubtitleMeta(java.util.Collection<SourceMediaInfo.SourceTrack> tracks)
-			throws IOException {
+	private static SubtitleMeta resolveSubtitleMeta(Collection<SourceMediaInfo.SourceTrack> tracks) throws IOException {
 		boolean hasTextSubtitle = tracks.stream().anyMatch(t -> t.getCodingType() == StreamCodingType.TEXT_SUBTITLE);
 		if (!hasTextSubtitle) {
 			return null;
@@ -262,11 +260,11 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		}
 
 		BrtsFileConfig config = BrtsFileConfig.getInstance();
-		String fontName = propertyOrDefault(config, "pgs.render.fontName", "SansSerif");
-		int fontSize = parseIntProperty(config, "pgs.render.fontSize", 48);
-		String fontColorHex = parseColorProperty(config, "pgs.render.fontColor", "0xffffffff");
-		int fontBorder = Math.max(1, Math.round(parseFloatProperty(config, "pgs.render.outlineWidth", 3.0f)));
-		double verticalRatio = parseDoubleProperty(config, "pgs.render.verticalPositionRatio", 0.90d);
+		String fontName = config.propertyOrDefault("pgs.render.fontName", "SansSerif");
+		int fontSize = config.parseIntProperty("pgs.render.fontSize", 48);
+		String fontColorHex = config.parseColorProperty("pgs.render.fontColor", "0xffffffff");
+		int fontBorder = Math.max(1, Math.round(config.parseFloatProperty("pgs.render.outlineWidth", 3.0f)));
+		double verticalRatio = config.parseDoubleProperty("pgs.render.verticalPositionRatio", 0.90d);
 		int bottomOffset = deriveBottomOffset(videoTrack.getHeightPixels(), verticalRatio);
 
 		return new SubtitleMeta(videoTrack.getWidthPixels(), videoTrack.getHeightPixels(), videoTrack.getFrameRateFps(),
@@ -296,75 +294,6 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		String name = path.getFileName().toString();
 		int idx = name.lastIndexOf('.');
 		return idx >= 0 ? name.substring(idx + 1) : "";
-	}
-
-	private static String propertyOrDefault(BrtsFileConfig config, String key, String fallback) {
-		String value = config.getProperty(key);
-		return value == null || value.isBlank() ? fallback : value;
-	}
-
-	private static int parseIntProperty(BrtsFileConfig config, String key, int fallback) {
-		String value = config.getProperty(key);
-		if (value == null || value.isBlank()) {
-			return fallback;
-		}
-		try {
-			return Integer.parseInt(value.trim());
-		} catch (NumberFormatException e) {
-			log.warn("Invalid integer '{}' for {}, using default {}", value, key, fallback);
-			return fallback;
-		}
-	}
-
-	private static float parseFloatProperty(BrtsFileConfig config, String key, float fallback) {
-		String value = config.getProperty(key);
-		if (value == null || value.isBlank()) {
-			return fallback;
-		}
-		try {
-			return Float.parseFloat(value.trim());
-		} catch (NumberFormatException e) {
-			log.warn("Invalid float '{}' for {}, using default {}", value, key, fallback);
-			return fallback;
-		}
-	}
-
-	private static double parseDoubleProperty(BrtsFileConfig config, String key, double fallback) {
-		String value = config.getProperty(key);
-		if (value == null || value.isBlank()) {
-			return fallback;
-		}
-		try {
-			return Double.parseDouble(value.trim());
-		} catch (NumberFormatException e) {
-			log.warn("Invalid double '{}' for {}, using default {}", value, key, fallback);
-			return fallback;
-		}
-	}
-
-	private static String parseColorProperty(BrtsFileConfig config, String key, String fallback) {
-		String value = config.getProperty(key);
-		String raw = (value == null || value.isBlank()) ? fallback : value;
-		String normalized = raw.trim().toLowerCase(Locale.ROOT);
-		if (normalized.startsWith("#")) {
-			normalized = "0x" + normalized.substring(1);
-		}
-		if (normalized.startsWith("0x")) {
-			try {
-				long parsed = Long.parseUnsignedLong(normalized.substring(2), 16);
-				return String.format(Locale.ROOT, "0x%08x", parsed & 0xFFFFFFFFL);
-			} catch (NumberFormatException e) {
-				log.warn("Invalid color '{}' for {}, using default {}", raw, key, fallback);
-				return fallback;
-			}
-		}
-		try {
-			long parsed = Long.parseUnsignedLong(normalized, 16);
-			return String.format(Locale.ROOT, "0x%08x", parsed & 0xFFFFFFFFL);
-		} catch (NumberFormatException e) {
-			log.warn("Invalid color '{}' for {}, using default {}", raw, key, fallback);
-			return fallback;
-		}
 	}
 
 	private record SubtitleMeta(int videoWidth, int videoHeight, double fps, String fontName, int fontSize,

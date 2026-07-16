@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -34,12 +35,14 @@ public class BrtsFileConfig {
 		// load properties from several sources, in order.
 		// each loaded property overrides the previous ones, so that system properties
 		// have the highest precedence.
-		// 0/ defaults from classpath embedded resource (e.g. src/main/resources/default-brts.conf)
+		// 0/ defaults from classpath embedded resource (e.g.
+		// src/main/resources/default-brts.conf)
 		// 1/ default properties from /etc/default/brts.conf
 		// 2/ user properties from ~/.brts/brts.conf
 		// 3/ system properties passed via -Dbrts.conf on the command line
 		// 4/ environment variables (e.g. set in the shell or OS environment)
-		// 5/ system properties passed via -D on the command line (e.g. -Dmy.property=value)
+		// 5/ system properties passed via -D on the command line (e.g.
+		// -Dmy.property=value)
 		loadFromClasspathResource(CLASSPATH_RESOURCE);
 		loadFromFile(DEFAULT_CONFIG_PATH);
 		loadFromFile(USER_CONFIG_PATH);
@@ -50,26 +53,98 @@ public class BrtsFileConfig {
 	}
 
 	/**
-	 * Resolves the value of a property by key, returning null if not found. Values are looked up in the order defined
+	 * Resolves the value of a property by key, returning null if not found. Values
+	 * are looked up in the order defined
 	 * above.
 	 *
 	 * @param key the property key to look up
-	 * @return the resolved property value, or null if not found in either loaded properties
+	 * @return the resolved property value, or null if not found in either loaded
+	 *         properties
 	 */
 	public String getProperty(String key) {
-		if (key == null || key.isBlank()) {
+		if (key == null || key.isBlank())
 			throw new IllegalArgumentException("Property key cannot be null or blank");
-		}
+
 		Entry entry = resolvedProperties.get(key);
 		return entry != null ? entry.getValue() : null;
 	}
 
+	private static boolean blankOrNull(String value) {
+		return value == null || value.isBlank();
+	}
+
+	public String propertyOrDefault(String key, String fallback) {
+		String value = getProperty(key);
+		return blankOrNull(value) ? fallback : value;
+	}
+
+	public int parseIntProperty(String key, int fallback) {
+		String value = getProperty(key);
+		if (blankOrNull(value))
+			return fallback;
+
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid integer '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	public float parseFloatProperty(String key, float fallback) {
+		String value = getProperty(key);
+		if (blankOrNull(value))
+			return fallback;
+
+		try {
+			return Float.parseFloat(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid float '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	public double parseDoubleProperty(String key, double fallback) {
+		String value = getProperty(key);
+		if (blankOrNull(value))
+			return fallback;
+
+		try {
+			return Double.parseDouble(value.trim());
+		} catch (NumberFormatException e) {
+			log.warn("Invalid double '{}' for {}, using default {}", value, key, fallback);
+			return fallback;
+		}
+	}
+
+	public String parseColorProperty(String key, String fallback) {
+		String value = getProperty(key);
+		String raw = blankOrNull(value) ? fallback : value;
+		String normalized = raw.trim().toLowerCase(Locale.ROOT);
+		if (normalized.startsWith("#"))
+			normalized = normalized.substring(1);
+
+		if (normalized.startsWith("0x"))
+			normalized = normalized.substring(2);
+
+		try {
+			long parsed = Long.parseUnsignedLong(normalized, 16);
+			return String.format(Locale.ROOT, "0x%08x", parsed & 0xFFFFFFFFL);
+		} catch (NumberFormatException e) {
+			log.warn("Invalid color '{}' for {}, using default {}", raw, key, fallback);
+			return fallback;
+		}
+	}
+
 	/**
-	 * Returns a map of all properties whose keys start with the given prefix. The returned map contains the full
+	 * Returns a map of all properties whose keys start with the given prefix. The
+	 * returned map contains the full
 	 * property keys and their resolved values.
 	 *
-	 * @param prefix the prefix to filter property keys (e.g. "pgs.render." to get all pgs rendering-related properties)
-	 * @return a map of property keys and values for all properties starting with the given prefix
+	 * @param prefix the prefix to filter property keys (e.g. "pgs.render." to get
+	 *               all pgs rendering-related properties)
+	 * @return a map of property keys and values for all properties starting with
+	 *         the given prefix
 	 */
 	public Map<String, String> getPropertiesForPrefix(String prefix) {
 		Map<String, String> result = new HashMap<>();
@@ -81,6 +156,12 @@ public class BrtsFileConfig {
 		return result;
 	}
 
+	/** 
+	 * Fills the given POJO with values from the configuration properties, using the prefix defined in the class annotation (if present) or an empty string otherwise.
+	 *
+	 * @param pojo the POJO to fill with configuration values
+	 * @return the filled POJO
+	 */
 	public <T> T fillPojo(T pojo) {
 		// get prefix from class annotation, or default to empty string
 		BrtsValue classAnnotation = pojo.getClass().getAnnotation(BrtsValue.class);
@@ -88,6 +169,13 @@ public class BrtsFileConfig {
 		return fillPojo(pojo, prefix);
 	}
 
+	/** 
+	 * Fills the given POJO with values from the configuration properties, using the specified prefix.
+	 *
+	 * @param pojo   the POJO to fill with configuration values
+	 * @param prefix the prefix to use for property keys
+	 * @return the filled POJO
+	 */
 	public <T> T fillPojo(T pojo, String prefix) {
 		String effectivePrefix = prefix != null ? prefix : "";
 		effectivePrefix = effectivePrefix.isBlank() ? ""
@@ -132,7 +220,7 @@ public class BrtsFileConfig {
 	}
 
 	private void loadFromFile(String path) {
-		if (path == null || path.isBlank())
+		if (blankOrNull(path))
 			return;
 		try {
 			try (var stream = new FileInputStream(path)) {
@@ -177,12 +265,28 @@ public class BrtsFileConfig {
 		});
 	}
 
+	/**
+	 * Returns a list of all resolved properties, sorted by key. Each property is
+	 * represented as an Entry object containing the key, value, origin, and
+	 * overridden status.
+	 * 
+	 * This is a copy of the internal map values, so modifications to the returned
+	 * list or its entries will not affect the internal state of the configuration.
+	 * 
+	 * @return a copy of all resolved properties as a sorted list of Entry objects
+	 */
 	public List<Entry> getAllProperties() {
 		List<Entry> copy = new ArrayList<>(resolvedProperties.values());
 		Collections.sort(copy, (a, b) -> a.getKey().compareTo(b.getKey()));
 		return copy;
 	}
 
+	/**
+	 * Configuration Entry.
+	 * 
+	 * Immutable from outside, but can be updated internally when a property is
+	 * overridden by a later source.
+	 */
 	@Getter
 	@ToString
 	public static class Entry implements Cloneable {

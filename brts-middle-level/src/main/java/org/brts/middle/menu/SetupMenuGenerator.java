@@ -64,9 +64,8 @@ public class SetupMenuGenerator {
 	 */
 	public void generate(SetupMenuDescriptor descriptor, Path outputDir) throws IOException {
 		Files.createDirectories(outputDir);
-		BdmvPath bdmv = new BdmvPath(outputDir.endsWith("BDMV") ? outputDir : BrPath.root(outputDir).bdmv().getPath());
+		BdmvPath bdmv = outputDir.endsWith("BDMV") ? BrPath.bdmv(outputDir) : BrPath.root(outputDir).bdmv();
 
-		Path bdmvPath = bdmv.getPath();
 		Path workDir = outputDir.resolve("work");
 		Files.createDirectories(workDir);
 
