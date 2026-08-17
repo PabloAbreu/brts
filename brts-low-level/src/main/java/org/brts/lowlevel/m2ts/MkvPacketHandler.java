@@ -371,7 +371,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 		case DOLBY_AC3_PLUS -> "A_EAC3";
 		case DOLBY_TRUEHD -> "A_TRUEHD";
 		case DTS -> "A_DTS";
-		case DTS_HD, DTS_HD_MASTER_AUDIO -> "A_DTS";
+		case DTS_HD, DTS_HD_MASTER_AUDIO, DTS_EXPRESS -> "A_DTS";
 		case LPCM -> "A_PCM/INT/BIG";
 		case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";
 		case TEXT_SUBTITLE -> "S_HDMV/TEXTST";

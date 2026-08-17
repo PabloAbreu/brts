@@ -21,6 +21,7 @@ public enum StreamCodingType {
 	DOLBY_AC3_PLUS(0x84),
 	DTS_HD(0x85),
 	DTS_HD_MASTER_AUDIO(0x86),
+	DTS_EXPRESS(0x87), // a.k.a. DTS-HD Express, a.k.a. DTS-HD LBR
 
 	// Presentation Graphics (subtitles)
 	PRESENTATION_GRAPHICS(0x90),

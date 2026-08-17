@@ -310,22 +310,18 @@ public class TsMuxerDemuxer implements EsDemuxer {
 				return format;
 			}
 		}
-		Map<StreamCodingType, String> byType = new HashMap<>();
-		byType.put(StreamCodingType.H264_AVC, "h264");
-		byType.put(StreamCodingType.H265_HEVC, "h265");
-		byType.put(StreamCodingType.MPEG2_VIDEO, "m2v");
-		byType.put(StreamCodingType.VC1, "vc1");
-		byType.put(StreamCodingType.DOLBY_AC3, "ac3");
-		byType.put(StreamCodingType.DOLBY_AC3_PLUS, "eac3");
-		byType.put(StreamCodingType.DOLBY_TRUEHD, "thd");
-		byType.put(StreamCodingType.DTS, "dts");
-		byType.put(StreamCodingType.DTS_HD, "dtshd");
-		byType.put(StreamCodingType.DTS_HD_MASTER_AUDIO, "dtsma");
-		byType.put(StreamCodingType.LPCM, "lpcm");
-		byType.put(StreamCodingType.PRESENTATION_GRAPHICS, "pgs");
-		byType.put(StreamCodingType.TEXT_SUBTITLE, "srt");
-		return byType.getOrDefault(track.getCodingType(), "bin");
+		return TRACK_EXTENSION_MAP.getOrDefault(track.getCodingType(), "bin");
 	}
+
+	// static map for track coding type to file extension, default to "bin" if unknown
+	private static final Map<StreamCodingType, String> TRACK_EXTENSION_MAP = Map.ofEntries(
+			Map.entry(StreamCodingType.H264_AVC, "h264"), Map.entry(StreamCodingType.H265_HEVC, "h265"),
+			Map.entry(StreamCodingType.MPEG2_VIDEO, "m2v"), Map.entry(StreamCodingType.VC1, "vc1"),
+			Map.entry(StreamCodingType.DOLBY_AC3, "ac3"), Map.entry(StreamCodingType.DOLBY_AC3_PLUS, "eac3"),
+			Map.entry(StreamCodingType.DOLBY_TRUEHD, "thd"), Map.entry(StreamCodingType.DTS, "dts"),
+			Map.entry(StreamCodingType.DTS_HD, "dtshd"), Map.entry(StreamCodingType.DTS_HD_MASTER_AUDIO, "dtsma"),
+			Map.entry(StreamCodingType.LPCM, "lpcm"), Map.entry(StreamCodingType.PRESENTATION_GRAPHICS, "pgs"),
+			Map.entry(StreamCodingType.TEXT_SUBTITLE, "srt"));
 
 	private static long resolveTimeoutMs() {
 		String value = BrtsFileConfig.getInstance().getProperty(TSMUXER_TIMEOUT_MS);

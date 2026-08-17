@@ -77,6 +77,7 @@ public final class TrackDisplayNameResolver {
 		case DTS -> "DTS";
 		case DTS_HD -> "DTS-HD HRA";
 		case DTS_HD_MASTER_AUDIO -> "DTS-HD MA";
+		case DTS_EXPRESS -> "DTS-HD Express";
 		case LPCM -> "LPCM";
 		case PRESENTATION_GRAPHICS -> "PGS";
 		case TEXT_SUBTITLE -> "Text";

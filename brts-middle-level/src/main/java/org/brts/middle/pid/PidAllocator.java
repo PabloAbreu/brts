@@ -36,7 +36,8 @@ public class PidAllocator {
 	public int allocate(StreamCodingType type) {
 		return switch (type) {
 		case H264_AVC, H265_HEVC, MPEG2_VIDEO, VC1 -> nextVideo++;
-		case DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, LPCM -> nextAudio++;
+		case DOLBY_AC3, DOLBY_AC3_PLUS, DOLBY_TRUEHD, DTS, DTS_HD, DTS_HD_MASTER_AUDIO, DTS_EXPRESS, LPCM ->
+			nextAudio++;
 		case PRESENTATION_GRAPHICS -> nextPg++;
 		case INTERACTIVE_GRAPHICS -> nextIg++;
 		case TEXT_SUBTITLE -> nextTextSub++;

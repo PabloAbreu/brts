@@ -66,7 +66,7 @@ public class TsMuxerUtils {
 		case DOLBY_AC3 -> "A_AC3";
 		case DOLBY_AC3_PLUS -> "A_AC3";
 		case DOLBY_TRUEHD -> "A_TRUEHD";
-		case DTS, DTS_HD, DTS_HD_MASTER_AUDIO -> "A_DTS";
+		case DTS, DTS_HD, DTS_HD_MASTER_AUDIO, DTS_EXPRESS -> "A_DTS";
 		case LPCM -> "A_LPCM";
 		case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";
 		case TEXT_SUBTITLE -> tsmuxerTextCodec(track.getSubtitleFormat());

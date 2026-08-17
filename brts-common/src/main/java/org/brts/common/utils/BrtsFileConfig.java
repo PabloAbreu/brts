@@ -53,13 +53,11 @@ public class BrtsFileConfig {
 	}
 
 	/**
-	 * Resolves the value of a property by key, returning null if not found. Values
-	 * are looked up in the order defined
+	 * Resolves the value of a property by key, returning null if not found. Values are looked up in the order defined
 	 * above.
 	 *
 	 * @param key the property key to look up
-	 * @return the resolved property value, or null if not found in either loaded
-	 *         properties
+	 * @return the resolved property value, or null if not found in either loaded properties
 	 */
 	public String getProperty(String key) {
 		if (key == null || key.isBlank())
@@ -137,14 +135,11 @@ public class BrtsFileConfig {
 	}
 
 	/**
-	 * Returns a map of all properties whose keys start with the given prefix. The
-	 * returned map contains the full
+	 * Returns a map of all properties whose keys start with the given prefix. The returned map contains the full
 	 * property keys and their resolved values.
 	 *
-	 * @param prefix the prefix to filter property keys (e.g. "pgs.render." to get
-	 *               all pgs rendering-related properties)
-	 * @return a map of property keys and values for all properties starting with
-	 *         the given prefix
+	 * @param prefix the prefix to filter property keys (e.g. "pgs.render." to get all pgs rendering-related properties)
+	 * @return a map of property keys and values for all properties starting with the given prefix
 	 */
 	public Map<String, String> getPropertiesForPrefix(String prefix) {
 		Map<String, String> result = new HashMap<>();
@@ -156,8 +151,9 @@ public class BrtsFileConfig {
 		return result;
 	}
 
-	/** 
-	 * Fills the given POJO with values from the configuration properties, using the prefix defined in the class annotation (if present) or an empty string otherwise.
+	/**
+	 * Fills the given POJO with values from the configuration properties, using the prefix defined in the class
+	 * annotation (if present) or an empty string otherwise.
 	 *
 	 * @param pojo the POJO to fill with configuration values
 	 * @return the filled POJO
@@ -169,7 +165,7 @@ public class BrtsFileConfig {
 		return fillPojo(pojo, prefix);
 	}
 
-	/** 
+	/**
 	 * Fills the given POJO with values from the configuration properties, using the specified prefix.
 	 *
 	 * @param pojo   the POJO to fill with configuration values
@@ -266,13 +262,12 @@ public class BrtsFileConfig {
 	}
 
 	/**
-	 * Returns a list of all resolved properties, sorted by key. Each property is
-	 * represented as an Entry object containing the key, value, origin, and
-	 * overridden status.
-	 * 
-	 * This is a copy of the internal map values, so modifications to the returned
-	 * list or its entries will not affect the internal state of the configuration.
-	 * 
+	 * Returns a list of all resolved properties, sorted by key. Each property is represented as an Entry object
+	 * containing the key, value, origin, and overridden status.
+	 *
+	 * This is a copy of the internal map values, so modifications to the returned list or its entries will not affect
+	 * the internal state of the configuration.
+	 *
 	 * @return a copy of all resolved properties as a sorted list of Entry objects
 	 */
 	public List<Entry> getAllProperties() {
@@ -283,9 +278,8 @@ public class BrtsFileConfig {
 
 	/**
 	 * Configuration Entry.
-	 * 
-	 * Immutable from outside, but can be updated internally when a property is
-	 * overridden by a later source.
+	 *
+	 * Immutable from outside, but can be updated internally when a property is overridden by a later source.
 	 */
 	@Getter
 	@ToString
