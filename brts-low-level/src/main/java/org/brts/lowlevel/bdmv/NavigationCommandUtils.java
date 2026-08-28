@@ -48,6 +48,10 @@ public class NavigationCommandUtils {
 	 */
 	public static List<NavigationCommand> setAudio(int streamIndex) {
 		long op1 = (1L << 31) | ((long) (streamIndex & 0xFFF) << 16);
+		// unconditionally XOR this value to ensure that display of subs is not affected
+		// if we don't set it, it defaults to zero, and subs are disabled, even if they were enabled before. This is a
+		// quirk of the SET_STREAM command.
+		op1 ^= 0x4000; // XOR with bit 14 (display flag)
 		return cmdList(NavigationCommandMnemonic.SET_STREAM, op1, true, 0, false);
 	}
 
