@@ -24,7 +24,11 @@ import org.brts.common.utils.composition.CompositedVideoGenerator;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
 import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
 import org.brts.common.utils.paths.BrPath.BrRoot;
+import org.brts.common.utils.paths.BrPath.ClipinfPath;
+import org.brts.common.utils.paths.BrPath.PlaylistPath;
+import org.brts.common.utils.paths.BrPath.StreamPath;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -99,9 +103,9 @@ public class TitleMenuGenerator {
 	public void generate(TitleMenuDescriptor descriptor, Path outputDir, Path baseDir) throws IOException {
 		BrRoot brRoot = BrRoot.root(outputDir, true);
 
-		BrPath.BdmvPath bdmv = brRoot.bdmv();
-		Path streamDir = bdmv.stream().getPath();
-		Path clipDir = bdmv.clipinf().getPath();
+		BdmvPath bdmv = brRoot.bdmv();
+		StreamPath streamPath = bdmv.stream();
+		ClipinfPath clipinfPath = bdmv.clipinf();
 
 		// ── 1. Resolve layout ────────────────────────────────────────────────
 
@@ -116,11 +120,11 @@ public class TitleMenuGenerator {
 		String bgName = descriptor.getOutputBackgroundName();
 		M2tsDescriptor desc = null;
 		if (layoutResult.isCompositeBackground() && layoutResult.getBackgroundComposition() != null) {
-			desc = generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamDir, clipDir,
-					bgName, baseDir);
+			desc = generateCompositedBackground(layoutResult.getBackgroundComposition(), descriptor, streamPath,
+					clipinfPath, bgName, baseDir);
 		} else {
-			desc = generateSimpleBackground(descriptor.getBackgroundMedia(), descriptor, streamDir, clipDir, bgName,
-					baseDir);
+			desc = generateSimpleBackground(descriptor.getBackgroundMedia(), descriptor, streamPath, clipinfPath,
+					bgName, baseDir);
 		}
 
 		// ── 3. Build and encode IGS → menu M2TS + CLPI ─────────────────────
@@ -142,8 +146,8 @@ public class TitleMenuGenerator {
 			Path igsEsFile = workDir.resolve("menu.igs");
 			Files.write(igsEsFile, igsEs);
 			log.info("IGS ES written: {} bytes", igsEs.length);
-			Path menuM2ts = streamDir.resolve(menuName + ".m2ts");
-			Path menuClpi = clipDir.resolve(menuName + ".clpi");
+			Path menuM2ts = streamPath.m2ts(menuName);
+			Path menuClpi = clipinfPath.clpi(menuName);
 			boolean newImplementation = true;
 			if (newImplementation) {
 				M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
@@ -166,7 +170,7 @@ public class TitleMenuGenerator {
 
 				// Align IGS PTS origin with background video — strict players (e.g. PowerDVD)
 				// require both clips to share the same PTS timeline for overlay to work.
-				ClipTiming bgTimingForIgs = resolveClipTiming(bgName, outputDir);
+				ClipTiming bgTimingForIgs = resolveClipTiming(bgName, clipinfPath);
 				menuDesc.setInitialPtsOffsetTicks(bgTimingForIgs.inTimeTicks() * 2);
 				// Extend IGS clip timeline by a short duration past its start PTS so the CLPI
 				// reports a valid non-zero range. IGS display sets are persistent once decoded
@@ -189,7 +193,7 @@ public class TitleMenuGenerator {
 
 		// ── 4. Build MPLS playlist ──────────────────────────────────────────
 
-		generatePlaylist(descriptor, outputDir, desc);
+		generatePlaylist(descriptor, bdmv, desc);
 
 		log.info("Title menu generation complete. Output: {}", outputDir);
 	}
@@ -197,7 +201,7 @@ public class TitleMenuGenerator {
 	// ── Background generation ───────────────────────────────────────────────
 
 	private M2tsDescriptor generateCompositedBackground(ImagesComposition composition, TitleMenuDescriptor descriptor,
-			Path streamDir, Path clipDir, String clipName, Path baseDir) throws IOException {
+			StreamPath streamDir, ClipinfPath clipDir, String clipName, Path baseDir) throws IOException {
 		CompositedVideoGenerator generator = new CompositedVideoGenerator();
 		CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
 		config.setWidth(descriptor.getScreenWidth());
@@ -210,8 +214,8 @@ public class TitleMenuGenerator {
 		try {
 			var desc = generator.generate(composition, tempOut, clipName, config, baseDir);
 			// Move results to proper BDMV structure
-			Files.move(tempOut.resolve(clipName + ".m2ts"), streamDir.resolve(clipName + ".m2ts"));
-			Files.move(tempOut.resolve(clipName + ".clpi"), clipDir.resolve(clipName + ".clpi"));
+			FileUtils.move(tempOut.resolve(clipName + ".m2ts"), streamDir.m2ts(clipName));
+			FileUtils.move(tempOut.resolve(clipName + ".clpi"), clipDir.clpi(clipName));
 			return desc;
 		} finally {
 			FileUtils.deleteDir(tempOut);
@@ -219,7 +223,7 @@ public class TitleMenuGenerator {
 	}
 
 	private M2tsDescriptor generateSimpleBackground(BackgroundSource bgSource, TitleMenuDescriptor descriptor,
-			Path streamDir, Path clipDir, String clipName, Path baseDir) throws IOException {
+			StreamPath streamDir, ClipinfPath clipDir, String clipName, Path baseDir) throws IOException {
 		if (bgSource == null) {
 			throw new IllegalArgumentException("backgroundMedia must be specified in the descriptor");
 		}
@@ -285,8 +289,8 @@ public class TitleMenuGenerator {
 				}
 
 				desc.setStreams(streams);
-				Path m2tsPath = streamDir.resolve(clipName + ".m2ts");
-				Path clpiPath = clipDir.resolve(clipName + ".clpi");
+				Path m2tsPath = streamDir.m2ts(clipName);
+				Path clpiPath = clipDir.clpi(clipName);
 				M2tsClipWriter clipWriter = M2tsClipWriterFactory.createWriter();
 				clipWriter.write(desc, m2tsPath, clpiPath);
 				return desc;
@@ -324,8 +328,8 @@ public class TitleMenuGenerator {
 			try {
 				M2tsDescriptor generatedDesc = new CompositedVideoGenerator().generate(composition, tempOut, clipName,
 						config, baseDir);
-				Files.move(tempOut.resolve(clipName + ".m2ts"), streamDir.resolve(clipName + ".m2ts"));
-				Files.move(tempOut.resolve(clipName + ".clpi"), clipDir.resolve(clipName + ".clpi"));
+				FileUtils.move(tempOut.resolve(clipName + ".m2ts"), streamDir.m2ts(clipName));
+				FileUtils.move(tempOut.resolve(clipName + ".clpi"), clipDir.clpi(clipName));
 				return generatedDesc;
 			} finally {
 				FileUtils.deleteDir(tempOut);
@@ -356,18 +360,18 @@ public class TitleMenuGenerator {
 
 	// ── Playlist generation ─────────────────────────────────────────────────
 
-	private void generatePlaylist(TitleMenuDescriptor descriptor, Path outputDir, M2tsDescriptor bgDescriptor)
+	private void generatePlaylist(TitleMenuDescriptor descriptor, BdmvPath bdmv, M2tsDescriptor bgDescriptor)
 			throws IOException {
-		Path playlistDir = outputDir.resolve("PLAYLIST");
-		Files.createDirectories(playlistDir);
-		Path playlistPath = playlistDir.resolve(descriptor.getOutputPlaylistName() + ".mpls");
+		PlaylistPath playlistDir = bdmv.playlist();
+		FileUtils.createDirectories(playlistDir.getPath());
+		Path playlistPath = playlistDir.mpls(descriptor.getOutputPlaylistName());
 
 		String bgName = descriptor.getOutputBackgroundName();
 		String menuName = descriptor.getOutputMenuName();
 		int loopCount = descriptor.getBackgroundLoopCount();
 
 		// Resolve background clip timing from its CLPI
-		ClipTiming bgTiming = resolveClipTiming(bgName, outputDir);
+		ClipTiming bgTiming = resolveClipTiming(bgName, bdmv.clipinf());
 
 		// Build PlayItems: background looped N times
 		List<PlayItem> playItems = new ArrayList<>();
@@ -416,7 +420,7 @@ public class TitleMenuGenerator {
 		}
 
 		// Menu SubPath type 3 (out-of-mux IGS)
-		ClipTiming menuTiming = resolveClipTiming(menuName, outputDir);
+		ClipTiming menuTiming = resolveClipTiming(menuName, bdmv.clipinf());
 		// sync_start_PTS_of_PlayItem must be 0 so that the SubPath starts
 		// immediately when the first PlayItem begins playback. Commercial discs
 		// use 0 here; strict players (PowerDVD) fail to trigger the IGS overlay
@@ -448,8 +452,8 @@ public class TitleMenuGenerator {
 	private record ClipTiming(long inTimeTicks, long outTimeTicks) {
 	}
 
-	private ClipTiming resolveClipTiming(String clipName, Path outputDir) {
-		Path clpiPath = outputDir.resolve("CLIPINF").resolve(clipName + ".clpi");
+	private ClipTiming resolveClipTiming(String clipName, ClipinfPath clipinf) {
+		Path clpiPath = clipinf.clpi(clipName);
 		if (!Files.exists(clpiPath)) {
 			log.warn("CLPI not found for '{}', using default timing", clipName);
 			return new ClipTiming(0, DEFAULT_PLAYITEM_DURATION_TICKS);

@@ -179,7 +179,7 @@ public class MiddleLevelOrchestrator {
 
 			scriptLines.add("# Title menu");
 			scriptLines.add("$BRTS_CLI low create-title-menu --descriptor " + menuDescriptorFile.getAbsolutePath()
-					+ " --output " + bdmv + " --base-dir " + baseDir);
+					+ " --output " + discPath + " --base-dir " + baseDir);
 			scriptLines.add("");
 		} else {
 			// No menu: jump directly to title 1

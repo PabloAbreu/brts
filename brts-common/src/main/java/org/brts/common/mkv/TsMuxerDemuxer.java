@@ -87,7 +87,7 @@ public class TsMuxerDemuxer implements EsDemuxer {
 					throw new IOException("tsMuxeR demux produced no output for requested track " + trackNo);
 				}
 				Path normalized = outputDir.resolve("track_" + trackNo + "." + extensionForTrack(track));
-				Files.move(rawOutput, normalized, StandardCopyOption.REPLACE_EXISTING);
+				FileUtils.move(rawOutput, normalized);
 				demuxed.put(trackNo, normalized);
 			}
 

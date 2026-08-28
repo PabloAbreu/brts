@@ -82,7 +82,7 @@ public class CompositionBuffer {
 				.collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r), HashMap::putAll) : new HashMap<>();
 		this.twoStepComposition = Boolean
 				.parseBoolean(BrtsFileConfig.getInstance().getProperty("brts.composition.twoStep"));
-		log.debug("twoStepComposition={}", this.twoStepComposition);
+		log.trace("twoStepComposition={}", this.twoStepComposition);
 	}
 
 	private ImageReference getReference(String imageId) {

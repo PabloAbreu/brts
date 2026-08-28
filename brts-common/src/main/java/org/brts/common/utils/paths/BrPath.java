@@ -4,12 +4,14 @@ import java.nio.file.Path;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Utility class for standard Blu-Ray paths.
  *
  */
 @RequiredArgsConstructor
+@Slf4j
 public abstract class BrPath {
 	private final @Getter Path path;
 
@@ -28,6 +30,7 @@ public abstract class BrPath {
 	public static BrRoot root(Path path, boolean createFolderStructure) {
 		BrRoot brRoot = new BrRoot(path);
 		if (createFolderStructure) {
+			log.debug("Creating Blu-Ray folder structure at {}", path);
 			brRoot.createFolderStructure();
 		}
 		return brRoot;

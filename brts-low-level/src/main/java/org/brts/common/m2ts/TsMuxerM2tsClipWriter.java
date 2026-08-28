@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.ProcessUtils;
 import org.brts.common.utils.TsMuxerUtils;
 
@@ -69,9 +70,9 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 				log.info("tsMuxeR output:\n{}", output);
 			Path generatedM2ts = workDir.resolve("BDMV/STREAM/00000.m2ts");
 			Path generatedClpi = workDir.resolve("BDMV/CLIPINF/00000.clpi");
-			Files.move(generatedM2ts, m2tsPath);
+			FileUtils.move(generatedM2ts, m2tsPath);
 			clipPath.getParent().toFile().mkdirs();
-			Files.move(generatedClpi, clipPath);
+			FileUtils.move(generatedClpi, clipPath);
 		} catch (InterruptedException e) {
 			log.error("tsMuxeR process was interrupted", e);
 		} finally {
