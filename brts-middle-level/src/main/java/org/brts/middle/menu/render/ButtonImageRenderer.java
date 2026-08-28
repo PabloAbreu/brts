@@ -7,14 +7,15 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.font.GlyphVector;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import org.brts.common.menu.GlyphFallbackText;
 import org.brts.common.menu.TextStyle;
 import lombok.extern.slf4j.Slf4j;
 
@@ -86,12 +87,13 @@ public class ButtonImageRenderer {
 
 		// Measure text dimensions
 		Font font = new Font(style.getFontName(), style.getFontStyle(), style.getFontSize());
+		Font fallbackFont = GlyphFallbackText.fallbackFont(style, font);
 		BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = scratch.createGraphics();
 		g.setFont(font);
 		FontMetrics fm = g.getFontMetrics();
 
-		int textWidth = (text != null && !text.isEmpty()) ? fm.stringWidth(text) : 0;
+		int textWidth = (text != null && !text.isEmpty()) ? GlyphFallbackText.width(g, text, font, fallbackFont) : 0;
 		int textHeight = fm.getHeight();
 		g.dispose();
 
@@ -121,21 +123,21 @@ public class ButtonImageRenderer {
 		int selectedColor = TextStyle.parseColor(style.getSelectedColor());
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
-		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fm, normalColor, iconBw, iconW,
-				iconH, contentWidth, contentHeight, padX, padY, style);
-		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fm, selectedColor, iconBw, iconW,
-				iconH, contentWidth, contentHeight, padX, padY, style);
-		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fm, activatedColor, iconBw,
-				iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, normalColor,
+				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, selectedColor,
+				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm,
+				activatedColor, iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────
 
-	private static BufferedImage renderSingleState(int width, int height, String text, Font font, FontMetrics fm,
-			int textColorArgb, BufferedImage iconBw, int iconW, int iconH, int contentWidth, int contentHeight,
-			int padX, int padY, TextStyle style) {
+	private static BufferedImage renderSingleState(int width, int height, String text, Font font, Font fallbackFont,
+			FontMetrics fm, int textColorArgb, BufferedImage iconBw, int iconW, int iconH, int contentWidth,
+			int contentHeight, int padX, int padY, TextStyle style) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -157,19 +159,18 @@ public class ButtonImageRenderer {
 
 		// 4. Text
 		if (text != null && !text.isEmpty()) {
-			g.setFont(font);
+			List<GlyphFallbackText.Run> runs = GlyphFallbackText.split(text, font, fallbackFont);
 			int textY = padY + fm.getAscent() + (contentHeight - fm.getHeight()) / 2;
 
 			// Shadow
 			if (Boolean.TRUE.equals(style.getShadow())) {
 				g.setColor(new Color(TextStyle.parseColor(style.getShadowColor()), true));
-				g.drawString(text, cx + 2, textY + 2);
+				GlyphFallbackText.drawString(g, runs, cx + 2, textY + 2);
 			}
 
 			// Outline
 			if (Boolean.TRUE.equals(style.getOutline())) {
-				GlyphVector gv = font.createGlyphVector(g.getFontRenderContext(), text);
-				Shape outline = gv.getOutline(cx, textY);
+				Shape outline = GlyphFallbackText.outline(g, runs, cx, textY);
 				g.setColor(new Color(TextStyle.parseColor(style.getOutlineColor()), true));
 				g.setStroke(new BasicStroke(style.getOutlineWidth()));
 				g.draw(outline);
@@ -177,7 +178,7 @@ public class ButtonImageRenderer {
 
 			// Main text
 			g.setColor(new Color(textColorArgb, true));
-			g.drawString(text, cx, textY);
+			GlyphFallbackText.drawString(g, runs, cx, textY);
 		}
 
 		g.dispose();

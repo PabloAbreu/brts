@@ -42,6 +42,9 @@ public class TextStyle {
 	 */
 	private @BrtsValue String fontName;
 
+	/** Font family used to render glyphs the primary font cannot display (same size/style/colour). */
+	private @BrtsValue String fallbackFontName;
+
 	/** Font size in points. */
 	private @BrtsValue Integer fontSize;
 
@@ -133,6 +136,7 @@ public class TextStyle {
 	private static TextStyle hardCodedDefaults() {
 		TextStyle d = new TextStyle();
 		d.fontName = "SansSerif";
+		d.fallbackFontName = "Dialog";
 		d.fontSize = 28;
 		d.fontStyle = Font.BOLD;
 		d.normalColor = "#FFFFFFFF";
@@ -163,6 +167,7 @@ public class TextStyle {
 	private TextStyle coalesce(TextStyle overlay, TextStyle base) {
 		TextStyle result = new TextStyle();
 		result.fontName = coalesce(overlay.fontName, base.fontName);
+		result.fallbackFontName = coalesce(overlay.fallbackFontName, base.fallbackFontName);
 		result.fontSize = coalesce(overlay.fontSize, base.fontSize);
 		result.fontStyle = coalesce(overlay.fontStyle, base.fontStyle);
 		result.normalColor = coalesce(overlay.normalColor, base.normalColor);

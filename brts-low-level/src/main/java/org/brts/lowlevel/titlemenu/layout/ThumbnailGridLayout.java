@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.menu.GlyphFallbackText;
 import org.brts.common.menu.TextStyle;
 import org.brts.common.utils.composition.ImageComposition;
 import org.brts.common.utils.composition.ImageReference;
@@ -210,14 +211,15 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 		if (showLabel && label != null && !label.isEmpty()) {
 			Font font = new Font(style.getFontName(), style.getFontStyle(),
 					style.getFontSize() != null ? style.getFontSize() - 4 : 24);
+			Font fallbackFont = GlyphFallbackText.fallbackFont(style, font);
 			g.setFont(font);
 			FontMetrics fm = g.getFontMetrics();
 
 			int labelY = height - LABEL_HEIGHT + fm.getAscent();
-			int labelX = Math.max(0, (width - fm.stringWidth(label)) / 2);
+			int labelX = Math.max(0, (width - GlyphFallbackText.width(g, label, font, fallbackFont)) / 2);
 
 			g.setColor(new Color(colorArgb, true));
-			g.drawString(label, labelX, labelY);
+			GlyphFallbackText.drawString(g, GlyphFallbackText.split(label, font, fallbackFont), labelX, labelY);
 		}
 
 		g.dispose();

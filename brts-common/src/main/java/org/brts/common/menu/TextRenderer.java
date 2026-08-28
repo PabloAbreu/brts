@@ -7,11 +7,11 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.Shape;
-import java.awt.font.GlyphVector;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
 /**
  * Renders text labels as ARGB images for the three IGS button states (normal, selected, activated).
@@ -49,12 +49,13 @@ public final class TextRenderer {
 	 */
 	public static ButtonImages renderTextButton(String text, TextStyle style) {
 		Font font = new Font(style.getFontName(), style.getFontStyle(), style.getFontSize());
+		Font fallbackFont = GlyphFallbackText.fallbackFont(style, font);
 		BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = scratch.createGraphics();
 		g.setFont(font);
 		FontMetrics fm = g.getFontMetrics();
 
-		int textWidth = (text != null && !text.isEmpty()) ? fm.stringWidth(text) : 0;
+		int textWidth = (text != null && !text.isEmpty()) ? GlyphFallbackText.width(g, text, font, fallbackFont) : 0;
 		int textHeight = fm.getHeight();
 		g.dispose();
 
@@ -71,12 +72,12 @@ public final class TextRenderer {
 		int selectedColor = TextStyle.parseColor(style.getSelectedColor());
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
-		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fm, normalColor, padX, padY,
-				style);
-		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fm, selectedColor, padX, padY,
-				style);
-		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fm, activatedColor, padX, padY,
-				style);
+		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, normalColor,
+				padX, padY, style);
+		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, selectedColor,
+				padX, padY, style);
+		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm,
+				activatedColor, padX, padY, style);
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
@@ -95,25 +96,28 @@ public final class TextRenderer {
 	 */
 	public static ButtonImages renderTextButton(String text, TextStyle style, int maxWidth) {
 		Font font = new Font(style.getFontName(), style.getFontStyle(), style.getFontSize());
+		Font fallbackFont = GlyphFallbackText.fallbackFont(style, font);
 		BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = scratch.createGraphics();
 		g.setFont(font);
 		FontMetrics fm = g.getFontMetrics();
-		g.dispose();
 
 		int padX = style.getPaddingX();
 		int padY = style.getPaddingY();
 		int maxContentWidth = Math.max(1, maxWidth - 2 * padX);
 
-		int naturalWidth = (text != null && !text.isEmpty()) ? fm.stringWidth(text) : 0;
+		int naturalWidth = (text != null && !text.isEmpty()) ? GlyphFallbackText.width(g, text, font, fallbackFont) : 0;
 
 		if (naturalWidth <= maxContentWidth) {
+			g.dispose();
 			// Fast path: text fits — delegate to natural-width renderer unchanged
 			return renderTextButton(text, style);
 		}
 
 		// Wrap path
-		List<String> lines = wrapText(text != null ? text : "", fm, maxContentWidth);
+		List<String> lines = wrapText(text != null ? text : "", s -> GlyphFallbackText.width(g, s, font, fallbackFont),
+				maxContentWidth);
+		g.dispose();
 		int imgWidth = maxWidth;
 		int imgHeight = Math.max(lines.size() * fm.getHeight() + 2 * padY, 4);
 
@@ -121,12 +125,12 @@ public final class TextRenderer {
 		int selectedColor = TextStyle.parseColor(style.getSelectedColor());
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
-		BufferedImage normalImg = renderMultilineState(imgWidth, imgHeight, lines, font, fm, normalColor, padX, padY,
-				style);
-		BufferedImage selectedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fm, selectedColor, padX,
-				padY, style);
-		BufferedImage activatedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fm, activatedColor, padX,
-				padY, style);
+		BufferedImage normalImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm, normalColor,
+				padX, padY, style);
+		BufferedImage selectedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm,
+				selectedColor, padX, padY, style);
+		BufferedImage activatedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm,
+				activatedColor, padX, padY, style);
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
@@ -146,44 +150,49 @@ public final class TextRenderer {
 	 */
 	public static ButtonImages renderTextButton(String text, TextStyle style, int width, int height) {
 		Font font = new Font(style.getFontName(), style.getFontStyle(), style.getFontSize());
+		Font fallbackFont = GlyphFallbackText.fallbackFont(style, font);
 		BufferedImage scratch = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = scratch.createGraphics();
 		g.setFont(font);
 		FontMetrics fm = g.getFontMetrics();
-		g.dispose();
 
 		int padX = style.getPaddingX();
 		int padY = style.getPaddingY();
 		int maxContentWidth = Math.max(1, width - 2 * padX);
 
-		int naturalWidth = (text != null && !text.isEmpty()) ? fm.stringWidth(text) : 0;
+		int naturalWidth = (text != null && !text.isEmpty()) ? GlyphFallbackText.width(g, text, font, fallbackFont) : 0;
 
 		int normalColor = TextStyle.parseColor(style.getNormalColor());
 		int selectedColor = TextStyle.parseColor(style.getSelectedColor());
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
 		if (naturalWidth <= maxContentWidth) {
-			BufferedImage normalImg = renderSingleState(width, height, text, font, fm, normalColor, padX, padY, style);
-			BufferedImage selectedImg = renderSingleState(width, height, text, font, fm, selectedColor, padX, padY,
-					style);
-			BufferedImage activatedImg = renderSingleState(width, height, text, font, fm, activatedColor, padX, padY,
-					style);
+			g.dispose();
+			BufferedImage normalImg = renderSingleState(width, height, text, font, fallbackFont, fm, normalColor, padX,
+					padY, style);
+			BufferedImage selectedImg = renderSingleState(width, height, text, font, fallbackFont, fm, selectedColor,
+					padX, padY, style);
+			BufferedImage activatedImg = renderSingleState(width, height, text, font, fallbackFont, fm, activatedColor,
+					padX, padY, style);
 			return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
 		}
 
-		List<String> lines = wrapText(text != null ? text : "", fm, maxContentWidth);
-		BufferedImage normalImg = renderMultilineState(width, height, lines, font, fm, normalColor, padX, padY, style);
-		BufferedImage selectedImg = renderMultilineState(width, height, lines, font, fm, selectedColor, padX, padY,
-				style);
-		BufferedImage activatedImg = renderMultilineState(width, height, lines, font, fm, activatedColor, padX, padY,
-				style);
+		List<String> lines = wrapText(text != null ? text : "", s -> GlyphFallbackText.width(g, s, font, fallbackFont),
+				maxContentWidth);
+		g.dispose();
+		BufferedImage normalImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, normalColor, padX,
+				padY, style);
+		BufferedImage selectedImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, selectedColor,
+				padX, padY, style);
+		BufferedImage activatedImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, activatedColor,
+				padX, padY, style);
 		return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────
 
-	private static BufferedImage renderSingleState(int width, int height, String text, Font font, FontMetrics fm,
-			int textColorArgb, int padX, int padY, TextStyle style) {
+	private static BufferedImage renderSingleState(int width, int height, String text, Font font, Font fallbackFont,
+			FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -199,18 +208,17 @@ public final class TextRenderer {
 
 		// 3. Text
 		if (text != null && !text.isEmpty()) {
-			g.setFont(font);
+			List<GlyphFallbackText.Run> runs = GlyphFallbackText.split(text, font, fallbackFont);
 
 			// Shadow
 			if (Boolean.TRUE.equals(style.getShadow())) {
 				g.setColor(new Color(TextStyle.parseColor(style.getShadowColor()), true));
-				g.drawString(text, cx + 2, textY + 2);
+				GlyphFallbackText.drawString(g, runs, cx + 2, textY + 2);
 			}
 
 			// Outline
 			if (Boolean.TRUE.equals(style.getOutline())) {
-				GlyphVector gv = font.createGlyphVector(g.getFontRenderContext(), text);
-				Shape outline = gv.getOutline(cx, textY);
+				Shape outline = GlyphFallbackText.outline(g, runs, cx, textY);
 				g.setColor(new Color(TextStyle.parseColor(style.getOutlineColor()), true));
 				g.setStroke(new BasicStroke(style.getOutlineWidth()));
 				g.draw(outline);
@@ -218,7 +226,7 @@ public final class TextRenderer {
 
 			// Main text
 			g.setColor(new Color(textColorArgb, true));
-			g.drawString(text, cx, textY);
+			GlyphFallbackText.drawString(g, runs, cx, textY);
 		}
 
 		g.dispose();
@@ -226,7 +234,7 @@ public final class TextRenderer {
 	}
 
 	private static BufferedImage renderMultilineState(int width, int height, List<String> lines, Font font,
-			FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style) {
+			Font fallbackFont, FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -234,27 +242,26 @@ public final class TextRenderer {
 
 		drawBackgroundShape(g, width, height, style);
 
-		g.setFont(font);
 		int cx = padX;
 		for (int i = 0; i < lines.size(); i++) {
 			String line = lines.get(i);
 			int lineY = padY + fm.getAscent() + i * fm.getHeight();
+			List<GlyphFallbackText.Run> runs = GlyphFallbackText.split(line, font, fallbackFont);
 
 			if (Boolean.TRUE.equals(style.getShadow())) {
 				g.setColor(new Color(TextStyle.parseColor(style.getShadowColor()), true));
-				g.drawString(line, cx + 2, lineY + 2);
+				GlyphFallbackText.drawString(g, runs, cx + 2, lineY + 2);
 			}
 
 			if (Boolean.TRUE.equals(style.getOutline())) {
-				GlyphVector gv = font.createGlyphVector(g.getFontRenderContext(), line);
-				Shape outline = gv.getOutline(cx, lineY);
+				Shape outline = GlyphFallbackText.outline(g, runs, cx, lineY);
 				g.setColor(new Color(TextStyle.parseColor(style.getOutlineColor()), true));
 				g.setStroke(new BasicStroke(style.getOutlineWidth()));
 				g.draw(outline);
 			}
 
 			g.setColor(new Color(textColorArgb, true));
-			g.drawString(line, cx, lineY);
+			GlyphFallbackText.drawString(g, runs, cx, lineY);
 		}
 
 		g.dispose();
@@ -265,7 +272,7 @@ public final class TextRenderer {
 	 * Greedily wraps {@code text} at word boundaries so that each line's rendered width does not exceed
 	 * {@code maxContentWidth}. A word that on its own exceeds the budget is truncated with {@code …}.
 	 */
-	static List<String> wrapText(String text, FontMetrics fm, int maxContentWidth) {
+	static List<String> wrapText(String text, ToIntFunction<String> widthFn, int maxContentWidth) {
 		List<String> result = new ArrayList<>();
 		String[] words = text.split("\\s+", -1);
 		StringBuilder current = new StringBuilder();
@@ -274,7 +281,7 @@ public final class TextRenderer {
 			if (word.isEmpty())
 				continue;
 			String candidate = current.length() == 0 ? word : current + " " + word;
-			if (fm.stringWidth(candidate) <= maxContentWidth) {
+			if (widthFn.applyAsInt(candidate) <= maxContentWidth) {
 				current = new StringBuilder(candidate);
 			} else {
 				if (current.length() > 0) {
@@ -282,10 +289,10 @@ public final class TextRenderer {
 					current = new StringBuilder();
 				}
 				// The word alone — check if it fits or needs truncation
-				if (fm.stringWidth(word) <= maxContentWidth) {
+				if (widthFn.applyAsInt(word) <= maxContentWidth) {
 					current.append(word);
 				} else {
-					result.add(truncateWithEllipsis(word, fm, maxContentWidth));
+					result.add(truncateWithEllipsis(word, widthFn, maxContentWidth));
 				}
 			}
 		}
@@ -303,14 +310,14 @@ public final class TextRenderer {
 	 * Truncates {@code word} so that {@code word + "…"} fits within {@code maxContentWidth}, then appends {@code …}.
 	 * Returns {@code "…"} when even that does not fit.
 	 */
-	static String truncateWithEllipsis(String word, FontMetrics fm, int maxContentWidth) {
+	static String truncateWithEllipsis(String word, ToIntFunction<String> widthFn, int maxContentWidth) {
 		String ellipsis = "\u2026";
-		int ellipsisWidth = fm.stringWidth(ellipsis);
+		int ellipsisWidth = widthFn.applyAsInt(ellipsis);
 		if (ellipsisWidth >= maxContentWidth)
 			return ellipsis;
 		int budget = maxContentWidth - ellipsisWidth;
 		int end = 0;
-		while (end < word.length() && fm.stringWidth(word.substring(0, end + 1)) <= budget) {
+		while (end < word.length() && widthFn.applyAsInt(word.substring(0, end + 1)) <= budget) {
 			end++;
 		}
 		return word.substring(0, end) + ellipsis;

@@ -62,7 +62,7 @@ public class PopupMenuIgsBuilder {
 
 	private static final int BUTTON_HEIGHT = 40;
 
-	private static final int BUTTON_MAX_WIDTH = 400;
+	private static final int BUTTON_MAX_WIDTH = 800;
 
 	private static final int BUTTON_SPACING_Y = 8;
 
