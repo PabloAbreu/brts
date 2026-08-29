@@ -84,6 +84,8 @@ public class PopupMenuIgsBuilder {
 		int screenW = config.getScreenWidth();
 		int screenH = config.getScreenHeight();
 		List<List<SymbolicButton>> symbolicPages = buildSymbolicPages(config);
+		if (symbolicPages == null)
+			return null;
 		List<List<ButtonSpec>> pages = renderPages(symbolicPages, config.getStyle());
 		List<BufferedImage> images = collectImages(pages);
 		IgsPalette palette = PaletteBuilder.buildFromImages(0, images.toArray(new BufferedImage[0]));
