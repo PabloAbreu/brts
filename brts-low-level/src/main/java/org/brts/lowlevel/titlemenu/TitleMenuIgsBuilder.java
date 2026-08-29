@@ -6,9 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.lowlevel.bdmv.NavigationCommandUtils;
+import org.brts.lowlevel.igs.IgsMenuAssembler;
 import org.brts.lowlevel.igs.PaletteBuilder;
-import org.brts.lowlevel.igs.RleEncoder;
-import org.brts.lowlevel.igs.model.CompositionDescriptor;
 import org.brts.lowlevel.igs.model.IgsBog;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsCompositionSegment;
@@ -17,10 +16,7 @@ import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
 import org.brts.lowlevel.igs.model.IgsObject;
 import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
-import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
-import org.brts.lowlevel.igs.model.SequenceDescriptor;
-import org.brts.lowlevel.igs.model.VideoDescriptor;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.NavigationOverride;
@@ -79,26 +75,7 @@ public class TitleMenuIgsBuilder {
 
 		// ── RLE-encode all images into IgsObjects ───────────────────────────
 
-		List<IgsObject> objects = new ArrayList<>();
-		for (int i = 0; i < allImages.size(); i++) {
-			BufferedImage img = allImages.get(i);
-			byte[] rle = RleEncoder.encode(img, palette);
-
-			IgsObject obj = new IgsObject();
-			obj.setId(i);
-			obj.setVersion(0);
-			obj.setWidth(img.getWidth());
-			obj.setHeight(img.getHeight());
-			obj.setRleData(rle);
-			obj.setDataLength(rle.length + 4); // +4 for width(2)+height(2)
-
-			SequenceDescriptor sd = new SequenceDescriptor();
-			sd.setFirstInSequence(true);
-			sd.setLastInSequence(true);
-			obj.setSequenceDescriptor(sd);
-
-			objects.add(obj);
-		}
+		List<IgsObject> objects = IgsMenuAssembler.buildObjectsFromImages(allImages, palette);
 
 		// ── Build BOGs with navigation commands ─────────────────────────────
 
@@ -123,14 +100,7 @@ public class TitleMenuIgsBuilder {
 			btn.setYPos(pb.getY());
 
 			// Visual states
-			btn.setNormalStartObjectIdRef(normalObjId);
-			btn.setNormalEndObjectIdRef(normalObjId);
-			btn.setSelectedStartObjectIdRef(selectedObjId);
-			btn.setSelectedEndObjectIdRef(selectedObjId);
-			btn.setSelectedSoundIdRef(0xFF);
-			btn.setActivatedStartObjectIdRef(activatedObjId);
-			btn.setActivatedEndObjectIdRef(activatedObjId);
-			btn.setActivatedSoundIdRef(0xFF);
+			IgsMenuAssembler.bindButtonVisualStates(btn, normalObjId, selectedObjId, activatedObjId);
 
 			btn.setNavigationCommands(navCmds);
 
@@ -164,46 +134,15 @@ public class TitleMenuIgsBuilder {
 
 		// ── Build ICS ───────────────────────────────────────────────────────
 
-		VideoDescriptor vd = new VideoDescriptor();
-		vd.setWidth(screenW);
-		vd.setHeight(screenH);
-		vd.setFrameRateCode(1); // 24000/1001
-
-		CompositionDescriptor cd = new CompositionDescriptor();
-		cd.setNumber(0);
-		cd.setState(2); // Epoch start
-
-		SequenceDescriptor sd = new SequenceDescriptor();
-		sd.setFirstInSequence(true);
-		sd.setLastInSequence(true);
-
-		IgsCompositionSegment ics = new IgsCompositionSegment();
-		ics.setVideoDescriptor(vd);
-		ics.setCompositionDescriptor(cd);
-		ics.setSequenceDescriptor(sd);
-		ics.setInteractiveComposition(ic);
+		IgsCompositionSegment ics = IgsMenuAssembler.buildCompositionSegment(ic, screenW, screenH);
 
 		// ── Window Definition ────────────────────────────────────────────────
 
-		IgsWindow window = new IgsWindow();
-		window.setId(0);
-		window.setX(0);
-		window.setY(0);
-		window.setWidth(screenW);
-		window.setHeight(screenH);
-
-		IgsWindowDefinition wds = new IgsWindowDefinition();
-		wds.getWindows().add(window);
+		IgsWindowDefinition wds = IgsMenuAssembler.buildFullScreenWindowDefinition(screenW, screenH);
 
 		// ── Assemble Display Set ────────────────────────────────────────────
 
-		IgsDisplaySet displaySet = new IgsDisplaySet();
-		displaySet.setEpochStart(true);
-		displaySet.setComplete(true);
-		displaySet.setCompositionSegment(ics);
-		displaySet.getPalettes().add(palette);
-		// displaySet.getWindowDefinitions().add(wds);
-		displaySet.setObjects(objects);
+		IgsDisplaySet displaySet = IgsMenuAssembler.assembleDisplaySet(ics, palette, wds, objects);
 
 		log.info("Title menu IGS built: {} buttons, {} objects, palette with {} entries", buttons.size(),
 				objects.size(), palette.getEntries().size());

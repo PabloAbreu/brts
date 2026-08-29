@@ -9,9 +9,8 @@ import java.util.Map;
 
 import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.bdmv.NavigationCommandUtils;
+import org.brts.lowlevel.igs.IgsMenuAssembler;
 import org.brts.lowlevel.igs.PaletteBuilder;
-import org.brts.lowlevel.igs.RleEncoder;
-import org.brts.lowlevel.igs.model.CompositionDescriptor;
 import org.brts.lowlevel.igs.model.IgsBog;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsCompositionSegment;
@@ -20,10 +19,7 @@ import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
 import org.brts.lowlevel.igs.model.IgsObject;
 import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
-import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
-import org.brts.lowlevel.igs.model.SequenceDescriptor;
-import org.brts.lowlevel.igs.model.VideoDescriptor;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.brts.middle.menu.descriptor.AudioMenuItem;
 import org.brts.middle.menu.descriptor.MenuItem;
@@ -120,25 +116,7 @@ public class SetupMenuIgsBuilder {
 
 		// ── RLE-encode all images into IgsObjects ───────────────────────────
 
-		for (int i = 0; i < allImages.size(); i++) {
-			BufferedImage img = allImages.get(i);
-			byte[] rle = RleEncoder.encode(img, palette);
-
-			IgsObject obj = new IgsObject();
-			obj.setId(i);
-			obj.setVersion(0);
-			obj.setWidth(img.getWidth());
-			obj.setHeight(img.getHeight());
-			obj.setRleData(rle);
-			obj.setDataLength(rle.length + 4); // +4 for width(2)+height(2)
-
-			SequenceDescriptor sd = new SequenceDescriptor();
-			sd.setFirstInSequence(true);
-			sd.setLastInSequence(true);
-			obj.setSequenceDescriptor(sd);
-
-			objects.add(obj);
-		}
+		objects.addAll(IgsMenuAssembler.buildObjectsFromImages(allImages, palette));
 
 		// ── Wire button neighbour references ────────────────────────────────
 
@@ -162,14 +140,7 @@ public class SetupMenuIgsBuilder {
 			btn.setRightButtonIdRef(br.buttonId);
 
 			// Visual states
-			btn.setNormalStartObjectIdRef(br.normalObjectId);
-			btn.setNormalEndObjectIdRef(br.normalObjectId);
-			btn.setSelectedStartObjectIdRef(br.selectedObjectId);
-			btn.setSelectedEndObjectIdRef(br.selectedObjectId);
-			btn.setSelectedSoundIdRef(0xFF);
-			btn.setActivatedStartObjectIdRef(br.activatedObjectId);
-			btn.setActivatedEndObjectIdRef(br.activatedObjectId);
-			btn.setActivatedSoundIdRef(0xFF);
+			IgsMenuAssembler.bindButtonVisualStates(btn, br.normalObjectId, br.selectedObjectId, br.activatedObjectId);
 
 			btn.setNavigationCommands(br.navigationCommands);
 
@@ -195,54 +166,22 @@ public class SetupMenuIgsBuilder {
 		// ── Build Interactive Composition ────────────────────────────────────
 
 		IgsInteractiveComposition ic = new IgsInteractiveComposition();
-		// FIXME : check this:
-		ic.setStreamModel(1); // In-Mux (multiplexed with AV)
+		ic.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_IN_MUX);
 		ic.setUiModel(IgsInteractiveComposition.UI_MODEL_ALWAYS_ON); // Always-On
 		ic.setUserTimeoutDuration(0);
 		ic.getPages().add(page);
 
 		// ── Build ICS ───────────────────────────────────────────────────────
 
-		VideoDescriptor vd = new VideoDescriptor();
-		vd.setWidth(screenW);
-		vd.setHeight(screenH);
-		vd.setFrameRateCode(1); // 24000/1001
-
-		CompositionDescriptor cd = new CompositionDescriptor();
-		cd.setNumber(0);
-		cd.setState(2); // Epoch start
-
-		SequenceDescriptor sd = new SequenceDescriptor();
-		sd.setFirstInSequence(true);
-		sd.setLastInSequence(true);
-
-		IgsCompositionSegment ics = new IgsCompositionSegment();
-		ics.setVideoDescriptor(vd);
-		ics.setCompositionDescriptor(cd);
-		ics.setSequenceDescriptor(sd);
-		ics.setInteractiveComposition(ic);
+		IgsCompositionSegment ics = IgsMenuAssembler.buildCompositionSegment(ic, screenW, screenH);
 
 		// ── Build Window Definition ─────────────────────────────────────────
 
-		IgsWindow window = new IgsWindow();
-		window.setId(0);
-		window.setX(0);
-		window.setY(0);
-		window.setWidth(screenW);
-		window.setHeight(screenH);
-
-		IgsWindowDefinition wds = new IgsWindowDefinition();
-		wds.getWindows().add(window);
+		IgsWindowDefinition wds = IgsMenuAssembler.buildFullScreenWindowDefinition(screenW, screenH);
 
 		// ── Assemble Display Set ────────────────────────────────────────────
 
-		IgsDisplaySet displaySet = new IgsDisplaySet();
-		displaySet.setEpochStart(true);
-		displaySet.setComplete(true);
-		displaySet.setCompositionSegment(ics);
-		displaySet.getPalettes().add(palette);
-		displaySet.getWindowDefinitions().add(wds);
-		displaySet.setObjects(objects);
+		IgsDisplaySet displaySet = IgsMenuAssembler.assembleDisplaySet(ics, palette, wds, objects);
 
 		log.info("IGS built: {} buttons, {} objects, palette with {} entries", buttonRecords.size(), objects.size(),
 				palette.getEntries().size());
@@ -346,14 +285,14 @@ public class SetupMenuIgsBuilder {
 			btnIdToRecord.put(br.buttonId(), br);
 		}
 
-		for (int i = 0; i < buttons.size(); i++) {
-			IgsButton btn = buttons.get(i);
+		// Auto-wired defaults: vertical wrap, no left/right movement
+		IgsMenuAssembler.wireVerticalWrapNeighbours(buttons);
 
-			// Auto-wired defaults: vertical wrap, no left/right movement
-			int autoUp = buttons.get((i - 1 + buttons.size()) % buttons.size()).getId();
-			int autoDown = buttons.get((i + 1) % buttons.size()).getId();
-			int autoLeft = btn.getId();
-			int autoRight = btn.getId();
+		for (IgsButton btn : buttons) {
+			int autoUp = btn.getUpperButtonIdRef();
+			int autoDown = btn.getLowerButtonIdRef();
+			int autoLeft = btn.getLeftButtonIdRef();
+			int autoRight = btn.getRightButtonIdRef();
 
 			// Apply explicit overrides from NavigationRefs where present
 			ButtonRecord br = btnIdToRecord.get(btn.getId());
