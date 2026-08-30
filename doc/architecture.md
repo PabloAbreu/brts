@@ -51,13 +51,13 @@ dependencies.
 
 ## Core technologies
 
-| Concern              | Library                                              |
+| Concern               | Library                                              |
 |-----------------------|------------------------------------------------------|
 | JSON                  | Jackson (`jackson-databind`, `-core`, `-annotations`, `-datatype-jdk8`) |
 | CLI parsing           | args4j                                                |
 | Logging               | SLF4J + Logback (`@Slf4j`, parameterized logging)     |
 | Boilerplate reduction | Lombok                                                |
-| Media processing      | ByteDeco FFmpeg artifacts                             |
+| Media processing      | ByteDeco FFmpeg artifacts, external tsMuxer           |
 | MKV parsing           | `jebml` (fork available at https://github.com/PabloAbreu/jebml )   |
 | Testing               | JUnit 5, Mockito, AssertJ                             |
 

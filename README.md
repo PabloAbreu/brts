@@ -1,6 +1,6 @@
 # BRTS — Blu-ray Tools Suite
 
-<img src="brts-logo.svg" alt="BRTS logo" width="120" align="left">
+<img src="assets/brts_logo_tools.png" alt="BRTS logo" width="240" align="left">
 
 BRTS is a Java 21 suite of tools for **authoring Blu-ray discs**: it turns MKV
 source files and human-readable JSON descriptors into a compliant Blu-ray
@@ -46,9 +46,7 @@ Lower layers never depend on higher layers. Details in
 
 ## Usage
 
-All commands go through the CLI fat jar built by `brts-cli`, or via the local
-debug launcher `brts_debug_launch.sh` (caches the runtime classpath in
-`.cached_classpath`):
+All commands go through the CLI fat jar built by `brts-cli`:
 
 ```bash
 brts <level> <command> [options]
