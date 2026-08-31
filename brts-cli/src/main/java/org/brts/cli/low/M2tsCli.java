@@ -36,7 +36,7 @@ public class M2tsCli {
 	// m2ts-info
 	// =========================================================================
 
-	public static class InfoOptions {
+	public static class InfoOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to inspect")
 		File input;
@@ -73,7 +73,7 @@ public class M2tsCli {
 	// m2ts-extract
 	// =========================================================================
 
-	public static class ExtractOptions {
+	public static class ExtractOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts source file")
 		File input;
@@ -143,7 +143,7 @@ public class M2tsCli {
 	// igs-demux
 	// =========================================================================
 
-	public static class IgsDemuxOptions {
+	public static class IgsDemuxOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a raw .igs elementary stream file")
 		File input;
@@ -177,7 +177,7 @@ public class M2tsCli {
 	// igs-mux
 	// =========================================================================
 
-	public static class IgsMuxOptions {
+	public static class IgsMuxOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json)")
 		File inputDir;
@@ -211,7 +211,7 @@ public class M2tsCli {
 	// m2ts-create
 	// =========================================================================
 
-	public static class CreateOptions {
+	public static class CreateOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -275,7 +275,7 @@ public class M2tsCli {
 	// m2ts-igs-mux
 	// =========================================================================
 
-	public static class M2tsIgsMuxOptions {
+	public static class M2tsIgsMuxOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -332,7 +332,7 @@ public class M2tsCli {
 	// m2ts-dump
 	// =========================================================================
 
-	public static class DumpOptions {
+	public static class DumpOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to dump")
 		File input;

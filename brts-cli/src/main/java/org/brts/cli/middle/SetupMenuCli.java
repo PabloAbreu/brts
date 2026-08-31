@@ -13,7 +13,7 @@ import java.io.File;
  */
 public class SetupMenuCli {
 
-	public static class Options {
+	public static class Options extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the setup menu JSON descriptor")
 		SetupMenuDescriptor descriptor;

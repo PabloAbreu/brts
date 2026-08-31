@@ -26,7 +26,7 @@ import org.kohsuke.args4j.Option;
  */
 public class VideoGenCli {
 
-	public static class Options {
+	public static class Options extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the video-gen JSON descriptor (ImagesComposition + optional Config)")
 		VideoGenDescriptor descriptor;

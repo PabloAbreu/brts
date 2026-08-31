@@ -16,7 +16,7 @@ import java.io.File;
  */
 public class HighLevelCli {
 
-	public static class BuildOptions {
+	public static class BuildOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
 		File descriptor;

@@ -15,7 +15,7 @@ import java.nio.file.Path;
  */
 public class ScanPlaylistsCli {
 
-	static class Options {
+	static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--playlist-dir", required = true, usage = "Path to the BDMV/PLAYLIST directory containing .mpls files")
 		File playlistDir;

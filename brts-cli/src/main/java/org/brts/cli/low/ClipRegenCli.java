@@ -16,7 +16,7 @@ import java.nio.file.Path;
  */
 public class ClipRegenCli {
 
-	public static class RegenOptions {
+	public static class RegenOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the source .m2ts file to parse")
 		File input;

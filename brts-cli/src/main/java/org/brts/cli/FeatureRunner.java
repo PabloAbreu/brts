@@ -7,7 +7,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import org.brts.cli.middle.BuildCli.BaseOptions;
 import org.brts.common.json.JsonMapperFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -30,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
  * @param <O> the args4j options-bean type
  */
 @Slf4j
-public abstract class FeatureRunner<O> {
+public abstract class FeatureRunner<O extends BaseOptions> {
 
 	/**
 	 * The sub-command name as typed on the command line (e.g. {@code "clip-parse"}).
@@ -106,22 +105,20 @@ public abstract class FeatureRunner<O> {
 		} catch (CmdLineException e) {
 			System.err.println(getCommandName() + ": " + e.getMessage());
 			printUsage(System.err);
-			if (opts instanceof BaseOptions bopt)
-				if (bopt.isErrorDetails()) {
-					System.err.println(getCommandName() + " failed. Details:\n");
-					e.printStackTrace();
-				}
+			if (opts.isErrorDetails()) {
+				System.err.println(getCommandName() + " failed. Details:\n");
+				e.printStackTrace();
+			}
 			System.exit(1);
 		}
 
 		try {
 			execute(opts);
 		} catch (Exception e) {
-			if (opts instanceof BaseOptions bopt)
-				if (bopt.isErrorDetails()) {
-					System.err.println(getCommandName() + " failed. Details:\n");
-					e.printStackTrace();
-				}
+			if (opts.isErrorDetails()) {
+				System.err.println(getCommandName() + " failed. Details:\n");
+				e.printStackTrace();
+			}
 			throw e;
 		}
 	}

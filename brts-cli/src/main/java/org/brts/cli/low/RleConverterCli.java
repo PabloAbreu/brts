@@ -14,7 +14,7 @@ import java.nio.file.Path;
  */
 public class RleConverterCli {
 
-	public static class Options {
+	public static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json) or a single .rle file")
 		File input;

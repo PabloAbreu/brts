@@ -18,7 +18,7 @@ import java.nio.file.Path;
  */
 public class Mp4Cli {
 
-	public static class InfoOptions {
+	public static class InfoOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MP4/MOV file to inspect")
 		File input;

@@ -18,7 +18,7 @@ import lombok.Setter;
  * CLI for the {@code clpi-regen} command.
  */
 public class BrtsInfoCli {
-	public static class InfoOptions {
+	public static class InfoOptions extends org.brts.cli.BaseOptions {
 		@Option(name = "--all", usage = "Include all system properties and environment variables in the output")
 		boolean includeAll;
 	}

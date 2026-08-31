@@ -13,7 +13,7 @@ import java.io.File;
  */
 public class PgsCli {
 
-	public static class CreateOptions {
+	public static class CreateOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the subtitle file (.srt, .ssa, .ass)")
 		File input;

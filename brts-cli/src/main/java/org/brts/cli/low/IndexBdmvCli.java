@@ -26,7 +26,7 @@ public class IndexBdmvCli {
 	// Parse command: binary index.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions {
+	public static class ParseOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary index.bdmv file to parse")
 		File input;
@@ -68,7 +68,7 @@ public class IndexBdmvCli {
 	// Write command: JSON → binary index.bdmv
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions {
+	public static class WriteOptions extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by index-parse)")
 		IndexBdmv input;

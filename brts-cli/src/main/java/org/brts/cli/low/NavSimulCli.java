@@ -17,7 +17,7 @@ import java.util.Map;
  */
 public class NavSimulCli {
 
-	public static class Options {
+	public static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "JSON file containing an array of NavigationCommand objects")
 		File input;

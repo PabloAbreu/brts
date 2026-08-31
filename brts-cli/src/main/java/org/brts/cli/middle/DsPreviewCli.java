@@ -13,7 +13,7 @@ import java.io.File;
  */
 public class DsPreviewCli {
 
-	static class Options {
+	static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file containing an IGS stream")
 		File input;

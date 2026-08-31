@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 public class PlaylistToMkvCli {
 
-	public static class Options {
+	public static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--playlist", required = true, usage = "Path to the .mpls playlist file")
 		File playlist;

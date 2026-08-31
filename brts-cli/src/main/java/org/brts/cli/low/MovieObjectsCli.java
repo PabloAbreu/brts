@@ -26,7 +26,7 @@ public class MovieObjectsCli {
 	// Parse command: binary MovieObject.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions {
+	public static class ParseOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary MovieObject.bdmv file to parse")
 		File input;
@@ -66,7 +66,7 @@ public class MovieObjectsCli {
 	// Write command: JSON → binary MovieObject.bdmv
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions {
+	public static class WriteOptions extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by mobj-parse)")
 		MovieObjects input;

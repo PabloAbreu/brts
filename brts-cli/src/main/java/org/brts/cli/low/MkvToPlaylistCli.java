@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 public class MkvToPlaylistCli {
 
-	public static class ConvertOptions {
+	public static class ConvertOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV source file")
 		File input;

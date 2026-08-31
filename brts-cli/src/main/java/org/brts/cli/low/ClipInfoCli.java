@@ -25,7 +25,7 @@ public class ClipInfoCli {
 	// Parse command
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions {
+	public static class ParseOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .clpi file to parse")
 		File input;
@@ -62,7 +62,7 @@ public class ClipInfoCli {
 	// Write command
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions {
+	public static class WriteOptions extends org.brts.cli.BaseOptions {
 
 		// @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON
 		// descriptor")

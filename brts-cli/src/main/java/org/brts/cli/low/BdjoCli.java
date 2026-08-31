@@ -25,7 +25,7 @@ public class BdjoCli {
 	// Parse command: binary .bdjo → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions {
+	public static class ParseOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary .bdjo file to parse")
 		File input;
@@ -65,7 +65,7 @@ public class BdjoCli {
 	// Write command: JSON → binary .bdjo
 	// -------------------------------------------------------------------------
 
-	static class WriteOptions {
+	static class WriteOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the JSON model file (as produced by bdjo-parse)")
 		File input;

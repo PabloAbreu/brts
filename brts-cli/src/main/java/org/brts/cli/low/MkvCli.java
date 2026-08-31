@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  */
 public class MkvCli {
 
-	public static class InfoOptions {
+	public static class InfoOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV file to inspect")
 		File input;
@@ -35,7 +35,7 @@ public class MkvCli {
 
 	}
 
-	public static class ExtractOptions {
+	public static class ExtractOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV source file")
 		File input;

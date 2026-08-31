@@ -2,6 +2,7 @@ package org.brts.cli.middle;
 
 import java.io.File;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.common.mkv.MkvSourceMediaParser;
@@ -10,22 +11,10 @@ import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
 import org.kohsuke.args4j.Option;
 
-import lombok.Getter;
-import lombok.Setter;
-
 /**
  * Build a disc.
  */
 public class BuildCli {
-
-	@Getter
-	@Setter
-	public static class BaseOptions {
-
-		@Option(name = "--error-details", required = false, hidden = true, usage = "Shows more detailed errors. This option should be put first.")
-		boolean errorDetails;
-
-	}
 
 	public static class BuildOptions extends BaseOptions {
 

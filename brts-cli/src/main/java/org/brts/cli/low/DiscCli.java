@@ -21,7 +21,7 @@ public class DiscCli {
 	// Create command: full descriptor -> full Disc
 	// -------------------------------------------------------------------------
 
-	public static class CreateOptions {
+	public static class CreateOptions extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the disc descriptor")
 		LowLevelDiscDescriptor input;

@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 public class FindFirstPlaylistCli {
 
-	static class Options {
+	static class Options extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--bdmv-dir", required = true, usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
 		File bdmvDir;

@@ -22,7 +22,7 @@ import org.kohsuke.args4j.Option;
  */
 public class PlaylistCli {
 
-	public static class ParseOptions {
+	public static class ParseOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .mpls file to parse")
 		File input;
@@ -55,7 +55,7 @@ public class PlaylistCli {
 
 	}
 
-	public static class WriteOptions {
+	public static class WriteOptions extends org.brts.cli.BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
 		MoviePlaylist descriptor;
@@ -88,7 +88,7 @@ public class PlaylistCli {
 
 	}
 
-	static class FindPlaylistOptions {
+	static class FindPlaylistOptions extends org.brts.cli.BaseOptions {
 
 		@Option(name = "--clip", required = true, usage = "M2TS clip name to search for (e.g. 12345)")
 		String clip;
