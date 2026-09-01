@@ -18,24 +18,16 @@ import static org.bytedeco.ffmpeg.global.avformat.avformat_close_input;
 import static org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info;
 import static org.bytedeco.ffmpeg.global.avformat.avformat_open_input;
 import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO;
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_alloc;
 import static org.bytedeco.ffmpeg.global.avutil.av_frame_free;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_get_buffer;
 import static org.bytedeco.ffmpeg.global.avutil.av_q2d;
-import static org.bytedeco.ffmpeg.global.swscale.SWS_BILINEAR;
-import static org.bytedeco.ffmpeg.global.swscale.sws_freeContext;
-import static org.bytedeco.ffmpeg.global.swscale.sws_getContext;
-import static org.bytedeco.ffmpeg.global.swscale.sws_scale;
 
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.Map;
 
 import org.brts.common.utils.CacheUtils;
+import org.brts.common.utils.FfmpegFrameConverter;
 import org.brts.common.utils.composition.CompositionEngineFactory;
 import org.brts.common.utils.composition.ImageFrame;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
@@ -43,7 +35,6 @@ import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
 import org.bytedeco.ffmpeg.avformat.AVStream;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
-import org.bytedeco.ffmpeg.swscale.SwsContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,7 +59,7 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 
 	private final double fps;
 
-	private SwsContext swsCtx;
+	private final FfmpegFrameConverter frameConverter = new FfmpegFrameConverter();
 
 	private int currentFrameIndex = -1;
 
@@ -242,52 +233,12 @@ public abstract class FfmpegVideoFrames implements VideoFrames {
 	}
 
 	private ImageFrame convertFrameToImageFrame(AVFrame frame) {
-		BufferedImage image = convertFrameToImage(frame);
-		return CompositionEngineFactory.get().fromBufferedImage(image);
-	}
-
-	private BufferedImage convertFrameToImage(AVFrame frame) {
-		int width = frame.width();
-		int height = frame.height();
-
-		if (swsCtx == null) {
-			swsCtx = sws_getContext(width, height, frame.format(), width, height, AV_PIX_FMT_BGR24, SWS_BILINEAR, null,
-					null, (double[]) null);
-		}
-
-		AVFrame bgrFrame = av_frame_alloc();
-		bgrFrame.format(AV_PIX_FMT_BGR24);
-		bgrFrame.width(width);
-		bgrFrame.height(height);
-		av_frame_get_buffer(bgrFrame, 0);
-
-		sws_scale(swsCtx, frame.data(), frame.linesize(), 0, height, bgrFrame.data(), bgrFrame.linesize());
-
-		BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-		byte[] pixels = ((DataBufferByte) image.getRaster().getDataBuffer()).getData();
-
-		int linesize = bgrFrame.linesize(0);
-		ByteBuffer buffer = bgrFrame.data(0).position(0).capacity((long) linesize * height).asByteBuffer();
-		if (linesize == width * 3) {
-			buffer.get(pixels);
-		} else {
-			// Handle padding in each row
-			for (int y = 0; y < height; y++) {
-				buffer.position(y * linesize);
-				buffer.get(pixels, y * width * 3, width * 3);
-			}
-		}
-
-		av_frame_free(bgrFrame);
-		return image;
+		return CompositionEngineFactory.get().fromBufferedImage(frameConverter.toBufferedImage(frame));
 	}
 
 	@Override
 	public void close() {
-		if (swsCtx != null) {
-			sws_freeContext(swsCtx);
-			swsCtx = null;
-		}
+		frameConverter.close();
 		avcodec_free_context(codecCtx);
 		avformat_close_input(formatCtx);
 		cache.values().forEach(ImageFrame::close);
