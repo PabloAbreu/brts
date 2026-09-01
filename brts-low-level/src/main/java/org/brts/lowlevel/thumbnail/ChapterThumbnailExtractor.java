@@ -47,6 +47,7 @@ import org.bytedeco.ffmpeg.avutil.AVDictionaryEntry;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -61,15 +62,21 @@ public class ChapterThumbnailExtractor {
 
 	public static final String DESCRIPTOR_FILE_NAME = "chapter-thumbnails.json";
 
-	private static final String WIDTH_PROPERTY = "brts.thumbnail.width";
+	private static final String BASE_PROPERTY = "brts.thumbnail.";
 
-	private static final String HEIGHT_PROPERTY = "brts.thumbnail.height";
+	private static final String WIDTH_PROPERTY = BASE_PROPERTY + "width";
 
-	private static final String OFFSET_PROPERTY = "brts.thumbnail.offsetSeconds";
+	private static final String HEIGHT_PROPERTY = BASE_PROPERTY + "height";
+
+	private static final String MINIMUM_LUMINANCE_VARIATION_PROPERTY = BASE_PROPERTY + "minimumLuminanceVariation";
 
 	private static final int DEFAULT_WIDTH = 240;
 
-	private static final double DEFAULT_OFFSET_SECONDS = 2.0;
+	private static final double DEFAULT_MINIMUM_LUMINANCE_VARIATION = 20.0;
+
+	private static final int FRAMES_BETWEEN_ATTEMPTS = 24;
+
+	private static final int MAX_CAPTURE_ATTEMPTS = 10;
 
 	private static final long PTS_TICKS_PER_SECOND = 90_000L;
 
@@ -81,34 +88,37 @@ public class ChapterThumbnailExtractor {
 	private final int thumbnailHeight;
 
 	@Getter
-	private final double captureOffsetSeconds;
+	private final double minimumLuminanceVariation;
 
-	/** Uses the configured defaults for size and capture offset. */
+	/** Uses the configured defaults for size and thumbnail quality. */
 	public ChapterThumbnailExtractor() {
 		this(BrtsFileConfig.getInstance().parseIntProperty(WIDTH_PROPERTY, DEFAULT_WIDTH),
 				BrtsFileConfig.getInstance().parseIntProperty(HEIGHT_PROPERTY, 0),
-				BrtsFileConfig.getInstance().parseDoubleProperty(OFFSET_PROPERTY, DEFAULT_OFFSET_SECONDS));
+				BrtsFileConfig.getInstance().parseDoubleProperty(MINIMUM_LUMINANCE_VARIATION_PROPERTY,
+						DEFAULT_MINIMUM_LUMINANCE_VARIATION));
 	}
 
 	/**
-	 * @param thumbnailWidth       thumbnail width in pixels, must be positive
-	 * @param thumbnailHeight      thumbnail height in pixels, or 0 to derive it from the source aspect ratio
-	 * @param captureOffsetSeconds offset added to each chapter start time before grabbing the frame, which avoids the
-	 *                             black frames usually found on chapter boundaries
+	 * @param thumbnailWidth            thumbnail width in pixels, must be positive
+	 * @param thumbnailHeight           thumbnail height in pixels, or 0 to derive it from the source aspect ratio
+	 * @param minimumLuminanceVariation minimum luminance standard deviation (RMS contrast) across the image, in the
+	 *                                  range 0-255
 	 */
-	public ChapterThumbnailExtractor(int thumbnailWidth, int thumbnailHeight, double captureOffsetSeconds) {
+	public ChapterThumbnailExtractor(int thumbnailWidth, int thumbnailHeight, double minimumLuminanceVariation) {
 		if (thumbnailWidth <= 0) {
 			throw new IllegalArgumentException("Thumbnail width must be positive, got " + thumbnailWidth);
 		}
 		if (thumbnailHeight < 0) {
 			throw new IllegalArgumentException("Thumbnail height must be positive or 0 (auto), got " + thumbnailHeight);
 		}
-		if (captureOffsetSeconds < 0) {
-			throw new IllegalArgumentException("Capture offset must not be negative, got " + captureOffsetSeconds);
+		if (!Double.isFinite(minimumLuminanceVariation) || minimumLuminanceVariation < 0
+				|| minimumLuminanceVariation > 255) {
+			throw new IllegalArgumentException(
+					"Minimum luminance variation must be between 0 and 255, got " + minimumLuminanceVariation);
 		}
 		this.thumbnailWidth = thumbnailWidth;
 		this.thumbnailHeight = thumbnailHeight;
-		this.captureOffsetSeconds = captureOffsetSeconds;
+		this.minimumLuminanceVariation = minimumLuminanceVariation;
 	}
 
 	/**
@@ -136,18 +146,14 @@ public class ChapterThumbnailExtractor {
 			descriptor.setThumbnailWidth(thumbnailWidth);
 
 			for (Chapter chapter : chapters) {
-				double captureSeconds = captureTimeOf(chapter);
-				BufferedImage frame = grabber.grabFrameAt(captureSeconds);
-				if (frame == null) {
-					throw new IOException("Could not decode a frame at " + captureSeconds + "s for chapter "
+				BufferedImage thumbnail = grabber.grabThumbnailAt(chapter.startSeconds, thumbnailWidth, thumbnailHeight,
+						minimumLuminanceVariation);
+				if (thumbnail == null) {
+					throw new IOException("Could not decode a frame at " + chapter.startSeconds + "s for chapter "
 							+ chapter.index + " of " + source);
 				}
 
-				int height = descriptor.getThumbnailHeight() > 0 ? descriptor.getThumbnailHeight()
-						: computeHeight(frame);
-				descriptor.setThumbnailHeight(height);
-
-				BufferedImage thumbnail = ImageUtils.scaleImage(frame, thumbnailWidth, height);
+				descriptor.setThumbnailHeight(thumbnail.getHeight());
 				String imageFile = String.format("chapter-%02d.png", chapter.index);
 				Path imagePath = outputDir.resolve(imageFile);
 				ImageIO.write(thumbnail, "png", imagePath.toFile());
@@ -169,20 +175,57 @@ public class ChapterThumbnailExtractor {
 		}
 	}
 
-	private double captureTimeOf(Chapter chapter) {
-		double capture = chapter.startSeconds + captureOffsetSeconds;
-		if (chapter.endSeconds > chapter.startSeconds && capture >= chapter.endSeconds) {
-			return chapter.startSeconds;
+	// Standard deviation of luminance (RMS contrast) rather than local adjacent-pixel differences: a large flat area
+	// next to another flat area of a different tone (e.g. a black object on a white background) has almost no
+	// adjacent-pixel difference on average, but is a visually good, high-contrast thumbnail.
+	static double luminanceVariation(BufferedImage image) {
+		int pixelCount = image.getWidth() * image.getHeight();
+		if (pixelCount == 0) {
+			return 0;
 		}
-		return capture;
+		double sum = 0;
+		double sumSquares = 0;
+		for (int y = 0; y < image.getHeight(); y++) {
+			for (int x = 0; x < image.getWidth(); x++) {
+				double luminance = luminance(image.getRGB(x, y));
+				sum += luminance;
+				sumSquares += luminance * luminance;
+			}
+		}
+		double mean = sum / pixelCount;
+		double variance = sumSquares / pixelCount - mean * mean;
+		return Math.sqrt(Math.max(0, variance));
 	}
 
-	private int computeHeight(BufferedImage frame) {
-		if (thumbnailHeight > 0) {
-			return thumbnailHeight;
+	@RequiredArgsConstructor
+	static final class ThumbnailCandidateSelector {
+
+		private final double minimumLuminanceVariation;
+
+		private int attempts;
+
+		private BufferedImage lastCandidate;
+
+		boolean consider(BufferedImage candidate) {
+			lastCandidate = candidate;
+			attempts++;
+			return luminanceVariation(candidate) >= minimumLuminanceVariation || attempts == MAX_CAPTURE_ATTEMPTS;
 		}
-		int height = (int) Math.round((double) thumbnailWidth * frame.getHeight() / frame.getWidth());
-		return Math.max(1, height);
+
+		int attempts() {
+			return attempts;
+		}
+
+		BufferedImage lastCandidate() {
+			return lastCandidate;
+		}
+	}
+
+	private static double luminance(int rgb) {
+		int red = (rgb >>> 16) & 0xff;
+		int green = (rgb >>> 8) & 0xff;
+		int blue = rgb & 0xff;
+		return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
 	}
 
 	/** A chapter as described by the source container. */
@@ -280,8 +323,11 @@ public class ChapterThumbnailExtractor {
 		 *
 		 * @return the decoded frame, or {@code null} if no frame could be decoded
 		 */
-		private BufferedImage grabFrameAt(double targetSeconds) throws IOException {
-			long targetTs = (long) (targetSeconds / videoTimeBase) + videoStartTime;
+		private BufferedImage grabThumbnailAt(double targetSeconds, int width, int requestedHeight,
+				double minimumLuminanceVariation) throws IOException {
+			// Round to the nearest tick: truncating would bias targetTs below the true chapter start whenever it
+			// doesn't land exactly on a tick, causing a frame before the chapter boundary to be accepted.
+			long targetTs = Math.round(targetSeconds / videoTimeBase) + videoStartTime;
 			int ret = av_seek_frame(formatCtx, videoStreamIndex, targetTs, AVSEEK_FLAG_BACKWARD);
 			if (ret < 0) {
 				throw new IOException("av_seek_frame to " + targetSeconds + "s failed for " + source + ": " + ret);
@@ -290,7 +336,8 @@ public class ChapterThumbnailExtractor {
 
 			AVPacket packet = av_packet_alloc();
 			AVFrame frame = av_frame_alloc();
-			BufferedImage fallback = null;
+			ThumbnailCandidateSelector selector = new ThumbnailCandidateSelector(minimumLuminanceVariation);
+			int framesToSkip = 0;
 			try {
 				while (av_read_frame(formatCtx, packet) >= 0) {
 					if (packet.stream_index() != videoStreamIndex) {
@@ -304,25 +351,53 @@ public class ChapterThumbnailExtractor {
 					}
 					while (avcodec_receive_frame(codecCtx, frame) >= 0) {
 						long pts = frame.best_effort_timestamp();
-						if (pts == AV_NOPTS_VALUE || pts >= targetTs) {
-							return converter.toBufferedImage(frame);
+						if (pts != AV_NOPTS_VALUE && pts < targetTs) {
+							continue;
 						}
-						if (fallback == null) {
-							fallback = converter.toBufferedImage(frame);
+						if (framesToSkip > 0) {
+							framesToSkip--;
+							continue;
 						}
+
+						BufferedImage candidate = reduceFrame(frame, width, requestedHeight);
+						if (selector.consider(candidate)) {
+							return candidate;
+						}
+						log.debug("Rejected thumbnail candidate {} at frame PTS {} with luminance variation {}",
+								selector.attempts(), pts, luminanceVariation(candidate));
+						framesToSkip = FRAMES_BETWEEN_ATTEMPTS;
 					}
 				}
 
 				// Flush the decoder in case the target lies in the trailing frames
 				avcodec_send_packet(codecCtx, (AVPacket) null);
 				while (avcodec_receive_frame(codecCtx, frame) >= 0) {
-					fallback = converter.toBufferedImage(frame);
+					long pts = frame.best_effort_timestamp();
+					if (pts != AV_NOPTS_VALUE && pts < targetTs) {
+						continue;
+					}
+					if (framesToSkip > 0) {
+						framesToSkip--;
+						continue;
+					}
+					BufferedImage candidate = reduceFrame(frame, width, requestedHeight);
+					if (selector.consider(candidate)) {
+						return candidate;
+					}
+					framesToSkip = FRAMES_BETWEEN_ATTEMPTS;
 				}
-				return fallback;
+				return selector.lastCandidate();
 			} finally {
 				av_frame_free(frame);
 				av_packet_free(packet);
 			}
+		}
+
+		private BufferedImage reduceFrame(AVFrame frame, int width, int requestedHeight) {
+			BufferedImage decoded = converter.toBufferedImage(frame);
+			int height = requestedHeight > 0 ? requestedHeight
+					: Math.max(1, (int) Math.round((double) width * decoded.getHeight() / decoded.getWidth()));
+			return ImageUtils.scaleImage(decoded, width, height);
 		}
 
 		@Override

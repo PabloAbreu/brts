@@ -28,8 +28,8 @@ public class ChapterThumbnailsCli {
 		@Option(name = "--height", required = false, usage = "Thumbnail height in pixels (default: derived from the source aspect ratio)")
 		int height;
 
-		@Option(name = "--offset-seconds", required = false, usage = "Offset added to each chapter start before grabbing the frame (default: brts.thumbnail.offsetSeconds)")
-		Double offsetSeconds;
+		@Option(name = "--minimum-luminance-variation", required = false, usage = "Minimum luminance standard deviation (RMS contrast) across the image, from 0 to 255 (default: brts.thumbnail.minimumLuminanceVariation)")
+		Double minimumLuminanceVariation;
 
 	}
 
@@ -54,13 +54,14 @@ public class ChapterThumbnailsCli {
 		}
 
 		private ChapterThumbnailExtractor buildExtractor(Options opts) {
-			if (opts.width <= 0 && opts.height <= 0 && opts.offsetSeconds == null) {
+			if (opts.width <= 0 && opts.height <= 0 && opts.minimumLuminanceVariation == null) {
 				return new ChapterThumbnailExtractor();
 			}
 			ChapterThumbnailExtractor defaults = new ChapterThumbnailExtractor();
 			return new ChapterThumbnailExtractor(opts.width > 0 ? opts.width : defaults.getThumbnailWidth(),
 					opts.height > 0 ? opts.height : defaults.getThumbnailHeight(),
-					opts.offsetSeconds != null ? opts.offsetSeconds : defaults.getCaptureOffsetSeconds());
+					opts.minimumLuminanceVariation != null ? opts.minimumLuminanceVariation
+							: defaults.getMinimumLuminanceVariation());
 		}
 
 	}
