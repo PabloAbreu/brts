@@ -3,6 +3,9 @@ package org.brts.common.utils.composition;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Represents a reference to an image, which can be a static image, a video, or a synthetic image.
+ */
 @Getter
 @Setter
 public class ImageReference {
@@ -27,6 +30,10 @@ public class ImageReference {
 		return syntheticImage != null;
 	}
 
+	/**
+	 * Represents a synthetic image source, which can be for example when type is "svg" 
+	 * an inline SVG, a file path to an SVG, or an animated SVG with a specified frame rate.
+	 */
 	@Getter
 	@Setter
 	public static class SyntheticImageSource {
