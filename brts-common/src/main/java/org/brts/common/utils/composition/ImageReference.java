@@ -31,8 +31,8 @@ public class ImageReference {
 	}
 
 	/**
-	 * Represents a synthetic image source, which can be for example when type is "svg" 
-	 * an inline SVG, a file path to an SVG, or an animated SVG with a specified frame rate.
+	 * Represents a synthetic image source, which can be for example when type is "svg" an inline SVG, a file path to an
+	 * SVG, or an animated SVG with a specified frame rate.
 	 */
 	@Getter
 	@Setter

@@ -3,18 +3,20 @@ package org.brts.common.utils.composition.sources.synth;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.apache.batik.anim.dom.SAXSVGDocumentFactory;
 import org.apache.batik.transcoder.TranscoderException;
 import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
 import org.apache.batik.transcoder.image.ImageTranscoder;
+import org.apache.batik.util.XMLResourceDescriptor;
 import org.brts.common.utils.composition.CompositionEngineFactory;
 import org.brts.common.utils.composition.ImageFrame;
 import org.brts.common.utils.composition.ImageReference;
+import org.w3c.dom.Document;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -22,18 +24,19 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Renders SVG content to BufferedImage using Apache Batik. Supports inline SVG ({@code data} field) or file-based SVG
  * ({@code srcPath} field). Animated SVGs (SMIL) are rendered at time = frameNumber / frameRate when frameRate is set.
- * Static SVGs are rendered once and cached.
+ * Static SVGs are rendered once and cached. The SVG document is parsed once and cloned per frame, since Batik's
+ * bridge/CSS engine attaches mutable state to a document during GVT construction.
  */
 @Slf4j
 public class SVGImageGenerator implements SyntheticImageGenerator {
 
-	private final byte[] svgContent;
+	private final Document parsedDocument;
 	private final Double frameRate;
 	private ImageFrame cachedStaticFrame;
 
 	public SVGImageGenerator(ImageReference.SyntheticImageSource content) {
 		this.frameRate = content.getFrameRate();
-		this.svgContent = resolveSvgContent(content).getBytes(StandardCharsets.UTF_8);
+		this.parsedDocument = parseSvgDocument(resolveSvgContent(content));
 	}
 
 	@Override
@@ -67,13 +70,13 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 			transcoder.addTranscodingHint(ImageTranscoder.KEY_SNAPSHOT_TIME, snapshotTime);
 		}
 
-		try (InputStream is = new ByteArrayInputStream(svgContent)) {
-			TranscoderInput input = new TranscoderInput(is);
+		// Bridge/GVT construction mutates the document, so each render needs its own copy of the parsed tree.
+		Document documentForFrame = (Document) parsedDocument.cloneNode(true);
+		try {
+			TranscoderInput input = new TranscoderInput(documentForFrame);
 			transcoder.transcode(input, new TranscoderOutput());
 		} catch (TranscoderException e) {
 			throw new IllegalStateException("Failed to render SVG at snapshotTime=" + snapshotTime, e);
-		} catch (IOException e) {
-			throw new IllegalStateException("I/O error reading SVG content", e);
 		}
 
 		BufferedImage result = transcoder.getImage();
@@ -81,6 +84,17 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 			throw new IllegalStateException("Batik transcoder produced no image");
 		}
 		return result;
+	}
+
+	private static Document parseSvgDocument(String svgContent) {
+		String parser = XMLResourceDescriptor.getXMLParserClassName();
+		SAXSVGDocumentFactory factory = new SAXSVGDocumentFactory(parser);
+		byte[] bytes = svgContent.getBytes(StandardCharsets.UTF_8);
+		try (ByteArrayInputStream is = new ByteArrayInputStream(bytes)) {
+			return factory.createDocument(null, is);
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Failed to parse SVG content", e);
+		}
 	}
 
 	private static String resolveSvgContent(ImageReference.SyntheticImageSource content) {
