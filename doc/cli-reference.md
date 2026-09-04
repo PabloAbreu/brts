@@ -49,6 +49,7 @@ command (options are parsed with args4j).
 | `igs-mux` | Mux demuxed IGS resources back into an IGS stream |
 | `rle-to-png` | Convert IGS RLE bitmaps to PNG images |
 | `pgs-create` | Generate a PGS subtitle stream from SRT/SSA/ASS |
+| `render-template` | Render an output file from a template and a data model (e.g. JSON) |
 
 ## `mid` — middle-level disc authoring operations
 

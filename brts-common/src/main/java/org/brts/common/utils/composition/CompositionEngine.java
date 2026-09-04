@@ -49,6 +49,15 @@ public interface CompositionEngine {
 	ImageFrame copy(ImageFrame src);
 
 	/**
+	 * Returns a new frame containing the specified source-space rectangle.
+	 *
+	 * <p>
+	 * The returned frame is managed by the caller; call {@link ImageFrame#close()} when done. {@code source} is not
+	 * modified and not closed.
+	 */
+	ImageFrame crop(ImageFrame source, int x, int y, int width, int height);
+
+	/**
 	 * Returns a new {@link ImageFrame} that is a scaled copy of {@code source} with the given dimensions.
 	 *
 	 * <p>

@@ -27,7 +27,14 @@ public class ImageComposition {
 
 	private RotatedImageComposition rotation;
 
-	// TODO : crop the input image to a rectangle defined by its own topLeft and size
+	private Crop crop;
+
+	@Getter
+	@Setter
+	public static class Crop {
+		private Point topLeft;
+		private Size size;
+	}
 
 	@Getter
 	@Setter
@@ -75,14 +82,55 @@ public class ImageComposition {
 		return new int[] { targetW, targetH };
 	}
 
+	/**
+	 * Evaluates the crop rectangle in source-image pixels and validates that it is fully contained in the source.
+	 *
+	 * @return a four-element array {@code [x, y, width, height]}, or {@code null} when no crop is configured.
+	 */
+	public int[] computeCropBounds(CompositionContext context, int srcW, int srcH) {
+		if (crop == null) {
+			return null;
+		}
+		if (crop.getTopLeft() == null || crop.getSize() == null || crop.getTopLeft().getX() == null
+				|| crop.getTopLeft().getY() == null || crop.getSize().getWidth() == null
+				|| crop.getSize().getHeight() == null) {
+			throw new IllegalArgumentException("crop requires topLeft.x, topLeft.y, size.width, and size.height");
+		}
+		int x = requireIntegralCoordinate("crop.topLeft.x", context.evalNumeric(crop.getTopLeft().getX()));
+		int y = requireIntegralCoordinate("crop.topLeft.y", context.evalNumeric(crop.getTopLeft().getY()));
+		int width = requireIntegralCoordinate("crop.size.width", context.evalNumeric(crop.getSize().getWidth()));
+		int height = requireIntegralCoordinate("crop.size.height", context.evalNumeric(crop.getSize().getHeight()));
+		if (x < 0 || y < 0 || width <= 0 || height <= 0 || x > srcW - width || y > srcH - height) {
+			throw new IllegalArgumentException("crop [" + x + ", " + y + ", " + width + ", " + height
+					+ "] exceeds source bounds " + srcW + "x" + srcH);
+		}
+		return new int[] { x, y, width, height };
+	}
+
+	private static int requireIntegralCoordinate(String name, double value) {
+		if (!Double.isFinite(value) || value != Math.rint(value) || value < Integer.MIN_VALUE
+				|| value > Integer.MAX_VALUE) {
+			throw new IllegalArgumentException(name + " must evaluate to a finite integer, but was " + value);
+		}
+		return (int) value;
+	}
+
 	public AffineTransform toAffineTransform(CompositionContext context, int w, int h) {
+		return toAffineTransform(context, w, h, true);
+	}
+
+	/**
+	 * Builds the composition transform for an overlay of {@code w x h}. When {@code applyResize} is false, callers have
+	 * already resized the overlay and only the rotation is applied.
+	 */
+	public AffineTransform toAffineTransform(CompositionContext context, int w, int h, boolean applyResize) {
 		AffineTransform result = new AffineTransform();
-		if (resize == null && rotation == null) {
+		if ((!applyResize || resize == null) && rotation == null) {
 			return result; // identity
 		}
 		double scaleX = 1.0;
 		double scaleY = 1.0;
-		if (resize != null) {
+		if (applyResize && resize != null) {
 			var width = resize.getWidth();
 			var height = resize.getHeight();
 			if (width == null && height == null) {

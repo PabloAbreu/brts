@@ -76,7 +76,7 @@ public class ChapterThumbnailExtractor {
 
 	private static final int FRAMES_BETWEEN_ATTEMPTS = 24;
 
-	private static final int MAX_CAPTURE_ATTEMPTS = 10;
+	public static final int MAX_CAPTURE_ATTEMPTS = 10;
 
 	private static final long PTS_TICKS_PER_SECOND = 90_000L;
 

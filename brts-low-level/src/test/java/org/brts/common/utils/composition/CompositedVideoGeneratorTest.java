@@ -26,10 +26,10 @@ public class CompositedVideoGeneratorTest {
 				outputPath.toFile().mkdirs();
 				CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
 				config.setFps(24);
-				config.setFrameCount(200);
+				config.setFrameCount(300);
 				generator.generate(composition, outputPath, "00001", config, basePath);
 			} finally {
-				FileUtils.deleteDir(outputPath);
+				// FileUtils.deleteDir(outputPath);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

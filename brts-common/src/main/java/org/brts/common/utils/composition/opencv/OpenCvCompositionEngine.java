@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 
 import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
 import org.brts.common.utils.composition.CompositionEngine;
@@ -75,6 +76,16 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 		Mat srcMat = toMat(src);
 		Mat copy = srcMat.clone();
 		return new OpenCvImageFrame(copy);
+	}
+
+	@Override
+	public ImageFrame crop(ImageFrame source, int x, int y, int width, int height) {
+		Mat croppedView = new Mat(toMat(source), new Rect(x, y, width, height));
+		try {
+			return new OpenCvImageFrame(croppedView.clone());
+		} finally {
+			croppedView.release();
+		}
 	}
 
 	@Override

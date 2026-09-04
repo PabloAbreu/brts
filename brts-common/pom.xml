@@ -69,6 +69,12 @@
 			<artifactId>batik-codec</artifactId>
 		</dependency>
 
+		<!-- Templating (FreeMarker) -->
+		<dependency>
+			<groupId>org.freemarker</groupId>
+			<artifactId>freemarker</artifactId>
+		</dependency>
+
 	</dependencies>
 	<build>
 		<plugins>

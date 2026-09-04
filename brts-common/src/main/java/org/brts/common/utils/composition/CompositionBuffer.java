@@ -124,22 +124,33 @@ public class CompositionBuffer {
 		ImageFrame background = engine.copy(getImage(getBackgroundReference(), context.getFrameNumber()));
 		for (ImageComposition ic : configuration.getCompositions()) {
 			ImageReference ref = getReference(ic.getImageId());
-			ImageFrame overlay = getImage(ref, context.getFrameNumber());
+			ImageFrame sourceOverlay = getImage(ref, context.getFrameNumber());
+			int[] cropBounds = ic.computeCropBounds(context, sourceOverlay.width(), sourceOverlay.height());
+			ImageFrame croppedOverlay = cropBounds == null ? null
+					: engine.crop(sourceOverlay, cropBounds[0], cropBounds[1], cropBounds[2], cropBounds[3]);
+			ImageFrame overlay = croppedOverlay == null ? sourceOverlay : croppedOverlay;
 			double tlx = context.evalNumeric(ic.getTopLeft().getX());
 			double tly = context.evalNumeric(ic.getTopLeft().getY());
 			float opacity = (float) context.evalNumeric(ic.getOpacity(), 1.0);
 			opacity = Math.max(0.0f, Math.min(1.0f, opacity)); // clamp to [0, 1]
 			ImageFrame mask = resolveMask(ic);
-			// twoStepComposition was an attempt to improve quality of resizing and rotation, but it seems to
-			// have little discernible effect on quality, and it adds complexity and memory usage. So it is disabled by
-			// default.
-			if (twoStepComposition && ic.getResize() != null) {
-				overlay = getOrCreateResized(engine, ic, ref, overlay);
-				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
+			try {
+				// twoStepComposition was an attempt to improve quality of resizing and rotation, but it seems to
+				// have little discernible effect on quality, and it adds complexity and memory usage. So it is disabled
+				// by
+				// default.
+				boolean resizedBeforeComposition = false;
+				if (twoStepComposition && ic.getResize() != null) {
+					overlay = getOrCreateResized(engine, ic, ref, overlay, cropBounds);
+					resizedBeforeComposition = true;
+				}
+				engine.compose(background, overlay,
+						ic.toAffineTransform(context, overlay.width(), overlay.height(), !resizedBeforeComposition),
 						(int) tlx, (int) tly, opacity, mask);
-			} else {
-				engine.compose(background, overlay, ic.toAffineTransform(context, overlay.width(), overlay.height()),
-						(int) tlx, (int) tly, opacity, mask);
+			} finally {
+				if (croppedOverlay != null) {
+					croppedOverlay.close();
+				}
 			}
 		}
 		return background;
@@ -153,12 +164,14 @@ public class CompositionBuffer {
 	 * always produce the same output for a given target size; video/synthetic frames are keyed by frame number.
 	 */
 	private ImageFrame getOrCreateResized(CompositionEngine engine, ImageComposition ic, ImageReference ref,
-			ImageFrame overlay) {
+			ImageFrame overlay, int[] cropBounds) {
 		int[] targetSize = ic.computeTargetSize(context, overlay.width(), overlay.height());
 		int targetW = targetSize[0];
 		int targetH = targetSize[1];
 		String sourceKey = ref.isStatic() ? "s" : String.valueOf(context.getFrameNumber());
-		String cacheKey = ic.getImageId() + "|" + sourceKey + "|" + targetW + "x" + targetH;
+		String cropKey = cropBounds == null ? "full"
+				: cropBounds[0] + "," + cropBounds[1] + "," + cropBounds[2] + "x" + cropBounds[3];
+		String cacheKey = ic.getImageId() + "|" + sourceKey + "|" + cropKey + "|" + targetW + "x" + targetH;
 		return resizedImageCache.computeIfAbsent(cacheKey, k -> {
 			log.debug("Resizing overlay '{}' to {}x{} (cache miss, key={})", ic.getImageId(), targetW, targetH, k);
 			return engine.resize(overlay, targetW, targetH);

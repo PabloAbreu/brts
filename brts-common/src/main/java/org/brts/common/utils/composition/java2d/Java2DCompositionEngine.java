@@ -34,6 +34,15 @@ public class Java2DCompositionEngine implements CompositionEngine {
 	}
 
 	@Override
+	public ImageFrame crop(ImageFrame source, int x, int y, int width, int height) {
+		BufferedImage cropped = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+		Graphics2D graphics = cropped.createGraphics();
+		graphics.drawImage(source.toBufferedImage(), 0, 0, width, height, x, y, x + width, y + height, null);
+		graphics.dispose();
+		return new Java2DImageFrame(cropped);
+	}
+
+	@Override
 	public ImageFrame resize(ImageFrame source, int targetWidth, int targetHeight) {
 		BufferedImage src = source.toBufferedImage();
 		BufferedImage dst = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);

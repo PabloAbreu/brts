@@ -45,6 +45,7 @@
 		<opencv.version>4.13.0-1.5.13</opencv.version>
 		<opencv.platform>linux-x86_64</opencv.platform>
 		<batik.version>1.18</batik.version>
+		<freemarker.version>2.3.34</freemarker.version>
 
 		<!-- Plugin versions -->
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -165,6 +166,13 @@
 				<groupId>org.apache.xmlgraphics</groupId>
 				<artifactId>batik-codec</artifactId>
 				<version>${batik.version}</version>
+			</dependency>
+
+			<!-- Templating (FreeMarker) -->
+			<dependency>
+				<groupId>org.freemarker</groupId>
+				<artifactId>freemarker</artifactId>
+				<version>${freemarker.version}</version>
 			</dependency>
 
 			<!-- Testing -->

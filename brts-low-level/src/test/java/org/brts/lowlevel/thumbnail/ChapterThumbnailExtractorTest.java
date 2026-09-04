@@ -50,9 +50,9 @@ class ChapterThumbnailExtractorTest {
 		var selector = new ChapterThumbnailExtractor.ThumbnailCandidateSelector(8.0);
 		BufferedImage last = null;
 
-		for (int attempt = 1; attempt <= 4; attempt++) {
+		for (int attempt = 1; attempt <= ChapterThumbnailExtractor.MAX_CAPTURE_ATTEMPTS; attempt++) {
 			last = uniformImage(new Color(attempt, attempt, attempt));
-			assertThat(selector.consider(last)).isEqualTo(attempt == 4);
+			assertThat(selector.consider(last)).isEqualTo(attempt == ChapterThumbnailExtractor.MAX_CAPTURE_ATTEMPTS);
 		}
 		assertThat(selector.lastCandidate()).isSameAs(last);
 	}
