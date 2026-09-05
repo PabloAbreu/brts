@@ -1,4 +1,5 @@
 package org.brts.cli.low;
+
 import org.brts.common.test.sampledata.RequiresSamples;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,7 +13,7 @@ import org.brts.cli.LowLevelDispatcher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-@RequiresSamples({"PB/credits_template.svg.ftl", "PB/credits_tt31227572.json"})
+@RequiresSamples({ "PB/credits_template.svg.ftl", "PB/credits_tt31227572.json" })
 class TemplateCliTest {
 
 	@Test

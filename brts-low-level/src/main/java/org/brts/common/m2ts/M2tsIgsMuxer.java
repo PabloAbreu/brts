@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.brts.common.utils.Crc32Utils;
 import org.brts.lowlevel.igs.IgsParser;
 import org.brts.lowlevel.igs.IgsSegmentType;
 import org.brts.lowlevel.igs.model.IgsRawSegment;
@@ -347,7 +348,7 @@ public class M2tsIgsMuxer {
 		pat[10] = 0x01; // program_number = 1
 		pat[11] = (byte) (0xE0 | ((PMT_PID >> 8) & 0x1F));
 		pat[12] = (byte) (PMT_PID & 0xFF);
-		long crc = crc32(pat, 1, 12);
+		long crc = Crc32Utils.crc32(pat, 1, 12);
 		pat[13] = (byte) ((crc >> 24) & 0xFF);
 		pat[14] = (byte) ((crc >> 16) & 0xFF);
 		pat[15] = (byte) ((crc >> 8) & 0xFF);
@@ -396,7 +397,7 @@ public class M2tsIgsMuxer {
 
 		// CRC: from table_id (pmt[1]) through last ES descriptor byte (pmt[18 + esDesc.length - 1])
 		int crcDataLen = 18 + esDesc.length - 1;
-		long crc = crc32(pmt, 1, crcDataLen);
+		long crc = Crc32Utils.crc32(pmt, 1, crcDataLen);
 		int crcOff = 18 + esDesc.length;
 		pmt[crcOff] = (byte) ((crc >> 24) & 0xFF);
 		pmt[crcOff + 1] = (byte) ((crc >> 16) & 0xFF);
@@ -513,30 +514,6 @@ public class M2tsIgsMuxer {
 		int val = cc.getOrDefault(pid, 0);
 		cc.put(pid, (val + 1) & 0x0F);
 		return val;
-	}
-
-	// =========================================================================
-	// CRC-32 for MPEG-2 PSI tables (standard polynomial 0x04C11DB7)
-	// =========================================================================
-
-	private static final int[] CRC_TABLE;
-	static {
-		CRC_TABLE = new int[256];
-		for (int i = 0; i < 256; i++) {
-			int crc = i << 24;
-			for (int j = 0; j < 8; j++) {
-				crc = (crc << 1) ^ ((crc < 0) ? 0x04C11DB7 : 0);
-			}
-			CRC_TABLE[i] = crc;
-		}
-	}
-
-	private long crc32(byte[] data, int offset, int length) {
-		int crc = 0xFFFFFFFF;
-		for (int i = offset; i < offset + length; i++) {
-			crc = (crc << 8) ^ CRC_TABLE[((crc >> 24) ^ (data[i] & 0xFF)) & 0xFF];
-		}
-		return crc & 0xFFFFFFFFL;
 	}
 
 }

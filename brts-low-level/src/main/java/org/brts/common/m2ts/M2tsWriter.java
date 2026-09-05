@@ -15,6 +15,7 @@ import java.util.Map;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.Crc32Utils;
 import org.brts.common.model.Timestamp;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
@@ -481,7 +482,7 @@ public class M2tsWriter {
 		fullPayload[12] = (byte) (pmtPid & 0xFF);
 		// CRC (4 bytes, simplified: write zeros — players are tolerant during
 		// authoring)
-		long crc = crc32(fullPayload, 1, 12);
+		long crc = Crc32Utils.crc32(fullPayload, 1, 12);
 		fullPayload[13] = (byte) ((crc >> 24) & 0xFF);
 		fullPayload[14] = (byte) ((crc >> 16) & 0xFF);
 		fullPayload[15] = (byte) ((crc >> 8) & 0xFF);
@@ -542,7 +543,7 @@ public class M2tsWriter {
 		pmtBytes[sectionLenOffset] = (byte) (sectionLen & 0xFF);
 
 		// Compute CRC over table_id..last_byte_before_CRC
-		long crc = crc32(pmtBytes, 1, pmtBytes.length - 5);
+		long crc = Crc32Utils.crc32(pmtBytes, 1, pmtBytes.length - 5);
 		int crcOff = pmtBytes.length - 4;
 		pmtBytes[crcOff] = (byte) ((crc >> 24) & 0xFF);
 		pmtBytes[crcOff + 1] = (byte) ((crc >> 16) & 0xFF);
@@ -868,30 +869,6 @@ public class M2tsWriter {
 		int val = cc.getOrDefault(pid, 0);
 		cc.put(pid, (val + 1) & 0x0F);
 		return val;
-	}
-
-	// -------------------------------------------------------------------------
-	// CRC-32 for MPEG-2 PSI tables
-	// -------------------------------------------------------------------------
-
-	private static final int[] CRC_TABLE;
-	static {
-		CRC_TABLE = new int[256];
-		for (int i = 0; i < 256; i++) {
-			int crc = i << 24;
-			for (int j = 0; j < 8; j++) {
-				crc = (crc << 1) ^ ((crc < 0) ? 0x04C11DB7 : 0);
-			}
-			CRC_TABLE[i] = crc;
-		}
-	}
-
-	private long crc32(byte[] data, int offset, int length) {
-		int crc = 0xFFFFFFFF;
-		for (int i = offset; i < offset + length; i++) {
-			crc = (crc << 8) ^ CRC_TABLE[((crc >> 24) ^ (data[i] & 0xFF)) & 0xFF];
-		}
-		return crc & 0xFFFFFFFFL;
 	}
 
 	// =========================================================================

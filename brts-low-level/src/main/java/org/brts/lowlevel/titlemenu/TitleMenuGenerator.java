@@ -6,8 +6,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.m2ts.AudioChannelLayoutConverter;
+import org.brts.common.m2ts.IStreamInfo;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsClipWriterImpl;
@@ -23,7 +23,6 @@ import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
-import org.brts.common.utils.paths.BrPath;
 import org.brts.common.utils.paths.BrPath.BdmvPath;
 import org.brts.common.utils.paths.BrPath.BrRoot;
 import org.brts.common.utils.paths.BrPath.ClipinfPath;
@@ -66,14 +65,15 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <pre>
  * outputDir/
- *   STREAM/
- *     &lt;outputBackgroundName&gt;.m2ts
- *     &lt;outputMenuName&gt;.m2ts
- *   CLIPINF/
- *     &lt;outputBackgroundName&gt;.clpi
- *     &lt;outputMenuName&gt;.clpi
- *   PLAYLIST/
- *     &lt;outputPlaylistName&gt;.mpls
+ *   BDMV/
+ *     STREAM/
+ *       &lt;outputBackgroundName&gt;.m2ts
+ *       &lt;outputMenuName&gt;.m2ts
+ *     CLIPINF/
+ *       &lt;outputBackgroundName&gt;.clpi
+ *       &lt;outputMenuName&gt;.clpi
+ *     PLAYLIST/
+ *       &lt;outputPlaylistName&gt;.mpls
  * </pre>
  */
 @Slf4j
