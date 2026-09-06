@@ -9,6 +9,7 @@ import java.util.List;
 import org.brts.lowlevel.igs.model.IgsBog;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
@@ -147,6 +148,94 @@ class TitleMenuIgsBuilderTest {
 		desc.setTitles(titles);
 
 		return desc;
+	}
+
+	@Test
+	void build_placesSettingsButtonAtBottomRight() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(2);
+		descriptor.setAudioItems(List.of(audioItem("English", 1), audioItem("French", 2)));
+		descriptor.setSubtitleItems(List.of(subtitleItem("Off", 0), subtitleItem("English", 1)));
+		TextListLayout layout = new TextListLayout();
+		LayoutResult layoutResult = layout.layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+		IgsButton settingsButton = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1)
+				.getBogs().get(2).getButtons().get(0);
+
+		var rendered = org.brts.common.menu.TextRenderer.renderTextButton(
+				org.brts.common.utils.BrtsI18NLabels.getLabel(org.brts.common.utils.BrtsI18NLabels.MENU_SETTINGS),
+				new org.brts.common.menu.TextStyle().withDefaults(), 800);
+		assertThat(settingsButton.getXPos()).isEqualTo(descriptor.getScreenWidth() - rendered.width() - 40);
+		assertThat(settingsButton.getYPos()).isEqualTo(descriptor.getScreenHeight() - rendered.height() - 80);
+	}
+
+	@Test
+	void build_withoutSettingsItems_producesOnlyStartupAndMenuPages() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(2);
+		TextListLayout layout = new TextListLayout();
+		LayoutResult layoutResult = layout.layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+
+		assertThat(displaySet.getCompositionSegment().getInteractiveComposition().getPages()).hasSize(2);
+	}
+
+	@Test
+	void build_withAudioAndSubtitleItems_addsSettingsButtonAndThreeExtraPages() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(2);
+		descriptor.setAudioItems(List.of(audioItem("English", 1), audioItem("French", 2)));
+		descriptor.setSubtitleItems(List.of(subtitleItem("Off", 0), subtitleItem("English", 1)));
+		TextListLayout layout = new TextListLayout();
+		LayoutResult layoutResult = layout.layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+
+		var pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		// startup(0) + menu(1) + settings root(2) + audio list(3) + subtitle list(4)
+		assertThat(pages).hasSize(5);
+
+		// menu page (id=1) now has 3 bogs: 2 titles + 1 settings button
+		List<IgsBog> menuBogs = pages.get(1).getBogs();
+		assertThat(menuBogs).hasSize(3);
+		IgsButton settingsButton = menuBogs.get(2).getButtons().get(0);
+		assertThat(settingsButton.getNavigationCommands()).last().extracting(NavigationCommand::getMnemonic)
+				.isEqualTo("SET_BUTTON_PAGE");
+
+		// audio list page (id=3): 2 track buttons + 1 back button
+		assertThat(pages.get(3).getBogs()).hasSize(3);
+		// subtitle list page (id=4): 2 track buttons + 1 back button
+		assertThat(pages.get(4).getBogs()).hasSize(3);
+	}
+
+	@Test
+	void build_withOnlyAudioItems_collapsesToSingleSettingsPage() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(1);
+		descriptor.setAudioItems(List.of(audioItem("English", 1), audioItem("French", 2)));
+		TextListLayout layout = new TextListLayout();
+		LayoutResult layoutResult = layout.layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+
+		var pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		// startup(0) + menu(1) + audio list collapsed as entry page(2)
+		assertThat(pages).hasSize(3);
+		assertThat(pages.get(2).getBogs()).hasSize(3); // 2 tracks + back
+	}
+
+	private static org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem audioItem(String description,
+			int streamNumber) {
+		var item = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+		item.setDescription(description);
+		item.setStreamNumber(streamNumber);
+		return item;
+	}
+
+	private static org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem subtitleItem(String description,
+			int streamNumber) {
+		var item = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+		item.setDescription(description);
+		item.setStreamNumber(streamNumber);
+		return item;
 	}
 
 }

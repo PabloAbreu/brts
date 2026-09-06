@@ -32,6 +32,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 /**
+ *
+ * Work in progress. This class is mostly useless for now (along with SetupMenuIgsBuilder), since the used setAudio and
+ * setSubtitle commands change streams for the menu itself, not for the launchable titles.
+ *
+ *
  * Top-level orchestrator for setup menu M2TS generation.
  * <p>
  * Coordinates the full pipeline:

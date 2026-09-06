@@ -1,9 +1,14 @@
 package org.brts.middle.descriptor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
+import org.brts.middle.menu.descriptor.AudioMenuItem;
+import org.brts.middle.menu.descriptor.SubtitleMenuItem;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -67,5 +72,15 @@ public class TitleMenuConfig {
 	 * defaults) is used directly.
 	 */
 	private TextStyle style;
+
+	/**
+	 * Audio track selection items for an embedded settings submenu on the title menu (raw 1-based stream numbers,
+	 * consistent across all titles' source media). When non-empty (together with {@link #subtitleItems}), a "Settings"
+	 * button is added to the generated title menu.
+	 */
+	private List<AudioMenuItem> audioItems = new ArrayList<>();
+
+	/** Subtitle track selection items for the embedded settings submenu (0 = subtitles off). */
+	private List<SubtitleMenuItem> subtitleItems = new ArrayList<>();
 
 }

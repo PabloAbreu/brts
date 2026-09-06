@@ -1,10 +1,21 @@
 package org.brts.lowlevel.titlemenu;
 
+import static org.brts.common.utils.BrtsI18NLabels.MENU_BACK;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_SETTINGS;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_AUDIO;
+import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_SUBTITLES;
+import static org.brts.common.utils.BrtsI18NLabels.getLabel;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setAudioChoice;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setButtonPage;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setSubtitleChoice;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.menu.TextRenderer;
+import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.igs.IgsMenuAssembler;
 import org.brts.lowlevel.igs.PaletteBuilder;
@@ -18,10 +29,13 @@ import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.popupmenu.SymbolicButton;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.NavigationOverride;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
+import org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
+import org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult.PositionedButton;
 
@@ -44,6 +58,20 @@ public class TitleMenuIgsBuilder {
 	// has no effect on decoding by players, but matches the button IDs used in the JUMP_TITLE
 	// commands emitted by the layout algorithms
 	private static final int BUTTON_BASE_ID = 1;
+
+	/** Page id of the title-selection menu (page 0 is the startup auto-action page). */
+	private static final int MAIN_MENU_PAGE_ID = 1;
+
+	/** Entry page id for the settings submenu (root category page, or the single list page when only one category). */
+	private static final int SETTINGS_ENTRY_PAGE_ID = 2;
+
+	private static final int SETTINGS_BUTTON_HEIGHT = 40;
+
+	private static final int SETTINGS_BUTTON_MAX_WIDTH = 800;
+
+	private static final int SETTINGS_BUTTON_SPACING_Y = 8;
+
+	private static final int SETTINGS_MARGIN_BOTTOM = 80;
 
 	/**
 	 * Builds the complete display set from the layout result.
@@ -68,14 +96,6 @@ public class TitleMenuIgsBuilder {
 			allImages.add(btn.getSelectedImage());
 			allImages.add(btn.getActivatedImage());
 		}
-
-		// ── Build palette ───────────────────────────────────────────────────
-
-		IgsPalette palette = PaletteBuilder.buildFromImages(0, allImages.toArray(new BufferedImage[0]));
-
-		// ── RLE-encode all images into IgsObjects ───────────────────────────
-
-		List<IgsObject> objects = IgsMenuAssembler.buildObjectsFromImages(allImages, palette);
 
 		// ── Build BOGs with navigation commands ─────────────────────────────
 
@@ -114,6 +134,61 @@ public class TitleMenuIgsBuilder {
 
 		wireNeighbours(bogs, buttons, descriptor);
 
+		// ── Optional Settings button + submenu pages (audio/subtitle GPR selection) ─
+
+		boolean hasAudioItems = descriptor.getAudioItems() != null && !descriptor.getAudioItems().isEmpty();
+		boolean hasSubtitleItems = descriptor.getSubtitleItems() != null && !descriptor.getSubtitleItems().isEmpty();
+		List<IgsPage> settingsPages = List.of();
+		if (hasAudioItems || hasSubtitleItems) {
+			int settingsButtonId = buttons.size() + BUTTON_BASE_ID;
+			TextStyle settingsStyle = resolveSettingsStyle(descriptor);
+			TextRenderer.ButtonImages settingsImages = TextRenderer.renderTextButton(getLabel(MENU_SETTINGS),
+					settingsStyle, SETTINGS_BUTTON_MAX_WIDTH);
+			int settingsObjBase = allImages.size();
+			allImages.add(settingsImages.normal());
+			allImages.add(settingsImages.selected());
+			allImages.add(settingsImages.activated());
+
+			int settingsX = screenW - settingsImages.width() - 40;
+			int settingsY = screenH - settingsImages.height() - SETTINGS_MARGIN_BOTTOM;
+
+			IgsButton settingsBtn = new IgsButton();
+			settingsBtn.setId(settingsButtonId);
+			settingsBtn.setNumericSelectValue(0xFFFF);
+			settingsBtn.setAutoAction(false);
+			settingsBtn.setXPos(settingsX);
+			settingsBtn.setYPos(settingsY);
+			IgsMenuAssembler.bindButtonVisualStates(settingsBtn, settingsObjBase, settingsObjBase + 1,
+					settingsObjBase + 2);
+			settingsBtn.setNavigationCommands(setButtonPage(SETTINGS_ENTRY_PAGE_ID, 1));
+			// self-loop by default; linked to the last title button below when present
+			settingsBtn.setUpperButtonIdRef(settingsButtonId);
+			settingsBtn.setLowerButtonIdRef(settingsButtonId);
+			settingsBtn.setLeftButtonIdRef(settingsButtonId);
+			settingsBtn.setRightButtonIdRef(settingsButtonId);
+			if (!bogs.isEmpty()) {
+				IgsButton lastTitleBtn = bogs.get(bogs.size() - 1).getButtons().get(0);
+				lastTitleBtn.setLowerButtonIdRef(settingsButtonId);
+				settingsBtn.setUpperButtonIdRef(lastTitleBtn.getId());
+			}
+
+			IgsBog settingsBog = new IgsBog();
+			settingsBog.setDefaultValidButtonIdRef(settingsButtonId);
+			settingsBog.getButtons().add(settingsBtn);
+			bogs.add(settingsBog);
+
+			settingsPages = buildSettingsPages(descriptor, allImages.size(), settingsButtonId, hasAudioItems,
+					hasSubtitleItems, settingsStyle, allImages);
+		}
+
+		// ── Build palette ───────────────────────────────────────────────────
+
+		IgsPalette palette = PaletteBuilder.buildFromImages(0, allImages.toArray(new BufferedImage[0]));
+
+		// ── RLE-encode all images into IgsObjects ───────────────────────────
+
+		List<IgsObject> objects = IgsMenuAssembler.buildObjectsFromImages(allImages, palette);
+
 		// ── Build IGS pages ─────────────────────────────────────────────────
 
 		IgsPage menuPage = buildMenuPage(bogs, hasStartupPage ? 1 : 0, buttons.isEmpty() ? 0xFFFF : BUTTON_BASE_ID);
@@ -131,6 +206,7 @@ public class TitleMenuIgsBuilder {
 			ic.getPages().add(buildStartupPage());
 		}
 		ic.getPages().add(menuPage);
+		ic.getPages().addAll(settingsPages);
 
 		// ── Build ICS ───────────────────────────────────────────────────────
 
@@ -265,6 +341,85 @@ public class TitleMenuIgsBuilder {
 		page.setPaletteIdRef(0);
 		page.setBogs(bogs);
 		return page;
+	}
+
+	// ── Settings submenu (audio/subtitle GPR selection) ─────────────────────
+
+	/**
+	 * Builds the settings submenu pages: a root category page (page {@value #SETTINGS_ENTRY_PAGE_ID}, only when both
+	 * categories are present) plus one list page per non-empty category. When only one category is present, the entry
+	 * page IS that category's list page (no root hop). Rendered button images are appended to {@code allImages} so
+	 * their object ids match the returned pages.
+	 */
+	private List<IgsPage> buildSettingsPages(TitleMenuDescriptor descriptor, int objectBase, int settingsButtonId,
+			boolean hasAudioItems, boolean hasSubtitleItems, TextStyle style, List<BufferedImage> allImages)
+			throws IOException {
+		List<TitleMenuAudioItem> audioItems = hasAudioItems ? descriptor.getAudioItems() : List.of();
+		List<TitleMenuSubtitleItem> subtitleItems = hasSubtitleItems ? descriptor.getSubtitleItems() : List.of();
+
+		List<List<SymbolicButton>> symbolicPages = new ArrayList<>();
+		if (hasAudioItems && hasSubtitleItems) {
+			int audioPageId = SETTINGS_ENTRY_PAGE_ID + 1;
+			int subtitlePageId = SETTINGS_ENTRY_PAGE_ID + 2;
+
+			List<SymbolicButton> root = new ArrayList<>();
+			root.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(audioPageId, 1)));
+			root.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(subtitlePageId, 1)));
+			root.add(new SymbolicButton(getLabel(MENU_BACK), setButtonPage(MAIN_MENU_PAGE_ID, settingsButtonId)));
+			symbolicPages.add(root);
+
+			symbolicPages.add(audioListButtons(audioItems, setButtonPage(SETTINGS_ENTRY_PAGE_ID, 1)));
+			symbolicPages.add(subtitleListButtons(subtitleItems, setButtonPage(SETTINGS_ENTRY_PAGE_ID, 1)));
+		} else if (hasAudioItems) {
+			symbolicPages.add(audioListButtons(audioItems, setButtonPage(MAIN_MENU_PAGE_ID, settingsButtonId)));
+		} else {
+			symbolicPages.add(subtitleListButtons(subtitleItems, setButtonPage(MAIN_MENU_PAGE_ID, settingsButtonId)));
+		}
+
+		List<IgsPage> pages = new ArrayList<>();
+		int currentObjectBase = objectBase;
+		for (int i = 0; i < symbolicPages.size(); i++) {
+			List<IgsMenuAssembler.LabeledButton> labeled = new ArrayList<>();
+			for (SymbolicButton button : symbolicPages.get(i)) {
+				TextRenderer.ButtonImages images = TextRenderer.renderTextButton(button.text(), style,
+						SETTINGS_BUTTON_MAX_WIDTH);
+				allImages.add(images.normal());
+				allImages.add(images.selected());
+				allImages.add(images.activated());
+				labeled.add(new IgsMenuAssembler.LabeledButton(images, button.commands()));
+			}
+			pages.add(
+					IgsMenuAssembler.buildVerticalButtonListPage(SETTINGS_ENTRY_PAGE_ID + i, labeled, currentObjectBase,
+							descriptor.getScreenWidth(), descriptor.getScreenHeight(), SETTINGS_BUTTON_HEIGHT,
+							SETTINGS_BUTTON_MAX_WIDTH, SETTINGS_BUTTON_SPACING_Y, SETTINGS_MARGIN_BOTTOM));
+			currentObjectBase += labeled.size() * 3;
+		}
+		return pages;
+	}
+
+	private static List<SymbolicButton> audioListButtons(List<TitleMenuAudioItem> items,
+			List<NavigationCommand> backCommands) {
+		List<SymbolicButton> buttons = new ArrayList<>();
+		for (TitleMenuAudioItem item : items) {
+			buttons.add(new SymbolicButton(item.getDescription(), setAudioChoice(item.getStreamNumber())));
+		}
+		buttons.add(new SymbolicButton(getLabel(MENU_BACK), backCommands));
+		return buttons;
+	}
+
+	private static List<SymbolicButton> subtitleListButtons(List<TitleMenuSubtitleItem> items,
+			List<NavigationCommand> backCommands) {
+		List<SymbolicButton> buttons = new ArrayList<>();
+		for (TitleMenuSubtitleItem item : items) {
+			buttons.add(new SymbolicButton(item.getDescription(), setSubtitleChoice(item.getStreamNumber())));
+		}
+		buttons.add(new SymbolicButton(getLabel(MENU_BACK), backCommands));
+		return buttons;
+	}
+
+	private static TextStyle resolveSettingsStyle(TitleMenuDescriptor descriptor) {
+		TextStyle style = descriptor.getLayout().getTitleStyle();
+		return style != null ? style.withDefaults() : new TextStyle().withDefaults();
 	}
 
 }

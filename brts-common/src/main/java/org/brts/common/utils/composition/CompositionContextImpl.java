@@ -67,7 +67,7 @@ public class CompositionContextImpl implements CompositionContext {
 		if (constants != null)
 			constants.forEach(this::setVariable);
 		this.basePath = Paths.get((String) eval(ObjectExpression.expr("${basePath}")));
-		log.debug("Initialized CompositionContextImpl with frameNumber={}, basePath={}", frameNumber, this.basePath);
+		log.trace("Initialized CompositionContextImpl with frameNumber={}, basePath={}", frameNumber, this.basePath);
 	}
 
 	public void setVariable(String name, Expression value) {

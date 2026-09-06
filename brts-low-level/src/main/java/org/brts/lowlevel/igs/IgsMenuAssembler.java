@@ -4,17 +4,21 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.menu.TextRenderer;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
+import org.brts.lowlevel.igs.model.IgsBog;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsCompositionSegment;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
 import org.brts.lowlevel.igs.model.IgsObject;
+import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.igs.model.SequenceDescriptor;
 import org.brts.lowlevel.igs.model.VideoDescriptor;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
 /**
  * Shared assembly helpers for menu-style IGS builders (popup, title, setup menus), factoring out the boilerplate that
@@ -132,6 +136,61 @@ public final class IgsMenuAssembler {
 			button.setLeftButtonIdRef(selfId);
 			button.setRightButtonIdRef(selfId);
 		}
+	}
+
+	/** A single labeled button ready for page assembly: its rendered state images and its navigation commands. */
+	public record LabeledButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands) {
+	}
+
+	/**
+	 * Builds a simple vertically-stacked, wrap-wired button list page (used by popup and title-menu settings submenus):
+	 * buttons are centered horizontally and stacked bottom-up ending at {@code marginBottom}, sharing object ids
+	 * starting at {@code objectBase} (3 per button: normal/selected/activated).
+	 */
+	public static IgsPage buildVerticalButtonListPage(int pageId, List<LabeledButton> buttons, int objectBase,
+			int screenW, int screenH, int buttonHeight, int buttonMaxWidth, int buttonSpacingY, int marginBottom) {
+		int totalButtons = buttons.size();
+		int totalHeight = totalButtons * buttonHeight + (totalButtons - 1) * buttonSpacingY;
+		int startY = screenH - marginBottom - totalHeight;
+		int groupX = Math.max(40, Math.min((screenW - buttonMaxWidth) / 2, screenW - buttonMaxWidth - 40));
+
+		List<IgsBog> bogs = new ArrayList<>();
+		for (int i = 0; i < totalButtons; i++) {
+			int buttonId = i + 1; // 1-based
+			int normalObjId = objectBase + i * 3;
+			int selectedObjId = objectBase + i * 3 + 1;
+			int activatedObjId = objectBase + i * 3 + 2;
+
+			int y = startY + i * (buttonHeight + buttonSpacingY);
+
+			IgsButton btn = new IgsButton();
+			btn.setId(buttonId);
+			btn.setNumericSelectValue(0xFFFF);
+			btn.setAutoAction(false);
+			btn.setXPos(groupX);
+			btn.setYPos(y);
+
+			bindButtonVisualStates(btn, normalObjId, selectedObjId, activatedObjId);
+			btn.setNavigationCommands(buttons.get(i).commands());
+
+			IgsBog bog = new IgsBog();
+			bog.setDefaultValidButtonIdRef(buttonId);
+			bog.getButtons().add(btn);
+			bogs.add(bog);
+		}
+
+		wireVerticalWrapNeighbours(bogs.stream().map(b -> b.getButtons().get(0)).toList());
+
+		IgsPage page = new IgsPage();
+		page.setId(pageId);
+		page.setVersion(0);
+		page.setUoMaskTable(new byte[8]);
+		page.setAnimationFrameRateCode(0);
+		page.setDefaultSelectedButtonIdRef(1);
+		page.setDefaultActivatedButtonIdRef(0xFFFF);
+		page.setPaletteIdRef(0);
+		page.setBogs(bogs);
+		return page;
 	}
 
 }

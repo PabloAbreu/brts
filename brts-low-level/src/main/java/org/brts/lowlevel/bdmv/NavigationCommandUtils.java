@@ -2,6 +2,7 @@ package org.brts.lowlevel.bdmv;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntFunction;
 
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
@@ -15,6 +16,10 @@ import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 public class NavigationCommandUtils {
 	private static final int GPR_BUTTON = 1234;
 	private static final int GPR_PAGE = 1235;
+	/** Persists the user's chosen 1-based audio stream index across titles (set by a title-menu settings submenu). */
+	public static final int GPR_AUDIO_CHOICE = 1236;
+	/** Persists the user's chosen subtitle stream index (0 = off) across titles. */
+	public static final int GPR_SUB_CHOICE = 1237;
 
 	public static List<NavigationCommand> setButtonPage(int page, int button) {
 		return list(ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, GPR_BUTTON, false, button, true),
@@ -79,5 +84,83 @@ public class NavigationCommandUtils {
 	/** RESUME command (no operands). */
 	public static List<NavigationCommand> resume() {
 		return cmdList(NavigationCommandMnemonic.RESUME, 0, false, 0, false);
+	}
+
+	/** Writes the chosen 1-based audio stream index to {@link #GPR_AUDIO_CHOICE} (read later by title MovieObjects). */
+	public static List<NavigationCommand> setAudioChoice(int streamIndex) {
+		return cmdList(NavigationCommandMnemonic.MOVE, GPR_AUDIO_CHOICE, false, streamIndex, true);
+	}
+
+	/** Writes the chosen subtitle stream index (0 = off) to {@link #GPR_SUB_CHOICE}. */
+	public static List<NavigationCommand> setSubtitleChoice(int streamIndex) {
+		return cmdList(NavigationCommandMnemonic.MOVE, GPR_SUB_CHOICE, false, streamIndex, true);
+	}
+
+	/**
+	 * Builds a branch program on a single GPR: for each candidate value in {@code [minChoice, maxChoiceInclusive]}, if
+	 * the GPR equals that value the corresponding single-command action executes, otherwise the next candidate is
+	 * tried; if none match, execution falls through with no side effect.
+	 * <p>
+	 * Relies on the EQ "skip next instruction if false" HDMV semantics (see {@code NavigationCommandSimulator}), so the
+	 * whole program can be assembled in one forward pass with no backpatching: for {@code count} candidates the compare
+	 * chain occupies {@code 2*count} instructions, followed by one unconditional GOTO guarding the "no match"
+	 * fallthrough (otherwise falling out of the chain would run straight into the first action block), then
+	 * {@code count} action blocks of 2 instructions each (action + GOTO to the continuation point), for a total length
+	 * of {@code 4*count+1}.
+	 *
+	 * @param startOffset absolute instruction index (in the enclosing command list) where this program begins
+	 */
+	public static List<NavigationCommand> buildGprBranchProgram(int startOffset, int gprIndex, int minChoice,
+			int maxChoiceInclusive, IntFunction<List<NavigationCommand>> actionForChoice) {
+		int count = maxChoiceInclusive - minChoice + 1;
+		if (count <= 0) {
+			return List.of();
+		}
+		List<NavigationCommand> program = new ArrayList<>(count * 4 + 1);
+		int actionsStart = startOffset + count * 2 + 1; // +1 for the no-match guard GOTO added below
+		int after = actionsStart + count * 2;
+		for (int i = 0; i < count; i++) {
+			int choice = minChoice + i;
+			int actionStart = actionsStart + i * 2;
+			program.add(NavigationCommand.fromParsed(
+					ParsedNavigationCommand.compile(NavigationCommandMnemonic.EQ, gprIndex, false, choice, true)));
+			program.add(NavigationCommand.fromParsed(
+					ParsedNavigationCommand.compile(NavigationCommandMnemonic.GOTO, actionStart, true, 0, false)));
+		}
+		// no candidate matched: skip past the action blocks instead of falling into the first one
+		program.add(NavigationCommand
+				.fromParsed(ParsedNavigationCommand.compile(NavigationCommandMnemonic.GOTO, after, true, 0, false)));
+		for (int i = 0; i < count; i++) {
+			int choice = minChoice + i;
+			List<NavigationCommand> action = actionForChoice.apply(choice);
+			if (action.size() != 1) {
+				throw new IllegalArgumentException(
+						"GPR branch action for choice " + choice + " must be a single command");
+			}
+			program.add(action.get(0));
+			program.add(NavigationCommand.fromParsed(
+					ParsedNavigationCommand.compile(NavigationCommandMnemonic.GOTO, after, true, 0, false)));
+		}
+		return program;
+	}
+
+	/**
+	 * Builds the combined per-title stream-selection program: applies {@link #setAudio} for the audio choice stored in
+	 * {@link #GPR_AUDIO_CHOICE} (1..audioTrackCount) and {@link #setSubtitle} for the subtitle choice stored in
+	 * {@link #GPR_SUB_CHOICE} (0..subtitleTrackCount, 0 = off). A track count of 0 skips that program entirely (default
+	 * stream stays in effect).
+	 */
+	public static List<NavigationCommand> buildAudioSubtitleSelectionProgram(int audioTrackCount,
+			int subtitleTrackCount) {
+		List<NavigationCommand> program = new ArrayList<>();
+		if (audioTrackCount > 0) {
+			program.addAll(buildGprBranchProgram(program.size(), GPR_AUDIO_CHOICE, 1, audioTrackCount,
+					NavigationCommandUtils::setAudio));
+		}
+		if (subtitleTrackCount > 0) {
+			program.addAll(buildGprBranchProgram(program.size(), GPR_SUB_CHOICE, 0, subtitleTrackCount,
+					NavigationCommandUtils::setSubtitle));
+		}
+		return program;
 	}
 }

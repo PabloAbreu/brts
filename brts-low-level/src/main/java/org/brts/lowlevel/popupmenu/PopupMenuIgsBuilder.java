@@ -20,8 +20,6 @@ import org.brts.common.menu.TextRenderer.ButtonImages;
 import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.igs.IgsMenuAssembler;
 import org.brts.lowlevel.igs.PaletteBuilder;
-import org.brts.lowlevel.igs.model.IgsBog;
-import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsCompositionSegment;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
@@ -221,50 +219,10 @@ public class PopupMenuIgsBuilder {
 	// ── Page builder ────────────────────────────────────────────────────────
 
 	private IgsPage buildPage(int pageId, List<ButtonSpec> specs, int objectBase, int screenW, int screenH) {
-		int totalButtons = specs.size();
-		int totalHeight = totalButtons * BUTTON_HEIGHT + (totalButtons - 1) * BUTTON_SPACING_Y;
-		int startY = screenH - MARGIN_BOTTOM - totalHeight;
-		int groupX = Math.max(40, Math.min((screenW - BUTTON_MAX_WIDTH) / 2, screenW - BUTTON_MAX_WIDTH - 40));
-
-		List<IgsBog> bogs = new ArrayList<>();
-		for (int i = 0; i < totalButtons; i++) {
-			int buttonId = i + 1; // 1-based
-			int normalObjId = objectBase + i * 3;
-			int selectedObjId = objectBase + i * 3 + 1;
-			int activatedObjId = objectBase + i * 3 + 2;
-
-			int y = startY + i * (BUTTON_HEIGHT + BUTTON_SPACING_Y);
-
-			IgsButton btn = new IgsButton();
-			btn.setId(buttonId);
-			btn.setNumericSelectValue(0xFFFF);
-			btn.setAutoAction(false);
-			btn.setXPos(groupX);
-			btn.setYPos(y);
-
-			IgsMenuAssembler.bindButtonVisualStates(btn, normalObjId, selectedObjId, activatedObjId);
-
-			btn.setNavigationCommands(specs.get(i).commands());
-
-			IgsBog bog = new IgsBog();
-			bog.setDefaultValidButtonIdRef(buttonId);
-			bog.getButtons().add(btn);
-			bogs.add(bog);
-		}
-
-		IgsMenuAssembler.wireVerticalWrapNeighbours(bogs.stream().map(b -> b.getButtons().get(0)).toList());
-
-		IgsPage page = new IgsPage();
-		page.setId(pageId);
-		page.setVersion(0);
-		page.setUoMaskTable(new byte[8]);
-		page.setAnimationFrameRateCode(0);
-		page.setDefaultSelectedButtonIdRef(1);
-		page.setDefaultActivatedButtonIdRef(0xFFFF);
-		page.setPaletteIdRef(0);
-		page.setBogs(bogs);
-
-		return page;
+		List<IgsMenuAssembler.LabeledButton> buttons = specs.stream()
+				.map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands())).toList();
+		return IgsMenuAssembler.buildVerticalButtonListPage(pageId, buttons, objectBase, screenW, screenH,
+				BUTTON_HEIGHT, BUTTON_MAX_WIDTH, BUTTON_SPACING_Y, MARGIN_BOTTOM);
 	}
 
 	// ── Style ───────────────────────────────────────────────────────────────

@@ -102,6 +102,12 @@ public class MiddleLevelOrchestrator {
 		int nbTitles = disc.getTitles().size();
 		Set<Integer> titleIds = new HashSet<>();
 
+		boolean generateTitleMenu = nbTitles > 1 && disc.getTitleMenuConfig() != null;
+		TitleMenuConfig menuConfig = generateTitleMenu ? disc.getTitleMenuConfig() : null;
+		boolean generateStreamSelectionProgram = menuConfig != null
+				&& ((menuConfig.getAudioItems() != null && !menuConfig.getAudioItems().isEmpty())
+						|| (menuConfig.getSubtitleItems() != null && !menuConfig.getSubtitleItems().isEmpty()));
+
 		// Resolve disc-wide popup style: popupStyle merged over global style (null-safe)
 		TextStyle resolvedPopupStyle = resolvePopupStyle(disc);
 		File popupStyleFile = null;
@@ -146,9 +152,15 @@ public class MiddleLevelOrchestrator {
 			titles.add(entry);
 			MovieObject movieObject = new MovieObject();
 			movieObject.setResumeIntentionFlag(true);
-			movieObject.setNavigationCommands(List.of(
-					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, true),
-					NavigationCommand.compile(NavigationCommandMnemonic.BREAK, 0, false, 0, false)));
+			List<NavigationCommand> navigationCommands = new ArrayList<>();
+			if (generateStreamSelectionProgram) {
+				navigationCommands.addAll(NavigationCommandUtils.buildAudioSubtitleSelectionProgram(
+						countAudioTracks(result.mediaInfo(), title), countSubtitleTracks(result.mediaInfo(), title)));
+			}
+			navigationCommands.add(
+					NavigationCommand.compile(NavigationCommandMnemonic.PLAY_PL, title.getTitleId(), true, 0, true));
+			navigationCommands.add(NavigationCommand.compile(NavigationCommandMnemonic.BREAK, 0, false, 0, false));
+			movieObject.setNavigationCommands(navigationCommands);
 			movieObjects.add(movieObject);
 		}
 
@@ -158,10 +170,7 @@ public class MiddleLevelOrchestrator {
 		MovieObject firstPlayMovieObject = new MovieObject();
 		firstPlayMovieObject.setResumeIntentionFlag(true);
 
-		boolean generateTitleMenu = nbTitles > 1 && disc.getTitleMenuConfig() != null;
-
 		if (generateTitleMenu) {
-			TitleMenuConfig menuConfig = disc.getTitleMenuConfig();
 			TitleMenuDescriptor menuDescriptor = buildTitleMenuDescriptor(disc, menuConfig);
 
 			// Write descriptor to file so the CLI can reference it
@@ -256,6 +265,19 @@ public class MiddleLevelOrchestrator {
 		descriptor.setOutputMenuName(menuConfig.getOutputMenuName());
 		descriptor.setOutputPlaylistName(menuConfig.getOutputPlaylistName());
 		descriptor.setBackgroundLoopCount(menuConfig.getBackgroundLoopCount());
+
+		descriptor.setAudioItems(menuConfig.getAudioItems().stream().map(item -> {
+			org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+			menuItem.setDescription(item.getDescription());
+			menuItem.setStreamNumber(item.getStreamNumber());
+			return menuItem;
+		}).toList());
+		descriptor.setSubtitleItems(menuConfig.getSubtitleItems().stream().map(item -> {
+			org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+			menuItem.setDescription(item.getDescription());
+			menuItem.setStreamNumber(item.getStreamNumber());
+			return menuItem;
+		}).toList());
 
 		return descriptor;
 	}
@@ -357,22 +379,32 @@ public class MiddleLevelOrchestrator {
 	}
 
 	private boolean shouldAutoGeneratePopup(SourceMediaInfo mediaInfo, TitleDescriptor title) {
-		if (mediaInfo == null || mediaInfo.getTracks() == null) {
-			return false;
-		}
+		return countAudioTracks(mediaInfo, title) > 1 || countSubtitleTracks(mediaInfo, title) > 1;
+	}
 
-		long audioCount = mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null)
+	/**
+	 * Counts audio tracks that survive this title's language filter (same order used by {@link SimpleTitleBuilder}).
+	 */
+	private int countAudioTracks(SourceMediaInfo mediaInfo, TitleDescriptor title) {
+		if (mediaInfo == null || mediaInfo.getTracks() == null) {
+			return 0;
+		}
+		return (int) mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null)
 				.filter(t -> t.getCodingType().isAudio()).filter(t -> title.getAudioLanguages() == null
 						|| title.getAudioLanguages().isEmpty() || title.getAudioLanguages().contains(t.getLanguage()))
 				.count();
+	}
 
-		long subCount = mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null).filter(
+	/** Counts PG/subtitle tracks that survive this title's language filter. */
+	private int countSubtitleTracks(SourceMediaInfo mediaInfo, TitleDescriptor title) {
+		if (mediaInfo == null || mediaInfo.getTracks() == null) {
+			return 0;
+		}
+		return (int) mediaInfo.getTracks().stream().filter(t -> t.getCodingType() != null).filter(
 				t -> t.getCodingType().isSubtitle() || t.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS)
 				.filter(t -> title.getSubtitleLanguages() == null || title.getSubtitleLanguages().isEmpty()
 						|| title.getSubtitleLanguages().contains(t.getLanguage()))
 				.count();
-
-		return audioCount > 1 || subCount > 1;
 	}
 
 }
