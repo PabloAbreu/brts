@@ -1,13 +1,7 @@
 package org.brts.common.utils;
 
-import static org.bytedeco.ffmpeg.global.avutil.AV_PIX_FMT_BGR24;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_alloc;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_free;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_get_buffer;
-import static org.bytedeco.ffmpeg.global.swscale.SWS_BILINEAR;
-import static org.bytedeco.ffmpeg.global.swscale.sws_freeContext;
-import static org.bytedeco.ffmpeg.global.swscale.sws_getContext;
-import static org.bytedeco.ffmpeg.global.swscale.sws_scale;
+import static org.bytedeco.ffmpeg.global.avutil.*;
+import static org.bytedeco.ffmpeg.global.swscale.*;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;

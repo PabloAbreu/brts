@@ -5,14 +5,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.List;
 
+import org.brts.lowlevel.igs.IgsPgsCodec;
 import org.brts.lowlevel.igs.IgsSegmentType;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
 import org.brts.lowlevel.igs.model.CompositionObject;
 import org.brts.lowlevel.igs.model.IgsObject;
 import org.brts.lowlevel.igs.model.IgsPalette;
-import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
-import org.brts.lowlevel.igs.model.PaletteEntry;
 import org.brts.lowlevel.igs.model.VideoDescriptor;
 import org.brts.lowlevel.pgs.model.PgsCompositionSegment;
 import org.brts.lowlevel.pgs.model.PgsDisplaySet;
@@ -157,84 +156,21 @@ public class PgsMuxer {
 	 * Encodes a Palette Definition Segment body.
 	 */
 	byte[] encodePalette(IgsPalette pal) {
-		int size = 2 + pal.getEntries().size() * 5;
-		byte[] d = new byte[size];
-		d[0] = (byte) pal.getId();
-		d[1] = (byte) pal.getVersion();
-		int pos = 2;
-		for (PaletteEntry e : pal.getEntries()) {
-			d[pos++] = (byte) e.getEntryId();
-			d[pos++] = (byte) e.getY();
-			d[pos++] = (byte) e.getCr();
-			d[pos++] = (byte) e.getCb();
-			d[pos++] = (byte) e.getAlpha();
-		}
-		return d;
+		return IgsPgsCodec.encodePalette(pal);
 	}
 
 	/**
 	 * Encodes an Object Definition Segment body.
 	 */
 	byte[] encodeObject(IgsObject obj) {
-		boolean firstInSeq = obj.getSequenceDescriptor() != null && obj.getSequenceDescriptor().isFirstInSequence();
-		boolean lastInSeq = obj.getSequenceDescriptor() != null && obj.getSequenceDescriptor().isLastInSequence();
-
-		byte[] rleData = obj.getRleData() != null ? obj.getRleData() : new byte[0];
-
-		int headerSize = 4; // id(16) + version(8) + seq_desc(8)
-		if (firstInSeq) {
-			headerSize += 7; // dataLength(24) + width(16) + height(16)
-		}
-
-		byte[] d = new byte[headerSize + rleData.length];
-		int pos = 0;
-
-		d[pos++] = (byte) ((obj.getId() >> 8) & 0xFF);
-		d[pos++] = (byte) (obj.getId() & 0xFF);
-		d[pos++] = (byte) obj.getVersion();
-
-		int seqByte = 0;
-		if (firstInSeq)
-			seqByte |= 0x80;
-		if (lastInSeq)
-			seqByte |= 0x40;
-		d[pos++] = (byte) seqByte;
-
-		if (firstInSeq) {
-			int dataLength = obj.getDataLength() > 0 ? obj.getDataLength() : rleData.length + 4;
-			d[pos++] = (byte) ((dataLength >> 16) & 0xFF);
-			d[pos++] = (byte) ((dataLength >> 8) & 0xFF);
-			d[pos++] = (byte) (dataLength & 0xFF);
-			d[pos++] = (byte) ((obj.getWidth() >> 8) & 0xFF);
-			d[pos++] = (byte) (obj.getWidth() & 0xFF);
-			d[pos++] = (byte) ((obj.getHeight() >> 8) & 0xFF);
-			d[pos++] = (byte) (obj.getHeight() & 0xFF);
-		}
-
-		System.arraycopy(rleData, 0, d, pos, rleData.length);
-		return d;
+		return IgsPgsCodec.encodeObject(obj);
 	}
 
 	/**
 	 * Encodes a Window Definition Segment body.
 	 */
 	byte[] encodeWindowDef(IgsWindowDefinition wds) {
-		List<IgsWindow> windows = wds.getWindows();
-		byte[] d = new byte[1 + windows.size() * 9];
-		d[0] = (byte) windows.size();
-		int pos = 1;
-		for (IgsWindow w : windows) {
-			d[pos++] = (byte) w.getId();
-			d[pos++] = (byte) ((w.getX() >> 8) & 0xFF);
-			d[pos++] = (byte) (w.getX() & 0xFF);
-			d[pos++] = (byte) ((w.getY() >> 8) & 0xFF);
-			d[pos++] = (byte) (w.getY() & 0xFF);
-			d[pos++] = (byte) ((w.getWidth() >> 8) & 0xFF);
-			d[pos++] = (byte) (w.getWidth() & 0xFF);
-			d[pos++] = (byte) ((w.getHeight() >> 8) & 0xFF);
-			d[pos++] = (byte) (w.getHeight() & 0xFF);
-		}
-		return d;
+		return IgsPgsCodec.encodeWindowDef(wds);
 	}
 
 	// ── Binary helpers ──────────────────────────────────────────────────────
@@ -321,15 +257,11 @@ public class PgsMuxer {
 	}
 
 	private static void writeU16(ByteArrayOutputStream out, int value) {
-		out.write((value >> 8) & 0xFF);
-		out.write(value & 0xFF);
+		IgsPgsCodec.writeU16(out, value);
 	}
 
 	private static void writeU32(OutputStream out, int value) throws IOException {
-		out.write((value >> 24) & 0xFF);
-		out.write((value >> 16) & 0xFF);
-		out.write((value >> 8) & 0xFF);
-		out.write(value & 0xFF);
+		IgsPgsCodec.writeU32(out, value);
 	}
 
 }

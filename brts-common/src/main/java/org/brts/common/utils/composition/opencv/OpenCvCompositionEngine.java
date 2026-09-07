@@ -14,14 +14,9 @@ import org.bytedeco.javacpp.DoublePointer;
 
 import lombok.extern.slf4j.Slf4j;
 
-import static org.bytedeco.opencv.global.opencv_core.BORDER_TRANSPARENT;
-import static org.bytedeco.opencv.global.opencv_core.CV_64FC1;
-import static org.bytedeco.opencv.global.opencv_core.CV_8UC4;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.IMREAD_UNCHANGED;
-import static org.bytedeco.opencv.global.opencv_imgcodecs.imread;
-import static org.bytedeco.opencv.global.opencv_imgproc.INTER_LANCZOS4;
-import static org.bytedeco.opencv.global.opencv_imgproc.INTER_AREA;
-import static org.bytedeco.opencv.global.opencv_imgproc.warpAffine;
+import static org.bytedeco.opencv.global.opencv_core.*;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
+import static org.bytedeco.opencv.global.opencv_imgproc.*;
 
 /**
  * {@link CompositionEngine} implementation backed by OpenCV.
@@ -185,7 +180,7 @@ public class OpenCvCompositionEngine implements CompositionEngine {
 		if (maskMat.cols() != ovW || maskMat.rows() != ovH) {
 			resizedMask = new Mat();
 			org.bytedeco.opencv.global.opencv_imgproc.resize(maskMat, resizedMask, new Size(ovW, ovH), 0, 0,
-					org.bytedeco.opencv.global.opencv_imgproc.INTER_LINEAR);
+					INTER_LINEAR);
 			releaseMask = true;
 		} else {
 			resizedMask = maskMat;

@@ -1,31 +1,8 @@
 package org.brts.common.mp4;
 
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_AC3;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_ASS;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_DTS;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_EAC3;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_H264;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_HDMV_PGS_SUBTITLE;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_HEVC;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_MPEG2VIDEO;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_MOV_TEXT;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_BLURAY;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S16BE;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S24BE;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_SUBRIP;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_TEXT;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_TRUEHD;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_VC1;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_PROFILE_DTS_HD_HRA;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_PROFILE_DTS_HD_MA;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_close_input;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_open_input;
-import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_AUDIO;
-import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_SUBTITLE;
-import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO;
-import static org.bytedeco.ffmpeg.global.avutil.av_dict_get;
-import static org.bytedeco.ffmpeg.global.avutil.av_q2d;
+import static org.bytedeco.ffmpeg.global.avcodec.*;
+import static org.bytedeco.ffmpeg.global.avformat.*;
+import static org.bytedeco.ffmpeg.global.avutil.*;
 
 import java.io.IOException;
 import java.nio.file.Path;

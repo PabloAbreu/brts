@@ -1,26 +1,7 @@
 package org.brts.common.mkv;
 
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_AC3;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_ASS;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_DTS;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_EAC3;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_H264;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_HEVC;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_MPEG2VIDEO;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_BLURAY;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S16BE;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_PCM_S24BE;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_SSA;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_SUBRIP;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_TRUEHD;
-import static org.bytedeco.ffmpeg.global.avcodec.AV_CODEC_ID_VC1;
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_alloc;
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_free;
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_unref;
-import static org.bytedeco.ffmpeg.global.avformat.av_read_frame;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_close_input;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_open_input;
+import static org.bytedeco.ffmpeg.global.avcodec.*;
+import static org.bytedeco.ffmpeg.global.avformat.*;
 import static org.bytedeco.ffmpeg.global.avutil.av_q2d;
 
 import java.io.BufferedOutputStream;
@@ -35,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
+import org.brts.common.utils.AnnexBUtils;
 import org.brts.common.utils.StringUtils;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
@@ -225,7 +207,7 @@ public class FfmpegDemuxer implements EsDemuxer {
 
 	private void writeH264AsAnnexB(byte[] packetData, int nalLenSize, OutputStream os) throws IOException {
 		ByteBuffer buf = ByteBuffer.wrap(packetData);
-		if (isAnnexBFormat(buf)) {
+		if (AnnexBUtils.isAnnexBFormat(buf)) {
 			os.write(packetData);
 			return;
 		}
@@ -286,20 +268,6 @@ public class FfmpegDemuxer implements EsDemuxer {
 		long seconds = totalSeconds % 60;
 		long milliseconds = (timecode % 1000) / 10;
 		return String.format("%d:%02d:%02d.%02d", hours, minutes, seconds, milliseconds);
-	}
-
-	private static boolean isAnnexBFormat(ByteBuffer buf) {
-		int pos = buf.position();
-		int rem = buf.remaining();
-		if (rem >= 4 && (buf.get(pos) & 0xFF) == 0x00 && (buf.get(pos + 1) & 0xFF) == 0x00
-				&& (buf.get(pos + 2) & 0xFF) == 0x00 && (buf.get(pos + 3) & 0xFF) == 0x01) {
-			return true;
-		}
-		if (rem >= 3 && (buf.get(pos) & 0xFF) == 0x00 && (buf.get(pos + 1) & 0xFF) == 0x00
-				&& (buf.get(pos + 2) & 0xFF) == 0x01) {
-			return true;
-		}
-		return false;
 	}
 
 	private static boolean isTextSubtitleCodec(int codecId) {

@@ -1,26 +1,8 @@
 package org.brts.common.utils.composition.sources.video;
 
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_alloc;
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_free;
-import static org.bytedeco.ffmpeg.global.avcodec.av_packet_unref;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_alloc_context3;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_find_decoder;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_flush_buffers;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_free_context;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_open2;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_parameters_to_context;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_receive_frame;
-import static org.bytedeco.ffmpeg.global.avcodec.avcodec_send_packet;
-import static org.bytedeco.ffmpeg.global.avformat.AVSEEK_FLAG_BACKWARD;
-import static org.bytedeco.ffmpeg.global.avformat.av_read_frame;
-import static org.bytedeco.ffmpeg.global.avformat.av_seek_frame;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_close_input;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_find_stream_info;
-import static org.bytedeco.ffmpeg.global.avformat.avformat_open_input;
-import static org.bytedeco.ffmpeg.global.avutil.AVMEDIA_TYPE_VIDEO;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_alloc;
-import static org.bytedeco.ffmpeg.global.avutil.av_frame_free;
-import static org.bytedeco.ffmpeg.global.avutil.av_q2d;
+import static org.bytedeco.ffmpeg.global.avcodec.*;
+import static org.bytedeco.ffmpeg.global.avformat.*;
+import static org.bytedeco.ffmpeg.global.avutil.*;
 
 import java.io.IOException;
 import java.nio.file.Path;

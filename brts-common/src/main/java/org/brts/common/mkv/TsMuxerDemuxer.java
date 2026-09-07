@@ -3,11 +3,9 @@ package org.brts.common.mkv;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -205,7 +203,7 @@ public class TsMuxerDemuxer implements EsDemuxer {
 		return mapped;
 	}
 
-	private static String buildDemuxMeta(Path sourcePath, java.util.Collection<SourceMediaInfo.SourceTrack> tracks,
+	private static String buildDemuxMeta(Path sourcePath, Collection<SourceMediaInfo.SourceTrack> tracks,
 			SubtitleMeta subtitleMeta) {
 		StringBuilder meta = new StringBuilder(
 				"MUXOPT --no-pcr-on-video-pid --new-audio-pes --demux --vbr --vbv-len=500");

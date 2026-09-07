@@ -1,5 +1,6 @@
 package org.brts.common.mkv;
 
+import org.brts.common.utils.AnnexBUtils;
 import org.brts.common.utils.StringUtils;
 import org.ebml.io.FileDataSource;
 import org.ebml.matroska.MatroskaFile;
@@ -325,7 +326,7 @@ public class MkvDemuxer implements EsDemuxer {
 			return;
 
 		// If the frame already carries Annex B start codes, pass it through as-is.
-		if (isAnnexBFormat(buf)) {
+		if (AnnexBUtils.isAnnexBFormat(buf)) {
 			byte[] raw = new byte[buf.remaining()];
 			buf.get(raw);
 			os.write(raw);
@@ -346,24 +347,6 @@ public class MkvDemuxer implements EsDemuxer {
 			os.write(ANNEX_B_START_CODE);
 			os.write(nalData);
 		}
-	}
-
-	/**
-	 * Returns {@code true} if {@code buf} starts with a 3-byte ({@code 00 00 01}) or 4-byte ({@code 00 00 00 01}) Annex
-	 * B start code.
-	 */
-	private static boolean isAnnexBFormat(ByteBuffer buf) {
-		int pos = buf.position();
-		int rem = buf.remaining();
-		if (rem >= 4 && (buf.get(pos) & 0xFF) == 0x00 && (buf.get(pos + 1) & 0xFF) == 0x00
-				&& (buf.get(pos + 2) & 0xFF) == 0x00 && (buf.get(pos + 3) & 0xFF) == 0x01) {
-			return true;
-		}
-		if (rem >= 3 && (buf.get(pos) & 0xFF) == 0x00 && (buf.get(pos + 1) & 0xFF) == 0x00
-				&& (buf.get(pos + 2) & 0xFF) == 0x01) {
-			return true;
-		}
-		return false;
 	}
 
 	/**

@@ -48,6 +48,7 @@ public class MediaRepositoryImpl implements MediaRepository {
 	}
 
 	@Override
+	@SuppressWarnings("PMD.EmptyCatchBlock")
 	public void close() throws Exception {
 		// free all videoframes
 		videoCache.values().forEach(vf -> {
