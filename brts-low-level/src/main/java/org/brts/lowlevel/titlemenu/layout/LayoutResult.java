@@ -1,9 +1,11 @@
 package org.brts.lowlevel.titlemenu.layout;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.common.utils.composition.ImagesComposition;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -33,6 +35,12 @@ public class LayoutResult {
 	 * (false).
 	 */
 	private boolean compositeBackground;
+
+	/** Optional rendered settings button on the main title-selection page. */
+	private PositionedButton settingsButton;
+
+	/** Rendered settings submenu pages in display order. */
+	private List<SettingsPage> settingsPages = new ArrayList<>();
 
 	/**
 	 * A single positioned button with its three-state rendered images.
@@ -68,6 +76,17 @@ public class LayoutResult {
 		/** Button height in pixels. */
 		private int height;
 
+		/** Navigation commands for non-title buttons. Title buttons use JUMP_TITLE. */
+		private List<NavigationCommand> navigationCommands;
+
+	}
+
+	/** A rendered IGS submenu page. */
+	@Getter
+	@Setter
+	public static class SettingsPage {
+		private int pageId;
+		private List<PositionedButton> buttons;
 	}
 
 }

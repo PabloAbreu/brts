@@ -110,6 +110,30 @@ class TextListLayoutTest {
 		}
 	}
 
+	@Test
+	void layout_rendersSettingsAudioAndSubtitleButtons() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(1, 1);
+		var audio = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+		audio.setDescription("English");
+		audio.setStreamNumber(1);
+		var subtitle = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+		subtitle.setDescription("French");
+		subtitle.setStreamNumber(2);
+		descriptor.setAudioItems(List.of(audio));
+		descriptor.setSubtitleItems(List.of(subtitle));
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		assertThat(result.getSettingsButton()).isNotNull();
+		assertThat(result.getSettingsButton().getNormalImage()).isNotNull();
+		assertThat(result.getSettingsPages()).hasSize(3);
+		assertThat(result.getSettingsPages().get(1).getButtons()).hasSize(2);
+		assertThat(result.getSettingsPages().get(1).getButtons().get(0).getNormalImage()).isNotNull();
+		assertThat(result.getSettingsPages().get(1).getButtons().get(0).getNavigationCommands()).isNotEmpty();
+		assertThat(result.getSettingsPages().get(2).getButtons()).hasSize(2);
+		assertThat(result.getSettingsPages().get(2).getButtons().get(0).getNormalImage()).isNotNull();
+	}
+
 	private TitleMenuDescriptor buildDescriptor(int titleCount, int columns) {
 		TitleMenuDescriptor desc = new TitleMenuDescriptor();
 		desc.setScreenWidth(1920);

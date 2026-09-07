@@ -178,6 +178,7 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 		result.setButtons(positioned);
 		result.setCompositeBackground(true);
 		result.setBackgroundComposition(composition);
+		TextListLayout.layoutSettingsMenus(descriptor, result);
 
 		log.info("ThumbnailGridLayout: {} titles in {}×{} grid ({}×{} thumbnails)", titles.size(), columns, rows,
 				thumbW, thumbH);

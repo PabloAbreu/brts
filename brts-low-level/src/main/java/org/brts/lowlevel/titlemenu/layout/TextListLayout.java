@@ -9,6 +9,8 @@ import java.util.List;
 import org.brts.common.menu.TextRenderer;
 import org.brts.common.menu.TextRenderer.ButtonImages;
 import org.brts.common.menu.TextStyle;
+import org.brts.common.utils.BrtsI18NLabels;
+import org.brts.lowlevel.bdmv.NavigationCommandUtils;
 import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
@@ -23,6 +25,11 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class TextListLayout implements TitleMenuLayout {
+	private static final int SETTINGS_ENTRY_PAGE_ID = 2;
+	private static final int SETTINGS_BUTTON_MAX_WIDTH = 800;
+	private static final int SETTINGS_BUTTON_HEIGHT = 40;
+	private static final int SETTINGS_BUTTON_SPACING_Y = 8;
+	private static final int SETTINGS_MARGIN_BOTTOM = 80;
 
 	@Override
 	public LayoutResult layout(TitleMenuDescriptor descriptor, Path baseDir) throws IOException {
@@ -143,13 +150,105 @@ public class TextListLayout implements TitleMenuLayout {
 		result.setButtons(positioned);
 		result.setCompositeBackground(false);
 		result.setBackgroundComposition(null);
+		layoutSettingsMenus(descriptor, result);
 
 		log.info("TextListLayout: {} titles arranged in {} column(s), button size {}×{} (uniform height: {})",
 				titles.size(), columns, uniformWidth, globalMaxHeight, uniformHeight);
 		return result;
 	}
 
-	private TextStyle resolveGlobalStyle(TextStyle descriptorStyle) {
+	static void layoutSettingsMenus(TitleMenuDescriptor descriptor, LayoutResult result) {
+		boolean hasAudioItems = descriptor.getAudioItems() != null && !descriptor.getAudioItems().isEmpty();
+		boolean hasSubtitleItems = descriptor.getSubtitleItems() != null && !descriptor.getSubtitleItems().isEmpty();
+		if (!hasAudioItems && !hasSubtitleItems) {
+			return;
+		}
+
+		TextStyle style = resolveGlobalStyle(descriptor.getLayout().getTitleStyle());
+		LayoutResult.PositionedButton settingsButton = renderSettingsButton(
+				BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_SETTINGS), style, descriptor.getScreenWidth() - 40,
+				descriptor.getScreenHeight() - SETTINGS_MARGIN_BOTTOM,
+				NavigationCommandUtils.setButtonPage(SETTINGS_ENTRY_PAGE_ID, 1));
+		settingsButton.setX(settingsButton.getX() - settingsButton.getWidth());
+		settingsButton.setY(settingsButton.getY() - settingsButton.getHeight());
+		result.setSettingsButton(settingsButton);
+
+		List<List<LayoutResult.PositionedButton>> pages = new ArrayList<>();
+		if (hasAudioItems && hasSubtitleItems) {
+			pages.add(List.of(
+					renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_TO_AUDIO), style, 0, 0,
+							NavigationCommandUtils.setButtonPage(3, 1)),
+					renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_TO_SUBTITLES), style, 0, 0,
+							NavigationCommandUtils.setButtonPage(4, 1)),
+					renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_BACK), style, 0, 0,
+							NavigationCommandUtils.setButtonPage(1, result.getButtons().size() + 1))));
+			pages.add(audioButtons(descriptor, style, NavigationCommandUtils.setButtonPage(2, 1)));
+			pages.add(subtitleButtons(descriptor, style, NavigationCommandUtils.setButtonPage(2, 1)));
+		} else if (hasAudioItems) {
+			pages.add(audioButtons(descriptor, style,
+					NavigationCommandUtils.setButtonPage(1, result.getButtons().size() + 1)));
+		} else {
+			pages.add(subtitleButtons(descriptor, style,
+					NavigationCommandUtils.setButtonPage(1, result.getButtons().size() + 1)));
+		}
+
+		for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
+			List<LayoutResult.PositionedButton> buttons = pages.get(pageIndex);
+			positionSettingsButtons(buttons, descriptor.getScreenWidth(), descriptor.getScreenHeight());
+			LayoutResult.SettingsPage page = new LayoutResult.SettingsPage();
+			page.setPageId(SETTINGS_ENTRY_PAGE_ID + pageIndex);
+			page.setButtons(buttons);
+			result.getSettingsPages().add(page);
+		}
+	}
+
+	private static List<LayoutResult.PositionedButton> audioButtons(TitleMenuDescriptor descriptor, TextStyle style,
+			List<org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand> backCommands) {
+		List<LayoutResult.PositionedButton> buttons = new ArrayList<>();
+		descriptor.getAudioItems().forEach(item -> buttons.add(renderSettingsButton(item.getDescription(), style, 0, 0,
+				NavigationCommandUtils.setAudioChoice(item.getStreamNumber()))));
+		buttons.add(renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_BACK), style, 0, 0, backCommands));
+		return buttons;
+	}
+
+	private static List<LayoutResult.PositionedButton> subtitleButtons(TitleMenuDescriptor descriptor, TextStyle style,
+			List<org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand> backCommands) {
+		List<LayoutResult.PositionedButton> buttons = new ArrayList<>();
+		descriptor.getSubtitleItems().forEach(item -> buttons.add(renderSettingsButton(item.getDescription(), style, 0,
+				0, NavigationCommandUtils.setSubtitleChoice(item.getStreamNumber()))));
+		buttons.add(renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_BACK), style, 0, 0, backCommands));
+		return buttons;
+	}
+
+	private static LayoutResult.PositionedButton renderSettingsButton(String text, TextStyle style, int x, int y,
+			List<org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand> commands) {
+		ButtonImages images = TextRenderer.renderTextButton(text, style, SETTINGS_BUTTON_MAX_WIDTH);
+		LayoutResult.PositionedButton button = new LayoutResult.PositionedButton();
+		button.setX(x);
+		button.setY(y);
+		button.setNormalImage(images.normal());
+		button.setSelectedImage(images.selected());
+		button.setActivatedImage(images.activated());
+		button.setWidth(images.width());
+		button.setHeight(images.height());
+		button.setNavigationCommands(commands);
+		return button;
+	}
+
+	private static void positionSettingsButtons(List<LayoutResult.PositionedButton> buttons, int screenWidth,
+			int screenHeight) {
+		int totalHeight = buttons.size() * SETTINGS_BUTTON_HEIGHT + (buttons.size() - 1) * SETTINGS_BUTTON_SPACING_Y;
+		int y = screenHeight - SETTINGS_MARGIN_BOTTOM - totalHeight;
+		int x = Math.max(40,
+				Math.min((screenWidth - SETTINGS_BUTTON_MAX_WIDTH) / 2, screenWidth - SETTINGS_BUTTON_MAX_WIDTH - 40));
+		for (LayoutResult.PositionedButton button : buttons) {
+			button.setX(x);
+			button.setY(y);
+			y += SETTINGS_BUTTON_HEIGHT + SETTINGS_BUTTON_SPACING_Y;
+		}
+	}
+
+	private static TextStyle resolveGlobalStyle(TextStyle descriptorStyle) {
 		TextStyle base = new TextStyle();
 		if (descriptorStyle != null) {
 			base = descriptorStyle.mergeOver(base);
