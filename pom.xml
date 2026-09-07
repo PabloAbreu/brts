@@ -52,6 +52,7 @@
 		<maven-surefire-plugin.version>3.3.1</maven-surefire-plugin.version>
 		<maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
 		<maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
+		<maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
 	</properties>
 
 	<dependencyManagement>
@@ -267,6 +268,19 @@
 					<artifactId>maven-assembly-plugin</artifactId>
 					<version>${maven-assembly-plugin.version}</version>
 				</plugin>
+				<plugin>
+					<!-- Not bound to any lifecycle phase; run on demand with
+					`mvn pmd:pmd` (or `mvn pmd:check` to fail the build on
+					violations, or `mvn pmd:aggregate-pmd` from the parent for
+					a single multi-module report) -->
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-pmd-plugin</artifactId>
+					<version>${maven-pmd-plugin.version}</version>
+					<configuration>
+						<targetJdk>${java.version}</targetJdk>
+						<linkXRef>false</linkXRef>
+					</configuration>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 		<plugins>
@@ -286,6 +300,10 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
 			</plugin>
 		</plugins>
 	</build>

@@ -73,28 +73,26 @@ public class AudioUtils {
 
 			for (int i = 0; i < fmtCtx.nb_streams(); i++) {
 				AVStream stream = fmtCtx.streams(i);
-				if (stream.codecpar().codec_type() != AVMEDIA_TYPE_AUDIO) {
-					continue;
+				if (stream.codecpar().codec_type() == AVMEDIA_TYPE_AUDIO) {
+					double duration = -1.0;
+					if (stream.duration() > 0) {
+						duration = stream.duration() * av_q2d(stream.time_base());
+					} else if (fmtCtx.duration() > 0) {
+						duration = fmtCtx.duration() / 1_000_000.0;
+					}
+
+					int codecId = stream.codecpar().codec_id();
+					int streamTypeByte = codecIdToStreamTypeByte(codecId);
+					int channels = stream.codecpar().ch_layout().nb_channels();
+					int sampleRate = stream.codecpar().sample_rate();
+					long bitRate = stream.codecpar().bit_rate();
+					int bitrateKbps = bitRate > 0 ? (int) (bitRate / 1000) : 0;
+
+					log.debug("probeAudioInfo: '{}' codecId={} -> streamType=0x{} ch={} sampleRate={} bitrateKbps={}",
+							audioPath, codecId, Integer.toHexString(streamTypeByte), channels, sampleRate, bitrateKbps);
+
+					return new AudioInfo(duration, streamTypeByte, channels, sampleRate, bitrateKbps);
 				}
-
-				double duration = -1.0;
-				if (stream.duration() > 0) {
-					duration = stream.duration() * av_q2d(stream.time_base());
-				} else if (fmtCtx.duration() > 0) {
-					duration = fmtCtx.duration() / 1_000_000.0;
-				}
-
-				int codecId = stream.codecpar().codec_id();
-				int streamTypeByte = codecIdToStreamTypeByte(codecId);
-				int channels = stream.codecpar().ch_layout().nb_channels();
-				int sampleRate = stream.codecpar().sample_rate();
-				long bitRate = stream.codecpar().bit_rate();
-				int bitrateKbps = bitRate > 0 ? (int) (bitRate / 1000) : 0;
-
-				log.debug("probeAudioInfo: '{}' codecId={} -> streamType=0x{} ch={} sampleRate={} bitrateKbps={}",
-						audioPath, codecId, Integer.toHexString(streamTypeByte), channels, sampleRate, bitrateKbps);
-
-				return new AudioInfo(duration, streamTypeByte, channels, sampleRate, bitrateKbps);
 			}
 
 			// No audio stream found — try container-level duration as a fallback

@@ -51,12 +51,12 @@ import lombok.extern.slf4j.Slf4j;
  *     ...
  *   orchestrate.sh   ← shell script invoking brt-cli low-level commands in order
  * </pre>
- * 
- * The stream selection feature (with a settings menu for audio/subs) works consistently only
- * when input titles have the exact same stream structure (like episodes of a TV show).
- * Note that if you use this class to repackage existing media files from a source Blu-ray disc,
- * keep in mind the possibility that some particular episodes might have additional streams (like commentary tracks).
- * 
+ *
+ * The stream selection feature (with a settings menu for audio/subs) works consistently only when input titles have the
+ * exact same stream structure (like episodes of a TV show). Note that if you use this class to repackage existing media
+ * files from a source Blu-ray disc, keep in mind the possibility that some particular episodes might have additional
+ * streams (like commentary tracks).
+ *
  */
 @Slf4j
 @RequiredArgsConstructor

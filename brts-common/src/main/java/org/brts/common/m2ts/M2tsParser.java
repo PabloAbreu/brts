@@ -206,10 +206,10 @@ public class M2tsParser {
 			}
 
 			// Stop scanning once we have all PMTs, SIT, and some PCR readings
-			if (patParsed && parsedPmtPids.containsAll(pmtPids) && (sitPid < 0 || sitParsed) && firstPcr >= 0
-					&& i > 500) {
-				// Continue scanning to get a decent lastPcr sample — stop at max
-			}
+			// if (patParsed && parsedPmtPids.containsAll(pmtPids) && (sitPid < 0 || sitParsed) && firstPcr >= 0
+			// && i > 500) {
+			// Continue scanning to get a decent lastPcr sample — stop at max
+			// }
 		}
 
 		info.setFirstAts27MHz(firstAts);
@@ -267,10 +267,10 @@ public class M2tsParser {
 		for (int pos = loopStart; pos + 3 < loopEnd && pos + 3 < sp.length; pos += 4) {
 			int programNumber = ((sp[pos] & 0xFF) << 8) | (sp[pos + 1] & 0xFF);
 			int mapPid = ((sp[pos + 2] & 0x1F) << 8) | (sp[pos + 3] & 0xFF);
-			if (programNumber == 0) {
-				// program 0 is the NIT PID — not a PMT
-				// continue;
-			}
+			// if (programNumber == 0) {
+			// program 0 is the NIT PID — not a PMT
+			// continue;
+			// }
 			if (mapPid == SIT_PID) {
 				result.sitPid = mapPid;
 			} else {
@@ -428,6 +428,7 @@ public class M2tsParser {
 							}
 							int subLength = sp[descPos + 7] & 0xFF;
 							if (subLength == 4) {
+								@SuppressWarnings("unused")
 								int audioCodingType = sp[descPos + 8] & 0xFF;
 								// IA suggests that:
 								// 0x06 AC‑3 (Dolby Digital) primary audio
@@ -457,6 +458,7 @@ public class M2tsParser {
 								// 06 40 0E 00 : E-AC-3 896 kbps, 8 channels, 48 kHz
 								// 06 29 04 00 : AC-3 192 kbps, 2 channels, 48 kHz .
 								// 08 29 04 00 too
+								@SuppressWarnings("unused")
 								int todooo = sp[descPos + 10] & 0xFF;
 								// 0x04 seems to be 2, and 0X0E seems to be 8
 								// channels, but that is based on very limited data
