@@ -59,7 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class M2tsWriter {
 	// TS constants
-	private static final int TS_PACKET_SIZE = 188;
+	private static final int TS_PACKET_SIZE = M2tsPacketUtils.TS_PACKET_SIZE;
 
 	private static final int SOURCE_PKT_SIZE = 192;
 
@@ -629,35 +629,7 @@ public class M2tsWriter {
 
 	private void writePcrPacket(OutputStream out, int pid, long pcr27, Map<Integer, Integer> cc, long ats27)
 			throws IOException {
-		// Adaptation-field-only TS packet carrying PCR
-		byte[] af = new byte[184]; // adaptation field fills the rest of the 188-byte TS
-									// packet
-		af[0] = (byte) (af.length - 1); // adaptation_field_length = 183
-		af[1] = (byte) 0x10; // PCR_flag set
-		// PCR: 6 bytes = base(33) + reserved(6) + ext(9)
-		long pcrBase = pcr27 / 300;
-		long pcrExt = pcr27 % 300;
-		af[2] = (byte) ((pcrBase >> 25) & 0xFF);
-		af[3] = (byte) ((pcrBase >> 17) & 0xFF);
-		af[4] = (byte) ((pcrBase >> 9) & 0xFF);
-		af[5] = (byte) ((pcrBase >> 1) & 0xFF);
-		af[6] = (byte) (((pcrBase & 0x01) << 7) | 0x7E | ((pcrExt >> 8) & 0x01));
-		af[7] = (byte) (pcrExt & 0xFF);
-		// rest of af is padding (0xFF)
-		Arrays.fill(af, 8, af.length, (byte) 0xFF);
-
-		// TS header: sync + 3 header bytes
-		byte[] ts = new byte[TS_PACKET_SIZE];
-		ts[0] = (byte) SYNC_BYTE;
-		ts[1] = (byte) ((pid >> 8) & 0x1F);
-		ts[2] = (byte) (pid & 0xFF);
-		// Per MPEG-2 TS spec §2.4.3.3, CC shall not be incremented when
-		// adaptation_field_control is '10' (adaptation field only, no payload).
-		int ccVal = cc.getOrDefault(pid, 0);
-		ts[3] = (byte) (0x20 | (ccVal & 0x0F)); // adaptation only = 10b
-		System.arraycopy(af, 0, ts, 4, af.length);
-
-		writeSourcePacket(out, ts, ats27);
+		writeSourcePacket(out, M2tsPacketUtils.buildPcrPacket(pid, pcr27, cc), ats27);
 	}
 
 	// -------------------------------------------------------------------------
@@ -752,53 +724,8 @@ public class M2tsWriter {
 	 */
 	private int writePesToTs(OutputStream out, int pid, byte[] pes, Map<Integer, Integer> cc, long startPacketIndex)
 			throws IOException {
-		int tsCount = 0;
-		int offset = 0;
-		boolean first = true;
-
-		while (offset < pes.length) {
-			boolean pusi = first;
-			first = false;
-
-			int remaining = pes.length - offset;
-			// TS payload capacity: 188 - 4 header = 184 bytes
-			int payloadCapacity = TS_PACKET_SIZE - 4;
-			int chunkLen = Math.min(remaining, payloadCapacity);
-
-			byte[] ts = new byte[TS_PACKET_SIZE];
-			ts[0] = (byte) SYNC_BYTE;
-			ts[1] = (byte) ((pusi ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
-			ts[2] = (byte) (pid & 0xFF);
-			int ccVal = ccNext(cc, pid);
-			ts[3] = (byte) (0x10 | (ccVal & 0x0F)); // payload only
-
-			if (chunkLen < payloadCapacity) {
-				// Last packet: need adaptation field for stuffing
-				int stuffLen = payloadCapacity - chunkLen;
-				// adaptation field header: length(1) + flags(1) = 2 bytes min
-				// If stuffLen == 1, we put a zero-length adaptation field (the length
-				// byte
-				// itself consumes 1 byte)
-				ts[3] = (byte) (0x30 | (ccVal & 0x0F)); // adaptation + payload
-				if (stuffLen == 1) {
-					ts[4] = 0x00; // af_length=0 (takes 1 byte)
-					// payload at ts[5]
-					System.arraycopy(pes, offset, ts, 5, chunkLen);
-				} else {
-					ts[4] = (byte) (stuffLen - 1); // af_length
-					ts[5] = 0x00; // flags
-					Arrays.fill(ts, 6, 4 + stuffLen, (byte) 0xFF); // stuffing
-					System.arraycopy(pes, offset, ts, 4 + stuffLen, chunkLen);
-				}
-			} else {
-				System.arraycopy(pes, offset, ts, 4, chunkLen);
-			}
-
-			writeSourcePacket(out, ts, atsOf(startPacketIndex + tsCount));
-			tsCount++;
-			offset += chunkLen;
-		}
-		return tsCount;
+		return M2tsPacketUtils.writePesToTs(pes, pid, cc,
+				(ts, packetIndex) -> writeSourcePacket(out, ts, atsOf(startPacketIndex + packetIndex)));
 	}
 
 	// -------------------------------------------------------------------------

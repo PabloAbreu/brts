@@ -43,7 +43,7 @@ public class M2tsIgsMuxer {
 	// TS / Blu-ray constants
 	// -------------------------------------------------------------------------
 
-	private static final int TS_PACKET_SIZE = 188;
+	private static final int TS_PACKET_SIZE = M2tsPacketUtils.TS_PACKET_SIZE;
 
 	private static final int SOURCE_PKT_SIZE = 192;
 
@@ -275,48 +275,7 @@ public class M2tsIgsMuxer {
 	 * @return number of TS packets written
 	 */
 	private int writePesToTs(OutputStream out, int pid, byte[] pes, Map<Integer, Integer> cc) throws IOException {
-		int tsCount = 0;
-		int offset = 0;
-		boolean first = true;
-
-		while (offset < pes.length) {
-			boolean pusi = first;
-			first = false;
-
-			int remaining = pes.length - offset;
-			int payloadCapacity = TS_PACKET_SIZE - 4; // 184 bytes after 4-byte header
-			int chunkLen = Math.min(remaining, payloadCapacity);
-
-			byte[] ts = new byte[TS_PACKET_SIZE];
-			ts[0] = (byte) SYNC_BYTE;
-			ts[1] = (byte) ((pusi ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
-			ts[2] = (byte) (pid & 0xFF);
-			int ccVal = ccNext(cc, pid);
-
-			if (chunkLen < payloadCapacity) {
-				// Last packet: pad remaining space with an adaptation field
-				int stuffLen = payloadCapacity - chunkLen;
-				ts[3] = (byte) (0x30 | (ccVal & 0x0F)); // adaptation + payload
-				if (stuffLen == 1) {
-					ts[4] = 0x00; // adaptation_field_length = 0 (1 byte consumed)
-					System.arraycopy(pes, offset, ts, 5, chunkLen);
-				} else {
-					ts[4] = (byte) (stuffLen - 1); // adaptation_field_length
-					ts[5] = 0x00; // adaptation field flags
-					Arrays.fill(ts, 6, 4 + stuffLen, (byte) 0xFF); // stuffing bytes
-					System.arraycopy(pes, offset, ts, 4 + stuffLen, chunkLen);
-				}
-			} else {
-				ts[3] = (byte) (0x10 | (ccVal & 0x0F)); // payload only
-				System.arraycopy(pes, offset, ts, 4, chunkLen);
-			}
-
-			writeSourcePacket(out, ts);
-			tsCount++;
-			offset += chunkLen;
-		}
-
-		return tsCount;
+		return M2tsPacketUtils.writePesToTs(pes, pid, cc, (ts, packetIndex) -> writeSourcePacket(out, ts));
 	}
 
 	// =========================================================================
@@ -358,8 +317,7 @@ public class M2tsIgsMuxer {
 	}
 
 	private void writePmtPacket(OutputStream out, Map<Integer, Integer> cc) throws IOException {
-		// HDMV registration descriptor for the IGS stream (10 bytes)
-		byte[] esDesc = new byte[0];// buildIgsEsDescriptor();
+		byte[] esDesc = new byte[0];
 
 		// PMT layout (fixed for a single IGS stream, esDesc.length = 10):
 		// pointer(1) + table_id(1) + section_len(2) = 4 header bytes
@@ -407,53 +365,9 @@ public class M2tsIgsMuxer {
 		writeTsPacket(out, PMT_PID, true, ccNext(cc, PMT_PID), pmt);
 	}
 
-	/**
-	 * Builds the HDMV registration descriptor for the IGS stream, as used in the PMT ES loop. Mirrors the
-	 * {@code isMenu()} branch of {@code M2tsWriter.buildEsDescriptors()}.
-	 */
-	private byte[] buildIgsEsDescriptor() {
-		byte[] desc = new byte[10];
-		desc[0] = 0x05; // registration_descriptor tag
-		desc[1] = 0x08; // length = 8
-		desc[2] = 'H'; // format_identifier = "HDMV"
-		desc[3] = 'D';
-		desc[4] = 'M';
-		desc[5] = 'V';
-		desc[6] = (byte) 0xFF; // non-video stream marker
-		desc[7] = (byte) IGS_STREAM_TYPE; // 0x91
-		desc[8] = 0x00;
-		desc[9] = (byte) 0x3F;
-		return desc;
-	}
-
 	private void writePcrPacket(OutputStream out, Map<Integer, Integer> cc) throws IOException {
 		long pcr27 = ats(totalPackets);
-		long pcrBase = pcr27 / 300;
-		long pcrExt = pcr27 % 300;
-
-		// Adaptation-field-only TS packet (adaptation_field_control = '10')
-		byte[] af = new byte[184]; // fills the 184 bytes after the 4-byte TS header
-		af[0] = (byte) (af.length - 1); // adaptation_field_length = 183
-		af[1] = (byte) 0x10; // PCR_flag = 1, all others = 0
-		// PCR field: 33-bit base + 6 reserved bits + 9-bit extension = 48 bits
-		af[2] = (byte) ((pcrBase >> 25) & 0xFF);
-		af[3] = (byte) ((pcrBase >> 17) & 0xFF);
-		af[4] = (byte) ((pcrBase >> 9) & 0xFF);
-		af[5] = (byte) ((pcrBase >> 1) & 0xFF);
-		af[6] = (byte) (((pcrBase & 0x01) << 7) | 0x7E | ((pcrExt >> 8) & 0x01));
-		af[7] = (byte) (pcrExt & 0xFF);
-		Arrays.fill(af, 8, af.length, (byte) 0xFF); // stuffing
-
-		byte[] ts = new byte[TS_PACKET_SIZE];
-		ts[0] = (byte) SYNC_BYTE;
-		ts[1] = (byte) ((PCR_PID >> 8) & 0x1F);
-		ts[2] = (byte) (PCR_PID & 0xFF);
-		// Per MPEG-2 TS §2.4.3.3: CC is not incremented for adaptation-field-only packets
-		int ccVal = cc.getOrDefault(PCR_PID, 0);
-		ts[3] = (byte) (0x20 | (ccVal & 0x0F)); // adaptation_field_control = '10'
-		System.arraycopy(af, 0, ts, 4, af.length);
-
-		writeSourcePacket(out, ts);
+		writeSourcePacket(out, M2tsPacketUtils.buildPcrPacket(PCR_PID, pcr27, cc));
 	}
 
 	private void writeNullPacket(OutputStream out) throws IOException {
