@@ -146,6 +146,7 @@ public class CompositedVideoGenerator {
 		// 1. Resolve fps and frameCount ----------------------------------------
 		double fps = config.getFps() > 0 ? config.getFps() : 0;
 		int frameCount = config.getFrameCount();
+		log.debug("fps : {} , frameCount : {}", fps, frameCount);
 
 		String baseVideoPath = resolveBaseVideoPath(composition, baseDir);
 		if (baseVideoPath != null && (fps <= 0 || frameCount <= 0)) {

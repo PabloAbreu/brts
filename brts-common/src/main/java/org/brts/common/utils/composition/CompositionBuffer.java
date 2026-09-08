@@ -102,7 +102,7 @@ public class CompositionBuffer {
 			// loop video if frameNumber exceeds total frames
 			int count = videoFrames.getFrameCount();
 			int frameIndex = count <= 0 ? frameNumber : frameNumber % videoFrames.getFrameCount();
-			log.debug("Fetching video frame {} / {}", frameIndex, videoFrames.getFrameCount());
+			log.trace("Fetching video frame {} / {}", frameIndex, videoFrames.getFrameCount());
 			return videoFrames.getFrame(frameIndex);
 		} else if (ref.isSynthetic()) {
 			SyntheticImageGenerator generator = getSyntheticGenerator(ref);
@@ -173,7 +173,7 @@ public class CompositionBuffer {
 				: cropBounds[0] + "," + cropBounds[1] + "," + cropBounds[2] + "x" + cropBounds[3];
 		String cacheKey = ic.getImageId() + "|" + sourceKey + "|" + cropKey + "|" + targetW + "x" + targetH;
 		return resizedImageCache.computeIfAbsent(cacheKey, k -> {
-			log.debug("Resizing overlay '{}' to {}x{} (cache miss, key={})", ic.getImageId(), targetW, targetH, k);
+			log.trace("Resizing overlay '{}' to {}x{} (cache miss, key={})", ic.getImageId(), targetW, targetH, k);
 			return engine.resize(overlay, targetW, targetH);
 		});
 	}

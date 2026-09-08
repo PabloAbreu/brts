@@ -206,7 +206,14 @@ public class TitleMenuGenerator {
 		CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
 		config.setWidth(descriptor.getScreenWidth());
 		config.setHeight(descriptor.getScreenHeight());
-		// Let the generator derive fps and frameCount from the base video
+		double duration = descriptor.getBackgroundMedia() != null ? descriptor.getBackgroundMedia().getDurationSeconds()
+				: 0;
+		if (duration > 0) {
+			double fps = 24.0;
+			config.setFrameCount((int) Math.round(duration * fps));
+			config.setFps(fps);
+		}
+
 		// Output goes to STREAM dir, CLPI built by the generator
 		// The generator writes <clipName>.m2ts and <clipName>.clpi to outputDir
 		// But CompositedVideoGenerator writes to a flat dir, need to handle that
