@@ -19,6 +19,13 @@ public class ImagesComposition {
 	// optional, if not set the first image in the list is used as base
 	private String baseImageId;
 
+	// optional composition canvas size; when set, the base image is scaled to it so
+	// that overlay coordinates are expressed in this space and not in the base image's
+	// native resolution
+	private Integer canvasWidth;
+
+	private Integer canvasHeight;
+
 	// you might compose the same image multiple times with different transforms
 	private List<ImageComposition> compositions;
 

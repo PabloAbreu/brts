@@ -121,7 +121,7 @@ public class CompositionBuffer {
 	public ImageFrame compose() {
 		CompositionEngine engine = CompositionEngineFactory.get();
 		// background is owned by this scope; overlays are borrowed (do not close)
-		ImageFrame background = engine.copy(getImage(getBackgroundReference(), context.getFrameNumber()));
+		ImageFrame background = buildCanvas(engine, getImage(getBackgroundReference(), context.getFrameNumber()));
 		for (ImageComposition ic : configuration.getCompositions()) {
 			ImageReference ref = getReference(ic.getImageId());
 			ImageFrame sourceOverlay = getImage(ref, context.getFrameNumber());
@@ -154,6 +154,23 @@ public class CompositionBuffer {
 			}
 		}
 		return background;
+	}
+
+	/**
+	 * Builds the owned base frame the overlays are composited onto. When the configuration declares a canvas size, the
+	 * base image is scaled to it so overlay coordinates are interpreted in canvas space rather than in the base image's
+	 * native resolution.
+	 */
+	private ImageFrame buildCanvas(CompositionEngine engine, ImageFrame base) {
+		Integer canvasWidth = configuration.getCanvasWidth();
+		Integer canvasHeight = configuration.getCanvasHeight();
+		if (canvasWidth != null && canvasHeight != null && canvasWidth > 0 && canvasHeight > 0
+				&& (base.width() != canvasWidth || base.height() != canvasHeight)) {
+			log.debug("Scaling base image from {}x{} to canvas {}x{}", base.width(), base.height(), canvasWidth,
+					canvasHeight);
+			return engine.resize(base, canvasWidth, canvasHeight);
+		}
+		return engine.copy(base);
 	}
 
 	/**

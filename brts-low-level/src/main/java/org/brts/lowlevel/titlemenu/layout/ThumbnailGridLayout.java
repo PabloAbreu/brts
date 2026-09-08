@@ -17,6 +17,7 @@ import org.brts.common.utils.composition.ImageComposition;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.common.utils.composition.ImagesComposition;
 import org.brts.common.utils.expressions.ObjectExpression;
+import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.lowlevel.titlemenu.descriptor.BoundingBox;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
@@ -98,16 +99,45 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 
 		// Build composition for background video generation
 		ImagesComposition composition = new ImagesComposition();
+		// Thumbnail positions/sizes below are in screen coordinates, so the composition
+		// canvas must be the screen size regardless of the background's native resolution.
+		composition.setCanvasWidth(screenW);
+		composition.setCanvasHeight(screenH);
 		List<ImageReference> images = new ArrayList<>();
 		List<ImageComposition> compositions = new ArrayList<>();
 
-		// Base image: background source video
-		if (descriptor.getBackgroundMedia() != null && descriptor.getBackgroundMedia().isVideo()) {
+		// Base image: background source (video, static image, or nested composition).
+		// Must always register a "background" entry as the first image and set it as
+		// baseImageId — otherwise CompositionBuffer falls back to the first image in the
+		// list, which would be the first title's thumbnail video added below.
+		BackgroundSource bgSource = descriptor.getBackgroundMedia();
+		if (bgSource != null && bgSource.isVideo()) {
 			ImageReference bgRef = new ImageReference();
 			bgRef.setImageId("background");
-			bgRef.setVideoPath(descriptor.getBackgroundMedia().getVideoPath());
+			bgRef.setVideoPath(bgSource.getVideoPath());
 			images.add(bgRef);
 			composition.setBaseImageId("background");
+		} else if (bgSource != null && bgSource.isImage()) {
+			ImageReference bgRef = new ImageReference();
+			bgRef.setImageId("background");
+			Path resolved = Path.of(bgSource.getImagePath()).isAbsolute() ? Path.of(bgSource.getImagePath())
+					: baseDir.resolve(bgSource.getImagePath());
+			bgRef.setSourcePath(resolved.toAbsolutePath().toString());
+			images.add(bgRef);
+			composition.setBaseImageId("background");
+		} else if (bgSource != null && bgSource.isComposition()) {
+			ImagesComposition nested = bgSource.getComposition();
+			if (nested.getImages() != null) {
+				images.addAll(nested.getImages());
+			}
+			if (nested.getCompositions() != null) {
+				compositions.addAll(nested.getCompositions());
+			}
+			String nestedBaseId = nested.getBaseImageId() != null ? nested.getBaseImageId()
+					: (nested.getImages() != null && !nested.getImages().isEmpty()
+							? nested.getImages().get(0).getImageId()
+							: null);
+			composition.setBaseImageId(nestedBaseId);
 		}
 
 		// Add thumbnail video overlays for each title
