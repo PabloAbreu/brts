@@ -115,6 +115,42 @@ public class BrtsFileConfig {
 		}
 	}
 
+	public boolean parseBooleanProperty(String key, boolean fallback) {
+		String value = getProperty(key);
+		if (blankOrNull(value))
+			return fallback;
+
+		String normalized = value.trim();
+		if (normalized.equalsIgnoreCase("true") || normalized.equalsIgnoreCase("yes") || normalized.equals("1"))
+			return true;
+		if (normalized.equalsIgnoreCase("false") || normalized.equalsIgnoreCase("no") || normalized.equals("0"))
+			return false;
+
+		log.warn("Invalid boolean '{}' for {}, using default {}", value, key, fallback);
+		return fallback;
+	}
+
+	// shorter names for typed parsing methods, for convenience
+	public String get(String key, String fallback) {
+		return propertyOrDefault(key, fallback);
+	}
+
+	public int get(String key, int fallback) {
+		return parseIntProperty(key, fallback);
+	}
+
+	public float get(String key, float fallback) {
+		return parseFloatProperty(key, fallback);
+	}
+
+	public double get(String key, double fallback) {
+		return parseDoubleProperty(key, fallback);
+	}
+
+	public boolean get(String key, boolean fallback) {
+		return parseBooleanProperty(key, fallback);
+	}
+
 	public String parseColorProperty(String key, String fallback) {
 		String value = getProperty(key);
 		String raw = blankOrNull(value) ? fallback : value;

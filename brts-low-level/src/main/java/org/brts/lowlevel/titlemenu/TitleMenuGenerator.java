@@ -109,7 +109,7 @@ public class TitleMenuGenerator {
 
 		// ── 1. Resolve layout ────────────────────────────────────────────────
 
-		TitleMenuLayout layoutImpl = resolveLayout(descriptor.getLayout().getType());
+		TitleMenuLayout layoutImpl = resolveLayout(descriptor.getLayout().effectiveType());
 		LayoutResult layoutResult = layoutImpl.layout(descriptor, baseDir);
 
 		log.info("Layout computed: {} buttons, compositeBackground={}", layoutResult.getButtons().size(),
