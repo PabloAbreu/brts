@@ -38,12 +38,15 @@ public class BrtsMain {
 	}
 
 	public static void main(String[] args) {
-		if (args.length < 1) {
+		String level = args.length > 0 ? args[0].toLowerCase() : null;
+		String[] rest = args.length > 0 ? java.util.Arrays.copyOfRange(args, 1, args.length) : new String[0];
+
+		BrtsBanner.print(System.err, level, rest);
+
+		if (level == null) {
 			printUsage();
 			System.exit(1);
 		}
-		String level = args[0].toLowerCase();
-		String[] rest = java.util.Arrays.copyOfRange(args, 1, args.length);
 
 		try {
 			LevelDispatcher dispatcher = levels.get(level);

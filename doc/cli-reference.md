@@ -2,7 +2,7 @@
 
 The CLI entry point is `org.brts.cli.BrtsMain`, packaged as a fat jar by
 `brts-cli` (`maven-assembly-plugin`) or reachable directly via
-`brts_debug_launch.sh`:
+`brts_debug_launch.sh` when developping:
 
 ```bash
 java -jar brts-cli.jar <level> <command> [options]
@@ -13,6 +13,18 @@ java -jar brts-cli.jar <level> <command> [options]
 Run with no arguments, or `<level>` alone, to print the list of commands for
 that level. Run `<level> <command> --help` for the option list of a specific
 command (options are parsed with args4j).
+
+## Startup banner
+
+An ASCII banner with the version, level and arguments is printed on **stderr**
+at startup, so it never interferes with commands that write JSON to stdout.
+Disable it by setting `brts.cli.banner=false` through any source supported by
+`BrtsFileConfig`:
+
+```bash
+java -Dbrts.cli.banner=false -jar brts-cli.jar low clip-parse --input 00001.clpi
+BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
+```
 
 ## `low` — low-level binary file operations
 
