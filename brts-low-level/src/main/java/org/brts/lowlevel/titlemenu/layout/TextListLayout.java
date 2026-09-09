@@ -205,8 +205,11 @@ public class TextListLayout implements TitleMenuLayout {
 	private static List<LayoutResult.PositionedButton> audioButtons(TitleMenuDescriptor descriptor, TextStyle style,
 			List<org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand> backCommands) {
 		List<LayoutResult.PositionedButton> buttons = new ArrayList<>();
-		descriptor.getAudioItems().forEach(item -> buttons.add(renderSettingsButton(item.getDescription(), style, 0, 0,
-				NavigationCommandUtils.setAudioChoice(item.getStreamNumber()))));
+		descriptor.getAudioItems().forEach(item -> {
+			TextStyle itemStyle = resolveItemStyle(item.getStyle(), style);
+			buttons.add(renderSettingsButton(item.getDescription(), itemStyle, 0, 0,
+					NavigationCommandUtils.setAudioChoice(item.getStreamNumber())));
+		});
 		buttons.add(renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_BACK), style, 0, 0, backCommands));
 		return buttons;
 	}
@@ -214,8 +217,11 @@ public class TextListLayout implements TitleMenuLayout {
 	private static List<LayoutResult.PositionedButton> subtitleButtons(TitleMenuDescriptor descriptor, TextStyle style,
 			List<org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand> backCommands) {
 		List<LayoutResult.PositionedButton> buttons = new ArrayList<>();
-		descriptor.getSubtitleItems().forEach(item -> buttons.add(renderSettingsButton(item.getDescription(), style, 0,
-				0, NavigationCommandUtils.setSubtitleChoice(item.getStreamNumber()))));
+		descriptor.getSubtitleItems().forEach(item -> {
+			TextStyle itemStyle = resolveItemStyle(item.getStyle(), style);
+			buttons.add(renderSettingsButton(item.getDescription(), itemStyle, 0, 0,
+					NavigationCommandUtils.setSubtitleChoice(item.getStreamNumber())));
+		});
 		buttons.add(renderSettingsButton(BrtsI18NLabels.getLabel(BrtsI18NLabels.MENU_BACK), style, 0, 0, backCommands));
 		return buttons;
 	}
@@ -256,7 +262,7 @@ public class TextListLayout implements TitleMenuLayout {
 		return base.withDefaults();
 	}
 
-	private TextStyle resolveItemStyle(TextStyle itemStyle, TextStyle resolvedGlobal) {
+	private static TextStyle resolveItemStyle(TextStyle itemStyle, TextStyle resolvedGlobal) {
 		if (itemStyle == null)
 			return resolvedGlobal;
 		return itemStyle.mergeOver(resolvedGlobal).withDefaults();

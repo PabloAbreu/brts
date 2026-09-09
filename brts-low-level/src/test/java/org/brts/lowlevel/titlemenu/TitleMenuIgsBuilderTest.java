@@ -222,17 +222,17 @@ class TitleMenuIgsBuilderTest {
 		assertThat(pages.get(2).getBogs()).hasSize(3); // 2 tracks + back
 	}
 
-	private static org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem audioItem(String description,
+	private static org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem audioItem(String description,
 			int streamNumber) {
-		var item = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+		var item = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 		item.setDescription(description);
 		item.setStreamNumber(streamNumber);
 		return item;
 	}
 
-	private static org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem subtitleItem(String description,
+	private static org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem subtitleItem(String description,
 			int streamNumber) {
-		var item = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+		var item = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 		item.setDescription(description);
 		item.setStreamNumber(streamNumber);
 		return item;

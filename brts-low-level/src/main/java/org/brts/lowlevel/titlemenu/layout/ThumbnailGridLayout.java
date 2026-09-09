@@ -181,12 +181,13 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 			}
 
 			// Generate IGS button images (transparent with highlight borders for selected/activated)
+			TextStyle titleStyle = resolveItemStyle(title.getStyle(), globalStyle);
 			BufferedImage normalImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					globalStyle, TextStyle.parseColor(globalStyle.getNormalColor()), false);
+					titleStyle, TextStyle.parseColor(titleStyle.getNormalColor()), false);
 			BufferedImage selectedImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					globalStyle, TextStyle.parseColor(globalStyle.getSelectedColor()), true);
+					titleStyle, TextStyle.parseColor(titleStyle.getSelectedColor()), true);
 			BufferedImage activatedImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					globalStyle, TextStyle.parseColor(globalStyle.getActivatedColor()), true);
+					titleStyle, TextStyle.parseColor(titleStyle.getActivatedColor()), true);
 
 			LayoutResult.PositionedButton btn = new LayoutResult.PositionedButton();
 			btn.setTitleIndex(i);
@@ -263,6 +264,12 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 			base = descriptorStyle.mergeOver(base);
 		}
 		return base.withDefaults();
+	}
+
+	private TextStyle resolveItemStyle(TextStyle itemStyle, TextStyle resolvedGlobal) {
+		if (itemStyle == null)
+			return resolvedGlobal;
+		return itemStyle.mergeOver(resolvedGlobal).withDefaults();
 	}
 
 }

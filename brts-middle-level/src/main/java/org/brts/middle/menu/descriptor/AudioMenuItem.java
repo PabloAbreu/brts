@@ -6,7 +6,8 @@ import lombok.Setter;
 /**
  * An audio track selection menu item.
  * <p>
- * Each audio item corresponds to one audio stream the user can select.
+ * Each audio item corresponds to one audio stream the user can select. {@link #getStreamNumber()} maps to PSR1 (primary
+ * audio stream number) in Blu-ray navigation.
  *
  * <h2>Example</h2>
  *
@@ -20,11 +21,6 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public class AudioMenuItem extends MenuItem {
-
-	/**
-	 * 1-based audio stream number. Maps to PSR1 (primary audio stream number) in Blu-ray navigation.
-	 */
-	private int streamNumber;
+public class AudioMenuItem extends StreamMenuItem {
 
 }

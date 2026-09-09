@@ -273,15 +273,17 @@ public class MiddleLevelOrchestrator {
 		descriptor.setBackgroundLoopCount(menuConfig.getBackgroundLoopCount());
 
 		descriptor.setAudioItems(menuConfig.getAudioItems().stream().map(item -> {
-			org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+			org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 			menuItem.setDescription(item.getDescription());
 			menuItem.setStreamNumber(item.getStreamNumber());
+			menuItem.setStyle(item.getStyle());
 			return menuItem;
 		}).toList());
 		descriptor.setSubtitleItems(menuConfig.getSubtitleItems().stream().map(item -> {
-			org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+			org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem menuItem = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 			menuItem.setDescription(item.getDescription());
 			menuItem.setStreamNumber(item.getStreamNumber());
+			menuItem.setStyle(item.getStyle());
 			return menuItem;
 		}).toList());
 

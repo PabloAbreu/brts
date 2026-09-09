@@ -57,9 +57,9 @@ public class TitleMenuDescriptor {
 	 * Audio track selection items for the embedded settings submenu. When non-empty (together with
 	 * {@link #subtitleItems}), a "Settings" button is added to the title menu leading to extra IGS pages.
 	 */
-	private List<TitleMenuAudioItem> audioItems = new ArrayList<>();
+	private List<StreamMenuItem> audioItems = new ArrayList<>();
 
 	/** Subtitle track selection items for the embedded settings submenu. */
-	private List<TitleMenuSubtitleItem> subtitleItems = new ArrayList<>();
+	private List<StreamMenuItem> subtitleItems = new ArrayList<>();
 
 }

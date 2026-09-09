@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
@@ -113,10 +114,10 @@ class TextListLayoutTest {
 	@Test
 	void layout_rendersSettingsAudioAndSubtitleButtons() throws Exception {
 		TitleMenuDescriptor descriptor = buildDescriptor(1, 1);
-		var audio = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuAudioItem();
+		var audio = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 		audio.setDescription("English");
 		audio.setStreamNumber(1);
-		var subtitle = new org.brts.lowlevel.titlemenu.descriptor.TitleMenuSubtitleItem();
+		var subtitle = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
 		subtitle.setDescription("French");
 		subtitle.setStreamNumber(2);
 		descriptor.setAudioItems(List.of(audio));
@@ -132,6 +133,27 @@ class TextListLayoutTest {
 		assertThat(result.getSettingsPages().get(1).getButtons().get(0).getNavigationCommands()).isNotEmpty();
 		assertThat(result.getSettingsPages().get(2).getButtons()).hasSize(2);
 		assertThat(result.getSettingsPages().get(2).getButtons().get(0).getNormalImage()).isNotNull();
+	}
+
+	@Test
+	void settingsItems_overrideGlobalTextStyle() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(1, 1);
+		TextStyle globalStyle = new TextStyle();
+		globalStyle.setFontSize(12);
+		descriptor.getLayout().setTitleStyle(globalStyle);
+
+		var audio = new org.brts.lowlevel.titlemenu.descriptor.StreamMenuItem();
+		audio.setDescription("English");
+		audio.setStreamNumber(1);
+		TextStyle itemStyle = new TextStyle();
+		itemStyle.setFontSize(48);
+		audio.setStyle(itemStyle);
+		descriptor.setAudioItems(List.of(audio));
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+		List<LayoutResult.PositionedButton> audioButtons = result.getSettingsPages().get(0).getButtons();
+
+		assertThat(audioButtons.get(0).getHeight()).isGreaterThan(audioButtons.get(1).getHeight());
 	}
 
 	private TitleMenuDescriptor buildDescriptor(int titleCount, int columns) {
