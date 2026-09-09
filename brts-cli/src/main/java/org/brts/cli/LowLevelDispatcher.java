@@ -26,9 +26,9 @@ import org.brts.cli.low.VideoGenCli;
  */
 public class LowLevelDispatcher {
 
-	private final LevelDispatcher dispatcher;
+	private static final LevelDispatcher dispatcher;
 
-	public LowLevelDispatcher() {
+	static {
 		dispatcher = new LevelDispatcher("low");
 		dispatcher.register(new ClipInfoCli.Parse()).register(new ClipInfoCli.Write())
 				.register(new ClipRegenCli.Regen()).register(new PlaylistCli.Parse()).register(new PlaylistCli.Write())
@@ -45,11 +45,11 @@ public class LowLevelDispatcher {
 				.register(new ChapterThumbnailsCli.Extract()).register(new TemplateCli.Render());
 	}
 
-	public LevelDispatcher getLevelDispatcher() {
+	public static LevelDispatcher getLevelDispatcher() {
 		return dispatcher;
 	}
 
-	public void dispatch(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception {
 		dispatcher.dispatch(args);
 	}
 

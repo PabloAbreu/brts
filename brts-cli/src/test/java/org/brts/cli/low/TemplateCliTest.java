@@ -26,8 +26,8 @@ class TemplateCliTest {
 
 		Path outputFile = tempDir.resolve("out.xml");
 
-		new LowLevelDispatcher().dispatch(new String[] { "render-template", "--template", templateFile.toString(),
-				"--data", dataFile.toString(), "--output", outputFile.toString() });
+		LowLevelDispatcher.main(new String[] { "render-template", "--template", templateFile.toString(), "--data",
+				dataFile.toString(), "--output", outputFile.toString() });
 
 		assertThat(Files.exists(outputFile)).isTrue();
 		assertThat(Files.readString(outputFile)).isEqualTo("<root><val>test-runner</val></root>");
@@ -42,8 +42,8 @@ class TemplateCliTest {
 		ByteArrayOutputStream outCapture = new ByteArrayOutputStream();
 		try {
 			System.setOut(new PrintStream(outCapture));
-			new LowLevelDispatcher().dispatch(new String[] { "render-template", "--template", templateFile.toString(),
-					"--data", "{\"msg\": \"hello world\"}" });
+			LowLevelDispatcher.main(new String[] { "render-template", "--template", templateFile.toString(), "--data",
+					"{\"msg\": \"hello world\"}" });
 		} finally {
 			System.setOut(originalOut);
 		}

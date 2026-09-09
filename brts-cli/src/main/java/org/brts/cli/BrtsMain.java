@@ -32,7 +32,7 @@ public class BrtsMain {
 	private static final Map<String, LevelDispatcher> levels = new LinkedHashMap<>();
 
 	static {
-		levels.put("low", new LowLevelDispatcher().getLevelDispatcher());
+		levels.put("low", LowLevelDispatcher.getLevelDispatcher());
 		levels.put("mid", MiddleLevelCli.getLevelDispatcher());
 		levels.put("high", HighLevelCli.getLevelDispatcher());
 	}
