@@ -56,6 +56,8 @@ public class CompositionBuffer {
 
 	private final Map<String, ImageFrame> resizedImageCache;
 
+	private final Map<String, ImageFrame> canvasCache;
+
 	private final Map<String, ImageReference> maskReferences;
 
 	private VideoFrames getVideoFrames(ImageReference ref) {
@@ -76,6 +78,7 @@ public class CompositionBuffer {
 		this.mediaRepository = mediaRepository;
 		this.context = context;
 		resizedImageCache = mediaRepository.getImageCache("resized");
+		canvasCache = mediaRepository.getImageCache("canvas");
 		references = configuration.getImages().stream().collect(HashMap::new, (m, r) -> m.put(r.getImageId(), r),
 				HashMap::putAll);
 		maskReferences = configuration.getTransparencyMasks() != null ? configuration.getTransparencyMasks().stream()
@@ -121,7 +124,7 @@ public class CompositionBuffer {
 	public ImageFrame compose() {
 		CompositionEngine engine = CompositionEngineFactory.get();
 		// background is owned by this scope; overlays are borrowed (do not close)
-		ImageFrame background = buildCanvas(engine, getImage(getBackgroundReference(), context.getFrameNumber()));
+		ImageFrame background = buildCanvas(engine, getBackgroundReference());
 		for (ImageComposition ic : configuration.getCompositions()) {
 			ImageReference ref = getReference(ic.getImageId());
 			ImageFrame sourceOverlay = getImage(ref, context.getFrameNumber());
@@ -161,16 +164,35 @@ public class CompositionBuffer {
 	 * base image is scaled to it so overlay coordinates are interpreted in canvas space rather than in the base image's
 	 * native resolution.
 	 */
-	private ImageFrame buildCanvas(CompositionEngine engine, ImageFrame base) {
+	private ImageFrame buildCanvas(CompositionEngine engine, ImageReference backgroundRef) {
+		ImageFrame base = getImage(backgroundRef, context.getFrameNumber());
 		Integer canvasWidth = configuration.getCanvasWidth();
 		Integer canvasHeight = configuration.getCanvasHeight();
 		if (canvasWidth != null && canvasHeight != null && canvasWidth > 0 && canvasHeight > 0
 				&& (base.width() != canvasWidth || base.height() != canvasHeight)) {
-			log.debug("Scaling base image from {}x{} to canvas {}x{}", base.width(), base.height(), canvasWidth,
-					canvasHeight);
-			return engine.resize(base, canvasWidth, canvasHeight);
+			ImageFrame resizedCanvas = getOrCreateResizedCanvas(engine, backgroundRef, base, canvasWidth, canvasHeight);
+			// resizedCanvas is shared/cached and borrowed; copy it since compose() mutates the background in place
+			return engine.copy(resizedCanvas);
 		}
 		return engine.copy(base);
+	}
+
+	/**
+	 * Returns a pre-resized canvas from the LRU cache, computing and caching it on first access.
+	 *
+	 * <p>
+	 * Cache key encodes: base imageId + whether the source is static or frame-specific + target dimensions. Static
+	 * images always produce the same output for a given target size; video/synthetic frames are keyed by frame number.
+	 */
+	private ImageFrame getOrCreateResizedCanvas(CompositionEngine engine, ImageReference backgroundRef, ImageFrame base,
+			int canvasWidth, int canvasHeight) {
+		String sourceKey = backgroundRef.isStatic() ? "s" : String.valueOf(context.getFrameNumber());
+		String cacheKey = backgroundRef.getImageId() + "|" + sourceKey + "|" + canvasWidth + "x" + canvasHeight;
+		return canvasCache.computeIfAbsent(cacheKey, k -> {
+			log.debug("Scaling base image from {}x{} to canvas {}x{} (cache miss, key={})", base.width(), base.height(),
+					canvasWidth, canvasHeight, k);
+			return engine.resize(base, canvasWidth, canvasHeight);
+		});
 	}
 
 	/**
