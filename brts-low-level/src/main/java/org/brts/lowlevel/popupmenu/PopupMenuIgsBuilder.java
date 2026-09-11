@@ -24,10 +24,12 @@ import org.brts.lowlevel.igs.model.IgsCompositionSegment;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
 import org.brts.lowlevel.igs.model.IgsInteractiveComposition;
 import org.brts.lowlevel.igs.model.IgsObject;
-import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.popupmenu.layout.HorizontalBottomPopupMenuLayout;
+import org.brts.lowlevel.popupmenu.layout.PopupMenuLayout;
+import org.brts.lowlevel.popupmenu.layout.VerticalPopupMenuLayout;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,13 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PopupMenuIgsBuilder {
 
-	private static final int BUTTON_HEIGHT = 40;
-
 	private static final int BUTTON_MAX_WIDTH = 800;
-
-	private static final int BUTTON_SPACING_Y = 8;
-
-	private static final int MARGIN_BOTTOM = 80;
 
 	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands) {
 	}
@@ -88,7 +84,8 @@ public class PopupMenuIgsBuilder {
 		List<BufferedImage> images = collectImages(pages);
 		IgsPalette palette = PaletteBuilder.buildFromImages(0, images.toArray(new BufferedImage[0]));
 		List<IgsObject> objects = IgsMenuAssembler.buildObjectsFromImages(images, palette);
-		IgsInteractiveComposition composition = buildInteractiveComposition(pages, screenW, screenH);
+		IgsInteractiveComposition composition = buildInteractiveComposition(pages, config.getLayout(), screenW,
+				screenH);
 		IgsCompositionSegment compositionSegment = IgsMenuAssembler.buildCompositionSegment(composition, screenW,
 				screenH);
 		IgsWindowDefinition windowDefinition = IgsMenuAssembler.buildFullScreenWindowDefinition(screenW, screenH);
@@ -112,18 +109,25 @@ public class PopupMenuIgsBuilder {
 		return images;
 	}
 
-	private IgsInteractiveComposition buildInteractiveComposition(List<List<ButtonSpec>> pages, int screenW,
-			int screenH) {
+	private IgsInteractiveComposition buildInteractiveComposition(List<List<ButtonSpec>> pages,
+			PopupMenuConfig.Layout layout, int screenW, int screenH) {
 		IgsInteractiveComposition composition = new IgsInteractiveComposition();
 		composition.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX);
 		composition.setUiModel(IgsInteractiveComposition.UI_MODEL_POP_UP);
 		composition.setUserTimeoutDuration(0);
 
+		List<List<IgsMenuAssembler.LabeledButton>> labeledPages = pages.stream().map(
+				specs -> specs.stream().map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands())).toList())
+				.toList();
+		PopupMenuLayout layoutStrategy = layout == PopupMenuConfig.Layout.HORIZONTAL_BOTTOM
+				? new HorizontalBottomPopupMenuLayout()
+				: new VerticalPopupMenuLayout();
 		int objectBase = 0;
-		for (int pageId = 0; pageId < pages.size(); pageId++) {
-			List<ButtonSpec> specs = pages.get(pageId);
-			composition.getPages().add(buildPage(pageId, specs, objectBase, screenW, screenH));
-			objectBase += specs.size() * 3;
+		List<PopupMenuLayout.Page> positionedPages = layoutStrategy.layout(labeledPages, screenW, screenH);
+		for (int pageId = 0; pageId < positionedPages.size(); pageId++) {
+			List<IgsMenuAssembler.PositionedButton> buttons = positionedPages.get(pageId).buttons();
+			composition.getPages().add(IgsMenuAssembler.buildPositionedPage(pageId, buttons, objectBase));
+			objectBase += buttons.size() * 3;
 		}
 		return composition;
 	}
@@ -214,15 +218,6 @@ public class PopupMenuIgsBuilder {
 			pages.add(specs);
 		}
 		return pages;
-	}
-
-	// ── Page builder ────────────────────────────────────────────────────────
-
-	private IgsPage buildPage(int pageId, List<ButtonSpec> specs, int objectBase, int screenW, int screenH) {
-		List<IgsMenuAssembler.LabeledButton> buttons = specs.stream()
-				.map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands())).toList();
-		return IgsMenuAssembler.buildVerticalButtonListPage(pageId, buttons, objectBase, screenW, screenH,
-				BUTTON_HEIGHT, BUTTON_MAX_WIDTH, BUTTON_SPACING_Y, MARGIN_BOTTOM);
 	}
 
 	// ── Style ───────────────────────────────────────────────────────────────

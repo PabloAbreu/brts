@@ -16,6 +16,11 @@ import lombok.Setter;
 @Setter
 public class PopupMenuConfig {
 
+	/** Built-in button arrangements supported by popup menus. */
+	public enum Layout {
+		VERTICAL_LIST, HORIZONTAL_BOTTOM
+	}
+
 	/** Ordered list of audio tracks for the popup menu. */
 	private List<TrackEntry> audioTracks;
 
@@ -36,6 +41,9 @@ public class PopupMenuConfig {
 	 * properties in brts.conf (via {@link TextStyle#withDefaults()}).
 	 */
 	private TextStyle style;
+
+	/** Button arrangement, defaulting to the historical vertical list. */
+	private Layout layout = Layout.VERTICAL_LIST;
 
 	// -------------------------------------------------------------------------
 

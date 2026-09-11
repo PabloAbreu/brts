@@ -142,6 +142,48 @@ public final class IgsMenuAssembler {
 	public record LabeledButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands) {
 	}
 
+	/** A rendered button with its screen position and directional navigation references. */
+	public record PositionedButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands, int x, int y,
+			int upperButtonIdRef, int lowerButtonIdRef, int leftButtonIdRef, int rightButtonIdRef) {
+	}
+
+	/** Builds a page from buttons whose layout and directional navigation have already been resolved. */
+	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons, int objectBase) {
+		List<IgsBog> bogs = new ArrayList<>();
+		for (int i = 0; i < buttons.size(); i++) {
+			PositionedButton positionedButton = buttons.get(i);
+			int buttonId = i + 1;
+			IgsButton button = new IgsButton();
+			button.setId(buttonId);
+			button.setNumericSelectValue(0xFFFF);
+			button.setAutoAction(false);
+			button.setXPos(positionedButton.x());
+			button.setYPos(positionedButton.y());
+			button.setUpperButtonIdRef(positionedButton.upperButtonIdRef());
+			button.setLowerButtonIdRef(positionedButton.lowerButtonIdRef());
+			button.setLeftButtonIdRef(positionedButton.leftButtonIdRef());
+			button.setRightButtonIdRef(positionedButton.rightButtonIdRef());
+			bindButtonVisualStates(button, objectBase + i * 3, objectBase + i * 3 + 1, objectBase + i * 3 + 2);
+			button.setNavigationCommands(positionedButton.commands());
+
+			IgsBog bog = new IgsBog();
+			bog.setDefaultValidButtonIdRef(buttonId);
+			bog.getButtons().add(button);
+			bogs.add(bog);
+		}
+
+		IgsPage page = new IgsPage();
+		page.setId(pageId);
+		page.setVersion(0);
+		page.setUoMaskTable(new byte[8]);
+		page.setAnimationFrameRateCode(0);
+		page.setDefaultSelectedButtonIdRef(buttons.isEmpty() ? 0xFFFF : 1);
+		page.setDefaultActivatedButtonIdRef(0xFFFF);
+		page.setPaletteIdRef(0);
+		page.setBogs(bogs);
+		return page;
+	}
+
 	/**
 	 * Builds a simple vertically-stacked, wrap-wired button list page (used by popup and title-menu settings submenus):
 	 * buttons are centered horizontally and stacked bottom-up ending at {@code marginBottom}, sharing object ids
@@ -154,43 +196,16 @@ public final class IgsMenuAssembler {
 		int startY = screenH - marginBottom - totalHeight;
 		int groupX = Math.max(40, Math.min((screenW - buttonMaxWidth) / 2, screenW - buttonMaxWidth - 40));
 
-		List<IgsBog> bogs = new ArrayList<>();
+		List<PositionedButton> positionedButtons = new ArrayList<>();
 		for (int i = 0; i < totalButtons; i++) {
 			int buttonId = i + 1; // 1-based
-			int normalObjId = objectBase + i * 3;
-			int selectedObjId = objectBase + i * 3 + 1;
-			int activatedObjId = objectBase + i * 3 + 2;
-
 			int y = startY + i * (buttonHeight + buttonSpacingY);
-
-			IgsButton btn = new IgsButton();
-			btn.setId(buttonId);
-			btn.setNumericSelectValue(0xFFFF);
-			btn.setAutoAction(false);
-			btn.setXPos(groupX);
-			btn.setYPos(y);
-
-			bindButtonVisualStates(btn, normalObjId, selectedObjId, activatedObjId);
-			btn.setNavigationCommands(buttons.get(i).commands());
-
-			IgsBog bog = new IgsBog();
-			bog.setDefaultValidButtonIdRef(buttonId);
-			bog.getButtons().add(btn);
-			bogs.add(bog);
+			int upperButtonId = ((i - 1 + totalButtons) % totalButtons) + 1;
+			int lowerButtonId = ((i + 1) % totalButtons) + 1;
+			positionedButtons.add(new PositionedButton(buttons.get(i).images(), buttons.get(i).commands(), groupX, y,
+					upperButtonId, lowerButtonId, buttonId, buttonId));
 		}
-
-		wireVerticalWrapNeighbours(bogs.stream().map(b -> b.getButtons().get(0)).toList());
-
-		IgsPage page = new IgsPage();
-		page.setId(pageId);
-		page.setVersion(0);
-		page.setUoMaskTable(new byte[8]);
-		page.setAnimationFrameRateCode(0);
-		page.setDefaultSelectedButtonIdRef(1);
-		page.setDefaultActivatedButtonIdRef(0xFFFF);
-		page.setPaletteIdRef(0);
-		page.setBogs(bogs);
-		return page;
+		return buildPositionedPage(pageId, positionedButtons, objectBase);
 	}
 
 }
