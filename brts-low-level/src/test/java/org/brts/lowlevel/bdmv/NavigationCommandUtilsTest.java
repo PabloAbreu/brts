@@ -30,8 +30,8 @@ class NavigationCommandUtilsTest {
 			gprInit.put(NavigationCommandUtils.GPR_SUB_CHOICE, subChoice);
 		}
 
-		NavigationCommandSimulator.SimulationResult result = new NavigationCommandSimulator(program, null, gprInit,
-				10_000).run();
+		NavigationCommandSimulator.SimulationResult result = new NavigationCommandSimulator(null, gprInit, 10_000)
+				.run(program);
 
 		assertThat(result.terminationReason()).isEqualTo("PLAY_PL");
 		return result.externalEffects().stream().filter(e -> e.contains("SET_STREAM")).count();

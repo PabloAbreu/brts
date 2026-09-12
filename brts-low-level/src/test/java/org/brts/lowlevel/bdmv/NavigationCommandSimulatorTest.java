@@ -49,7 +49,7 @@ class NavigationCommandSimulatorTest {
 	}
 
 	private SimulationResult run(List<NavigationCommand> cmds, Map<Integer, Long> psr) {
-		return new NavigationCommandSimulator(cmds, psr, 100_000).run();
+		return new NavigationCommandSimulator(psr, 100_000).run(cmds);
 	}
 
 	// -------------------------------------------------------------------------
@@ -155,7 +155,7 @@ class NavigationCommandSimulatorTest {
 		cmds.add(cmd("SUB", 0, REG, 10_000, IMM)); // GPR[0] -= 10000 → clamps at 0
 
 		SimulationResult r = run(cmds);
-		assertThat(r.finalGprState()).doesNotContainKey(0); // 0 is default
+		assertThat(r.finalGprState()).containsEntry(0, 0L); // explicitly set to 0, still tracked
 	}
 
 	@Test
@@ -166,7 +166,7 @@ class NavigationCommandSimulatorTest {
 														// masked to 0
 
 		SimulationResult r = run(cmds);
-		assertThat(r.finalGprState()).doesNotContainKey(0);
+		assertThat(r.finalGprState()).containsEntry(0, 0L); // explicitly set to 0, still tracked
 	}
 
 	@Test
@@ -404,7 +404,7 @@ class NavigationCommandSimulatorTest {
 		// GOTO GPR[0] where GPR[0] = 0 → infinite loop
 		List<NavigationCommand> cmds = List.of(cmd("GOTO", 0, REG));
 
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, 100).run();
+		SimulationResult r = new NavigationCommandSimulator((Map<Integer, Long>) null, 100).run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("MAX_STEPS");
 		assertThat(r.stepsExecuted()).isEqualTo(100);
 	}
@@ -438,7 +438,7 @@ class NavigationCommandSimulatorTest {
 
 		SimulationResult r = run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("END");
-		assertThat(r.finalGprState()).doesNotContainKey(0); // 0 = default
+		assertThat(r.finalGprState()).containsEntry(0, 0L); // explicitly set to 0, still tracked
 	}
 
 	// -------------------------------------------------------------------------
@@ -449,7 +449,7 @@ class NavigationCommandSimulatorTest {
 	void gprInit_preloadsRegisters() {
 		// GPR[0] pre-loaded with 42000, then ADD 10000
 		List<NavigationCommand> cmds = List.of(cmd("ADD", 0, REG, 10_000, IMM));
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, Map.of(0, 42_000L), 100_000).run();
+		SimulationResult r = new NavigationCommandSimulator(null, Map.of(0, 42_000L), 100_000).run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("END");
 		assertThat(r.finalGprState()).containsEntry(0, 52_000L);
 	}
@@ -457,7 +457,7 @@ class NavigationCommandSimulatorTest {
 	@Test
 	void gprInit_nullIsSameAsEmpty() {
 		List<NavigationCommand> cmds = List.of(cmd("MOVE", 0, REG, 10_000, IMM));
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000).run();
+		SimulationResult r = new NavigationCommandSimulator(null, (Map<Integer, Long>) null, 100_000).run(cmds);
 		assertThat(r.finalGprState()).containsEntry(0, 10_000L);
 	}
 
@@ -543,7 +543,8 @@ class NavigationCommandSimulatorTest {
 	@Test
 	void playlistPredicate_alwaysTrue_terminatesLikeNull() {
 		List<NavigationCommand> cmds = List.of(cmd("PLAY_PL", 10_000, IMM));
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> true).run();
+		SimulationResult r = new NavigationCommandSimulator(null, (Map<Integer, Long>) null, 100_000, id -> true)
+				.run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("PLAY_PL");
 		assertThat(r.terminalOp1()).isEqualTo(10_000L);
 		assertThat(r.stepsExecuted()).isEqualTo(1);
@@ -555,7 +556,8 @@ class NavigationCommandSimulatorTest {
 		List<NavigationCommand> cmds = new ArrayList<>();
 		cmds.add(cmd("PLAY_PL", 1, IMM));
 		cmds.add(cmd("PLAY_PL", 2, IMM));
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> id == 2L).run();
+		SimulationResult r = new NavigationCommandSimulator(null, (Map<Integer, Long>) null, 100_000, id -> id == 2L)
+				.run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("PLAY_PL");
 		assertThat(r.terminalOp1()).isEqualTo(2L);
 		assertThat(r.stepsExecuted()).isEqualTo(2);
@@ -568,7 +570,8 @@ class NavigationCommandSimulatorTest {
 		List<NavigationCommand> cmds = new ArrayList<>();
 		cmds.add(cmd("PLAY_PL", 5, IMM));
 		cmds.add(cmd("PLAY_PL", 6, IMM));
-		SimulationResult r = new NavigationCommandSimulator(cmds, null, null, 100_000, id -> false).run();
+		SimulationResult r = new NavigationCommandSimulator(null, (Map<Integer, Long>) null, 100_000, id -> false)
+				.run(cmds);
 		assertThat(r.terminationReason()).isEqualTo("END");
 		assertThat(r.terminalOp1()).isNull();
 		assertThat(r.externalEffects()).hasSize(2);

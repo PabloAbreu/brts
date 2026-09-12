@@ -8,11 +8,14 @@ import java.util.function.LongPredicate;
 /**
  * Simulates execution of a list of HDMV {@link NavigationCommand}s.
  * <p>
- * Internal engine commands (GOTO, SET, COMPARE, etc.) are fully executed with an internal GPR register file. Commands
- * that would have an external effect (PLAY, JUMP, SET_SYSTEM, etc.) are traced but not executed.
+ * Internal engine commands (GOTO, SET, COMPARE, etc.) are fully executed against a {@link GprState} register file.
+ * Commands that would have an external effect (PLAY, JUMP, SET_SYSTEM, etc.) are traced but not executed.
  * <p>
  * Operand types (immediate vs register) are determined from the opcode's immediate flags (bits 23 and 22) via
  * {@link ParsedNavigationCommand}.
+ * <p>
+ * A single instance may be reused across multiple {@link #run(List)} calls (e.g. to simulate successive button
+ * activations while sharing one {@link GprState}); it is not thread-safe / not reentrant.
  */
 public class NavigationCommandSimulator {
 
@@ -20,11 +23,9 @@ public class NavigationCommandSimulator {
 
 	private static final long PSR_BIT = 0x8000_0000L;
 
-	private final long[] gpr = new long[4096];
+	private final GprState gprState;
 
 	private final Long[] psr = new Long[128];
-
-	private final List<NavigationCommand> commands;
 
 	private final long maxSteps;
 
@@ -42,29 +43,25 @@ public class NavigationCommandSimulator {
 	private final LongPredicate playlistTerminator;
 
 	/**
-	 * @param commands the program to simulate
 	 * @param psrInit  initial PSR values (may be {@code null}); reading an uninitialised PSR at runtime will throw
 	 *                 {@link SimulationException}
 	 * @param maxSteps maximum number of instructions to execute before aborting
 	 */
-	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit, long maxSteps) {
-		this(commands, psrInit, null, maxSteps, null);
+	public NavigationCommandSimulator(Map<Integer, Long> psrInit, long maxSteps) {
+		this(psrInit, new GprState(), maxSteps, null);
 	}
 
 	/**
-	 * @param commands the program to simulate
 	 * @param psrInit  initial PSR values (may be {@code null})
 	 * @param gprInit  initial GPR values (may be {@code null}); used to carry state across chained simulations (e.g.
 	 *                 CALL/RESUME flows)
 	 * @param maxSteps maximum number of instructions to execute before aborting
 	 */
-	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit,
-			Map<Integer, Long> gprInit, long maxSteps) {
-		this(commands, psrInit, gprInit, maxSteps, null);
+	public NavigationCommandSimulator(Map<Integer, Long> psrInit, Map<Integer, Long> gprInit, long maxSteps) {
+		this(psrInit, new GprState(gprInit), maxSteps, null);
 	}
 
 	/**
-	 * @param commands           the program to simulate
 	 * @param psrInit            initial PSR values (may be {@code null})
 	 * @param gprInit            initial GPR values (may be {@code null})
 	 * @param maxSteps           maximum number of instructions to execute before aborting
@@ -72,9 +69,33 @@ public class NavigationCommandSimulator {
 	 *                           the simulator terminates only when the predicate returns {@code true}, otherwise
 	 *                           execution continues past the PLAY command
 	 */
-	public NavigationCommandSimulator(List<NavigationCommand> commands, Map<Integer, Long> psrInit,
-			Map<Integer, Long> gprInit, long maxSteps, LongPredicate playlistTerminator) {
-		this.commands = Objects.requireNonNull(commands);
+	public NavigationCommandSimulator(Map<Integer, Long> psrInit, Map<Integer, Long> gprInit, long maxSteps,
+			LongPredicate playlistTerminator) {
+		this(psrInit, new GprState(gprInit), maxSteps, playlistTerminator);
+	}
+
+	/**
+	 * @param psrInit  initial PSR values (may be {@code null})
+	 * @param gprState GPR register bank to read/write; shared with the caller so state (and the "explicitly set" bit)
+	 *                 persists across successive {@link #run(List)} calls on the same instance
+	 * @param maxSteps maximum number of instructions to execute before aborting
+	 */
+	public NavigationCommandSimulator(Map<Integer, Long> psrInit, GprState gprState, long maxSteps) {
+		this(psrInit, gprState, maxSteps, null);
+	}
+
+	/**
+	 * @param psrInit            initial PSR values (may be {@code null})
+	 * @param gprState           GPR register bank to read/write (see
+	 *                           {@link #NavigationCommandSimulator(Map, GprState, long)})
+	 * @param maxSteps           maximum number of instructions to execute before aborting
+	 * @param playlistTerminator optional predicate on the playlist ID for PLAY_PL/PLAY_PL_PI/PLAY_PL_PM; when non-null
+	 *                           the simulator terminates only when the predicate returns {@code true}, otherwise
+	 *                           execution continues past the PLAY command
+	 */
+	public NavigationCommandSimulator(Map<Integer, Long> psrInit, GprState gprState, long maxSteps,
+			LongPredicate playlistTerminator) {
+		this.gprState = Objects.requireNonNull(gprState);
 		this.maxSteps = maxSteps;
 		this.playlistTerminator = playlistTerminator;
 		if (psrInit != null) {
@@ -82,13 +103,6 @@ public class NavigationCommandSimulator {
 				if (idx < 0 || idx > 127)
 					throw new IllegalArgumentException("Invalid PSR index: " + idx);
 				psr[idx] = val & MASK_32;
-			});
-		}
-		if (gprInit != null) {
-			gprInit.forEach((idx, val) -> {
-				if (idx < 0 || idx > 4095)
-					throw new IllegalArgumentException("Invalid GPR index: " + idx);
-				gpr[idx] = val & MASK_32;
 			});
 		}
 	}
@@ -105,7 +119,10 @@ public class NavigationCommandSimulator {
 	// Main execution loop
 	// -------------------------------------------------------------------------
 
-	public SimulationResult run() {
+	public SimulationResult run(List<NavigationCommand> commands) {
+		Objects.requireNonNull(commands);
+		pc = 0;
+		externalEffects.clear();
 		long steps = 0;
 		String terminationReason = "END";
 		Long terminalOp1 = null;
@@ -209,8 +226,8 @@ public class NavigationCommandSimulator {
 			terminationReason = "MAX_STEPS";
 		}
 
-		return new SimulationResult(Collections.unmodifiableList(new ArrayList<>(externalEffects)), getNonZeroGpr(), pc,
-				steps, terminationReason, terminalOp1, terminalOp2);
+		return new SimulationResult(Collections.unmodifiableList(new ArrayList<>(externalEffects)), gprState.asMap(),
+				pc, steps, terminationReason, terminalOp1, terminalOp2);
 	}
 
 	// -------------------------------------------------------------------------
@@ -235,7 +252,7 @@ public class NavigationCommandSimulator {
 			return psr[index];
 		}
 		int index = (int) (operandValue & 0xFFF);
-		return gpr[index];
+		return gprState.get(index);
 	}
 
 	private void storeResult(NavigationCommand cmd, int operandIndex, long value) {
@@ -249,7 +266,7 @@ public class NavigationCommandSimulator {
 			throw new SimulationException("Cannot write to PSR from SET instruction (pc=" + pc + ")");
 		}
 		int index = (int) (raw & 0xFFF);
-		gpr[index] = value & MASK_32;
+		gprState.set(index, value & MASK_32);
 	}
 
 	// -------------------------------------------------------------------------
@@ -333,11 +350,7 @@ public class NavigationCommandSimulator {
 	}
 
 	private Map<Integer, Long> gprSnapshot() {
-		Map<Integer, Long> snapshot = new HashMap<>();
-		for (int i = 0; i < gpr.length; i++) {
-			snapshot.put(i, gpr[i]);
-		}
-		return snapshot;
+		return gprState.asMap();
 	}
 
 	private String formatOperandValue(NavigationCommand cmd, int operandIndex) {
@@ -364,15 +377,6 @@ public class NavigationCommandSimulator {
 		} catch (SimulationException e) {
 			return null;
 		}
-	}
-
-	private Map<Integer, Long> getNonZeroGpr() {
-		Map<Integer, Long> result = new TreeMap<>();
-		for (int i = 0; i < gpr.length; i++) {
-			if (gpr[i] != 0)
-				result.put(i, gpr[i]);
-		}
-		return result;
 	}
 
 	// -------------------------------------------------------------------------

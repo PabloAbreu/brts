@@ -113,4 +113,42 @@ class NavigationControllerTest {
 		assertThat(model.getSelectedButtonId()).isEqualTo(9);
 	}
 
+	@Test
+	void activate_setButtonPageTargetingButtonIdZero_doesNotThrow() {
+		// Regression test: button id 0 is a legitimate, explicitly-set GPR value that must not be dropped as "unset".
+		IgsButton trigger = button(1, NavigationCommandUtils.setButtonPage(1, 0));
+		IgsPage root = page(0, 1, trigger);
+
+		IgsButton zeroButton = button(0, List.of());
+		IgsPage target = page(1, 0, zeroButton);
+
+		DisplaySetPreviewModel model = modelOnPage0(root, target);
+		NavigationController nav = new NavigationController(model);
+
+		nav.activate();
+
+		assertThat(model.getCurrentPageIndex()).isEqualTo(1);
+		assertThat(model.getSelectedButtonId()).isEqualTo(0);
+	}
+
+	@Test
+	void gprState_persistsAcrossActivations_withoutManualModelSync() {
+		int gprPage = 999;
+		IgsButton setGpr = button(1, List.of(NavigationCommand
+				.fromParsed(ParsedNavigationCommand.compile(NavigationCommandMnemonic.MOVE, gprPage, false, 1, true))));
+		IgsButton useGpr = button(2, List.of(NavigationCommand.fromParsed(ParsedNavigationCommand
+				.compile(NavigationCommandMnemonic.SET_BUTTON_PAGE, 0L, true, gprPage | 0x8000_0000L, false))));
+		IgsPage root = page(0, 1, setGpr, useGpr);
+		IgsPage target = page(1, 3, button(3, List.of()));
+
+		DisplaySetPreviewModel model = modelOnPage0(root, target);
+		NavigationController nav = new NavigationController(model);
+
+		nav.activate(); // MOVE GPR[999] = 1
+		model.setSelectedButtonId(2);
+		nav.activate(); // SET_BUTTON_PAGE page=GPR[999] → switches to page id 1, relying on shared GPR state
+
+		assertThat(model.getCurrentPageIndex()).isEqualTo(1);
+	}
+
 }

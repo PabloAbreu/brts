@@ -1,9 +1,9 @@
 package org.brts.middle.preview;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.OptionalInt;
 
+import org.brts.lowlevel.bdmv.GprState;
 import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
 import org.brts.lowlevel.bdmv.NavigationCommandSimulator;
 import org.brts.lowlevel.bdmv.NavigationCommandSimulator.SimulationResult;
@@ -33,6 +33,10 @@ public class NavigationController {
 	private static final long MAX_SIMULATION_STEPS = 10_000;
 
 	private final DisplaySetPreviewModel model;
+
+	/** Single instance reused across all button activations, sharing one {@link GprState} for the session. */
+	private final NavigationCommandSimulator simulator = new NavigationCommandSimulator(null, new GprState(),
+			MAX_SIMULATION_STEPS);
 
 	// ── Public actions ──────────────────────────────────────────────────────
 
@@ -94,15 +98,12 @@ public class NavigationController {
 
 		SimulationResult result;
 		try {
-			log.debug("GPR state before activation: {}", model.getGprRegisters());
-			result = new NavigationCommandSimulator(commands, null, model.getGprRegisters(), MAX_SIMULATION_STEPS)
-					.run();
+			result = simulator.run(commands);
 			log.debug("GPR state after activation: {}", result.finalGprState());
 		} catch (NavigationCommandSimulator.SimulationException e) {
 			log.warn("Navigation command simulation failed for button #{}: {}", btn.getId(), e.getMessage());
 			return;
 		}
-		model.setGprRegisters(new HashMap<>(result.finalGprState()));
 
 		ButtonPageTarget target = resolveLastButtonPageTarget(commands, result);
 		if (target == null) {

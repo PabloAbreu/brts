@@ -107,9 +107,9 @@ public class FirstPlaylistFinder {
 				return deadEnd(trace, totalSteps, "MAX_STEPS");
 			}
 
-			NavigationCommandSimulator sim = new NavigationCommandSimulator(mo.getNavigationCommands(), psrMap,
-					gprState, Math.min(stepsRemaining, config.getMaxTotalSteps()), buildPlaylistTerminator(config));
-			SimulationResult result = sim.run();
+			NavigationCommandSimulator sim = new NavigationCommandSimulator(psrMap, gprState,
+					Math.min(stepsRemaining, config.getMaxTotalSteps()), buildPlaylistTerminator(config));
+			SimulationResult result = sim.run(mo.getNavigationCommands());
 			totalSteps += result.stepsExecuted();
 			String reason = result.terminationReason();
 

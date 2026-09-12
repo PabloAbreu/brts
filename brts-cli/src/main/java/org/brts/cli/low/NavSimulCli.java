@@ -67,10 +67,10 @@ public class NavSimulCli {
 			}
 
 			// Run simulation
-			NavigationCommandSimulator simulator = new NavigationCommandSimulator(commands, psrInit, opts.maxSteps);
+			NavigationCommandSimulator simulator = new NavigationCommandSimulator(psrInit, opts.maxSteps);
 			SimulationResult result;
 			try {
-				result = simulator.run();
+				result = simulator.run(commands);
 			} catch (NavigationCommandSimulator.SimulationException e) {
 				System.err.println("nav-simul: simulation error — " + e.getMessage());
 				System.exit(1);
