@@ -162,6 +162,10 @@ public class NavigationController {
 		for (int i = 0; i < model.getPages().size(); i++) {
 			if (model.getPages().get(i).getId() == pageId) {
 				int oldPageIndex = model.getCurrentPageIndex();
+				if (i != oldPageIndex) {
+					// Avoid the lingering activation highlight landing on an unrelated button on the new page
+					model.setActivatedButtonId(-1);
+				}
 				model.setCurrentPageIndex(i);
 				model.resetBogState();
 				IgsPage page = model.getCurrentPage();
