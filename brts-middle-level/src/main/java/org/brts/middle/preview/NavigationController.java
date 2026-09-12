@@ -1,12 +1,19 @@
 package org.brts.middle.preview;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.OptionalInt;
 
+import org.brts.lowlevel.bdmv.NavigationCommandMnemonic;
+import org.brts.lowlevel.bdmv.NavigationCommandSimulator;
+import org.brts.lowlevel.bdmv.NavigationCommandSimulator.SimulationResult;
 import org.brts.lowlevel.bdmv.ParsedNavigationCommand;
+import org.brts.lowlevel.bdmv.ParsedNavigationCommand.ButtonPageTarget;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -16,16 +23,16 @@ import lombok.extern.slf4j.Slf4j;
  * updates the {@link DisplaySetPreviewModel} and returns a {@link NavigationResult} describing what changed.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class NavigationController {
 
 	// 0xFFFF means "no neighbour in that direction"
 	private static final int NO_NEIGHBOUR_ID = 0xFFFF;
 
-	private final DisplaySetPreviewModel model;
+	/** Generous bound to avoid hanging the UI on pathological authored GOTO loops. */
+	private static final long MAX_SIMULATION_STEPS = 10_000;
 
-	public NavigationController(DisplaySetPreviewModel model) {
-		this.model = model;
-	}
+	private final DisplaySetPreviewModel model;
 
 	// ── Public actions ──────────────────────────────────────────────────────
 
@@ -50,8 +57,9 @@ public class NavigationController {
 	}
 
 	/**
-	 * Activate (enter / confirm) the currently selected button. Checks navigation commands and returns a result
-	 * describing them.
+	 * Activate (enter / confirm) the currently selected button. Executes its navigation commands (via
+	 * {@link NavigationCommandSimulator}) and simulates any {@code SET_BUTTON_PAGE} effect, in addition to describing
+	 * the commands in the overlay.
 	 */
 	public NavigationResult activate() {
 		IgsButton btn = model.getCurrentButton();
@@ -68,8 +76,67 @@ public class NavigationController {
 			model.setCommandOverlayTimestamp(System.currentTimeMillis());
 		}
 
+		simulateButtonPageEffect(btn);
+
 		log.info("Activated button #{}: {}", btn.getId(), commandDescription);
 		return new NavigationResult(NavigationResult.Type.ACTIVATED, btn.getId(), commandDescription);
+	}
+
+	/**
+	 * Runs the button's navigation commands through the simulator, persists the resulting GPR state, and applies any
+	 * resolved {@code SET_BUTTON_PAGE} effect (page switch and/or explicit button selection).
+	 */
+	private void simulateButtonPageEffect(IgsButton btn) {
+		List<NavigationCommand> commands = btn.getNavigationCommands();
+		if (commands == null || commands.isEmpty()) {
+			return;
+		}
+
+		SimulationResult result;
+		try {
+			log.debug("GPR state before activation: {}", model.getGprRegisters());
+			result = new NavigationCommandSimulator(commands, null, model.getGprRegisters(), MAX_SIMULATION_STEPS)
+					.run();
+			log.debug("GPR state after activation: {}", result.finalGprState());
+		} catch (NavigationCommandSimulator.SimulationException e) {
+			log.warn("Navigation command simulation failed for button #{}: {}", btn.getId(), e.getMessage());
+			return;
+		}
+		model.setGprRegisters(new HashMap<>(result.finalGprState()));
+
+		ButtonPageTarget target = resolveLastButtonPageTarget(commands, result);
+		if (target == null) {
+			return;
+		}
+
+		if (target.pageId().isPresent()) {
+			OptionalInt buttonId = target.buttonId();
+			goToPage(target.pageId().getAsInt(), buttonId);
+		} else if (target.buttonId().isPresent()) {
+			int buttonId = target.buttonId().getAsInt();
+			IgsPage page = model.getCurrentPage();
+			if (page != null && isButtonEnabled(page, buttonId)) {
+				model.setSelectedButtonId(buttonId);
+			} else {
+				log.warn("SET_BUTTON_PAGE targeted button #{} which is not enabled on the current page", buttonId);
+			}
+		}
+	}
+
+	private ButtonPageTarget resolveLastButtonPageTarget(List<NavigationCommand> commands, SimulationResult result) {
+		ButtonPageTarget last = null;
+		for (NavigationCommand cmd : commands) {
+			ParsedNavigationCommand parsed = cmd.toParsed();
+			if (parsed.getMnemonic() != NavigationCommandMnemonic.SET_BUTTON_PAGE) {
+				continue;
+			}
+			try {
+				last = parsed.resolveButtonPageTarget(result.finalGprState());
+			} catch (IllegalStateException e) {
+				log.warn("Could not resolve SET_BUTTON_PAGE target: {}", e.getMessage());
+			}
+		}
+		return last;
 	}
 
 	/**
@@ -84,14 +151,26 @@ public class NavigationController {
 	 * Switch to a specific page by id.
 	 */
 	public NavigationResult goToPage(int pageId) {
+		return goToPage(pageId, OptionalInt.empty());
+	}
+
+	/**
+	 * Switch to a specific page by id, optionally selecting a specific button instead of the page's default.
+	 */
+	public NavigationResult goToPage(int pageId, OptionalInt explicitButtonId) {
 		for (int i = 0; i < model.getPages().size(); i++) {
 			if (model.getPages().get(i).getId() == pageId) {
 				int oldPageIndex = model.getCurrentPageIndex();
 				model.setCurrentPageIndex(i);
 				model.resetBogState();
-				model.resetSelectedButton();
-				log.info("Switched to page ID#{} from page idx {}", pageId, oldPageIndex);
 				IgsPage page = model.getCurrentPage();
+				if (explicitButtonId.isPresent() && page != null
+						&& model.findButtonOnCurrentPage(explicitButtonId.getAsInt()) != null) {
+					model.setSelectedButtonId(explicitButtonId.getAsInt());
+				} else {
+					model.resetSelectedButton();
+				}
+				log.info("Switched to page ID#{} from page idx {}", pageId, oldPageIndex);
 				log.debug("Current page: {} (palette {}, {} BOGs, {} buttons)", page.getId(), page.getPaletteIdRef(),
 						page.getBogs().size(), page.getBogs().stream().mapToInt(b -> b.getButtons().size()).sum());
 				return new NavigationResult(NavigationResult.Type.PAGE_CHANGED, pageId, "Page " + pageId);

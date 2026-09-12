@@ -1,19 +1,20 @@
 package org.brts.cli.middle;
 
+import java.io.File;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.middle.preview.DisplaySetLoader;
 import org.brts.middle.preview.DisplaySetPreviewFrame;
 import org.brts.middle.preview.DisplaySetPreviewModel;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-
 /**
  * CLI for the middle-level "ds-preview" command.
  */
 public class DsPreviewCli {
 
-	static class Options extends org.brts.cli.BaseOptions {
+	static class Options extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file containing an IGS stream")
 		File input;

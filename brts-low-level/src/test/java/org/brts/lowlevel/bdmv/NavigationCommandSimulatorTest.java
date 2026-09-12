@@ -381,6 +381,20 @@ class NavigationCommandSimulatorTest {
 		assertThat(r.finalGprState()).containsEntry(0, 12_345L);
 	}
 
+	@Test
+	void setButtonPage_resolvesFromPrecedingMovesAndPersistsGprState() {
+		// Real production sequence: NavigationCommandUtils.setButtonPage(page=2, button=3)
+		List<NavigationCommand> cmds = NavigationCommandUtils.setButtonPage(2, 3);
+
+		SimulationResult r = run(cmds);
+
+		assertThat(r.terminationReason()).isEqualTo("END");
+		assertThat(r.finalGprState()).containsEntry(1234, 3L).containsEntry(1235, 2L);
+		assertThat(r.externalEffects()).hasSize(1);
+		assertThat(r.externalEffects().get(0)).contains("SET_BUTTON_PAGE").contains("button=3").contains("page=2")
+				.contains("effect=off");
+	}
+
 	// -------------------------------------------------------------------------
 	// Max steps
 	// -------------------------------------------------------------------------

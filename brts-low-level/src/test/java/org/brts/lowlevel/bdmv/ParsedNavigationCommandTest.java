@@ -1,5 +1,7 @@
 package org.brts.lowlevel.bdmv;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -299,6 +301,44 @@ class ParsedNavigationCommandTest {
 		data[offset + 1] = (byte) ((value >> 16) & 0xFF);
 		data[offset + 2] = (byte) ((value >> 8) & 0xFF);
 		data[offset + 3] = (byte) (value & 0xFF);
+	}
+
+	// ── resolveButtonPageTarget ─────────────────────────────────────────────
+
+	@Test
+	void resolveButtonPageTarget_resolvesBothFromGpr() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.generateSetButtonPageCommand(1234, 1235, true);
+		Map<Integer, Long> gpr = Map.of(1234, 3L, 1235, 2L);
+
+		ParsedNavigationCommand.ButtonPageTarget target = cmd.resolveButtonPageTarget(gpr);
+
+		assertThat(target.buttonId()).hasValue(3);
+		assertThat(target.pageId()).hasValue(2);
+		assertThat(target.effectOff()).isTrue();
+	}
+
+	@Test
+	void resolveButtonPageTarget_effectOnWhenNotRequested() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.generateSetButtonPageCommand(1234, 1235, false);
+		Map<Integer, Long> gpr = Map.of(1234, 1L, 1235, 0L);
+
+		assertThat(cmd.resolveButtonPageTarget(gpr).effectOff()).isFalse();
+	}
+
+	@Test
+	void resolveButtonPageTarget_missingGprThrows() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.generateSetButtonPageCommand(1234, 1235, true);
+
+		assertThatThrownBy(() -> cmd.resolveButtonPageTarget(Map.of())).isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("GPR[1234]");
+	}
+
+	@Test
+	void resolveButtonPageTarget_wrongMnemonicThrows() {
+		ParsedNavigationCommand cmd = ParsedNavigationCommand.compile("PLAY_PL", 1, true, 0, false);
+
+		assertThatThrownBy(() -> cmd.resolveButtonPageTarget(Map.of())).isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("Not a SET_BUTTON_PAGE");
 	}
 
 }

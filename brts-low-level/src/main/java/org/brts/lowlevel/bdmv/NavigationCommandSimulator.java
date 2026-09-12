@@ -307,13 +307,37 @@ public class NavigationCommandSimulator {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[step ").append(step).append(", pc=").append(pc).append("] ");
 		sb.append(m.getMnemonic());
-		if (m.getOperandCount() >= 1) {
-			sb.append(" op1=").append(formatOperandValue(cmd, 1));
-		}
-		if (m.getOperandCount() >= 2) {
-			sb.append(" op2=").append(formatOperandValue(cmd, 2));
+		if (m == NavigationCommandMnemonic.SET_BUTTON_PAGE) {
+			// operand encoding reuses the PSR discriminator bit as a button/page-enabled flag; decode separately
+			sb.append(' ').append(formatSetButtonPage(cmd));
+		} else {
+			if (m.getOperandCount() >= 1) {
+				sb.append(" op1=").append(formatOperandValue(cmd, 1));
+			}
+			if (m.getOperandCount() >= 2) {
+				sb.append(" op2=").append(formatOperandValue(cmd, 2));
+			}
 		}
 		externalEffects.add(sb.toString());
+	}
+
+	private String formatSetButtonPage(NavigationCommand cmd) {
+		try {
+			ParsedNavigationCommand.ButtonPageTarget target = cmd.toParsed().resolveButtonPageTarget(gprSnapshot());
+			return "button=" + (target.buttonId().isPresent() ? target.buttonId().getAsInt() : "none") + " page="
+					+ (target.pageId().isPresent() ? target.pageId().getAsInt() : "none") + " effect="
+					+ (target.effectOff() ? "off" : "on");
+		} catch (IllegalStateException e) {
+			return "?(" + e.getMessage() + ")";
+		}
+	}
+
+	private Map<Integer, Long> gprSnapshot() {
+		Map<Integer, Long> snapshot = new HashMap<>();
+		for (int i = 0; i < gpr.length; i++) {
+			snapshot.put(i, gpr[i]);
+		}
+		return snapshot;
 	}
 
 	private String formatOperandValue(NavigationCommand cmd, int operandIndex) {

@@ -1,6 +1,10 @@
 package org.brts.lowlevel.bdmv;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Immutable parsed representation of a single HDMV navigation command.
@@ -33,6 +37,7 @@ import java.util.Objects;
  * @see NavigationCommandMnemonic
  * @see NavigationCommandCompiler
  */
+@Slf4j
 public final class ParsedNavigationCommand {
 
 	private static final long IMM_OP1 = NavigationCommandCompiler.IMM_OP1; // bit 23
@@ -398,6 +403,45 @@ public final class ParsedNavigationCommand {
 			op2 |= EFFECT_OFF_BIT;
 		}
 		return compile(NavigationCommandMnemonic.SET_BUTTON_PAGE, op1, false, op2, false);
+	}
+
+	/** Decoded {@code SET_BUTTON_PAGE} effect: which button/page (if any) to switch to. */
+	public record ButtonPageTarget(OptionalInt buttonId, OptionalInt pageId, boolean effectOff) {
+	}
+
+	/**
+	 * Decodes this {@code SET_BUTTON_PAGE} command's button/page targets, resolving register operands against
+	 * {@code gprState}. Mirrors the bit layout used by {@link #describe()} (button/page enabled flag reuses the PSR
+	 * discriminator bit, so it must be cleared before generic register-vs-immediate resolution).
+	 *
+	 * @throws IllegalStateException if this command's mnemonic is not {@code SET_BUTTON_PAGE}, or a referenced GPR is
+	 *                               missing from {@code gprState}
+	 */
+	public ButtonPageTarget resolveButtonPageTarget(Map<Integer, Long> gprState) {
+		if (getMnemonic() != NavigationCommandMnemonic.SET_BUTTON_PAGE) {
+			throw new IllegalStateException("Not a SET_BUTTON_PAGE command: " + getMnemonicString());
+		}
+		OptionalInt buttonId = buttonOrPageEnabledFlag(operand1)
+				? OptionalInt.of((int) resolveButtonPageOperand(isOp1Immediate(), operand1, gprState))
+				: OptionalInt.empty();
+		OptionalInt pageId = buttonOrPageEnabledFlag(operand2)
+				? OptionalInt.of((int) resolveButtonPageOperand(isOp2Immediate(), operand2, gprState))
+				: OptionalInt.empty();
+		return new ButtonPageTarget(buttonId, pageId, effectOffFlag(operand2));
+	}
+
+	private static long resolveButtonPageOperand(boolean immediate, long operand, Map<Integer, Long> gprState) {
+		long masked = operand & ~PSR_BIT;
+		if (immediate) {
+			return masked;
+		}
+		int gprIndex = (int) (masked & 0xFFF);
+		Long value = gprState.get(gprIndex);
+		if (value == null) {
+			log.debug("GPR Contents : {}", gprState);
+			throw new IllegalStateException("GPR[" + gprIndex + "] required by SET_BUTTON_PAGE was not set");
+		}
+		return value;
 	}
 
 	private static String formatBinaryOperation(NavigationCommandMnemonic mnemonic, String dst, String src) {

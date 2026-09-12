@@ -53,6 +53,9 @@ public class DisplaySetPreviewModel {
 	 */
 	private Map<Integer, Integer> bogEnabledButtons = new HashMap<>();
 
+	/** GPR register bank, persisted across button activations to simulate a real player's register file. */
+	private Map<Integer, Long> gprRegisters = new HashMap<>();
+
 	/** If non-null, a navigation command overlay message to display briefly. */
 	private String commandOverlayMessage;
 
