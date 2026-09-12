@@ -94,8 +94,11 @@ public class MkvToPlaylistConverter {
 		/** Optional text style for the popup menu. Passed through to {@link PopupMenuConfig}. */
 		private TextStyle popupMenuStyle;
 
+		/** Button layout for the popup menu. */
+		private PopupMenuConfig.Layout popupMenuLayout;
+
 		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null, null, null);
+			this(mkvFile, outputDir, clipName, null, null, null, null, null, PopupMenuConfig.Layout.VERTICAL_LIST);
 		}
 
 	}
@@ -194,7 +197,7 @@ public class MkvToPlaylistConverter {
 		PopupMenuGenerator.Result popupResult = null;
 		if (needsPopupMenu) {
 			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks,
-					config.getPopupMenuStyle());
+					config.getPopupMenuStyle(), config.getPopupMenuLayout());
 			if (popupConfig != null) {
 				PopupMenuGenerator popupGenerator = new PopupMenuGenerator();
 				popupResult = popupGenerator.generate(popupConfig, outputDir);
@@ -356,10 +359,13 @@ public class MkvToPlaylistConverter {
 	}
 
 	private PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
-			TextStyle popupMenuStyle) {
+			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout) {
 		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
 		if (config != null && popupMenuStyle != null) {
 			config.setStyle(popupMenuStyle);
+		}
+		if (config != null && popupMenuLayout != null) {
+			config.setLayout(popupMenuLayout);
 		}
 		return config;
 	}

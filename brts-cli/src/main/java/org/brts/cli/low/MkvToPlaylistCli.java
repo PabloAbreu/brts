@@ -5,6 +5,7 @@ import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.mkv.MkvToPlaylistConverter;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
+import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 import org.kohsuke.args4j.Option;
 
 import java.io.File;
@@ -55,6 +56,9 @@ public class MkvToPlaylistCli {
 
 		@Option(name = "--popup-menu-style", usage = "Path to JSON file with TextStyle for popup menu buttons")
 		File popupMenuStyleFile;
+
+		@Option(name = "--popup-menu-layout", usage = "Popup menu button layout: VERTICAL_LIST or HORIZONTAL_BOTTOM")
+		PopupMenuConfig.Layout popupMenuLayout = PopupMenuConfig.Layout.VERTICAL_LIST;
 
 	}
 
@@ -111,6 +115,7 @@ public class MkvToPlaylistCli {
 				TextStyle popupStyle = JsonMapperFactory.get().readValue(opts.popupMenuStyleFile, TextStyle.class);
 				config.setPopupMenuStyle(popupStyle);
 			}
+			config.setPopupMenuLayout(opts.popupMenuLayout);
 
 			MkvToPlaylistConverter converter = new MkvToPlaylistConverter();
 			MkvToPlaylistConverter.Result result = converter.convert(config);
