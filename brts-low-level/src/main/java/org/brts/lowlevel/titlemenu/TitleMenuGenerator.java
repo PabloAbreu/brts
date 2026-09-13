@@ -214,6 +214,16 @@ public class TitleMenuGenerator {
 			config.setFps(fps);
 		}
 
+		// Extra audio from a separate ES file (composite background doesn't otherwise carry audio)
+		BackgroundSource bgSource = descriptor.getBackgroundMedia();
+		if (bgSource != null && bgSource.getAudioPath() != null && !bgSource.getAudioPath().isBlank()) {
+			String audioPath = bgSource.getAudioPath();
+			if (!Path.of(audioPath).isAbsolute()) {
+				audioPath = baseDir.resolve(audioPath).toString();
+			}
+			config.setExtraAudioPath(audioPath);
+		}
+
 		// Output goes to STREAM dir, CLPI built by the generator
 		// The generator writes <clipName>.m2ts and <clipName>.clpi to outputDir
 		// But CompositedVideoGenerator writes to a flat dir, need to handle that

@@ -208,10 +208,27 @@ public class CompositedVideoGenerator {
 
 			// 4b. Append extra audio ES (static-base compositions with separate audio)
 			if (config.getExtraAudioPath() != null && !config.getExtraAudioPath().isBlank()) {
-				var audioInfo = AudioUtils.probeAudioInfo(Path.of(config.getExtraAudioPath()));
+				Path extraAudioPath = Path.of(config.getExtraAudioPath());
+				var audioInfo = AudioUtils.probeAudioInfo(extraAudioPath);
 				int extraStreamTypeByte = audioInfo.streamTypeByte();
+
+				// Cut audio that outlasts the video so the two tracks end together; never extend
+				// audio that is already shorter than or equal to the video.
+				double effectiveDurationSeconds = frameCount / fps;
+				String extraAudioFile = extraAudioPath.toString();
+				if (audioInfo.durationSeconds() > effectiveDurationSeconds + 0.05) {
+					String fileName = extraAudioPath.getFileName().toString();
+					int dot = fileName.lastIndexOf('.');
+					String ext = dot >= 0 ? fileName.substring(dot + 1) : "es";
+					Path trimmedAudioPath = tempDir.resolve("extra_audio_trimmed." + ext);
+					AudioUtils.trimToDuration(extraAudioPath, trimmedAudioPath, effectiveDurationSeconds);
+					extraAudioFile = trimmedAudioPath.toString();
+					log.debug("  Trimmed extra audio ES from {}s to {}s", audioInfo.durationSeconds(),
+							effectiveDurationSeconds);
+				}
+
 				M2tsDescriptor.StreamEntry audioEntry = new M2tsDescriptor.StreamEntry();
-				audioEntry.setFile(config.getExtraAudioPath());
+				audioEntry.setFile(extraAudioFile);
 				audioEntry.setPid(BASE_AUDIO_PID + (streams.size() - 1)); // offset past video + any base audio
 				audioEntry.setStreamTypeByte(extraStreamTypeByte);
 				audioEntry.setChannels(audioInfo.channels());
@@ -219,7 +236,7 @@ public class CompositedVideoGenerator {
 				audioEntry.setBitrateKbps(audioInfo.bitrateKbps());
 
 				streams.add(audioEntry);
-				log.debug("  Appended extra audio ES: {} (type=0x{})", config.getExtraAudioPath(),
+				log.debug("  Appended extra audio ES: {} (type=0x{})", extraAudioFile,
 						Integer.toHexString(extraStreamTypeByte));
 			}
 

@@ -4,8 +4,12 @@ import static org.bytedeco.ffmpeg.global.avcodec.*;
 import static org.bytedeco.ffmpeg.global.avformat.*;
 import static org.bytedeco.ffmpeg.global.avutil.*;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avformat.AVFormatContext;
 import org.bytedeco.ffmpeg.avformat.AVStream;
 
@@ -89,6 +93,69 @@ public class AudioUtils {
 			double duration = fmtCtx.duration() > 0 ? fmtCtx.duration() / 1_000_000.0 : -1.0;
 			log.debug("probeAudioInfo: no audio stream found in '{}', container duration={}s", audioPath, duration);
 			return new AudioInfo(duration, 0, 0, 0, 0);
+		} finally {
+			avformat_close_input(fmtCtx);
+		}
+	}
+
+	/**
+	 * Copies the first audio stream of {@code sourceEs} into {@code destEs}, stopping once the packet timestamp reaches
+	 * {@code maxDurationSeconds}. No re-encoding is performed (raw packet copy), so the cut lands on the nearest packet
+	 * boundary rather than an exact sample.
+	 *
+	 * @param sourceEs           path to the source audio elementary-stream file
+	 * @param destEs             path to write the trimmed elementary-stream file to
+	 * @param maxDurationSeconds maximum duration to keep, in seconds; must be {@code > 0}
+	 * @throws IOException if the source cannot be opened/demuxed or the destination cannot be written
+	 */
+	public static void trimToDuration(Path sourceEs, Path destEs, double maxDurationSeconds) throws IOException {
+		AVFormatContext fmtCtx = new AVFormatContext(null);
+		int ret = avformat_open_input(fmtCtx, sourceEs.toString(), null, null);
+		if (ret < 0) {
+			throw new IOException("avformat_open_input failed for '" + sourceEs + "': " + ret);
+		}
+		try {
+			ret = avformat_find_stream_info(fmtCtx, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
+			if (ret < 0) {
+				throw new IOException("avformat_find_stream_info failed for '" + sourceEs + "': " + ret);
+			}
+
+			int audioStreamIndex = -1;
+			for (int i = 0; i < fmtCtx.nb_streams(); i++) {
+				if (fmtCtx.streams(i).codecpar().codec_type() == AVMEDIA_TYPE_AUDIO) {
+					audioStreamIndex = i;
+					break;
+				}
+			}
+			if (audioStreamIndex < 0) {
+				throw new IOException("No audio stream found in '" + sourceEs + "'");
+			}
+
+			AVStream stream = fmtCtx.streams(audioStreamIndex);
+			double timeBase = av_q2d(stream.time_base());
+
+			AVPacket packet = av_packet_alloc();
+			try (OutputStream out = Files.newOutputStream(destEs)) {
+				while (av_read_frame(fmtCtx, packet) >= 0) {
+					if (packet.stream_index() == audioStreamIndex) {
+						double ptsSeconds = packet.pts() * timeBase;
+						if (ptsSeconds >= maxDurationSeconds) {
+							av_packet_unref(packet);
+							break;
+						}
+						int size = packet.size();
+						if (size > 0) {
+							byte[] data = new byte[size];
+							packet.data().position(0).get(data);
+							out.write(data);
+						}
+					}
+					av_packet_unref(packet);
+				}
+			} finally {
+				av_packet_free(packet);
+			}
+			log.debug("trimToDuration: wrote '{}' truncated to {}s from '{}'", destEs, maxDurationSeconds, sourceEs);
 		} finally {
 			avformat_close_input(fmtCtx);
 		}
