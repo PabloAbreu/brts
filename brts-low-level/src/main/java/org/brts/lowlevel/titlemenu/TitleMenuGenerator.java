@@ -18,6 +18,7 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.AudioUtils;
 import org.brts.common.utils.Extensions;
 import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositedVideoGenerator;
@@ -206,22 +207,29 @@ public class TitleMenuGenerator {
 		CompositedVideoGenerator.Config config = new CompositedVideoGenerator.Config();
 		config.setWidth(descriptor.getScreenWidth());
 		config.setHeight(descriptor.getScreenHeight());
-		double duration = descriptor.getBackgroundMedia() != null ? descriptor.getBackgroundMedia().getDurationSeconds()
+		BackgroundSource bgSource = descriptor.getBackgroundMedia();
+		double duration = bgSource != null ? (bgSource.getDurationSeconds() != null ? bgSource.getDurationSeconds() : 0)
 				: 0;
-		if (duration > 0) {
-			double fps = 24.0;
-			config.setFrameCount((int) Math.round(duration * fps));
-			config.setFps(fps);
-		}
 
 		// Extra audio from a separate ES file (composite background doesn't otherwise carry audio)
-		BackgroundSource bgSource = descriptor.getBackgroundMedia();
 		if (bgSource != null && bgSource.getAudioPath() != null && !bgSource.getAudioPath().isBlank()) {
 			String audioPath = bgSource.getAudioPath();
 			if (!Path.of(audioPath).isAbsolute()) {
 				audioPath = baseDir.resolve(audioPath).toString();
 			}
+			if (duration == 0) {
+				// if no explicit duration is provided, the generator will determine it based on
+				// the input audio length
+				var audioInfo = AudioUtils.probeAudioInfo(Path.of(audioPath));
+				duration = audioInfo.durationSeconds();
+			}
 			config.setExtraAudioPath(audioPath);
+		}
+
+		if (duration > 0) {
+			double fps = 24.0;
+			config.setFrameCount((int) Math.round(duration * fps));
+			config.setFps(fps);
 		}
 
 		// Output goes to STREAM dir, CLPI built by the generator
