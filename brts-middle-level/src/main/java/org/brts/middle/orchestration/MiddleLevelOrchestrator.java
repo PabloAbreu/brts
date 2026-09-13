@@ -23,6 +23,8 @@ import org.brts.lowlevel.model.bdmv.IndexBdmv.TitleEntry;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
 import org.brts.lowlevel.model.bdmv.MovieObjects.MovieObject;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.mkv.MkvToPlaylistDescriptor;
+import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
@@ -116,11 +118,6 @@ public class MiddleLevelOrchestrator {
 
 		// Resolve disc-wide popup style: popupStyle merged over global style (null-safe)
 		TextStyle resolvedPopupStyle = resolvePopupStyle(disc);
-		File popupStyleFile = null;
-		if (resolvedPopupStyle != null) {
-			popupStyleFile = descriptorsDir.resolve("popup-style.json").toFile();
-			mapper.writeValue(popupStyleFile, resolvedPopupStyle);
-		}
 
 		for (TitleDescriptor title : disc.getTitles()) {
 			// first check that the title ID is valid (1-based, sequential)
@@ -141,16 +138,21 @@ public class MiddleLevelOrchestrator {
 
 			// Emit script lines
 			scriptLines.add("# Title " + title.getTitleId() + " — " + title.getSourceMkv());
-			StringBuilder cmd = new StringBuilder();
-			cmd.append("$BRTS_CLI low mkv-to-playlist --clip-name ").append(clipName).append(" --input ")
-					.append(title.getSourceMkv()).append(" --output ").append(bdmv);
+			MkvToPlaylistDescriptor mkvDescriptor = new MkvToPlaylistDescriptor();
+			mkvDescriptor.setInput(title.getSourceMkv());
+			mkvDescriptor.setClipName(clipName);
 			if (popupClipName != null) {
-				cmd.append(" --popup-menu-clip-name ").append(popupClipName);
-				if (popupStyleFile != null) {
-					cmd.append(" --popup-menu-style ").append(popupStyleFile.getAbsolutePath());
+				PopupMenuConfig popupMenuConfig = new PopupMenuConfig();
+				popupMenuConfig.setOutputClipName(popupClipName);
+				if (resolvedPopupStyle != null) {
+					popupMenuConfig.setStyle(resolvedPopupStyle);
 				}
+				mkvDescriptor.setPopupMenu(popupMenuConfig);
 			}
-			scriptLines.add(cmd.toString());
+			File mkvDescriptorFile = descriptorsDir.resolve(clipName + "-mkv-descriptor.json").toFile();
+			mapper.writeValue(mkvDescriptorFile, mkvDescriptor);
+			scriptLines.add("$BRTS_CLI low mkv-to-playlist --descriptor " + mkvDescriptorFile.getAbsolutePath()
+					+ " --output " + bdmv);
 			scriptLines.add("");
 			TitleEntry entry = new TitleEntry();
 			entry.setObjectType(1);// HDMV
