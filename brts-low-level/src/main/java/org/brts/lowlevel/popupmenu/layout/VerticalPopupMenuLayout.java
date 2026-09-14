@@ -5,32 +5,84 @@ import java.util.List;
 
 import org.brts.lowlevel.igs.IgsMenuAssembler;
 
-/** The original vertically stacked popup-menu layout. */
+/** Places a persistent root column left of vertical submenu track lists. */
 public final class VerticalPopupMenuLayout implements PopupMenuLayout {
 
-	private static final int BUTTON_HEIGHT = 40;
 	private static final int BUTTON_MAX_WIDTH = 800;
+	private static final int BUTTON_SPACING_X = 40;
 	private static final int BUTTON_SPACING_Y = 8;
+	private static final int MARGIN_X = 40;
 	private static final int MARGIN_BOTTOM = 80;
 
 	@Override
 	public List<Page> layout(List<List<IgsMenuAssembler.LabeledButton>> pages, int screenW, int screenH) {
+		if (pages.size() == 1) {
+			return List.of(new Page(layoutPage(pages.get(0), screenW, screenH)));
+		}
+
+		int rootCount = pages.get(0).size();
+		int rootWidth = maxWidth(pages.get(0));
+		int submenuWidth = pages.stream().skip(1).map(buttons -> buttons.subList(rootCount, buttons.size()))
+				.mapToInt(VerticalPopupMenuLayout::maxWidth).max().orElse(0);
+		int totalWidth = rootWidth + BUTTON_SPACING_X + submenuWidth;
+		if (totalWidth > screenW - 2 * MARGIN_X) {
+			throw new IllegalArgumentException("Popup root and submenu columns do not fit within the screen width");
+		}
+		int rootX = (screenW - totalWidth) / 2;
+		int submenuX = rootX + rootWidth + BUTTON_SPACING_X;
+
 		List<Page> result = new ArrayList<>();
-		for (List<IgsMenuAssembler.LabeledButton> buttons : pages) {
-			result.add(new Page(layoutPage(buttons, screenW, screenH)));
+		result.add(new Page(layoutColumn(pages.get(0), rootX, screenH, 0, 0), 1));
+		for (int pageId = 1; pageId < pages.size(); pageId++) {
+			List<IgsMenuAssembler.LabeledButton> buttons = pages.get(pageId);
+			List<IgsMenuAssembler.LabeledButton> rootButtons = buttons.subList(0, rootCount);
+			List<IgsMenuAssembler.LabeledButton> trackButtons = buttons.subList(rootCount, buttons.size());
+			List<IgsMenuAssembler.PositionedButton> positioned = new ArrayList<>();
+			positioned.addAll(layoutColumn(rootButtons, rootX, screenH, 0, 0));
+			positioned.addAll(layoutColumn(trackButtons, submenuX, screenH, rootCount, pageId));
+			result.add(new Page(positioned, rootCount + 1));
 		}
 		return result;
 	}
 
+	private static int maxWidth(List<IgsMenuAssembler.LabeledButton> buttons) {
+		return buttons.stream().mapToInt(button -> button.images().normal().getWidth()).max().orElse(0);
+	}
+
+	private List<IgsMenuAssembler.PositionedButton> layoutColumn(List<IgsMenuAssembler.LabeledButton> buttons, int x,
+			int screenH, int idOffset, int rootTargetId) {
+		int totalHeight = totalHeight(buttons);
+		if (totalHeight > screenH - MARGIN_BOTTOM) {
+			throw new IllegalArgumentException("Popup vertical button list does not fit within the screen height");
+		}
+		int y = screenH - MARGIN_BOTTOM - totalHeight;
+		List<IgsMenuAssembler.PositionedButton> positioned = new ArrayList<>();
+		for (int i = 0; i < buttons.size(); i++) {
+			int buttonId = idOffset + i + 1;
+			int previous = idOffset + ((i - 1 + buttons.size()) % buttons.size()) + 1;
+			int next = idOffset + (i + 1) % buttons.size() + 1;
+			int left = rootTargetId == 0 ? buttonId : rootTargetId;
+			positioned.add(new IgsMenuAssembler.PositionedButton(buttons.get(i).images(), buttons.get(i).commands(),
+					buttons.get(i).autoAction(), x, y, previous, next, left, buttonId));
+			y += buttons.get(i).images().height() + BUTTON_SPACING_Y;
+		}
+		return positioned;
+	}
+
+	private static int totalHeight(List<IgsMenuAssembler.LabeledButton> buttons) {
+		return buttons.stream().mapToInt(button -> button.images().height()).sum()
+				+ Math.max(0, buttons.size() - 1) * BUTTON_SPACING_Y;
+	}
+
 	private List<IgsMenuAssembler.PositionedButton> layoutPage(List<IgsMenuAssembler.LabeledButton> buttons,
 			int screenW, int screenH) {
-		int totalHeight = buttons.stream().mapToInt(button -> button.images().height()).sum()
-				+ Math.max(0, buttons.size() - 1) * BUTTON_SPACING_Y;
+		int totalHeight = totalHeight(buttons);
 		if (totalHeight > screenH - MARGIN_BOTTOM) {
 			throw new IllegalArgumentException("Popup vertical button list does not fit within the screen height");
 		}
 		int startY = screenH - MARGIN_BOTTOM - totalHeight;
-		int groupX = Math.max(40, Math.min((screenW - BUTTON_MAX_WIDTH) / 2, screenW - BUTTON_MAX_WIDTH - 40));
+		int groupX = Math.max(MARGIN_X,
+				Math.min((screenW - BUTTON_MAX_WIDTH) / 2, screenW - BUTTON_MAX_WIDTH - MARGIN_X));
 		List<IgsMenuAssembler.PositionedButton> positioned = new ArrayList<>();
 		int y = startY;
 		for (int i = 0; i < buttons.size(); i++) {

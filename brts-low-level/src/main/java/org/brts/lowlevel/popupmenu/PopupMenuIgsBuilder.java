@@ -1,6 +1,5 @@
 package org.brts.lowlevel.popupmenu;
 
-import static org.brts.common.utils.BrtsI18NLabels.MENU_BACK;
 import static org.brts.common.utils.BrtsI18NLabels.MENU_EXIT;
 import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_AUDIO;
 import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_SUBTITLES;
@@ -41,8 +40,8 @@ import lombok.extern.slf4j.Slf4j;
  * <li><b>Both groups (audio &gt; 1 and subtitles &gt; 1)</b>:
  * <ul>
  * <li>Page 0 (Root): "Audio &#9658;" + "Subtitles &#9658;" + "Exit" navigation buttons</li>
- * <li>Page 1 (Audio): one button per audio track + "&#9668; Back" + "Exit"</li>
- * <li>Page 2 (Subtitles): one button per subtitle track + "&#9668; Back" + "Exit"</li>
+ * <li>Page 1 (Audio): persistent root controls + one button per audio track</li>
+ * <li>Page 2 (Subtitles): persistent root controls + one button per subtitle track</li>
  * </ul>
  * </li>
  * <li><b>Audio only (audio &gt; 1, subtitles &le; 1)</b>: Page 0 lists audio tracks + "Exit" directly.</li>
@@ -57,13 +56,14 @@ import lombok.extern.slf4j.Slf4j;
 public class PopupMenuIgsBuilder {
 
 	private static final int BUTTON_MAX_WIDTH = 800;
+	private static final int ROOT_BUTTON_COUNT = 3;
 
-	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands) {
+	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands, boolean autoAction) {
 	}
 
-	private static ButtonSpec render(String text, TextStyle style, List<NavigationCommand> commands)
+	private static ButtonSpec render(String text, TextStyle style, List<NavigationCommand> commands, boolean autoAction)
 			throws IOException {
-		return new ButtonSpec(TextRenderer.renderTextButton(text, style, BUTTON_MAX_WIDTH), commands);
+		return new ButtonSpec(TextRenderer.renderTextButton(text, style, BUTTON_MAX_WIDTH), commands, autoAction);
 	}
 
 	/**
@@ -116,8 +116,10 @@ public class PopupMenuIgsBuilder {
 		composition.setUiModel(IgsInteractiveComposition.UI_MODEL_POP_UP);
 		composition.setUserTimeoutDuration(0);
 
-		List<List<IgsMenuAssembler.LabeledButton>> labeledPages = pages.stream().map(
-				specs -> specs.stream().map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands())).toList())
+		List<List<IgsMenuAssembler.LabeledButton>> labeledPages = pages.stream()
+				.map(specs -> specs.stream()
+						.map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands(), s.autoAction()))
+						.toList())
 				.toList();
 		PopupMenuLayout layoutStrategy = layout == PopupMenuConfig.Layout.HORIZONTAL_BOTTOM
 				? new HorizontalBottomPopupMenuLayout()
@@ -126,7 +128,8 @@ public class PopupMenuIgsBuilder {
 		List<PopupMenuLayout.Page> positionedPages = layoutStrategy.layout(labeledPages, screenW, screenH);
 		for (int pageId = 0; pageId < positionedPages.size(); pageId++) {
 			List<IgsMenuAssembler.PositionedButton> buttons = positionedPages.get(pageId).buttons();
-			composition.getPages().add(IgsMenuAssembler.buildPositionedPage(pageId, buttons, objectBase));
+			composition.getPages().add(IgsMenuAssembler.buildPositionedPage(pageId, buttons, objectBase,
+					positionedPages.get(pageId).defaultSelectedButtonIdRef()));
 			objectBase += buttons.size() * 3;
 		}
 		return composition;
@@ -158,27 +161,23 @@ public class PopupMenuIgsBuilder {
 		List<List<SymbolicButton>> pages = new ArrayList<>();
 
 		if (needsAudio && needsSubs) {
-			// BOTH: root page (0) + audio sub-page (1) + subtitle sub-page (2)
+			// BOTH: root page (0) + persistent-root audio/subtitle pages (1/2)
 			List<SymbolicButton> rootSpecs = new ArrayList<>();
-			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(1, 1)));
-			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(2, 1)));
+			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(1, ROOT_BUTTON_COUNT + 1)));
+			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(2, ROOT_BUTTON_COUNT + 1)));
 			rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
 			pages.add(rootSpecs);
 
-			List<SymbolicButton> audioSpecs = new ArrayList<>();
+			List<SymbolicButton> audioSpecs = clonedRootSpecs();
 			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
 				audioSpecs.add(new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
 			}
-			audioSpecs.add(new SymbolicButton(getLabel(MENU_BACK), setButtonPage(0, 1)));
-			audioSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
 			pages.add(audioSpecs);
 
-			List<SymbolicButton> subSpecs = new ArrayList<>();
+			List<SymbolicButton> subSpecs = clonedRootSpecs();
 			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
 				subSpecs.add(new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
 			}
-			subSpecs.add(new SymbolicButton(getLabel(MENU_BACK), setButtonPage(0, 1)));
-			subSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
 			pages.add(subSpecs);
 
 		} else if (needsAudio) {
@@ -203,6 +202,14 @@ public class PopupMenuIgsBuilder {
 		return pages;
 	}
 
+	private static List<SymbolicButton> clonedRootSpecs() {
+		List<SymbolicButton> rootSpecs = new ArrayList<>();
+		rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(0, 1), true));
+		rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(0, 2), true));
+		rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), setButtonPage(0, 3), true));
+		return rootSpecs;
+	}
+
 	/**
 	 * Renders symbolic pages into button images using the configured style.
 	 */
@@ -213,7 +220,7 @@ public class PopupMenuIgsBuilder {
 		for (List<SymbolicButton> symbolicPage : symbolicPages) {
 			List<ButtonSpec> specs = new ArrayList<>();
 			for (SymbolicButton button : symbolicPage) {
-				specs.add(render(button.text(), style, button.commands()));
+				specs.add(render(button.text(), style, button.commands(), button.autoAction()));
 			}
 			pages.add(specs);
 		}

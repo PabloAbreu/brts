@@ -139,16 +139,33 @@ public final class IgsMenuAssembler {
 	}
 
 	/** A single labeled button ready for page assembly: its rendered state images and its navigation commands. */
-	public record LabeledButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands) {
+	public record LabeledButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands,
+			boolean autoAction) {
+
+		public LabeledButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands) {
+			this(images, commands, false);
+		}
 	}
 
 	/** A rendered button with its screen position and directional navigation references. */
-	public record PositionedButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands, int x, int y,
-			int upperButtonIdRef, int lowerButtonIdRef, int leftButtonIdRef, int rightButtonIdRef) {
+	public record PositionedButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands,
+			boolean autoAction, int x, int y, int upperButtonIdRef, int lowerButtonIdRef, int leftButtonIdRef,
+			int rightButtonIdRef) {
+
+		public PositionedButton(TextRenderer.ButtonImages images, List<NavigationCommand> commands, int x, int y,
+				int upperButtonIdRef, int lowerButtonIdRef, int leftButtonIdRef, int rightButtonIdRef) {
+			this(images, commands, false, x, y, upperButtonIdRef, lowerButtonIdRef, leftButtonIdRef, rightButtonIdRef);
+		}
 	}
 
 	/** Builds a page from buttons whose layout and directional navigation have already been resolved. */
 	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons, int objectBase) {
+		return buildPositionedPage(pageId, buttons, objectBase, buttons.isEmpty() ? 0xFFFF : 1);
+	}
+
+	/** Builds a page with an explicit initially-selected button. */
+	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons, int objectBase,
+			int defaultSelectedButtonIdRef) {
 		List<IgsBog> bogs = new ArrayList<>();
 		for (int i = 0; i < buttons.size(); i++) {
 			PositionedButton positionedButton = buttons.get(i);
@@ -156,7 +173,7 @@ public final class IgsMenuAssembler {
 			IgsButton button = new IgsButton();
 			button.setId(buttonId);
 			button.setNumericSelectValue(0xFFFF);
-			button.setAutoAction(false);
+			button.setAutoAction(positionedButton.autoAction());
 			button.setXPos(positionedButton.x());
 			button.setYPos(positionedButton.y());
 			button.setUpperButtonIdRef(positionedButton.upperButtonIdRef());
@@ -177,7 +194,7 @@ public final class IgsMenuAssembler {
 		page.setVersion(0);
 		page.setUoMaskTable(new byte[8]);
 		page.setAnimationFrameRateCode(0);
-		page.setDefaultSelectedButtonIdRef(buttons.isEmpty() ? 0xFFFF : 1);
+		page.setDefaultSelectedButtonIdRef(defaultSelectedButtonIdRef);
 		page.setDefaultActivatedButtonIdRef(0xFFFF);
 		page.setPaletteIdRef(0);
 		page.setBogs(bogs);

@@ -9,6 +9,10 @@ public interface PopupMenuLayout {
 
 	List<PopupMenuLayout.Page> layout(List<List<IgsMenuAssembler.LabeledButton>> pages, int screenW, int screenH);
 
-	record Page(List<IgsMenuAssembler.PositionedButton> buttons) {
+	record Page(List<IgsMenuAssembler.PositionedButton> buttons, int defaultSelectedButtonIdRef) {
+
+		public Page(List<IgsMenuAssembler.PositionedButton> buttons) {
+			this(buttons, buttons.isEmpty() ? 0xFFFF : 1);
+		}
 	}
 }

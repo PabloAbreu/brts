@@ -12,17 +12,41 @@ public final class HorizontalBottomPopupMenuLayout implements PopupMenuLayout {
 	private static final int BUTTON_MAX_WIDTH = 800;
 	private static final int BUTTON_SPACING_X = 16;
 	private static final int BUTTON_SPACING_Y = 8;
+	private static final int SUBMENU_GAP_Y = 16;
 	private static final int MARGIN_BOTTOM = 80;
 
 	@Override
 	public List<Page> layout(List<List<IgsMenuAssembler.LabeledButton>> pages, int screenW, int screenH) {
+		if (pages.size() == 1) {
+			return List.of(new Page(layoutHorizontal(pages.get(0), screenW, screenH)));
+		}
+
+		int rootCount = pages.get(0).size();
+		List<IgsMenuAssembler.PositionedButton> rootPage = layoutHorizontal(pages.get(0), screenW, screenH);
+		int rootTop = rootPage.stream().mapToInt(IgsMenuAssembler.PositionedButton::y).min().orElse(screenH);
 		List<Page> result = new ArrayList<>();
-		for (int pageId = 0; pageId < pages.size(); pageId++) {
+		result.add(new Page(rootPage, 1));
+		for (int pageId = 1; pageId < pages.size(); pageId++) {
 			List<IgsMenuAssembler.LabeledButton> buttons = pages.get(pageId);
-			result.add(new Page(pageId == 0 ? layoutHorizontal(buttons, screenW, screenH)
-					: layoutVertical(buttons, screenW, screenH)));
+			List<IgsMenuAssembler.PositionedButton> positioned = cloneRootRow(buttons.subList(0, rootCount), rootPage);
+			positioned.addAll(
+					layoutVertical(buttons.subList(rootCount, buttons.size()), screenW, rootTop, rootCount, pageId));
+			result.add(new Page(positioned, rootCount + 1));
 		}
 		return result;
+	}
+
+	private List<IgsMenuAssembler.PositionedButton> cloneRootRow(List<IgsMenuAssembler.LabeledButton> rootButtons,
+			List<IgsMenuAssembler.PositionedButton> rootPage) {
+		List<IgsMenuAssembler.PositionedButton> positioned = new ArrayList<>();
+		for (int i = 0; i < rootButtons.size(); i++) {
+			IgsMenuAssembler.PositionedButton rootPosition = rootPage.get(i);
+			IgsMenuAssembler.LabeledButton button = rootButtons.get(i);
+			int buttonId = i + 1;
+			positioned.add(new IgsMenuAssembler.PositionedButton(button.images(), button.commands(),
+					button.autoAction(), rootPosition.x(), rootPosition.y(), buttonId, buttonId, buttonId, buttonId));
+		}
+		return positioned;
 	}
 
 	private List<IgsMenuAssembler.PositionedButton> layoutHorizontal(List<IgsMenuAssembler.LabeledButton> buttons,
@@ -49,22 +73,22 @@ public final class HorizontalBottomPopupMenuLayout implements PopupMenuLayout {
 	}
 
 	private List<IgsMenuAssembler.PositionedButton> layoutVertical(List<IgsMenuAssembler.LabeledButton> buttons,
-			int screenW, int screenH) {
+			int screenW, int rootTop, int idOffset, int rootTargetId) {
 		int totalHeight = buttons.stream().mapToInt(button -> button.images().height()).sum()
 				+ Math.max(0, buttons.size() - 1) * BUTTON_SPACING_Y;
-		int rootReservedHeight = BUTTON_HEIGHT + 2 * BUTTON_SPACING_Y;
-		if (totalHeight > screenH - MARGIN_BOTTOM - rootReservedHeight) {
+		int startY = rootTop - SUBMENU_GAP_Y - totalHeight;
+		if (startY < 0) {
 			throw new IllegalArgumentException("Popup submenu button list does not fit above the bottom row");
 		}
-		int startY = screenH - MARGIN_BOTTOM - rootReservedHeight - totalHeight;
 		int groupX = Math.max(40, Math.min((screenW - BUTTON_MAX_WIDTH) / 2, screenW - BUTTON_MAX_WIDTH - 40));
 		List<IgsMenuAssembler.PositionedButton> positioned = new ArrayList<>();
 		int y = startY;
 		for (int i = 0; i < buttons.size(); i++) {
-			int buttonId = i + 1;
+			int buttonId = idOffset + i + 1;
+			int upper = i == 0 ? buttonId : buttonId - 1;
+			int lower = i == buttons.size() - 1 ? rootTargetId : buttonId + 1;
 			positioned.add(new IgsMenuAssembler.PositionedButton(buttons.get(i).images(), buttons.get(i).commands(),
-					groupX, y, ((i - 1 + buttons.size()) % buttons.size()) + 1, (i + 1) % buttons.size() + 1, buttonId,
-					buttonId));
+					buttons.get(i).autoAction(), groupX, y, upper, lower, buttonId, buttonId));
 			y += buttons.get(i).images().height() + BUTTON_SPACING_Y;
 		}
 		return positioned;
