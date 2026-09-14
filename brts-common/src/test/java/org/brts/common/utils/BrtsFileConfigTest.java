@@ -2,9 +2,14 @@ package org.brts.common.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 class BrtsFileConfigTest {
 
 	private static final String TRUE_KEY = "brts.test.boolean.true";
@@ -26,7 +31,12 @@ class BrtsFileConfigTest {
 		System.setProperty(NO_KEY, "FALSE");
 		System.setProperty(BLANK_KEY, " ");
 		System.setProperty(INVALID_KEY, "maybe");
+		// force re-resolution in case another test class already resolved the singleton in this fork
+		BrtsFileConfig.resetForTests();
+		BrtsFileConfig.registerForTests(
+				List.of(TRUE_KEY, YES_KEY, ONE_KEY, FALSE_KEY, ZERO_KEY, NO_KEY, BLANK_KEY, INVALID_KEY));
 		CONFIG = BrtsFileConfig.getInstance();
+		log.debug("Registered test properties: {}", CONFIG.getAllProperties());
 	}
 
 	@AfterAll
@@ -39,6 +49,8 @@ class BrtsFileConfigTest {
 		System.clearProperty(NO_KEY);
 		System.clearProperty(BLANK_KEY);
 		System.clearProperty(INVALID_KEY);
+		// avoid leaking this test's resolved singleton into subsequently run test classes
+		BrtsFileConfig.resetForTests();
 	}
 
 	@Test

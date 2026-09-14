@@ -3,6 +3,7 @@ package org.brts.common.utils;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -19,7 +20,7 @@ public class BrtsFileConfig {
 
 	private final Map<String, Entry> resolvedProperties = new HashMap<>();
 
-	private static final @Getter BrtsFileConfig instance = new BrtsFileConfig();
+	private static volatile BrtsFileConfig instance;
 
 	private static final String CONFIG_FILE_NAME = "brts.conf";
 
@@ -31,7 +32,7 @@ public class BrtsFileConfig {
 
 	private final String OVERRIDEN_CONFIG_PATH = System.getProperty("brts.conf");
 
-	protected BrtsFileConfig() {
+	protected BrtsFileConfig(Collection<String> forciblyRegisteredKeys) {
 		// load properties from several sources, in order.
 		// each loaded property overrides the previous ones, so that system properties
 		// have the highest precedence.
@@ -43,6 +44,11 @@ public class BrtsFileConfig {
 		// 4/ environment variables (e.g. set in the shell or OS environment)
 		// 5/ system properties passed via -D on the command line (e.g.
 		// -Dmy.property=value)
+		if (forciblyRegisteredKeys != null && !forciblyRegisteredKeys.isEmpty()) {
+			for (String key : forciblyRegisteredKeys) {
+				addProperty(key, "test-value", "test-registration");
+			}
+		}
 		loadFromClasspathResource(CLASSPATH_RESOURCE);
 		loadFromFile(DEFAULT_CONFIG_PATH);
 		loadFromFile(USER_CONFIG_PATH);
@@ -50,6 +56,44 @@ public class BrtsFileConfig {
 		resolveEnvironmentVariables();
 		resolveSystemProperties();
 		log.debug("Final config properties: {}", resolvedProperties);
+	}
+
+	protected BrtsFileConfig() {
+		this(null);
+	}
+
+	/**
+	 * Returns the lazily-created singleton instance, resolving properties on first call.
+	 *
+	 * @return the singleton instance
+	 */
+	public static BrtsFileConfig getInstance() {
+		BrtsFileConfig result = instance;
+		if (result == null) {
+			synchronized (BrtsFileConfig.class) {
+				result = instance;
+				if (result == null) {
+					instance = result = new BrtsFileConfig();
+				}
+			}
+		}
+		return result;
+	}
+
+	/** Forces the singleton to be re-resolved on next {@link #getInstance()} call; for tests only. */
+	static void resetForTests() {
+		synchronized (BrtsFileConfig.class) {
+			instance = null;
+		}
+	}
+
+	static void registerForTests(Collection<String> keys) {
+		if (keys == null || keys.isEmpty())
+			return;
+		synchronized (BrtsFileConfig.class) {
+			instance = new BrtsFileConfig(keys);
+			log.debug("Registered test properties: {}", keys);
+		}
 	}
 
 	/**
