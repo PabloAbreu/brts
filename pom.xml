@@ -306,5 +306,16 @@
 				<artifactId>maven-pmd-plugin</artifactId>
 			</plugin>
 		</plugins>
+		<testResources>
+			<testResource>
+				<directory>${maven.multiModuleProjectDirectory}/config</directory>
+				<includes>
+					<include>logback-test.xml</include>
+				</includes>
+			</testResource>
+			<testResource>
+				<directory>src/test/resources</directory>
+			</testResource>
+		</testResources>
 	</build>
 </project>

@@ -17,6 +17,8 @@ target
 .classpath
 .project
 .settings
+# vscode
+.vscode
 
 # dev resources
 external_references

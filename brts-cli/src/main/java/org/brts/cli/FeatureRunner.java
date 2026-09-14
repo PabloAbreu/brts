@@ -32,6 +32,22 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class FeatureRunner<O extends BaseOptions> {
 
 	/**
+	 * Checks whether the raw, unparsed command-line arguments request the banner to be suppressed (see
+	 * {@link BaseOptions#isNoBanner()}). Used before args4j parsing has taken place, e.g. by {@code BrtsMain}.
+	 */
+	public static boolean isBannerSuppressed(String[] args) {
+		if (args == null) {
+			return false;
+		}
+		for (String arg : args) {
+			if (BaseOptions.OPTION_NO_BANNER.equals(arg)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * The sub-command name as typed on the command line (e.g. {@code "clip-parse"}).
 	 */
 	public abstract String getCommandName();

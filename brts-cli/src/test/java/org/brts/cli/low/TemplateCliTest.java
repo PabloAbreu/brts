@@ -26,8 +26,8 @@ class TemplateCliTest {
 
 		Path outputFile = tempDir.resolve("out.xml");
 
-		LowLevelDispatcher.main(new String[] { "render-template", "--template", templateFile.toString(), "--data",
-				dataFile.toString(), "--output", outputFile.toString() });
+		LowLevelDispatcher.main(new String[] { "render-template", "--no-banner", "--template", templateFile.toString(),
+				"--data", dataFile.toString(), "--output", outputFile.toString() });
 
 		assertThat(Files.exists(outputFile)).isTrue();
 		assertThat(Files.readString(outputFile)).isEqualTo("<root><val>test-runner</val></root>");
@@ -42,8 +42,8 @@ class TemplateCliTest {
 		ByteArrayOutputStream outCapture = new ByteArrayOutputStream();
 		try {
 			System.setOut(new PrintStream(outCapture));
-			LowLevelDispatcher.main(new String[] { "render-template", "--template", templateFile.toString(), "--data",
-					"{\"msg\": \"hello world\"}" });
+			LowLevelDispatcher.main(new String[] { "render-template", "--no-banner", "--template",
+					templateFile.toString(), "--data", "{\"msg\": \"hello world\"}" });
 		} finally {
 			System.setOut(originalOut);
 		}
@@ -58,8 +58,8 @@ class TemplateCliTest {
 
 		Path outputFile = tempDir.resolve("main_out.txt");
 
-		BrtsMain.main(new String[] { "low", "render-template", "--template", templateFile.toString(), "--data",
-				"{\"id\": 999}", "--output", outputFile.toString() });
+		BrtsMain.main(new String[] { "low", "render-template", "--no-banner", "--template", templateFile.toString(),
+				"--data", "{\"id\": 999}", "--output", outputFile.toString() });
 
 		assertThat(Files.exists(outputFile)).isTrue();
 		assertThat(Files.readString(outputFile)).isEqualTo("ID=999");
@@ -72,8 +72,8 @@ class TemplateCliTest {
 		Path templateFile = Path.of(samplesDir, "PB", "credits_template.svg.ftl");
 		Path dataFile = Path.of(samplesDir, "PB", "credits_tt31227572.json");
 
-		BrtsMain.main(new String[] { "low", "render-template", "--template", templateFile.toString(), "--data",
-				dataFile.toString(), "--output", outputFile.toString() });
+		BrtsMain.main(new String[] { "low", "render-template", "--no-banner", "--template", templateFile.toString(),
+				"--data", dataFile.toString(), "--output", outputFile.toString() });
 
 		assertThat(Files.exists(outputFile)).isTrue();
 		String content = Files.readString(outputFile);
