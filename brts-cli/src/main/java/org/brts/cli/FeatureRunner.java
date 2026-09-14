@@ -85,10 +85,6 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 		throw new IllegalStateException("Unable to determine options class");
 	}
 
-	private final O opts = createOptions();
-
-	private CmdLineParser parser = new FeatureRunnerCmdLineParser(opts);
-
 	/**
 	 * Parses command-line arguments into the options bean and invokes {@link #execute}. On parse errors, prints usage
 	 * to {@code stderr} and exits.
@@ -99,8 +95,11 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 			printUsage(System.err);
 			return;
 		}
-
+		O opts = createOptions();
 		try {
+			// always create a new parser for each run to avoid reusing state from previous runs
+			// this is a concern mostly for unit tests that invoke run() multiple times in the same JVM
+			CmdLineParser parser = new FeatureRunnerCmdLineParser(opts);
 			parser.parseArgument(args);
 		} catch (CmdLineException e) {
 			System.err.println(getCommandName() + ": " + e.getMessage());
@@ -218,6 +217,7 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 	 */
 	public void printUsage(PrintStream out) {
 		out.println("  " + getCommandName() + " — " + getDescription());
+		CmdLineParser parser = new FeatureRunnerCmdLineParser(createOptions());
 		parser.printUsage(out);
 		out.println();
 	}
