@@ -141,8 +141,16 @@ public class MiddleLevelOrchestrator {
 			MkvToPlaylistDescriptor mkvDescriptor = new MkvToPlaylistDescriptor();
 			mkvDescriptor.setInput(title.getSourceMkv());
 			mkvDescriptor.setClipName(clipName);
+			if (disc.getPgsConfig() != null) {
+				mkvDescriptor.setPgsConfig(disc.getPgsConfig());
+			}
 			if (popupClipName != null) {
 				PopupMenuConfig popupMenuConfig = new PopupMenuConfig();
+				if (disc.getPopupMenu() != null) {
+					popupMenuConfig.setLayout(disc.getPopupMenu().getLayout());
+					popupMenuConfig.setScreenWidth(disc.getPopupMenu().getScreenWidth());
+					popupMenuConfig.setScreenHeight(disc.getPopupMenu().getScreenHeight());
+				}
 				popupMenuConfig.setOutputClipName(popupClipName);
 				if (resolvedPopupStyle != null) {
 					popupMenuConfig.setStyle(resolvedPopupStyle);
@@ -325,19 +333,19 @@ public class MiddleLevelOrchestrator {
 	// ── Style Resolution ────────────────────────────────────────────────────
 
 	/**
-	 * Resolves the effective popup menu style by merging disc-wide popupStyle over the global disc style. Returns
-	 * {@code null} if neither is set (letting the low-level apply brts.conf defaults).
+	 * Resolves the effective popup menu style by merging disc-wide popupMenu style, popupStyle, and global disc style.
+	 * Returns {@code null} if none is set (letting the low-level apply brts.conf defaults).
 	 */
 	private TextStyle resolvePopupStyle(DiscDescriptor disc) {
-		TextStyle global = disc.getStyle();
-		TextStyle popup = disc.getPopupStyle();
-		if (popup != null && global != null) {
-			return popup.mergeOver(global);
+		TextStyle effective = disc.getStyle();
+		if (disc.getPopupStyle() != null) {
+			effective = effective != null ? disc.getPopupStyle().mergeOver(effective) : disc.getPopupStyle();
 		}
-		if (popup != null) {
-			return popup;
+		if (disc.getPopupMenu() != null && disc.getPopupMenu().getStyle() != null) {
+			effective = effective != null ? disc.getPopupMenu().getStyle().mergeOver(effective)
+					: disc.getPopupMenu().getStyle();
 		}
-		return global; // may be null
+		return effective; // may be null
 	}
 
 	/**

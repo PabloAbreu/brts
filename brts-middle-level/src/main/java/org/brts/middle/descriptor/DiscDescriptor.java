@@ -1,6 +1,8 @@
 package org.brts.middle.descriptor;
 
 import org.brts.common.menu.TextStyle;
+import org.brts.lowlevel.pgs.PgsRenderConfig;
+import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -56,6 +58,18 @@ public class DiscDescriptor {
 	 * all popup menus on this disc. When {@code null}, the global {@link #style} (or brts.conf defaults) is used.
 	 */
 	private TextStyle popupStyle;
+
+	/**
+	 * Disc-wide popup menu configuration. When non-null, its settings (such as layout, dimensions, style) are applied
+	 * to all auto-generated popup menus on the disc. Its track-entry lists and output clip name are managed per-title.
+	 */
+	private PopupMenuConfig popupMenu;
+
+	/**
+	 * Disc-wide PGS subtitle rendering configuration applied to all titles during conversion. When null, defaults from
+	 * brts.conf / low-level configuration are used.
+	 */
+	private PgsRenderConfig pgsConfig;
 
 	private List<TitleDescriptor> titles;
 
