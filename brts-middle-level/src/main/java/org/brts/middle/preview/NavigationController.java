@@ -32,6 +32,9 @@ public class NavigationController {
 	/** Generous bound to avoid hanging the UI on pathological authored GOTO loops. */
 	private static final long MAX_SIMULATION_STEPS = 10_000;
 
+	/** Bound auto-action chains so malformed menus cannot make the preview unresponsive. */
+	private static final int MAX_AUTO_ACTIONS = 100;
+
 	private final DisplaySetPreviewModel model;
 
 	/** Single instance reused across all button activations, sharing one {@link GprState} for the session. */
@@ -66,6 +69,26 @@ public class NavigationController {
 	 * the commands in the overlay.
 	 */
 	public NavigationResult activate() {
+		int previousPageIndex = model.getCurrentPageIndex();
+		int previousButtonId = model.getSelectedButtonId();
+		NavigationResult result = activateCurrentButton();
+		if (result.getType() == NavigationResult.Type.NONE) {
+			return result;
+		}
+
+		NavigationResult autoActionResult = activateAutoActionsOnArrival(previousPageIndex, previousButtonId, false);
+		return autoActionResult != null ? autoActionResult : result;
+	}
+
+	/**
+	 * Activates the current button when it is authored with the auto-action flag. This is used once when the preview
+	 * opens, after its initial selected button has been established.
+	 */
+	public NavigationResult activateInitialAutoAction() {
+		return activateAutoActionsOnArrival(model.getCurrentPageIndex(), model.getSelectedButtonId(), true);
+	}
+
+	private NavigationResult activateCurrentButton() {
 		IgsButton btn = model.getCurrentButton();
 		if (btn == null) {
 			return NavigationResult.none("No button selected");
@@ -112,7 +135,7 @@ public class NavigationController {
 
 		if (target.pageId().isPresent()) {
 			OptionalInt buttonId = target.buttonId();
-			goToPage(target.pageId().getAsInt(), buttonId);
+			goToPageInternal(target.pageId().getAsInt(), buttonId);
 		} else if (target.buttonId().isPresent()) {
 			int buttonId = target.buttonId().getAsInt();
 			IgsPage page = model.getCurrentPage();
@@ -152,13 +175,27 @@ public class NavigationController {
 	 * Switch to a specific page by id.
 	 */
 	public NavigationResult goToPage(int pageId) {
-		return goToPage(pageId, OptionalInt.empty());
+		return goToPageWithAutoAction(pageId, OptionalInt.empty());
 	}
 
 	/**
 	 * Switch to a specific page by id, optionally selecting a specific button instead of the page's default.
 	 */
 	public NavigationResult goToPage(int pageId, OptionalInt explicitButtonId) {
+		return goToPageWithAutoAction(pageId, explicitButtonId);
+	}
+
+	private NavigationResult goToPageWithAutoAction(int pageId, OptionalInt explicitButtonId) {
+		NavigationResult result = goToPageInternal(pageId, explicitButtonId);
+		if (result.getType() == NavigationResult.Type.NONE) {
+			return result;
+		}
+		NavigationResult autoActionResult = activateAutoActionsOnArrival(model.getCurrentPageIndex(),
+				model.getSelectedButtonId(), true);
+		return autoActionResult != null ? autoActionResult : result;
+	}
+
+	private NavigationResult goToPageInternal(int pageId, OptionalInt explicitButtonId) {
 		for (int i = 0; i < model.getPages().size(); i++) {
 			if (model.getPages().get(i).getId() == pageId) {
 				int oldPageIndex = model.getCurrentPageIndex();
@@ -222,7 +259,38 @@ public class NavigationController {
 
 		model.setSelectedButtonId(targetId);
 		log.debug("Moved {} → button #{}", dir, targetId);
-		return new NavigationResult(NavigationResult.Type.SELECTION_CHANGED, targetId, dir + " → button #" + targetId);
+		NavigationResult autoActionResult = activateAutoActionsOnArrival(model.getCurrentPageIndex(), current.getId(),
+				false);
+		return autoActionResult != null ? autoActionResult
+				: new NavigationResult(NavigationResult.Type.SELECTION_CHANGED, targetId,
+						dir + " → button #" + targetId);
+	}
+
+	private NavigationResult activateAutoActionsOnArrival(int previousPageIndex, int previousButtonId,
+			boolean forceInitialCheck) {
+		boolean selectionArrived = forceInitialCheck || selectionChanged(previousPageIndex, previousButtonId);
+		NavigationResult lastResult = null;
+
+		for (int autoActionCount = 0; selectionArrived && autoActionCount < MAX_AUTO_ACTIONS; autoActionCount++) {
+			IgsButton btn = model.getCurrentButton();
+			if (btn == null || !btn.isAutoAction()) {
+				return lastResult;
+			}
+
+			int currentPageIndex = model.getCurrentPageIndex();
+			int currentButtonId = model.getSelectedButtonId();
+			lastResult = activateCurrentButton();
+			selectionArrived = selectionChanged(currentPageIndex, currentButtonId);
+		}
+
+		if (selectionArrived) {
+			log.warn("Stopped after {} chained auto-actions to keep the preview responsive", MAX_AUTO_ACTIONS);
+		}
+		return lastResult;
+	}
+
+	private boolean selectionChanged(int previousPageIndex, int previousButtonId) {
+		return model.getCurrentPageIndex() != previousPageIndex || model.getSelectedButtonId() != previousButtonId;
 	}
 
 	private boolean isButtonEnabled(IgsPage page, int buttonId) {

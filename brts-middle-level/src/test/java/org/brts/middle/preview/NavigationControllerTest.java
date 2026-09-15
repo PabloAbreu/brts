@@ -100,6 +100,63 @@ class NavigationControllerTest {
 	}
 
 	@Test
+	void moveToNeighbour_autoActionButton_activatesImmediately() {
+		IgsButton start = button(1, List.of());
+		start.setLowerButtonIdRef(2);
+		IgsButton autoAction = button(2, NavigationCommandUtils.setButtonPage(1, 3));
+		autoAction.setAutoAction(true);
+		IgsPage root = page(0, 1, start, autoAction);
+		IgsPage destination = page(1, 3, button(3, List.of()));
+
+		DisplaySetPreviewModel model = modelOnPage0(root, destination);
+		NavigationController nav = new NavigationController(model);
+
+		NavigationResult result = nav.moveDown();
+
+		assertThat(result.getType()).isEqualTo(NavigationResult.Type.ACTIVATED);
+		assertThat(model.getCurrentPageIndex()).isEqualTo(1);
+		assertThat(model.getSelectedButtonId()).isEqualTo(3);
+	}
+
+	@Test
+	void goToPage_defaultAutoAction_activatesAndChainsToNonAutoActionButton() {
+		IgsPage root = page(0, 1, button(1, List.of()));
+		IgsButton firstAutoAction = button(2, NavigationCommandUtils.setButtonPage(2, 4));
+		firstAutoAction.setAutoAction(true);
+		IgsPage firstDestination = page(1, 2, firstAutoAction);
+		IgsButton finalAutoAction = button(4, NavigationCommandUtils.setButtonPage(3, 6));
+		finalAutoAction.setAutoAction(true);
+		IgsPage secondDestination = page(2, 4, finalAutoAction);
+		IgsPage finalDestination = page(3, 6, button(6, List.of()));
+
+		DisplaySetPreviewModel model = modelOnPage0(root, firstDestination, secondDestination, finalDestination);
+		NavigationController nav = new NavigationController(model);
+
+		NavigationResult result = nav.goToPage(1);
+
+		assertThat(result.getType()).isEqualTo(NavigationResult.Type.ACTIVATED);
+		assertThat(model.getCurrentPageIndex()).isEqualTo(3);
+		assertThat(model.getSelectedButtonId()).isEqualTo(6);
+	}
+
+	@Test
+	void activateInitialAutoAction_runsAutoActionForInitialSelection() {
+		IgsButton autoAction = button(1, NavigationCommandUtils.setButtonPage(1, 2));
+		autoAction.setAutoAction(true);
+		IgsPage startup = page(0, 1, autoAction);
+		IgsPage menu = page(1, 2, button(2, List.of()));
+
+		DisplaySetPreviewModel model = modelOnPage0(startup, menu);
+		NavigationController nav = new NavigationController(model);
+
+		NavigationResult result = nav.activateInitialAutoAction();
+
+		assertThat(result.getType()).isEqualTo(NavigationResult.Type.ACTIVATED);
+		assertThat(model.getCurrentPageIndex()).isEqualTo(1);
+		assertThat(model.getSelectedButtonId()).isEqualTo(2);
+	}
+
+	@Test
 	void goToPage_withoutExplicitButton_usesPageDefault() {
 		IgsPage root = page(0, 1, button(1, List.of()));
 		IgsPage other = page(1, 9, button(9, List.of()));

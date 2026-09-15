@@ -86,6 +86,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 		initUI();
 		sw.start("Initialising key bindings");
 		initKeyBindings();
+		nav.activateInitialAutoAction();
 		sw.stop();
 
 		// Overlay timer: fires every 100 ms to repaint and auto-clear activation
