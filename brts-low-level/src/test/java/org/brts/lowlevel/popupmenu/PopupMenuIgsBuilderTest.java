@@ -145,7 +145,11 @@ class PopupMenuIgsBuilderTest {
 		BackgroundLayout layout = new BackgroundLayout();
 		layout.setMode(BackgroundLayoutMode.FULL_WIDTH_BOTTOM);
 		layout.setHeight(120);
-		layout.setBottomOffset(25);
+		layout.setEdgeOffset(25);
+		layout.setMarginTop(7);
+		layout.setMarginRight(11);
+		layout.setMarginBottom(13);
+		layout.setMarginLeft(17);
 		BackgroundLayer layer = new BackgroundLayer();
 		layer.setSource(source);
 		layer.setLayout(layout);
@@ -159,10 +163,45 @@ class PopupMenuIgsBuilderTest {
 				.get(0);
 		IgsObject decorationObject = object(displaySet, decoration);
 
-		assertThat(decoration.getXPos()).isZero();
-		assertThat(decoration.getYPos()).isEqualTo(935);
-		assertThat(decorationObject.getWidth()).isEqualTo(1920);
-		assertThat(decorationObject.getHeight()).isEqualTo(120);
+		assertThat(decoration.getXPos()).isEqualTo(17);
+		assertThat(decoration.getYPos()).isEqualTo(915);
+		assertThat(decorationObject.getWidth()).isEqualTo(1892);
+		assertThat(decorationObject.getHeight()).isEqualTo(140);
+	}
+
+	@Test
+	void stretchesRasterAcrossFullHeightLeftBanner(@TempDir Path tempDir) throws IOException {
+		BufferedImage sourceImage = new BufferedImage(2, 3, BufferedImage.TYPE_INT_ARGB);
+		sourceImage.setRGB(0, 0, 0x80FF0000);
+		Path sourcePath = tempDir.resolve("background.png");
+		ImageIO.write(sourceImage, "png", sourcePath.toFile());
+		ImageReference source = new ImageReference();
+		source.setSourcePath(sourcePath.toString());
+		BackgroundLayout layout = new BackgroundLayout();
+		layout.setMode(BackgroundLayoutMode.FULL_HEIGHT_LEFT);
+		layout.setWidth(120);
+		layout.setEdgeOffset(25);
+		layout.setMarginTop(7);
+		layout.setMarginRight(11);
+		layout.setMarginBottom(13);
+		layout.setMarginLeft(17);
+		BackgroundLayer layer = new BackgroundLayer();
+		layer.setSource(source);
+		layer.setLayout(layout);
+		PageBackgrounds backgrounds = new PageBackgrounds();
+		backgrounds.setAudio(List.of(layer));
+		PopupMenuConfig config = configWithTracks(2, 1);
+		config.setBackgrounds(backgrounds);
+
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		IgsButton decoration = buttons(displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0))
+				.get(0);
+		IgsObject decorationObject = object(displaySet, decoration);
+
+		assertThat(decoration.getXPos()).isEqualTo(25);
+		assertThat(decoration.getYPos()).isEqualTo(7);
+		assertThat(decorationObject.getWidth()).isEqualTo(148);
+		assertThat(decorationObject.getHeight()).isEqualTo(1060);
 	}
 
 	@Test

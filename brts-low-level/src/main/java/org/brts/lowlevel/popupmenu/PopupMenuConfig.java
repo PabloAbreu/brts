@@ -84,7 +84,7 @@ public class PopupMenuConfig {
 
 	/** Supported ways to calculate a background layer's destination rectangle. */
 	public enum BackgroundLayoutMode {
-		ABSOLUTE, SELECTABLE_BOUNDS, FULL_WIDTH_BOTTOM
+		ABSOLUTE, SELECTABLE_BOUNDS, FULL_WIDTH_BOTTOM, FULL_HEIGHT_LEFT
 	}
 
 	/** Placement settings for one decorative background layer. */
@@ -98,18 +98,27 @@ public class PopupMenuConfig {
 		private int x;
 		private int y;
 
-		/** Output size for absolute placement, or banner height for full-width-bottom placement. */
+		/**
+		 * Output size for absolute placement, banner width for full-height-left placement, or banner height for
+		 * full-width-bottom placement.
+		 */
 		private Integer width;
 		private Integer height;
 
-		/** Margins added around selectable bounds. */
+		/**
+		 * Margins added around selectable bounds; for a full-width bottom banner, top/bottom pad the configured height
+		 * and left/right inset it horizontally; for a full-height left banner, left/right pad the configured width and
+		 * top/bottom inset it vertically.
+		 */
 		private int marginTop;
 		private int marginRight;
 		private int marginBottom;
 		private int marginLeft;
 
-		/** Distance between a full-width banner and the bottom of the screen. */
-		private int bottomOffset;
+		/**
+		 * Distance between the outer edge of a full-width/full-height banner and the bottom/left edge of the screen.
+		 */
+		private int edgeOffset;
 	}
 
 	// -------------------------------------------------------------------------

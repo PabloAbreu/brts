@@ -41,7 +41,7 @@ Raster files use `sourcePath`. SVG backgrounds use the existing synthetic image 
           "layout": {
             "mode": "FULL_WIDTH_BOTTOM",
             "height": 220,
-            "bottomOffset": 20
+            "edgeOffset": 20
           }
         }
       ],
@@ -67,10 +67,12 @@ Raster files use `sourcePath`. SVG backgrounds use the existing synthetic image 
 }
 ```
 
-Layout modes are `ABSOLUTE` (`x`, `y`, `width`, `height`), `SELECTABLE_BOUNDS` (four optional margins), and
-`FULL_WIDTH_BOTTOM` (`height` and optional `bottomOffset`). Sources are stretched to the calculated rectangle without
-preserving aspect ratio. Rectangles must stay within the configured screen dimensions. Relative raster and SVG paths
-resolve from the process working directory. Video and animated SVG backgrounds are not supported in popup IGS.
+Layout modes are `ABSOLUTE` (`x`, `y`, `width`, `height`), `SELECTABLE_BOUNDS` (four optional margins),
+`FULL_WIDTH_BOTTOM` (`height` and optional `edgeOffset`, the distance from the bottom of the screen), and
+`FULL_HEIGHT_LEFT` (`width` and optional `edgeOffset`, the distance from the left of the screen). Sources are
+stretched to the calculated rectangle without preserving aspect ratio. Rectangles must stay within the configured
+screen dimensions. Relative raster and SVG paths resolve from the process working directory. Video and animated SVG
+backgrounds are not supported in popup IGS.
 
 ## Middle-level descriptors
 

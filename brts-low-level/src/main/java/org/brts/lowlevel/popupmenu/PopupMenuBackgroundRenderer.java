@@ -102,9 +102,26 @@ final class PopupMenuBackgroundRenderer {
 					selectableBounds.height + layout.getMarginTop() + layout.getMarginBottom());
 		}
 		case FULL_WIDTH_BOTTOM -> {
-			validateNonNegative(layout.getBottomOffset(), role, index, "bottomOffset");
+			validateNonNegative(layout.getEdgeOffset(), role, index, "edgeOffset");
+			validateNonNegative(layout.getMarginTop(), role, index, "marginTop");
+			validateNonNegative(layout.getMarginRight(), role, index, "marginRight");
+			validateNonNegative(layout.getMarginBottom(), role, index, "marginBottom");
+			validateNonNegative(layout.getMarginLeft(), role, index, "marginLeft");
 			int height = requiredPositive(layout.getHeight(), role, index, "height");
-			result = new Rectangle(0, screenHeight - layout.getBottomOffset() - height, screenWidth, height);
+			int outerHeight = height + layout.getMarginTop() + layout.getMarginBottom();
+			result = new Rectangle(layout.getMarginLeft(), screenHeight - layout.getEdgeOffset() - outerHeight,
+					screenWidth - layout.getMarginLeft() - layout.getMarginRight(), outerHeight);
+		}
+		case FULL_HEIGHT_LEFT -> {
+			validateNonNegative(layout.getEdgeOffset(), role, index, "edgeOffset");
+			validateNonNegative(layout.getMarginTop(), role, index, "marginTop");
+			validateNonNegative(layout.getMarginRight(), role, index, "marginRight");
+			validateNonNegative(layout.getMarginBottom(), role, index, "marginBottom");
+			validateNonNegative(layout.getMarginLeft(), role, index, "marginLeft");
+			int width = requiredPositive(layout.getWidth(), role, index, "width");
+			int outerWidth = width + layout.getMarginLeft() + layout.getMarginRight();
+			result = new Rectangle(layout.getEdgeOffset(), layout.getMarginTop(), outerWidth,
+					screenHeight - layout.getMarginTop() - layout.getMarginBottom());
 		}
 		default -> throw invalid(role, index, "unsupported layout mode " + layout.getMode());
 		}
