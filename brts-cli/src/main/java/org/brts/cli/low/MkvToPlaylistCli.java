@@ -50,6 +50,7 @@ public class MkvToPlaylistCli {
 
 			PopupMenuConfig popupMenu = descriptor.getPopupMenu();
 			if (popupMenu != null) {
+				config.setPopupMenuConfig(popupMenu);
 				config.setPopupMenuClipName(popupMenu.getOutputClipName());
 				config.setPopupMenuStyle(popupMenu.getStyle());
 				config.setPopupMenuLayout(

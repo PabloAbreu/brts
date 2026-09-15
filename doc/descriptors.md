@@ -20,6 +20,58 @@ Examples:
 - [`examples/title-menu-descriptor.json`](../examples/title-menu-descriptor.json) — title selection menu descriptor
 - [`examples/title-menu-thumbnail-descriptor.json`](../examples/title-menu-thumbnail-descriptor.json) — title menu thumbnail composition
 
+### Popup menu backgrounds
+
+`popupMenu.backgrounds` adds ordered, non-interactive image layers behind popup menu buttons. Layers in each array are
+painted from first to last. `shared` layers appear on every page; `root` layers also appear on audio and subtitle pages
+that retain the root controls; `audio` and `subtitles` add role-specific layers. A single-group popup uses `shared` plus
+its role-specific layers because it has no cloned root controls.
+
+Raster files use `sourcePath`. SVG backgrounds use the existing synthetic image form with inline `data` or `srcPath`:
+
+```json
+{
+  "popupMenu": {
+    "outputClipName": "00800",
+    "layout": "HORIZONTAL_BOTTOM",
+    "backgrounds": {
+      "shared": [
+        {
+          "source": { "sourcePath": "assets/popup-banner.png" },
+          "layout": {
+            "mode": "FULL_WIDTH_BOTTOM",
+            "height": 220,
+            "bottomOffset": 20
+          }
+        }
+      ],
+      "audio": [
+        {
+          "source": {
+            "syntheticImage": {
+              "type": "svg",
+              "data": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\"><rect width=\"100\" height=\"100\" rx=\"8\" fill=\"#111\" fill-opacity=\".8\"/></svg>"
+            }
+          },
+          "layout": {
+            "mode": "SELECTABLE_BOUNDS",
+            "marginTop": 20,
+            "marginRight": 24,
+            "marginBottom": 20,
+            "marginLeft": 24
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+Layout modes are `ABSOLUTE` (`x`, `y`, `width`, `height`), `SELECTABLE_BOUNDS` (four optional margins), and
+`FULL_WIDTH_BOTTOM` (`height` and optional `bottomOffset`). Sources are stretched to the calculated rectangle without
+preserving aspect ratio. Rectangles must stay within the configured screen dimensions. Relative raster and SVG paths
+resolve from the process working directory. Video and animated SVG backgrounds are not supported in popup IGS.
+
 ## Middle-level descriptors
 
 Middle-level descriptors point to source MKV files and simplified authoring

@@ -150,6 +150,7 @@ public class MiddleLevelOrchestrator {
 					popupMenuConfig.setLayout(disc.getPopupMenu().getLayout());
 					popupMenuConfig.setScreenWidth(disc.getPopupMenu().getScreenWidth());
 					popupMenuConfig.setScreenHeight(disc.getPopupMenu().getScreenHeight());
+					popupMenuConfig.setBackgrounds(disc.getPopupMenu().getBackgrounds());
 				}
 				popupMenuConfig.setOutputClipName(popupClipName);
 				if (resolvedPopupStyle != null) {

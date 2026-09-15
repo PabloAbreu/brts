@@ -60,8 +60,8 @@ public class DiscDescriptor {
 	private TextStyle popupStyle;
 
 	/**
-	 * Disc-wide popup menu configuration. When non-null, its settings (such as layout, dimensions, style) are applied
-	 * to all auto-generated popup menus on the disc. Its track-entry lists and output clip name are managed per-title.
+	 * Disc-wide popup menu configuration. When non-null, its presentation settings (layout, dimensions, style and
+	 * backgrounds) are applied to all auto-generated popup menus. Track entries and output clip names are per-title.
 	 */
 	private PopupMenuConfig popupMenu;
 

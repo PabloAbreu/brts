@@ -158,6 +158,10 @@ public final class IgsMenuAssembler {
 		}
 	}
 
+	/** A non-interactive image rendered before the selectable buttons on a page. */
+	public record PositionedDecoration(BufferedImage image, int x, int y) {
+	}
+
 	/** Builds a page from buttons whose layout and directional navigation have already been resolved. */
 	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons, int objectBase) {
 		return buildPositionedPage(pageId, buttons, objectBase, buttons.isEmpty() ? 0xFFFF : 1);
@@ -166,7 +170,34 @@ public final class IgsMenuAssembler {
 	/** Builds a page with an explicit initially-selected button. */
 	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons, int objectBase,
 			int defaultSelectedButtonIdRef) {
+		return buildPositionedPage(pageId, buttons, List.of(), objectBase, defaultSelectedButtonIdRef);
+	}
+
+	/** Builds a page with decorative images painted before its selectable buttons. */
+	public static IgsPage buildPositionedPage(int pageId, List<PositionedButton> buttons,
+			List<PositionedDecoration> decorations, int objectBase, int defaultSelectedButtonIdRef) {
 		List<IgsBog> bogs = new ArrayList<>();
+		for (int i = 0; i < decorations.size(); i++) {
+			PositionedDecoration decoration = decorations.get(i);
+			int buttonId = buttons.size() + i + 1;
+			IgsButton button = new IgsButton();
+			button.setId(buttonId);
+			button.setNumericSelectValue(0xFFFF);
+			button.setXPos(decoration.x());
+			button.setYPos(decoration.y());
+			button.setUpperButtonIdRef(buttonId);
+			button.setLowerButtonIdRef(buttonId);
+			button.setLeftButtonIdRef(buttonId);
+			button.setRightButtonIdRef(buttonId);
+			bindButtonVisualStates(button, objectBase + i, objectBase + i, objectBase + i);
+
+			IgsBog bog = new IgsBog();
+			bog.setDefaultValidButtonIdRef(buttonId);
+			bog.getButtons().add(button);
+			bogs.add(bog);
+		}
+
+		int selectableObjectBase = objectBase + decorations.size();
 		for (int i = 0; i < buttons.size(); i++) {
 			PositionedButton positionedButton = buttons.get(i);
 			int buttonId = i + 1;
@@ -180,7 +211,8 @@ public final class IgsMenuAssembler {
 			button.setLowerButtonIdRef(positionedButton.lowerButtonIdRef());
 			button.setLeftButtonIdRef(positionedButton.leftButtonIdRef());
 			button.setRightButtonIdRef(positionedButton.rightButtonIdRef());
-			bindButtonVisualStates(button, objectBase + i * 3, objectBase + i * 3 + 1, objectBase + i * 3 + 2);
+			bindButtonVisualStates(button, selectableObjectBase + i * 3, selectableObjectBase + i * 3 + 1,
+					selectableObjectBase + i * 3 + 2);
 			button.setNavigationCommands(positionedButton.commands());
 
 			IgsBog bog = new IgsBog();

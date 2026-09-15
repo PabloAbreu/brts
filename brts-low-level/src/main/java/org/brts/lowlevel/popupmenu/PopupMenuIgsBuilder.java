@@ -29,6 +29,7 @@ import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.brts.lowlevel.popupmenu.layout.HorizontalBottomPopupMenuLayout;
 import org.brts.lowlevel.popupmenu.layout.PopupMenuLayout;
 import org.brts.lowlevel.popupmenu.layout.VerticalPopupMenuLayout;
+import org.brts.lowlevel.popupmenu.PopupMenuBackgroundRenderer.PageRole;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,6 +62,9 @@ public class PopupMenuIgsBuilder {
 	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands, boolean autoAction) {
 	}
 
+	private record SymbolicPage(PageRole role, boolean includesRoot, List<SymbolicButton> buttons) {
+	}
+
 	private static ButtonSpec render(String text, TextStyle style, List<NavigationCommand> commands, boolean autoAction)
 			throws IOException {
 		return new ButtonSpec(TextRenderer.renderTextButton(text, style, BUTTON_MAX_WIDTH), commands, autoAction);
@@ -77,15 +81,23 @@ public class PopupMenuIgsBuilder {
 	public IgsDisplaySet build(PopupMenuConfig config) throws IOException {
 		int screenW = config.getScreenWidth();
 		int screenH = config.getScreenHeight();
-		List<List<SymbolicButton>> symbolicPages = buildSymbolicPages(config);
-		if (symbolicPages == null)
+		List<SymbolicPage> symbolicPageSpecs = buildSymbolicPageSpecs(config);
+		if (symbolicPageSpecs == null)
 			return null;
+		List<List<SymbolicButton>> symbolicPages = symbolicPageSpecs.stream().map(SymbolicPage::buttons).toList();
 		List<List<ButtonSpec>> pages = renderPages(symbolicPages, config.getStyle());
-		List<BufferedImage> images = collectImages(pages);
+		List<PopupMenuLayout.Page> positionedPages = positionPages(pages, config.getLayout(), screenW, screenH);
+		PopupMenuBackgroundRenderer backgroundRenderer = new PopupMenuBackgroundRenderer();
+		List<List<IgsMenuAssembler.PositionedDecoration>> decorations = new ArrayList<>();
+		for (int pageId = 0; pageId < positionedPages.size(); pageId++) {
+			SymbolicPage pageSpec = symbolicPageSpecs.get(pageId);
+			decorations.add(backgroundRenderer.render(config.getBackgrounds(), pageSpec.role(), pageSpec.includesRoot(),
+					positionedPages.get(pageId).buttons(), screenW, screenH));
+		}
+		List<BufferedImage> images = collectImages(pages, decorations);
 		IgsPalette palette = PaletteBuilder.buildFromImages(0, images.toArray(new BufferedImage[0]));
 		List<IgsObject> objects = IgsMenuAssembler.buildObjectsFromImages(images, palette);
-		IgsInteractiveComposition composition = buildInteractiveComposition(pages, config.getLayout(), screenW,
-				screenH);
+		IgsInteractiveComposition composition = buildInteractiveComposition(positionedPages, decorations);
 		IgsCompositionSegment compositionSegment = IgsMenuAssembler.buildCompositionSegment(composition, screenW,
 				screenH);
 		IgsWindowDefinition windowDefinition = IgsMenuAssembler.buildFullScreenWindowDefinition(screenW, screenH);
@@ -97,9 +109,12 @@ public class PopupMenuIgsBuilder {
 		return displaySet;
 	}
 
-	private static List<BufferedImage> collectImages(List<List<ButtonSpec>> pages) {
+	private static List<BufferedImage> collectImages(List<List<ButtonSpec>> pages,
+			List<List<IgsMenuAssembler.PositionedDecoration>> decorations) {
 		List<BufferedImage> images = new ArrayList<>();
-		for (List<ButtonSpec> pageSpecs : pages) {
+		for (int pageId = 0; pageId < pages.size(); pageId++) {
+			decorations.get(pageId).forEach(decoration -> images.add(decoration.image()));
+			List<ButtonSpec> pageSpecs = pages.get(pageId);
 			for (ButtonSpec spec : pageSpecs) {
 				images.add(spec.images().normal());
 				images.add(spec.images().selected());
@@ -109,13 +124,26 @@ public class PopupMenuIgsBuilder {
 		return images;
 	}
 
-	private IgsInteractiveComposition buildInteractiveComposition(List<List<ButtonSpec>> pages,
-			PopupMenuConfig.Layout layout, int screenW, int screenH) {
+	private IgsInteractiveComposition buildInteractiveComposition(List<PopupMenuLayout.Page> positionedPages,
+			List<List<IgsMenuAssembler.PositionedDecoration>> decorations) {
 		IgsInteractiveComposition composition = new IgsInteractiveComposition();
 		composition.setStreamModel(IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX);
 		composition.setUiModel(IgsInteractiveComposition.UI_MODEL_POP_UP);
 		composition.setUserTimeoutDuration(0);
 
+		int objectBase = 0;
+		for (int pageId = 0; pageId < positionedPages.size(); pageId++) {
+			List<IgsMenuAssembler.PositionedButton> buttons = positionedPages.get(pageId).buttons();
+			List<IgsMenuAssembler.PositionedDecoration> pageDecorations = decorations.get(pageId);
+			composition.getPages().add(IgsMenuAssembler.buildPositionedPage(pageId, buttons, pageDecorations,
+					objectBase, positionedPages.get(pageId).defaultSelectedButtonIdRef()));
+			objectBase += pageDecorations.size() + buttons.size() * 3;
+		}
+		return composition;
+	}
+
+	private List<PopupMenuLayout.Page> positionPages(List<List<ButtonSpec>> pages, PopupMenuConfig.Layout layout,
+			int screenW, int screenH) {
 		List<List<IgsMenuAssembler.LabeledButton>> labeledPages = pages.stream()
 				.map(specs -> specs.stream()
 						.map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands(), s.autoAction()))
@@ -124,15 +152,7 @@ public class PopupMenuIgsBuilder {
 		PopupMenuLayout layoutStrategy = layout == PopupMenuConfig.Layout.HORIZONTAL_BOTTOM
 				? new HorizontalBottomPopupMenuLayout()
 				: new VerticalPopupMenuLayout();
-		int objectBase = 0;
-		List<PopupMenuLayout.Page> positionedPages = layoutStrategy.layout(labeledPages, screenW, screenH);
-		for (int pageId = 0; pageId < positionedPages.size(); pageId++) {
-			List<IgsMenuAssembler.PositionedButton> buttons = positionedPages.get(pageId).buttons();
-			composition.getPages().add(IgsMenuAssembler.buildPositionedPage(pageId, buttons, objectBase,
-					positionedPages.get(pageId).defaultSelectedButtonIdRef()));
-			objectBase += buttons.size() * 3;
-		}
-		return composition;
+		return layoutStrategy.layout(labeledPages, screenW, screenH);
 	}
 
 	// ── Symbolic page building ──────────────────────────────────────────────
@@ -143,6 +163,11 @@ public class PopupMenuIgsBuilder {
 	 * @return the symbolic pages, or {@code null} if neither audio nor subtitle tracks warrant a menu
 	 */
 	List<List<SymbolicButton>> buildSymbolicPages(PopupMenuConfig config) {
+		List<SymbolicPage> pages = buildSymbolicPageSpecs(config);
+		return pages == null ? null : pages.stream().map(SymbolicPage::buttons).toList();
+	}
+
+	private List<SymbolicPage> buildSymbolicPageSpecs(PopupMenuConfig config) {
 		List<PopupMenuConfig.TrackEntry> audioTracks = config.getAudioTracks() != null ? config.getAudioTracks()
 				: List.of();
 		List<PopupMenuConfig.TrackEntry> subtitleTracks = config.getSubtitleTracks() != null
@@ -158,7 +183,7 @@ public class PopupMenuIgsBuilder {
 			return null;
 		}
 
-		List<List<SymbolicButton>> pages = new ArrayList<>();
+		List<SymbolicPage> pages = new ArrayList<>();
 
 		if (needsAudio && needsSubs) {
 			// BOTH: root page (0) + persistent-root audio/subtitle pages (1/2)
@@ -166,19 +191,19 @@ public class PopupMenuIgsBuilder {
 			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(1, ROOT_BUTTON_COUNT + 1)));
 			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(2, ROOT_BUTTON_COUNT + 1)));
 			rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(rootSpecs);
+			pages.add(new SymbolicPage(PageRole.ROOT, true, rootSpecs));
 
 			List<SymbolicButton> audioSpecs = clonedRootSpecs();
 			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
 				audioSpecs.add(new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
 			}
-			pages.add(audioSpecs);
+			pages.add(new SymbolicPage(PageRole.AUDIO, true, audioSpecs));
 
 			List<SymbolicButton> subSpecs = clonedRootSpecs();
 			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
 				subSpecs.add(new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
 			}
-			pages.add(subSpecs);
+			pages.add(new SymbolicPage(PageRole.SUBTITLES, true, subSpecs));
 
 		} else if (needsAudio) {
 			// AUDIO_ONLY: direct track list on page 0
@@ -187,7 +212,7 @@ public class PopupMenuIgsBuilder {
 				audioSpecs.add(new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
 			}
 			audioSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(audioSpecs);
+			pages.add(new SymbolicPage(PageRole.AUDIO, false, audioSpecs));
 
 		} else {
 			// SUBS_ONLY: direct track list on page 0
@@ -196,7 +221,7 @@ public class PopupMenuIgsBuilder {
 				subSpecs.add(new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
 			}
 			subSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(subSpecs);
+			pages.add(new SymbolicPage(PageRole.SUBTITLES, false, subSpecs));
 		}
 
 		return pages;

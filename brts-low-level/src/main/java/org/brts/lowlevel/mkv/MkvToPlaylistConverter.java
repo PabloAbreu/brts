@@ -97,8 +97,12 @@ public class MkvToPlaylistConverter {
 		/** Button layout for the popup menu. */
 		private PopupMenuConfig.Layout popupMenuLayout;
 
+		/** Complete popup presentation template from a descriptor. */
+		private PopupMenuConfig popupMenuConfig;
+
 		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null, null, null, PopupMenuConfig.Layout.VERTICAL_LIST);
+			this(mkvFile, outputDir, clipName, null, null, null, null, null, PopupMenuConfig.Layout.VERTICAL_LIST,
+					null);
 		}
 
 	}
@@ -176,7 +180,11 @@ public class MkvToPlaylistConverter {
 		}
 
 		// 8. Build M2tsDescriptor
-		boolean needsPopupMenu = config.getPopupMenuClipName() != null;
+		String popupMenuClipName = config.getPopupMenuConfig() != null
+				&& config.getPopupMenuConfig().getOutputClipName() != null
+						? config.getPopupMenuConfig().getOutputClipName()
+						: config.getPopupMenuClipName();
+		boolean needsPopupMenu = popupMenuClipName != null;
 		M2tsDescriptor descriptor = buildDescriptor(clipName, selectedTracks, demuxedFiles, pgsConvertedFiles,
 				textSubTrackNos);
 
@@ -196,8 +204,8 @@ public class MkvToPlaylistConverter {
 		// 9b. Generate popup menu if requested
 		PopupMenuGenerator.Result popupResult = null;
 		if (needsPopupMenu) {
-			PopupMenuConfig popupConfig = buildPopupMenuConfig(config.getPopupMenuClipName(), selectedTracks,
-					config.getPopupMenuStyle(), config.getPopupMenuLayout());
+			PopupMenuConfig popupConfig = buildPopupMenuConfig(popupMenuClipName, selectedTracks,
+					config.getPopupMenuStyle(), config.getPopupMenuLayout(), config.getPopupMenuConfig());
 			if (popupConfig != null) {
 				PopupMenuGenerator popupGenerator = new PopupMenuGenerator();
 				popupResult = popupGenerator.generate(popupConfig, outputDir);
@@ -209,7 +217,7 @@ public class MkvToPlaylistConverter {
 		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
 		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs(), popupResult,
-				config.getPopupMenuClipName());
+				popupMenuClipName);
 		new MoviePlaylistWriter().write(playlist, mplsPath);
 
 		log.info("MKV-to-playlist conversion complete: M2TS={}, CLPI={}, MPLS={}", m2tsPath, clpiPath, mplsPath);
@@ -359,13 +367,22 @@ public class MkvToPlaylistConverter {
 	}
 
 	private PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
-			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout) {
+			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout, PopupMenuConfig template) {
 		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
-		if (config != null && popupMenuStyle != null) {
-			config.setStyle(popupMenuStyle);
+		if (config != null && template != null) {
+			config.setScreenWidth(template.getScreenWidth());
+			config.setScreenHeight(template.getScreenHeight());
+			config.setStyle(template.getStyle());
+			config.setLayout(template.getLayout());
+			config.setBackgrounds(template.getBackgrounds());
 		}
-		if (config != null && popupMenuLayout != null) {
-			config.setLayout(popupMenuLayout);
+		if (config != null && template == null) {
+			if (popupMenuStyle != null) {
+				config.setStyle(popupMenuStyle);
+			}
+			if (popupMenuLayout != null) {
+				config.setLayout(popupMenuLayout);
+			}
 		}
 		return config;
 	}

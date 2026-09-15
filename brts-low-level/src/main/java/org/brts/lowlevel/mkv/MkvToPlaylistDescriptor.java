@@ -34,9 +34,8 @@ public class MkvToPlaylistDescriptor {
 	private PgsRenderConfig pgsConfig;
 
 	/**
-	 * Popup menu configuration; a non-null value enables popup menu generation using its {@code outputClipName},
-	 * {@code style} and {@code layout}. Its track-entry lists are ignored here since they are computed from the actual
-	 * selected MKV tracks at conversion time.
+	 * Popup menu presentation configuration; a non-null value enables popup menu generation. Track-entry lists are
+	 * ignored here since they are computed from the selected MKV tracks at conversion time.
 	 */
 	private PopupMenuConfig popupMenu;
 
