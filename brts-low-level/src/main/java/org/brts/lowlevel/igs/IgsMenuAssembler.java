@@ -56,7 +56,7 @@ public final class IgsMenuAssembler {
 			object.setRleData(rle);
 			object.setDataLength(rle.length + 4); // +4 for width(2)+height(2)
 			object.setSequenceDescriptor(newSingleSequence());
-			objects.add(object);
+			objects.addAll(IgsPgsCodec.fragmentObject(object));
 		}
 		return objects;
 	}

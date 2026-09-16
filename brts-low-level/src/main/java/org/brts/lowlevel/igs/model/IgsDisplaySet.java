@@ -36,7 +36,9 @@ public class IgsDisplaySet {
 	/** Palette definitions in this display set. */
 	private List<IgsPalette> palettes = new ArrayList<>();
 
-	/** Object (bitmap) definitions in this display set. */
+	/**
+	 * Physical ODS fragments, except in demuxer results where fragments are reassembled into logical bitmap objects.
+	 */
 	private List<IgsObject> objects = new ArrayList<>();
 
 	/** Window definitions in this display set. */

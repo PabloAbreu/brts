@@ -152,7 +152,7 @@ public class M2tsIgsMuxer {
 						&& seg.getType() != IgsSegmentType.END_OF_DISPLAY;
 				long pts90 = pts(totalPackets);
 				pts90 = seg.getType() == IgsSegmentType.PALETTE_DEFINITION ? DTS_START : pts90;
-				byte[] pes = buildPesPacket(pts90, payload, writeDts);
+				byte[] pes = buildPesPacket(pts90, payload, writeDts, seg.getType());
 				int written = writePesToTs(out, IGS_PID, pes, cc);
 				packetsSincePsi += written;
 
@@ -214,7 +214,7 @@ public class M2tsIgsMuxer {
 	 * @param pts90   presentation time stamp in 90 kHz ticks
 	 * @param payload segment payload bytes (type + length + data)
 	 */
-	private byte[] buildPesPacket(long pts90, byte[] payload, boolean writeDts) {
+	private byte[] buildPesPacket(long pts90, byte[] payload, boolean writeDts, IgsSegmentType segmentType) {
 		long dts90 = pts90 - DTS_PTS_OFFSET;
 		// PES header layout (19 bytes):
 		// start_code_prefix(3) + stream_id(1) + packet_length(2)
@@ -222,6 +222,10 @@ public class M2tsIgsMuxer {
 		int headerLen = writeDts ? 19 : 14;
 		// packet_length = bytes following the 6-byte mandatory header
 		int pesLen = headerLen - 6 + payload.length;
+		if (pesLen > 0xFFFF) {
+			throw new IllegalArgumentException(
+					"PES packet length " + pesLen + " exceeds maximum 65535 for " + segmentType + " segment");
+		}
 		byte[] pes = new byte[headerLen + payload.length];
 
 		pes[0] = 0x00; // start code prefix

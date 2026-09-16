@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import org.brts.common.utils.BrtsFileConfig;
+import org.brts.lowlevel.igs.IgsPgsCodec;
 import org.brts.lowlevel.igs.PaletteBuilder;
 import org.brts.lowlevel.igs.RleEncoder;
 import org.brts.lowlevel.igs.model.CompositionDescriptor;
@@ -17,7 +18,6 @@ import org.brts.lowlevel.igs.model.IgsObject;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
-import org.brts.lowlevel.igs.model.SequenceDescriptor;
 import org.brts.lowlevel.igs.model.VideoDescriptor;
 import org.brts.lowlevel.pgs.model.PgsCompositionSegment;
 import org.brts.lowlevel.pgs.model.PgsDisplaySet;
@@ -196,12 +196,7 @@ public class PgsGenerator {
 		obj.setRleData(rleData);
 		obj.setDataLength(rleData.length + 4); // +4 for width(2)+height(2)
 
-		SequenceDescriptor sd = new SequenceDescriptor();
-		sd.setFirstInSequence(true);
-		sd.setLastInSequence(true);
-		obj.setSequenceDescriptor(sd);
-
-		ds.getObjects().add(obj);
+		ds.getObjects().addAll(IgsPgsCodec.fragmentObject(obj));
 
 		return ds;
 	}

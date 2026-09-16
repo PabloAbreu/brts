@@ -1,8 +1,7 @@
 # Roadmap and Non-Goals
 
 Source of truth for the day-to-day backlog is [`TODO.md`](../TODO.md); this
-page gives it some structure. See also [`prompt.md`](../prompt.md) for the
-original full project vision.
+page gives it some structure.
 
 ## Planned features
 

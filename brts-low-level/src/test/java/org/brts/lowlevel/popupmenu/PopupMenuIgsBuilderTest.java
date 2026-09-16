@@ -216,6 +216,54 @@ class PopupMenuIgsBuilderTest {
 				.hasMessageContaining("outside the 1920x1080 screen");
 	}
 
+	@Test
+	void rendersSvgBackgroundAssetsFromFile() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM);
+
+		ImageReference bannerSource = new ImageReference();
+		ImageReference.SyntheticImageSource bannerSvg = new ImageReference.SyntheticImageSource();
+		bannerSvg.setType("svg");
+		bannerSvg.setSrcPath("../assets/popup-menu-banner.svg");
+		bannerSource.setSyntheticImage(bannerSvg);
+
+		BackgroundLayout bannerLayout = new BackgroundLayout();
+		bannerLayout.setMode(BackgroundLayoutMode.FULL_WIDTH_BOTTOM);
+		bannerLayout.setHeight(220);
+		bannerLayout.setEdgeOffset(20);
+
+		BackgroundLayer bannerLayer = new BackgroundLayer();
+		bannerLayer.setSource(bannerSource);
+		bannerLayer.setLayout(bannerLayout);
+
+		ImageReference cardSource = new ImageReference();
+		ImageReference.SyntheticImageSource cardSvg = new ImageReference.SyntheticImageSource();
+		cardSvg.setType("svg");
+		cardSvg.setSrcPath("../assets/popup-panel-card.svg");
+		cardSource.setSyntheticImage(cardSvg);
+
+		BackgroundLayout cardLayout = new BackgroundLayout();
+		cardLayout.setMode(BackgroundLayoutMode.SELECTABLE_BOUNDS);
+		cardLayout.setMarginTop(16);
+		cardLayout.setMarginRight(24);
+		cardLayout.setMarginBottom(16);
+		cardLayout.setMarginLeft(24);
+
+		BackgroundLayer cardLayer = new BackgroundLayer();
+		cardLayer.setSource(cardSource);
+		cardLayer.setLayout(cardLayout);
+
+		PageBackgrounds backgrounds = new PageBackgrounds();
+		backgrounds.setShared(List.of(bannerLayer));
+		backgrounds.setAudio(List.of(cardLayer));
+		backgrounds.setSubtitles(List.of(cardLayer));
+		config.setBackgrounds(backgrounds);
+
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		assertThat(displaySet).isNotNull();
+		assertThat(displaySet.getObjects()).isNotEmpty();
+	}
+
 	private static List<IgsButton> buttons(IgsPage page) {
 		return page.getBogs().stream().map(bog -> bog.getButtons().get(0)).toList();
 	}

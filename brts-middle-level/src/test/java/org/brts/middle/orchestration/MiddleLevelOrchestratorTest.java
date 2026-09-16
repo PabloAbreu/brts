@@ -231,4 +231,35 @@ class MiddleLevelOrchestratorTest {
 		MkvToPlaylistDescriptor descriptor = mapper.readValue(mkvDescFile.toFile(), MkvToPlaylistDescriptor.class);
 		assertThat(descriptor.getPopupMenu()).isNull();
 	}
+
+	@Test
+	void orchestrate_exampleDiscDescriptorWithPopupBackgrounds_loadsAndOrchestratesSuccessfully() throws IOException {
+		when(titleBuilder.build(any(TitleDescriptor.class))).thenAnswer(invocation -> {
+			TitleDescriptor t = invocation.getArgument(0);
+			String clipName = String.format("%05d", t.getTitleId());
+			return createMockTitleResult(clipName, 2, 2);
+		});
+
+		Path exampleDescriptorPath = Path.of("src/test/resources/disc-descriptor-popup-backgrounds.json");
+		DiscDescriptor disc = mapper.readValue(exampleDescriptorPath.toFile(), DiscDescriptor.class);
+		disc.setOutputFolder(tempDir.toString());
+
+		orchestrator.orchestrate(disc, tempDir);
+
+		Path mkvDescFile = tempDir.resolve("descriptors").resolve("00001-mkv-descriptor.json");
+		assertThat(Files.exists(mkvDescFile)).isTrue();
+
+		MkvToPlaylistDescriptor descriptor = mapper.readValue(mkvDescFile.toFile(), MkvToPlaylistDescriptor.class);
+		assertThat(descriptor.getPopupMenu()).isNotNull();
+		assertThat(descriptor.getPopupMenu().getOutputClipName()).isEqualTo("00501");
+		assertThat(descriptor.getPopupMenu().getLayout()).isEqualTo(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM);
+		assertThat(descriptor.getPopupMenu().getBackgrounds()).isNotNull();
+		assertThat(descriptor.getPopupMenu().getBackgrounds().getShared()).hasSize(1);
+		assertThat(descriptor.getPopupMenu().getBackgrounds().getAudio()).hasSize(1);
+		assertThat(descriptor.getPopupMenu().getBackgrounds().getSubtitles()).hasSize(1);
+
+		BackgroundLayer sharedLayer = descriptor.getPopupMenu().getBackgrounds().getShared().get(0);
+		assertThat(sharedLayer.getSource().getSyntheticImage().getSrcPath()).isEqualTo("assets/popup-menu-banner.svg");
+		assertThat(sharedLayer.getLayout().getMode()).isEqualTo(BackgroundLayoutMode.FULL_WIDTH_BOTTOM);
+	}
 }

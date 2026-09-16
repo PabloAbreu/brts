@@ -5,12 +5,12 @@ import lombok.Setter;
 import lombok.ToString;
 
 /**
- * Object Definition Segment (ODS) — a (possibly fragmented) RLE-compressed bitmap used for button graphics or subtitle
- * imagery.
+ * Object Definition Segment (ODS) fragment, or a logical RLE-compressed bitmap reconstructed from its fragments, used
+ * for button graphics or subtitle imagery.
  * <p>
  * When the object spans multiple segments, each fragment carries the same {@link #id} and the
- * {@link #sequenceDescriptor} indicates first/last. The complete RLE data is the concatenation of all fragments'
- * {@link #rleData}.
+ * {@link #sequenceDescriptor} indicates first/last. Only the first fragment carries {@link #dataLength}, {@link #width}
+ * and {@link #height}. The complete RLE data is the concatenation of all fragments' {@link #rleData}.
  */
 @Getter
 @Setter
@@ -29,18 +29,18 @@ public class IgsObject {
 	/** Sequence descriptor (first/last fragment flags). */
 	private SequenceDescriptor sequenceDescriptor;
 
-	/** Total data length (24 bits), from the first fragment. */
+	/** Total logical data length (24 bits), present only on the first fragment. */
 	private int dataLength;
 
-	/** Width in pixels (from the first fragment). */
+	/** Width in pixels, present only on the first fragment. */
 	private int width;
 
-	/** Height in pixels (from the first fragment). */
+	/** Height in pixels, present only on the first fragment. */
 	private int height;
 
 	/**
-	 * Raw RLE-encoded bitmap bytes. For a single-segment object this is the complete bitmap. For multi-segment objects,
-	 * the caller must concatenate all fragments.
+	 * Raw RLE-encoded bitmap bytes. This contains one physical fragment in parser or producer display sets and the
+	 * complete bitmap in objects returned by the IGS demuxer.
 	 */
 	private byte[] rleData;
 

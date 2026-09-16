@@ -35,8 +35,8 @@ import lombok.extern.slf4j.Slf4j;
  * stream file.
  * <p>
  * The muxer reads the manifest and per-display-set JSON + RLE files, re-encodes each segment in binary form, and
- * concatenates them into a single {@code .igs} file identical to what {@link org.brts.common.m2ts.FilePacketHandler}
- * would produce during extraction.
+ * concatenates them into a single {@code .igs} file. Logical RLE resources are split into canonical maximum-sized ODS
+ * fragments when needed.
  *
  * <h2>Segment ordering per display set</h2>
  * <ol>
@@ -49,6 +49,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class IgsMuxer {
+	private static final int MAX_SEGMENT_DATA_LENGTH = 0xFFFF;
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
 	/**
@@ -106,8 +107,11 @@ public class IgsMuxer {
 								rleData = Files.readAllBytes(rlePath);
 							}
 						}
-						byte[] odsData = encodeObject(meta, rleData);
-						writeSegment(out, IgsSegmentType.OBJECT_DEFINITION, odsData);
+						IgsObject object = toObject(meta, rleData);
+						for (IgsObject fragment : IgsPgsCodec.fragmentObject(object)) {
+							byte[] odsData = encodeObject(fragment);
+							writeSegment(out, IgsSegmentType.OBJECT_DEFINITION, odsData);
+						}
 					}
 				}
 
@@ -174,6 +178,17 @@ public class IgsMuxer {
 		return IgsPgsCodec.encodeObject(obj);
 	}
 
+	private IgsObject toObject(IgsDemuxer.ObjectMetadata meta, byte[] rleData) {
+		IgsObject object = new IgsObject();
+		object.setId(meta.getId());
+		object.setVersion(meta.getVersion());
+		object.setWidth(meta.getWidth());
+		object.setHeight(meta.getHeight());
+		object.setPts(meta.getPts());
+		object.setRleData(rleData);
+		return object;
+	}
+
 	// -------------------------------------------------------------------------
 	// Segment encoders
 	// -------------------------------------------------------------------------
@@ -182,7 +197,12 @@ public class IgsMuxer {
 	 * Writes a segment: 1-byte type + 2-byte BE length + data.
 	 */
 	private void writeSegment(OutputStream out, IgsSegmentType type, byte[] data) throws IOException {
-		log.trace("Writing segment: type={}, length={}", type, data.length);
+		if (data.length > MAX_SEGMENT_DATA_LENGTH) {
+			throw new IllegalArgumentException(
+					"Segment data length " + data.length + " exceeds maximum " + MAX_SEGMENT_DATA_LENGTH);
+		}
+
+		log.debug("Writing segment: type={}, length={}", type, data.length);
 		out.write(type.getCode());
 		out.write((data.length >> 8) & 0xFF);
 		out.write(data.length & 0xFF);
@@ -194,51 +214,6 @@ public class IgsMuxer {
 	 */
 	public byte[] encodePalette(IgsPalette pal) {
 		return IgsPgsCodec.encodePalette(pal);
-	}
-
-	/**
-	 * Encodes an Object Definition Segment body.
-	 */
-	public byte[] encodeObject(IgsDemuxer.ObjectMetadata meta, byte[] rleData) {
-		boolean firstInSeq = meta.getSequenceDescriptor() != null && meta.getSequenceDescriptor().isFirstInSequence();
-		boolean lastInSeq = meta.getSequenceDescriptor() != null && meta.getSequenceDescriptor().isLastInSequence();
-
-		int headerSize = 4; // id(16) + version(8) + seq_desc(8)
-		if (firstInSeq) {
-			headerSize += 7; // dataLength(24) + width(16) + height(16)
-		}
-
-		byte[] d = new byte[headerSize + rleData.length];
-		int pos = 0;
-
-		// id (16 bits)
-		d[pos++] = (byte) ((meta.getId() >> 8) & 0xFF);
-		d[pos++] = (byte) (meta.getId() & 0xFF);
-		// version (8 bits)
-		d[pos++] = (byte) meta.getVersion();
-		// sequence descriptor (8 bits)
-		int seqByte = 0;
-		if (firstInSeq)
-			seqByte |= 0x80;
-		if (lastInSeq)
-			seqByte |= 0x40;
-		d[pos++] = (byte) seqByte;
-
-		if (firstInSeq) {
-			// dataLength (24 bits)
-			d[pos++] = (byte) ((meta.getDataLength() >> 16) & 0xFF);
-			d[pos++] = (byte) ((meta.getDataLength() >> 8) & 0xFF);
-			d[pos++] = (byte) (meta.getDataLength() & 0xFF);
-			// width (16 bits)
-			d[pos++] = (byte) ((meta.getWidth() >> 8) & 0xFF);
-			d[pos++] = (byte) (meta.getWidth() & 0xFF);
-			// height (16 bits)
-			d[pos++] = (byte) ((meta.getHeight() >> 8) & 0xFF);
-			d[pos++] = (byte) (meta.getHeight() & 0xFF);
-		}
-
-		System.arraycopy(rleData, 0, d, pos, rleData.length);
-		return d;
 	}
 
 	/**

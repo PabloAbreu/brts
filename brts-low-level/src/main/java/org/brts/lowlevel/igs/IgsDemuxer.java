@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * For each display set the demuxer writes:
  * <ul>
  * <li>A JSON file describing the ICS, palettes, windows, and object metadata.</li>
- * <li>One {@code .rle} file per ODS containing the raw RLE-compressed bitmap.</li>
+ * <li>One {@code .rle} file per logical object containing the complete RLE-compressed bitmap.</li>
  * </ul>
  * <p>
  * The output folder structure:
@@ -43,7 +43,8 @@ import lombok.extern.slf4j.Slf4j;
  *     ...
  * </pre>
  *
- * This output can be fed back into {@link IgsMuxer} for a faithful round-trip.
+ * Physical ODS fragments are reassembled in this representation. Feeding the output into {@link IgsMuxer} regenerates
+ * canonical maximum-sized fragments when needed.
  */
 @Slf4j
 public class IgsDemuxer {
@@ -65,6 +66,9 @@ public class IgsDemuxer {
 
 		List<IgsRawSegment> segments = parser.parseSegments(igsFile);
 		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		for (IgsDisplaySet displaySet : displaySets) {
+			displaySet.setObjects(IgsPgsCodec.reassembleObjects(displaySet.getObjects()));
+		}
 
 		// Build top-level manifest
 		IgsManifest manifest = new IgsManifest();

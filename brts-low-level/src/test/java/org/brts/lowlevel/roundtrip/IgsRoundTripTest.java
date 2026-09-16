@@ -3,6 +3,7 @@ package org.brts.lowlevel.roundtrip;
 import org.brts.lowlevel.igs.IgsDemuxer;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.IgsParser;
+import org.brts.lowlevel.igs.IgsPgsCodec;
 import org.brts.lowlevel.igs.IgsSegmentType;
 import org.brts.lowlevel.igs.model.*;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Round-trip tests for the IGS demuxer / muxer pipeline.
@@ -78,6 +80,63 @@ class IgsRoundTripTest {
 
 		byte[] remuxed = Files.readAllBytes(remuxedFile);
 		assertThat(remuxed).isEqualTo(original);
+	}
+
+	@Test
+	void roundTrip_fragmentedObject_demuxesOneLogicalRleAndPreservesCanonicalBytes() throws Exception {
+		IgsObject logicalObject = new IgsObject();
+		logicalObject.setId(7);
+		logicalObject.setVersion(2);
+		logicalObject.setWidth(1920);
+		logicalObject.setHeight(1080);
+		logicalObject.setRleData(new byte[IgsPgsCodec.MAX_ODS_DATA_LENGTH]);
+
+		ByteArrayOutputStream stream = new ByteArrayOutputStream();
+		writeSegment(stream, IgsSegmentType.IG_COMPOSITION.getCode(), buildIcsBody());
+		for (IgsObject fragment : IgsPgsCodec.fragmentObject(logicalObject)) {
+			writeSegment(stream, IgsSegmentType.OBJECT_DEFINITION.getCode(), IgsPgsCodec.encodeObject(fragment));
+		}
+		writeSegment(stream, IgsSegmentType.END_OF_DISPLAY.getCode(), new byte[0]);
+		byte[] original = stream.toByteArray();
+
+		Path igsFile = tempDir.resolve("fragmented.igs");
+		Files.write(igsFile, original);
+		Path demuxDir = tempDir.resolve("demuxed_fragmented");
+		List<IgsDisplaySet> displaySets = new IgsDemuxer().demux(igsFile, demuxDir);
+
+		assertThat(displaySets.get(0).getObjects()).singleElement()
+				.satisfies(object -> assertThat(object.getRleData()).isEqualTo(logicalObject.getRleData()));
+		assertThat(Files.readAllBytes(demuxDir.resolve("ds_0000/obj_0000.rle"))).isEqualTo(logicalObject.getRleData());
+
+		Path remuxedFile = tempDir.resolve("remuxed_fragmented.igs");
+		new IgsMuxer().mux(demuxDir, remuxedFile);
+		assertThat(Files.readAllBytes(remuxedFile)).isEqualTo(original);
+	}
+
+	@Test
+	void muxer_acceptsMaximumSegmentDataLength() throws Exception {
+		IgsObject object = new IgsObject();
+		object.setRleData(new byte[0xFFFF - 4]);
+		IgsDisplaySet displaySet = new IgsDisplaySet();
+		displaySet.getObjects().add(object);
+
+		byte[] encoded = new IgsMuxer().encodeDisplaySet(displaySet);
+
+		assertThat(encoded[0] & 0xFF).isEqualTo(IgsSegmentType.OBJECT_DEFINITION.getCode());
+		assertThat(encoded[1] & 0xFF).isEqualTo(0xFF);
+		assertThat(encoded[2] & 0xFF).isEqualTo(0xFF);
+	}
+
+	@Test
+	void muxer_rejectsSegmentDataLengthAboveUnsignedShort() {
+		IgsObject object = new IgsObject();
+		object.setRleData(new byte[0xFFFF - 3]);
+		IgsDisplaySet displaySet = new IgsDisplaySet();
+		displaySet.getObjects().add(object);
+
+		assertThatThrownBy(() -> new IgsMuxer().encodeDisplaySet(displaySet))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("Segment data length 65536 exceeds maximum 65535");
 	}
 
 	// -------------------------------------------------------------------------

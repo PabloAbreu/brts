@@ -3,6 +3,8 @@ package org.brts.lowlevel.igs;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.brts.lowlevel.igs.model.IgsObject;
@@ -10,6 +12,7 @@ import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindow;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.igs.model.PaletteEntry;
+import org.brts.lowlevel.igs.model.SequenceDescriptor;
 
 /**
  * Binary segment encoders and integer-writing helpers shared by {@link IgsMuxer} and
@@ -18,7 +21,129 @@ import org.brts.lowlevel.igs.model.PaletteEntry;
  */
 public final class IgsPgsCodec {
 
+	/** Maximum ODS body that still fits a DTS-bearing IGS PES packet. */
+	public static final int MAX_ODS_DATA_LENGTH = 0xFFFF - 16;
+
+	private static final int FIRST_FRAGMENT_HEADER_LENGTH = 11;
+
+	private static final int CONTINUATION_FRAGMENT_HEADER_LENGTH = 4;
+
+	private static final int MAX_FIRST_FRAGMENT_RLE_LENGTH = MAX_ODS_DATA_LENGTH - FIRST_FRAGMENT_HEADER_LENGTH;
+
+	private static final int MAX_CONTINUATION_FRAGMENT_RLE_LENGTH = MAX_ODS_DATA_LENGTH
+			- CONTINUATION_FRAGMENT_HEADER_LENGTH;
+
 	private IgsPgsCodec() {
+	}
+
+	/**
+	 * Splits one logical bitmap object into PES-safe ODS fragments. All fragments retain the logical object id,
+	 * version, and PTS; only the first carries the bitmap dimensions and total data length.
+	 */
+	public static List<IgsObject> fragmentObject(IgsObject object) {
+		byte[] rleData = object.getRleData() != null ? object.getRleData() : new byte[0];
+		int dataLength = rleData.length + 4;
+		if (dataLength > 0xFFFFFF) {
+			throw new IllegalArgumentException(
+					"Object " + object.getId() + " data length " + dataLength + " exceeds 24-bit ODS limit");
+		}
+
+		List<IgsObject> fragments = new ArrayList<>();
+		int offset = 0;
+		boolean first = true;
+		do {
+			int capacity = first ? MAX_FIRST_FRAGMENT_RLE_LENGTH : MAX_CONTINUATION_FRAGMENT_RLE_LENGTH;
+			int fragmentLength = Math.min(capacity, rleData.length - offset);
+			boolean last = offset + fragmentLength == rleData.length;
+
+			IgsObject fragment = new IgsObject();
+			fragment.setPts(object.getPts());
+			fragment.setId(object.getId());
+			fragment.setVersion(object.getVersion());
+			fragment.setSequenceDescriptor(newSequenceDescriptor(first, last));
+			if (first) {
+				fragment.setDataLength(dataLength);
+				fragment.setWidth(object.getWidth());
+				fragment.setHeight(object.getHeight());
+			}
+			fragment.setRleData(Arrays.copyOfRange(rleData, offset, offset + fragmentLength));
+			fragments.add(fragment);
+
+			offset += fragmentLength;
+			first = false;
+		} while (offset < rleData.length);
+
+		return fragments;
+	}
+
+	/** Reassembles ordered physical ODS fragments into logical bitmap objects. */
+	public static List<IgsObject> reassembleObjects(List<IgsObject> fragments) {
+		List<IgsObject> objects = new ArrayList<>();
+		IgsObject firstFragment = null;
+		ByteArrayOutputStream rleData = null;
+
+		for (IgsObject fragment : fragments) {
+			SequenceDescriptor sequence = fragment.getSequenceDescriptor();
+			if (sequence == null) {
+				throw new IllegalArgumentException("Object " + fragment.getId() + " has no sequence descriptor");
+			}
+
+			if (sequence.isFirstInSequence()) {
+				if (firstFragment != null) {
+					throw new IllegalArgumentException(
+							"Object " + firstFragment.getId() + " sequence is missing its last fragment");
+				}
+				firstFragment = fragment;
+				rleData = new ByteArrayOutputStream();
+			} else if (firstFragment == null) {
+				throw new IllegalArgumentException(
+						"Object " + fragment.getId() + " continuation has no first fragment");
+			} else if (fragment.getId() != firstFragment.getId()
+					|| fragment.getVersion() != firstFragment.getVersion()) {
+				throw new IllegalArgumentException(
+						"Object sequence changed id or version after first fragment " + firstFragment.getId());
+			}
+
+			byte[] fragmentData = fragment.getRleData();
+			if (fragmentData != null) {
+				rleData.writeBytes(fragmentData);
+			}
+
+			if (sequence.isLastInSequence()) {
+				byte[] completeRleData = rleData.toByteArray();
+				int expectedDataLength = completeRleData.length + 4;
+				if (firstFragment.getDataLength() != expectedDataLength) {
+					throw new IllegalArgumentException("Object " + firstFragment.getId() + " declares data length "
+							+ firstFragment.getDataLength() + " but fragments contain " + expectedDataLength);
+				}
+
+				IgsObject object = new IgsObject();
+				object.setPts(firstFragment.getPts());
+				object.setId(firstFragment.getId());
+				object.setVersion(firstFragment.getVersion());
+				object.setSequenceDescriptor(newSequenceDescriptor(true, true));
+				object.setDataLength(firstFragment.getDataLength());
+				object.setWidth(firstFragment.getWidth());
+				object.setHeight(firstFragment.getHeight());
+				object.setRleData(completeRleData);
+				objects.add(object);
+				firstFragment = null;
+				rleData = null;
+			}
+		}
+
+		if (firstFragment != null) {
+			throw new IllegalArgumentException(
+					"Object " + firstFragment.getId() + " sequence is missing its last fragment");
+		}
+		return objects;
+	}
+
+	private static SequenceDescriptor newSequenceDescriptor(boolean first, boolean last) {
+		SequenceDescriptor sequence = new SequenceDescriptor();
+		sequence.setFirstInSequence(first);
+		sequence.setLastInSequence(last);
+		return sequence;
 	}
 
 	/** Encodes a Palette Definition Segment body. */
