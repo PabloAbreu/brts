@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.apache.batik.anim.dom.SAXSVGDocumentFactory;
 import org.apache.batik.transcoder.TranscoderException;
@@ -13,6 +14,7 @@ import org.apache.batik.transcoder.TranscoderInput;
 import org.apache.batik.transcoder.TranscoderOutput;
 import org.apache.batik.transcoder.image.ImageTranscoder;
 import org.apache.batik.util.XMLResourceDescriptor;
+import org.brts.common.template.TemplateRenderer;
 import org.brts.common.utils.composition.CompositionEngineFactory;
 import org.brts.common.utils.composition.ImageFrame;
 import org.brts.common.utils.composition.ImageReference;
@@ -26,29 +28,40 @@ import lombok.extern.slf4j.Slf4j;
  * ({@code srcPath} field). Animated SVGs (SMIL) are rendered at time = frameNumber / frameRate when frameRate is set.
  * Static SVGs are rendered once and cached. The SVG document is parsed once and cloned per frame, since Batik's
  * bridge/CSS engine attaches mutable state to a document during GVT construction.
+ *
+ * <p>
+ * When a data model is supplied to {@link #generate(int, Map)}, the raw SVG content is first rendered as a FreeMarker
+ * template via {@link TemplateRenderer}; the templated result is parsed fresh on every call and not cached, since it
+ * may vary with the data model.
  */
 @Slf4j
 public class SVGImageGenerator implements SyntheticImageGenerator {
 
-	private final Document parsedDocument;
+	private final String rawSvgContent;
 	private final Double frameRate;
+	private Document cachedParsedDocument;
 	private ImageFrame cachedStaticFrame;
 
 	public SVGImageGenerator(ImageReference.SyntheticImageSource content) {
 		this.frameRate = content.getFrameRate();
-		this.parsedDocument = parseSvgDocument(resolveSvgContent(content));
+		this.rawSvgContent = resolveSvgContent(content);
 	}
 
 	@Override
-	public ImageFrame generate(int frameNumber) {
+	public ImageFrame generate(int frameNumber, Map<String, Object> dataModel) {
+		float snapshotTime = isStatic() ? 0f : frameNumber / frameRate.floatValue();
+		if (dataModel != null) {
+			Document document = parseSvgDocument(TemplateRenderer.render(rawSvgContent, dataModel));
+			return CompositionEngineFactory.get().fromBufferedImage(render(document, snapshotTime));
+		}
 		if (isStatic()) {
 			if (cachedStaticFrame == null) {
-				cachedStaticFrame = CompositionEngineFactory.get().fromBufferedImage(render(0f));
+				cachedStaticFrame = CompositionEngineFactory.get()
+						.fromBufferedImage(render(getOrParseDocument(), snapshotTime));
 			}
 			return cachedStaticFrame;
 		}
-		float snapshotTime = frameNumber / frameRate.floatValue();
-		return CompositionEngineFactory.get().fromBufferedImage(render(snapshotTime));
+		return CompositionEngineFactory.get().fromBufferedImage(render(getOrParseDocument(), snapshotTime));
 	}
 
 	@Override
@@ -63,7 +76,14 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 		return frameRate == null || frameRate <= 0;
 	}
 
-	private BufferedImage render(float snapshotTime) {
+	private Document getOrParseDocument() {
+		if (cachedParsedDocument == null) {
+			cachedParsedDocument = parseSvgDocument(rawSvgContent);
+		}
+		return cachedParsedDocument;
+	}
+
+	private BufferedImage render(Document document, float snapshotTime) {
 		BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
 
 		if (!isStatic()) {
@@ -71,7 +91,7 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 		}
 
 		// Bridge/GVT construction mutates the document, so each render needs its own copy of the parsed tree.
-		Document documentForFrame = (Document) parsedDocument.cloneNode(true);
+		Document documentForFrame = (Document) document.cloneNode(true);
 		try {
 			TranscoderInput input = new TranscoderInput(documentForFrame);
 			transcoder.transcode(input, new TranscoderOutput());

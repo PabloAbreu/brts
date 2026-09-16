@@ -5,6 +5,7 @@ import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.brts.common.utils.composition.CompositionEngine;
 import org.brts.common.utils.composition.CompositionEngineFactory;
@@ -176,7 +177,7 @@ final class PopupMenuBackgroundRenderer {
 			throw invalid(role, index, "animated synthetic sources are not supported");
 		}
 		try (SyntheticImageGenerator generator = SyntheticImageGeneratorFactory.create(syntheticSource)) {
-			ImageFrame generated = generator.generate(0);
+			ImageFrame generated = generator.generate(0, Map.of("width", width, "height", height));
 			try (ImageFrame resized = engine.resize(generated, width, height)) {
 				return resized.toBufferedImage();
 			}

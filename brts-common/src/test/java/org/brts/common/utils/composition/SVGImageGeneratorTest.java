@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.brts.common.utils.composition.sources.synth.SVGImageGenerator;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,12 @@ class SVGImageGeneratorTest {
 	private static final String SIMPLE_SVG = """
 			<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100">
 				<rect fill="red" width="200" height="100"/>
+			</svg>
+			""";
+
+	private static final String TEMPLATED_SVG = """
+			<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+				<rect fill="red" width="${width}" height="${height}"/>
 			</svg>
 			""";
 
@@ -90,6 +97,36 @@ class SVGImageGeneratorTest {
 			assertThat(frame48.width()).isEqualTo(100);
 			// Different frames should be different object instances (not cached)
 			assertThat(frame0).isNotSameAs(frame48);
+		}
+	}
+
+	@Test
+	void dataModel_rendersTemplatedSvg() throws Exception {
+		ImageReference.SyntheticImageSource source = new ImageReference.SyntheticImageSource();
+		source.setType("SVG");
+		source.setData(TEMPLATED_SVG);
+
+		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
+			ImageFrame image = generator.generate(0, Map.of("width", 150, "height", 75));
+
+			assertThat(image).isNotNull();
+			assertThat(image.width()).isEqualTo(150);
+			assertThat(image.height()).isEqualTo(75);
+		}
+	}
+
+	@Test
+	void dataModel_isNotCachedAcrossCalls() throws Exception {
+		ImageReference.SyntheticImageSource source = new ImageReference.SyntheticImageSource();
+		source.setType("SVG");
+		source.setData(TEMPLATED_SVG);
+
+		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
+			ImageFrame first = generator.generate(0, Map.of("width", 150, "height", 75));
+			ImageFrame second = generator.generate(0, Map.of("width", 300, "height", 60));
+
+			assertThat(first.width()).isEqualTo(150);
+			assertThat(second.width()).isEqualTo(300);
 		}
 	}
 
