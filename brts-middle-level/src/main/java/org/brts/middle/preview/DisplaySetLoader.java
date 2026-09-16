@@ -74,8 +74,7 @@ public class DisplaySetLoader {
 		log.info("Demuxed {} bytes of IGS data", igsBytes.length);
 
 		// 3. Parse IGS segments and group into display sets
-		List<IgsRawSegment> segments = igsParser.parseSegments(igsBytes);
-		List<IgsDisplaySet> displaySets = igsParser.groupIntoDisplaySets(segments);
+		List<IgsDisplaySet> displaySets = IgsParser.parseGroupAndReassemble(igsBytes);
 		if (displaySets.isEmpty()) {
 			throw new IOException("No display sets found in IGS stream");
 		}

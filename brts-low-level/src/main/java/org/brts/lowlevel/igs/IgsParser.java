@@ -44,7 +44,7 @@ public class IgsParser {
 	 * @return ordered list of raw segments
 	 * @throws IOException on I/O error
 	 */
-	public List<IgsRawSegment> parseSegments(Path igsFile) throws IOException {
+	public static List<IgsRawSegment> parseSegments(Path igsFile) throws IOException {
 		byte[] data = Files.readAllBytes(igsFile);
 		return parseSegments(data);
 	}
@@ -55,7 +55,7 @@ public class IgsParser {
 	 * @param data raw segment bytes
 	 * @return ordered list of raw segments
 	 */
-	public List<IgsRawSegment> parseSegments(byte[] data) {
+	public static List<IgsRawSegment> parseSegments(byte[] data) {
 		List<IgsRawSegment> segments = new ArrayList<>();
 		int pos = 0;
 		while (pos + 3 <= data.length) {
@@ -92,6 +92,13 @@ public class IgsParser {
 		return segments;
 	}
 
+	public static List<IgsDisplaySet> parseGroupAndReassemble(byte[] igsBytes) {
+		List<IgsRawSegment> segments = parseSegments(igsBytes);
+		List<IgsDisplaySet> sets = groupIntoDisplaySets(segments);
+		sets.forEach(ds -> ds.setObjects(IgsPgsCodec.reassembleObjects(ds.getObjects())));
+		return sets;
+	}
+
 	// -------------------------------------------------------------------------
 	// Group segments into display sets
 	// -------------------------------------------------------------------------
@@ -103,7 +110,7 @@ public class IgsParser {
 	 * @param segments ordered list of raw segments
 	 * @return ordered list of display sets
 	 */
-	public List<IgsDisplaySet> groupIntoDisplaySets(List<IgsRawSegment> segments) {
+	public static List<IgsDisplaySet> groupIntoDisplaySets(List<IgsRawSegment> segments) {
 		List<IgsDisplaySet> sets = new ArrayList<>();
 		IgsDisplaySet current = null;
 
@@ -144,7 +151,7 @@ public class IgsParser {
 	/**
 	 * Decodes a Palette Definition Segment.
 	 */
-	public IgsPalette decodePalette(IgsRawSegment seg) {
+	public static IgsPalette decodePalette(IgsRawSegment seg) {
 		byte[] d = seg.getSegmentData();
 		IgsPalette pal = new IgsPalette();
 		pal.setPts(seg.getPts());
@@ -171,7 +178,7 @@ public class IgsParser {
 	/**
 	 * Decodes an Object Definition Segment (first fragment or single-segment).
 	 */
-	public IgsObject decodeObject(IgsRawSegment seg) {
+	public static IgsObject decodeObject(IgsRawSegment seg) {
 		byte[] d = seg.getSegmentData();
 		IgsObject obj = new IgsObject();
 		obj.setPts(seg.getPts());
@@ -214,7 +221,7 @@ public class IgsParser {
 	/**
 	 * Decodes a Window Definition Segment.
 	 */
-	public IgsWindowDefinition decodeWindowDef(IgsRawSegment seg) {
+	public static IgsWindowDefinition decodeWindowDef(IgsRawSegment seg) {
 		byte[] d = seg.getSegmentData();
 		IgsWindowDefinition wds = new IgsWindowDefinition();
 		wds.setPts(seg.getPts());
@@ -240,7 +247,7 @@ public class IgsParser {
 	/**
 	 * Decodes an Interactive Composition Segment (ICS) into its full model.
 	 */
-	public IgsCompositionSegment decodeIcs(IgsRawSegment seg) {
+	public static IgsCompositionSegment decodeIcs(IgsRawSegment seg) {
 		byte[] d = seg.getSegmentData();
 		IgsCompositionSegment ics = new IgsCompositionSegment();
 		ics.setPts(seg.getPts());
@@ -288,7 +295,7 @@ public class IgsParser {
 	// Interactive composition sub-decoders
 	// -------------------------------------------------------------------------
 
-	private IgsInteractiveComposition decodeInteractiveComposition(byte[] d, int startPos) {
+	private static IgsInteractiveComposition decodeInteractiveComposition(byte[] d, int startPos) {
 		IgsInteractiveComposition ic = new IgsInteractiveComposition();
 		int pos = startPos;
 
@@ -344,7 +351,7 @@ public class IgsParser {
 		return ic;
 	}
 
-	private IgsPage decodePage(byte[] d, int[] posRef) {
+	private static IgsPage decodePage(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		IgsPage page = new IgsPage();
 
@@ -417,7 +424,7 @@ public class IgsParser {
 		return page;
 	}
 
-	private IgsBog decodeBog(byte[] d, int[] posRef) {
+	private static IgsBog decodeBog(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		IgsBog bog = new IgsBog();
 
@@ -443,7 +450,7 @@ public class IgsParser {
 		return bog;
 	}
 
-	private IgsButton decodeButton(byte[] d, int[] posRef) {
+	private static IgsButton decodeButton(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		IgsButton btn = new IgsButton();
 
@@ -525,7 +532,7 @@ public class IgsParser {
 		return btn;
 	}
 
-	private IgsEffectSequence decodeEffectSequence(byte[] d, int[] posRef) {
+	private static IgsEffectSequence decodeEffectSequence(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		IgsEffectSequence es = new IgsEffectSequence();
 
@@ -569,7 +576,7 @@ public class IgsParser {
 		return es;
 	}
 
-	private IgsEffect decodeEffect(byte[] d, int[] posRef) {
+	private static IgsEffect decodeEffect(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		IgsEffect effect = new IgsEffect();
 
@@ -599,7 +606,7 @@ public class IgsParser {
 		return effect;
 	}
 
-	private CompositionObject decodeCompositionObject(byte[] d, int[] posRef) {
+	private static CompositionObject decodeCompositionObject(byte[] d, int[] posRef) {
 		int pos = posRef[0];
 		CompositionObject co = new CompositionObject();
 
@@ -642,7 +649,7 @@ public class IgsParser {
 	 * Reads a 33-bit PTS value packed as: skip(7) + 1-bit marker + 32-bit value. Format: byte0[bit0] << 32 |
 	 * byte1..byte4
 	 */
-	private long readPts33(byte[] d, int pos) {
+	private static long readPts33(byte[] d, int pos) {
 		long hi = d[pos] & 0x01; // bit 0 of first byte
 		long lo = ((long) (d[pos + 1] & 0xFF) << 24) | ((long) (d[pos + 2] & 0xFF) << 16)
 				| ((long) (d[pos + 3] & 0xFF) << 8) | (d[pos + 4] & 0xFF);
