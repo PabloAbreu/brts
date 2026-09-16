@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 220" width="100%" height="100%" preserveAspectRatio="none">
+<#-- Rendered as a FreeMarker template: width/height are supplied by PopupMenuBackgroundRenderer.
+     9-slice layout: corner = fixed-size corner zone; sides stretch along one axis; center stretches on both. -->
+<#assign corner = 45>
+<#assign chamfer = 30>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none">
   <defs>
     <!-- Background vertical gradient: dark high-contrast translucent backdrop -->
     <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
@@ -31,25 +35,25 @@
     </linearGradient>
   </defs>
 
-  <!-- Main HUD panel polygon with chamfered top corners -->
-  <polygon points="0,30 30,0 1890,0 1920,30 1920,220 0,220" fill="url(#bgGrad)" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.5" />
+  <!-- Main HUD panel polygon with chamfered top corners (fixed-size corner cut, stretchable straight edges) -->
+  <polygon points="0,${chamfer} ${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height} 0,${height}" fill="url(#bgGrad)" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.5" />
 
   <!-- Diagonal tech stripe texture layer -->
-  <polygon points="0,30 30,0 1890,0 1920,30 1920,220 0,220" fill="url(#techStripes)" />
+  <polygon points="0,${chamfer} ${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height} 0,${height}" fill="url(#techStripes)" />
 
-  <!-- Top illuminated neon glow bar -->
-  <rect x="40" y="0" width="1840" height="3" fill="url(#topGlow)" />
-  <rect x="40" y="3" width="1840" height="12" fill="url(#barGlow)" />
+  <!-- Top side zone (constant height = corner, stretches horizontally between the two top corners) -->
+  <rect x="${corner}" y="0" width="${width - 2 * corner}" height="3" fill="url(#topGlow)" />
+  <rect x="${corner}" y="3" width="${width - 2 * corner}" height="12" fill="url(#barGlow)" />
 
-  <!-- Left chamfer corner bracket accent -->
-  <polyline points="2,45 2,28 28,2 45,2" fill="none" stroke="#26ffe6" stroke-width="3" stroke-linecap="round" />
-  <circle cx="28" cy="28" r="3" fill="#00e5ff" />
+  <!-- Top-left corner zone (constant size, anchored to the corner) -->
+  <polyline points="2,${corner} 2,${chamfer - 2} ${chamfer - 2},2 ${corner},2" fill="none" stroke="#26ffe6" stroke-width="3" stroke-linecap="round" />
+  <circle cx="${chamfer - 2}" cy="${chamfer - 2}" r="3" fill="#00e5ff" />
 
-  <!-- Right chamfer corner bracket accent -->
-  <polyline points="1918,45 1918,28 1892,2 1875,2" fill="none" stroke="#26ffe6" stroke-width="3" stroke-linecap="round" />
-  <circle cx="1892" cy="28" r="3" fill="#00e5ff" />
+  <!-- Top-right corner zone (constant size, anchored to the corner) -->
+  <polyline points="${width - 2},${corner} ${width - 2},${chamfer - 2} ${width - (chamfer - 2)},2 ${width - corner},2" fill="none" stroke="#26ffe6" stroke-width="3" stroke-linecap="round" />
+  <circle cx="${width - (chamfer - 2)}" cy="${chamfer - 2}" r="3" fill="#00e5ff" />
 
-  <!-- Sci-fi HUD decorative tick marks / scale on left -->
+  <!-- Left side zone (constant width = corner, fixed-offset tick marks anchored to the left edge) -->
   <g stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.6">
     <line x1="70" y1="18" x2="130" y2="18" />
     <line x1="70" y1="14" x2="70" y2="22" />
@@ -58,15 +62,15 @@
     <line x1="130" y1="14" x2="130" y2="22" />
   </g>
 
-  <!-- Sci-fi HUD decorative tick marks / scale on right -->
+  <!-- Right side zone (constant width = corner, fixed-offset tick marks anchored to the right edge) -->
   <g stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.6">
-    <line x1="1790" y1="18" x2="1850" y2="18" />
-    <line x1="1790" y1="14" x2="1790" y2="22" />
-    <line x1="1810" y1="15" x2="1810" y2="21" />
-    <line x1="1830" y1="15" x2="1830" y2="21" />
-    <line x1="1850" y1="14" x2="1850" y2="22" />
+    <line x1="${width - 130}" y1="18" x2="${width - 70}" y2="18" />
+    <line x1="${width - 70}" y1="14" x2="${width - 70}" y2="22" />
+    <line x1="${width - 90}" y1="15" x2="${width - 90}" y2="21" />
+    <line x1="${width - 110}" y1="15" x2="${width - 110}" y2="21" />
+    <line x1="${width - 130}" y1="14" x2="${width - 130}" y2="22" />
   </g>
 
-  <!-- Bottom boundary line with subtle cyan highlight -->
-  <line x1="0" y1="218" x2="1920" y2="218" stroke="#00e5ff" stroke-width="1" stroke-opacity="0.3" />
+  <!-- Bottom side zone (constant height = corner, stretches horizontally; boundary line spans full width) -->
+  <line x1="0" y1="${height - 2}" x2="${width}" y2="${height - 2}" stroke="#00e5ff" stroke-width="1" stroke-opacity="0.3" />
 </svg>

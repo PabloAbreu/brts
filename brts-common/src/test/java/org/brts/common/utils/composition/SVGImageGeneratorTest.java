@@ -25,6 +25,14 @@ class SVGImageGeneratorTest {
 			</svg>
 			""";
 
+	private static final String XML_INCOMPATIBLE_TEMPLATED_SVG = """
+			<#if enabled>
+			<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+				<rect fill="red" width="${width}" height="${height}"/>
+			</svg>
+			</#if>
+			""";
+
 	private static final String ANIMATED_SVG = """
 			<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
 				<rect fill="blue" width="100" height="100">
@@ -108,6 +116,21 @@ class SVGImageGeneratorTest {
 
 		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
 			ImageFrame image = generator.generate(0, Map.of("width", 150, "height", 75));
+
+			assertThat(image).isNotNull();
+			assertThat(image.width()).isEqualTo(150);
+			assertThat(image.height()).isEqualTo(75);
+		}
+	}
+
+	@Test
+	void dataModel_rendersTemplateBeforeParsingSvg() throws Exception {
+		ImageReference.SyntheticImageSource source = new ImageReference.SyntheticImageSource();
+		source.setType("SVG");
+		source.setData(XML_INCOMPATIBLE_TEMPLATED_SVG);
+
+		try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
+			ImageFrame image = generator.generate(0, Map.of("enabled", true, "width", 150, "height", 75));
 
 			assertThat(image).isNotNull();
 			assertThat(image.width()).isEqualTo(150);
