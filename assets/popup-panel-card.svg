@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%" preserveAspectRatio="none">
+<#-- Rendered as a FreeMarker template: width/height are supplied by PopupMenuBackgroundRenderer.
+  9-slice layout: corner = fixed-size corner zone; sides stretch along one axis; center stretches on both. -->
+<#assign corner = 40>
+<#assign chamfer = 20>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none">
   <defs>
     <!-- Dark slate gradient background for maximum text contrast -->
     <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
@@ -21,37 +25,37 @@
     </radialGradient>
   </defs>
 
-  <!-- Base chamfered card rectangle -->
-  <polygon points="20,0 780,0 800,20 800,380 780,400 20,400 0,380 0,20" fill="url(#cardBg)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
+  <!-- Stretchable center and sides with fixed-size chamfered corner cuts -->
+  <polygon points="${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height - chamfer} ${width - chamfer},${height} ${chamfer},${height} 0,${height - chamfer} 0,${chamfer}" fill="url(#cardBg)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
 
   <!-- Center subtle illumination -->
-  <polygon points="20,0 780,0 800,20 800,380 780,400 20,400 0,380 0,20" fill="url(#centerGlow)" />
+  <polygon points="${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height - chamfer} ${width - chamfer},${height} ${chamfer},${height} 0,${height - chamfer} 0,${chamfer}" fill="url(#centerGlow)" />
 
-  <!-- Outer frame border with glowing edges -->
-  <line x1="40" y1="0" x2="760" y2="0" stroke="url(#edgeGlow)" stroke-width="3" />
-  <line x1="40" y1="400" x2="760" y2="400" stroke="url(#edgeGlow)" stroke-width="3" />
+  <!-- Top and bottom side zones (constant height, stretch horizontally) -->
+  <line x1="${corner}" y1="0" x2="${width - corner}" y2="0" stroke="url(#edgeGlow)" stroke-width="3" />
+  <line x1="${corner}" y1="${height}" x2="${width - corner}" y2="${height}" stroke="url(#edgeGlow)" stroke-width="3" />
 
-  <!-- Corner bracket accents (Top-Left) -->
-  <polyline points="0,40 0,20 20,0 40,0" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
-  <circle cx="20" cy="20" r="3" fill="#00f0ff" />
+  <!-- Top-left corner zone (constant size, anchored to the corner) -->
+  <polyline points="0,${corner} 0,${chamfer} ${chamfer},0 ${corner},0" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${chamfer}" cy="${chamfer}" r="3" fill="#00f0ff" />
 
-  <!-- Corner bracket accents (Top-Right) -->
-  <polyline points="760,0 780,0 800,20 800,40" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
-  <circle cx="780" cy="20" r="3" fill="#00f0ff" />
+  <!-- Top-right corner zone (constant size, anchored to the corner) -->
+  <polyline points="${width - corner},0 ${width - chamfer},0 ${width},${chamfer} ${width},${corner}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${width - chamfer}" cy="${chamfer}" r="3" fill="#00f0ff" />
 
-  <!-- Corner bracket accents (Bottom-Right) -->
-  <polyline points="800,360 800,380 780,400 760,400" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
-  <circle cx="780" cy="380" r="3" fill="#00f0ff" />
+  <!-- Bottom-right corner zone (constant size, anchored to the corner) -->
+  <polyline points="${width},${height - corner} ${width},${height - chamfer} ${width - chamfer},${height} ${width - corner},${height}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${width - chamfer}" cy="${height - chamfer}" r="3" fill="#00f0ff" />
 
-  <!-- Corner bracket accents (Bottom-Left) -->
-  <polyline points="40,400 20,400 0,380 0,360" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
-  <circle cx="20" cy="380" r="3" fill="#00f0ff" />
+  <!-- Bottom-left corner zone (constant size, anchored to the corner) -->
+  <polyline points="${corner},${height} ${chamfer},${height} 0,${height - chamfer} 0,${height - corner}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${chamfer}" cy="${height - chamfer}" r="3" fill="#00f0ff" />
 
-  <!-- Side tech indicators -->
+  <!-- Left and right side zones (constant width, fixed-offset indicators anchored to each edge) -->
   <g fill="#00e5ff" fill-opacity="0.7">
     <rect x="6" y="100" width="3" height="24" />
     <rect x="6" y="130" width="3" height="12" />
-    <rect x="791" y="100" width="3" height="24" />
-    <rect x="791" y="130" width="3" height="12" />
+    <rect x="${width - 9}" y="100" width="3" height="24" />
+    <rect x="${width - 9}" y="130" width="3" height="12" />
   </g>
 </svg>
