@@ -79,6 +79,7 @@ public class MiddleLevelOrchestrator {
 	 */
 	public void orchestrate(DiscDescriptor disc, Path outputDir) throws IOException {
 		Path descriptorsDir = outputDir.resolve("descriptors");
+		log.debug("Orchestrating disc '{}' to output directory {}", disc.getDiscName(), outputDir);
 		Path mediaFolder = Paths.get(disc.getOutputFolder()).toAbsolutePath().normalize();
 		Path discPath = mediaFolder.resolve(disc.getDiscName());// FIXME sanitize
 																// discName, maybe

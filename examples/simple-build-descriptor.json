@@ -1,0 +1,10 @@
+{
+  "discName": "My Movie",
+  "sourceMkv": "/path/to/movie.mkv",
+  "audioLanguages": ["eng", "fra"],
+  "subtitleLanguages": ["eng"],
+  "chapters": [
+    { "timeSeconds": 0 },
+    { "timeSeconds": 3600 }
+  ]
+}

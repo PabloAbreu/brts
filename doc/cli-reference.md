@@ -68,6 +68,7 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | Command | Description |
 |---|---|
 | `build` | Build a Blu-ray disc from a middle-level descriptor |
+| `simple-build` | Build a single-title Blu-ray disc with no top menu, from a simplified descriptor |
 | `scan-playlists` | Scan Blu-ray playlists and auto-detect content type |
 | `find-first-playlist` | Find the first playlist played via HDMV navigation chain |
 | `create-setup-menu` | Generate a Blu-ray setup/settings menu M2TS |
@@ -93,6 +94,9 @@ brts high build --descriptor examples/movie-disc.json --output /tmp/out
 
 # Scan an existing disc's playlists to identify content type
 brts mid scan-playlists --input /path/to/BDMV
+
+# Build a single-title disc with no top menu from a simplified descriptor
+brts mid simple-build --descriptor examples/simple-build-descriptor.json --output /tmp/out
 ```
 
 See [descriptors.md](descriptors.md) for the JSON formats referenced above.
