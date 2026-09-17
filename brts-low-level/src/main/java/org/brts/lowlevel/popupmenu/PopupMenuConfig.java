@@ -92,10 +92,12 @@ public class PopupMenuConfig {
 	@Setter
 	public static class BackgroundLayout {
 
+		/** Background layout calculation mode. */
 		private BackgroundLayoutMode mode = BackgroundLayoutMode.ABSOLUTE;
 
-		/** Absolute rectangle origin. */
+		/** Absolute rectangle origin : x coordinate */
 		private int x;
+		/** Absolute rectangle origin : y coordinate */
 		private int y;
 
 		/**
@@ -103,6 +105,7 @@ public class PopupMenuConfig {
 		 * full-width-bottom placement.
 		 */
 		private Integer width;
+		/** Output size : height */
 		private Integer height;
 
 		/**
@@ -111,8 +114,11 @@ public class PopupMenuConfig {
 		 * top/bottom inset it vertically.
 		 */
 		private int marginTop;
+		/** Rectangular margin on the right side */
 		private int marginRight;
+		/** Rectangular margin on the bottom side */
 		private int marginBottom;
+		/** Rectangular margin on the left side */
 		private int marginLeft;
 
 		/**

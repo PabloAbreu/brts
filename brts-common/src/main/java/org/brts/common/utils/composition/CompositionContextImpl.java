@@ -70,7 +70,7 @@ public class CompositionContextImpl implements CompositionContext {
 		log.trace("Initialized CompositionContextImpl with frameNumber={}, basePath={}", frameNumber, this.basePath);
 	}
 
-	public void setVariable(String name, Expression value) {
+	public final void setVariable(String name, Expression value) {
 		if (value.isValue()) {
 			setVariable(name, value.getValue());
 		} else {

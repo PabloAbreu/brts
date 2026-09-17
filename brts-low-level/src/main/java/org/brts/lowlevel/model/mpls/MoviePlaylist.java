@@ -29,10 +29,13 @@ public class MoviePlaylist {
 	@JsonProperty("isMenu")
 	private boolean isMenu = false;
 
+	/** Ordered list of play items, each referencing an M2TS clip. */
 	private List<PlayItem> playItems;
 
+	/** List of sub-paths for secondary streams (audio, subtitles, menus shown during main playback). */
 	private List<SubPath> subPaths;
 
+	/** List of chapter marks. */
 	private List<PlayMark> playMarks;
 
 }

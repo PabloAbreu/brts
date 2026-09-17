@@ -13,37 +13,52 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ImageComposition {
 
+	/** Reference to the image ID in the ImageReference collection. */
 	private String imageId; // to find ImageReference
 
-	// optional reference to an entry in ImagesComposition.transparencyMasks;
-	// the 8-bit grayscale mask is multiplied with the overlay's alpha before compositing
+	/**
+	 * Optional reference to an entry in ImagesComposition.transparencyMasks; the 8-bit grayscale mask is multiplied
+	 * with the overlay's alpha before compositing.
+	 */
 	private String maskImageId;
 
+	/** Top-left corner of the image in the composition coordinate space. */
 	private Point topLeft;
 
-	private ObjectExpression opacity; // 0.0 to 1.0, applied to the applied image
+	/** Opacity of the image, ranging from 0.0 to 1.0, applied to the image. */
+	private ObjectExpression opacity;
 
+	/** Target size for resizing the image. */
 	private Size resize;
 
+	/** Rotation specification for the image. */
 	private RotatedImageComposition rotation;
 
+	/** Crop specification for the image. */
 	private Crop crop;
 
+	/** Crop specification for the image. */
 	@Getter
 	@Setter
 	public static class Crop {
+		/** Top-left corner of the crop rectangle in the source image. */
 		private Point topLeft;
+		/** Size of the crop rectangle in the source image. */
 		private Size size;
 	}
 
+	/**
+	 * Rotation specification for the image.
+	 *
+	 *
+	 * TODO : center of rotation (x,y) can be added in the future, but for now it is assumed to be the center of the
+	 * image.
+	 */
 	@Getter
 	@Setter
 	public static class RotatedImageComposition {
-
+		/** Rotation angle for the image, in degrees. */
 		private ObjectExpression angle;
-		// TODO : center of rotation (x,y) can be added in the future, but for now it is assumed to be the center of the
-		// image.
-
 	}
 
 	/**
@@ -162,17 +177,31 @@ public class ImageComposition {
 		return result;
 	}
 
+	/**
+	 * Represents a point with x and y coordinates.
+	 *
+	 * X and Y can be specified as expressions that evaluate to numeric values.
+	 */
 	@Getter
 	@Setter
 	public static class Point {
+		/** X coordinate as an expression that evaluates to a numeric value. */
 		private ObjectExpression x;
+		/** Y coordinate as an expression that evaluates to a numeric value. */
 		private ObjectExpression y;
 	}
 
+	/**
+	 * Represents a size with width and height.
+	 *
+	 * Size can be specified as expressions that evaluate to numeric values.
+	 */
 	@Getter
 	@Setter
 	public static class Size {
+		/** Width as an expression that evaluates to a numeric value. */
 		private ObjectExpression width;
+		/** Height as an expression that evaluates to a numeric value. */
 		private ObjectExpression height;
 	}
 

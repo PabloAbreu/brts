@@ -49,8 +49,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IgsDemuxer {
 
-	private final IgsParser parser = new IgsParser();
-
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
 	/**
@@ -64,8 +62,8 @@ public class IgsDemuxer {
 	public List<IgsDisplaySet> demux(Path igsFile, Path outputDir) throws IOException {
 		Files.createDirectories(outputDir);
 
-		List<IgsRawSegment> segments = parser.parseSegments(igsFile);
-		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(igsFile);
+		List<IgsDisplaySet> displaySets = IgsParser.groupIntoDisplaySets(segments);
 		for (IgsDisplaySet displaySet : displaySets) {
 			displaySet.setObjects(IgsPgsCodec.reassembleObjects(displaySet.getObjects()));
 		}

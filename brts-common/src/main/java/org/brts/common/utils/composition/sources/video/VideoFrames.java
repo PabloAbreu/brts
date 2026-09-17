@@ -1,5 +1,7 @@
 package org.brts.common.utils.composition.sources.video;
 
+import java.io.IOException;
+
 import org.brts.common.utils.composition.ImageFrame;
 
 /**
@@ -20,5 +22,7 @@ public interface VideoFrames extends AutoCloseable {
 	 * Returns a borrowed {@link ImageFrame} for the given frame index. Do not close the returned frame.
 	 */
 	ImageFrame getFrame(int frameNumber);
+
+	void close() throws IOException;
 
 }

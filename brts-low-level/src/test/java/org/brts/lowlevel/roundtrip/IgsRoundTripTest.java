@@ -146,8 +146,7 @@ class IgsRoundTripTest {
 	@Test
 	void parser_detectsSegmentTypes() throws Exception {
 		byte[] stream = buildSyntheticIgsStream();
-		IgsParser parser = new IgsParser();
-		List<IgsRawSegment> segments = parser.parseSegments(stream);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(stream);
 
 		assertThat(segments).isNotEmpty();
 		assertThat(segments.get(0).getType()).isEqualTo(IgsSegmentType.IG_COMPOSITION);
@@ -161,9 +160,8 @@ class IgsRoundTripTest {
 	@Test
 	void parser_decodesIcsFields() throws Exception {
 		byte[] stream = buildSyntheticIgsStream();
-		IgsParser parser = new IgsParser();
-		List<IgsRawSegment> segments = parser.parseSegments(stream);
-		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(stream);
+		List<IgsDisplaySet> displaySets = IgsParser.groupIntoDisplaySets(segments);
 
 		assertThat(displaySets).hasSize(1);
 		IgsDisplaySet ds = displaySets.get(0);
@@ -192,9 +190,8 @@ class IgsRoundTripTest {
 	@Test
 	void parser_decodesPalette() throws Exception {
 		byte[] stream = buildSyntheticIgsStream();
-		IgsParser parser = new IgsParser();
-		List<IgsRawSegment> segments = parser.parseSegments(stream);
-		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(stream);
+		List<IgsDisplaySet> displaySets = IgsParser.groupIntoDisplaySets(segments);
 
 		IgsDisplaySet ds = displaySets.get(0);
 		assertThat(ds.getPalettes()).hasSize(1);
@@ -215,9 +212,8 @@ class IgsRoundTripTest {
 	@Test
 	void parser_decodesObject() throws Exception {
 		byte[] stream = buildSyntheticIgsStream();
-		IgsParser parser = new IgsParser();
-		List<IgsRawSegment> segments = parser.parseSegments(stream);
-		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(stream);
+		List<IgsDisplaySet> displaySets = IgsParser.groupIntoDisplaySets(segments);
 
 		IgsDisplaySet ds = displaySets.get(0);
 		assertThat(ds.getObjects()).hasSize(1);
@@ -231,9 +227,8 @@ class IgsRoundTripTest {
 	@Test
 	void parser_decodesWindow() throws Exception {
 		byte[] stream = buildSyntheticIgsStream();
-		IgsParser parser = new IgsParser();
-		List<IgsRawSegment> segments = parser.parseSegments(stream);
-		List<IgsDisplaySet> displaySets = parser.groupIntoDisplaySets(segments);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(stream);
+		List<IgsDisplaySet> displaySets = IgsParser.groupIntoDisplaySets(segments);
 
 		IgsDisplaySet ds = displaySets.get(0);
 		assertThat(ds.getWindowDefinitions()).hasSize(1);
@@ -267,7 +262,7 @@ class IgsRoundTripTest {
 		raw.setType(IgsSegmentType.PALETTE_DEFINITION);
 		raw.setSegmentData(encoded);
 
-		IgsPalette decoded = new IgsParser().decodePalette(raw);
+		IgsPalette decoded = IgsParser.decodePalette(raw);
 		assertThat(decoded.getId()).isEqualTo(5);
 		assertThat(decoded.getVersion()).isEqualTo(2);
 		assertThat(decoded.getEntries()).hasSize(1);

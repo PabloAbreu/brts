@@ -15,6 +15,7 @@ public class ClipStream {
 	/** PID of this elementary stream in the MPEG-2 TS. */
 	private int pid;
 
+	/** Coding type of this elementary stream (video, audio, subtitle, etc.). */
 	private StreamCodingType codingType;
 
 	// --- Video-specific ---

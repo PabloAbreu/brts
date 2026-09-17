@@ -26,9 +26,11 @@ public class SubPath {
 	 */
 	private int subPathType;
 
+	/** Indicates whether this SubPath is set to repeat. */
 	@JsonProperty("isRepeatSubPath")
 	private boolean isRepeatSubPath = false;
 
+	/** List of SubPlayItems within this SubPath. */
 	private List<SubPlayItem> subPlayItems;
 
 	// -------------------------------------------------------------------------
@@ -38,12 +40,16 @@ public class SubPath {
 	@Setter
 	public static class SubPlayItem {
 
+		/** Name of the clip referenced by this SubPlayItem. Example: "00001" */
 		private String clipName;
 
+		/** Connection condition for this SubPlayItem. */
 		private int connectionCondition;
 
+		/** In-time of this SubPlayItem within the clip (90 kHz ticks : TODO check that). */
 		private long inTimeTicks;
 
+		/** Out-time of this SubPlayItem within the clip (90 kHz ticks). */
 		private long outTimeTicks;
 
 		/** Sync reference to the main PlayItem (zero-based index). */

@@ -38,6 +38,13 @@ import java.util.List;
 @Setter
 public class TitleDescriptor {
 
+	/**
+	 * Unique identifier for this title within the Blu-ray disc. Must be positive.
+	 *
+	 * Example: 1
+	 *
+	 * This value will be found in navigation commands and menu references within the Blu-ray disc.
+	 */
 	@Positive
 	private int titleId;
 
@@ -76,9 +83,11 @@ public class TitleDescriptor {
 	@Setter
 	public static class ChapterMarker {
 
+		/** Time of the chapter marker expressed as seconds from the start of the stream. Must be zero or positive. */
 		@PositiveOrZero
 		private double timeSeconds;
 
+		/** Optional label for the chapter marker. */
 		private String label;
 
 	}

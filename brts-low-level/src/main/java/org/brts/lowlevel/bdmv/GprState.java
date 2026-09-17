@@ -38,7 +38,7 @@ public class GprState {
 		return explicitlySet[index];
 	}
 
-	public void set(int index, long value) {
+	public final void set(int index, long value) {
 		values[index] = value;
 		explicitlySet[index] = true;
 	}

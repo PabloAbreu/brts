@@ -11,8 +11,15 @@ import lombok.Setter;
 @AllArgsConstructor
 public class ObjectExpression implements Expression {
 
+	/**
+	 * The value held by this expression. Can be any object.
+	 */
 	private Object value;
 
+	/**
+	 * The expression represented by this object expression. Can be any string. Will be evaluated to produce the value
+	 * of this expression.
+	 */
 	private String expression;
 
 	public static ObjectExpression of(Object value) {

@@ -16,6 +16,7 @@ public final class Timestamp {
 	 */
 	public static final long MPLS_TICKS_PER_SECOND = 45_000L;
 
+	/** Number of 90 kHz ticks represented by this timestamp. */
 	private final long ticks;
 
 	@JsonCreator

@@ -82,7 +82,7 @@ public class TextStyle {
 	// ── Background shape ────────────────────────────────────────────────────
 
 	/**
-	 * Shape drawn underneath the text. Possible values: NONE, RECTANGLE, ROUNDED_RECTANGLE.
+	 * Shape drawn underneath the text.
 	 */
 	private @BrtsValue BackgroundShape backgroundShape;
 
@@ -105,6 +105,12 @@ public class TextStyle {
 
 	// ── Background shape enum ───────────────────────────────────────────────
 
+	/**
+	 * Background shape options.
+	 *
+	 * Possible values are: - NONE: No background shape. - RECTANGLE: A simple rectangle. - ROUNDED_RECTANGLE: A
+	 * rectangle with rounded corners.
+	 */
 	public enum BackgroundShape {
 
 		NONE, RECTANGLE, ROUNDED_RECTANGLE

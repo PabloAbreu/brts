@@ -36,9 +36,11 @@ import java.util.List;
 @Setter
 public class SimpleBuildDescriptor {
 
+	/** Name of the disc. */
 	@NotBlank
 	private String discName;
 
+	/** Base folder for the Blu-ray disc output, under which a folder named after the disc will be created. */
 	@NotBlank
 	@WritableDirectory(createIfMissing = true)
 	private String outputFolder;// base folder for the BD output under discName

@@ -40,9 +40,15 @@ import java.util.List;
 @Setter
 public class DiscDescriptor {
 
+	/** Name of the disc. */
 	@NotBlank
 	private String discName;
 
+	/**
+	 * Output folder for the generated Blu-ray disc.
+	 *
+	 * Final paths will look like outputFolder/discName/BDMV/ ...
+	 */
 	@NotBlank
 	@WritableDirectory(createIfMissing = true)
 	private String outputFolder;// for the BD
@@ -86,6 +92,7 @@ public class DiscDescriptor {
 	@Valid
 	private PgsRenderConfig pgsConfig;
 
+	/** List of titles on the disc. */
 	@NotEmpty
 	private List<@Valid TitleDescriptor> titles;
 

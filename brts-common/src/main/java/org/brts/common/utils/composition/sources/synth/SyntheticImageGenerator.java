@@ -1,5 +1,6 @@
 package org.brts.common.utils.composition.sources.synth;
 
+import java.io.IOException;
 import java.util.Map;
 
 import org.brts.common.utils.composition.ImageFrame;
@@ -34,5 +35,7 @@ public interface SyntheticImageGenerator extends AutoCloseable {
 	 * template rendered with the given data model. Do not close the returned frame.
 	 */
 	ImageFrame generate(int frameNumber, Map<String, Object> dataModel);
+
+	void close() throws IOException;
 
 }

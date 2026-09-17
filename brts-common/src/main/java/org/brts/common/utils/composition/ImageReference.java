@@ -9,13 +9,18 @@ import lombok.Setter;
 @Getter
 @Setter
 public class ImageReference {
-	// in the case of a video, this is more the video id, not the id of a single image frame
+	/**
+	 * In the case of a video, this is more the video id, not the id of a single image frame.
+	 */
 	private String imageId;
 
+	/** Path to the source image file. */
 	private String sourcePath;
 
+	/** Path to the video file if this reference is a video. */
 	private String videoPath;
 
+	/** Synthetic image source if this reference is a synthetic image. */
 	private SyntheticImageSource syntheticImage;
 
 	public boolean isStatic() {
@@ -37,9 +42,13 @@ public class ImageReference {
 	@Getter
 	@Setter
 	public static class SyntheticImageSource {
-		private String type; // example : SVG
-		private String data; // example : inline SVG XML content
-		private String srcPath; // example : path to SVG file on disk
-		private Double frameRate; // fps for animated SVG (SMIL); null means static
+		/** Type of the synthetic image source (e.g., "svg"). */
+		private String type;
+		/** Data of the synthetic image source (e.g., inline SVG XML content). */
+		private String data;
+		/** Source path of the synthetic image source (e.g., path to SVG file on disk). */
+		private String srcPath;
+		/** Frame rate for animated synthetic images (e.g., animated SVG with SMIL). Null means static. */
+		private Double frameRate;
 	}
 }

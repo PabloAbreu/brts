@@ -23,11 +23,13 @@ public class EpMap {
 	@Setter
 	public static class EpMapStream {
 
+		/** PID of the elementary stream this EP_map stream corresponds to. */
 		private int pid;
 
 		/** EP type: 1 = I-frame only (standard for video). */
 		private int epType = 1;
 
+		/** List of entry-point anchors within this EP_map stream. */
 		private List<EpMapEntry> entries;
 
 	}

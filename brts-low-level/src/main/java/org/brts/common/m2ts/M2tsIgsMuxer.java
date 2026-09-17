@@ -124,7 +124,7 @@ public class M2tsIgsMuxer {
 	public void mux(Path igsFile, Path outputPath) throws IOException {
 		totalPackets = 0;
 
-		List<IgsRawSegment> segments = new IgsParser().parseSegments(igsFile);
+		List<IgsRawSegment> segments = IgsParser.parseSegments(igsFile);
 
 		log.info("M2tsIgsMuxer: {} → {} ({} segments)", igsFile.getFileName(), outputPath.getFileName(),
 				segments.size());

@@ -44,4 +44,5 @@ public interface MediaRepository extends AutoCloseable {
 	 */
 	Map<String, ImageFrame> getImageCache(String cacheName);
 
+	void close();
 }
