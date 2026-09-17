@@ -22,6 +22,8 @@
 		<module>brts-middle-level</module>
 		<module>brts-high-level</module>
 		<module>brts-cli</module>
+		<module>brts-doc-parser</module>
+		<module>brts-doc-generator</module>
 	</modules>
 
 	<properties>
@@ -78,6 +80,16 @@
 			<dependency>
 				<groupId>org.brts</groupId>
 				<artifactId>brts-high-level</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.brts</groupId>
+				<artifactId>brts-cli</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.brts</groupId>
+				<artifactId>brts-doc-parser</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 

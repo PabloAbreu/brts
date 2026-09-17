@@ -64,6 +64,17 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 
 	/** Creates a fresh, empty options bean to be populated by args4j. */
 	protected O createOptions() {
+		Class<? extends O> optionsClass = getOptionsType();
+		try {
+			return optionsClass.getDeclaredConstructor().newInstance();
+		} catch (Exception e) {
+			throw new IllegalStateException("Options class must have a no-arg constructor", e);
+		}
+	}
+
+	/** Returns the concrete args4j options-bean type declared by this runner. */
+	@SuppressWarnings("unchecked")
+	public Class<? extends O> getOptionsType() {
 		// determine concrete type of O via reflection and verify it has a no-arg
 		// constructor
 		// then we can safely instantiate it here instead of forcing each subclass to
@@ -84,15 +95,8 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 					Type[] typeArgs = parameterizedType.getActualTypeArguments();
 					if (typeArgs.length == 1) {
 						Type typeArg = typeArgs[0];
-						if (typeArg instanceof Class) {
-							Class<?> optionsClass = (Class<?>) typeArg;
-							try {
-								@SuppressWarnings("unchecked")
-								O options = (O) optionsClass.getDeclaredConstructor().newInstance();
-								return options;
-							} catch (Exception e) {
-								throw new IllegalStateException("Options class must have a no-arg constructor", e);
-							}
+						if (typeArg instanceof Class<?>) {
+							return (Class<? extends O>) typeArg;
 						}
 					}
 				}

@@ -3,6 +3,7 @@ package org.brts.cli;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -28,7 +29,7 @@ public class LevelDispatcher {
 
 	/** Returns all registered runners in registration order. */
 	public Collection<FeatureRunner<?>> getRunners() {
-		return runners.values();
+		return Collections.unmodifiableCollection(runners.values());
 	}
 
 	/**

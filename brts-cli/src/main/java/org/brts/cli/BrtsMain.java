@@ -3,6 +3,7 @@ package org.brts.cli;
 import org.brts.cli.high.HighLevelCli;
 import org.brts.cli.middle.MiddleLevelCli;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,11 @@ public class BrtsMain {
 		levels.put("low", LowLevelDispatcher.getLevelDispatcher());
 		levels.put("mid", MiddleLevelCli.getLevelDispatcher());
 		levels.put("high", HighLevelCli.getLevelDispatcher());
+	}
+
+	/** Returns the registered CLI levels in display order. */
+	public static Map<String, LevelDispatcher> getLevels() {
+		return Collections.unmodifiableMap(levels);
 	}
 
 	public static void main(String[] args) {

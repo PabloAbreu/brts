@@ -22,7 +22,8 @@ existing Blu-ray files back into JSON for inspection and debugging.
   archival authoring. Explicitly out of scope: 3D, multi-angle/PiP,
   `CERTIFICATE`, and DRM/AACS (empty placeholders only).
 
-See [TODO.md](TODO.md) for the current backlog.
+See [TODO.md](TODO.md) for the current backlog and
+[CLI documentation generation](doc/cli-documentation-generation.md) for the release metadata and reference pipeline.
 
 ## Structure
 
