@@ -46,6 +46,8 @@
 		<opencv.platform>linux-x86_64</opencv.platform>
 		<batik.version>1.18</batik.version>
 		<freemarker.version>2.3.34</freemarker.version>
+		<jakarta.validation.version>3.1.0</jakarta.validation.version>
+		<hibernate-validator.version>9.0.0.Final</hibernate-validator.version>
 
 		<!-- Plugin versions -->
 		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -174,6 +176,18 @@
 				<groupId>org.freemarker</groupId>
 				<artifactId>freemarker</artifactId>
 				<version>${freemarker.version}</version>
+			</dependency>
+
+			<!-- Bean Validation (descriptor / CLI options validation) -->
+			<dependency>
+				<groupId>jakarta.validation</groupId>
+				<artifactId>jakarta.validation-api</artifactId>
+				<version>${jakarta.validation.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.hibernate.validator</groupId>
+				<artifactId>hibernate-validator</artifactId>
+				<version>${hibernate-validator.version}</version>
 			</dependency>
 
 			<!-- Testing -->

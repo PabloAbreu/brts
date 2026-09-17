@@ -1,5 +1,6 @@
 {
   "discName": "My Movie",
+  "outputFolder": "/path/to/output",
   "sourceMkv": "/path/to/movie.mkv",
   "audioLanguages": ["eng", "fra"],
   "subtitleLanguages": ["eng"],

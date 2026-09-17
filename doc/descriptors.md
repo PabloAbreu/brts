@@ -129,3 +129,23 @@ orchestration script.
 Each high-level template produces a full disc under `outputDirectory`,
 including auto-generated navigation and menus where applicable (e.g. an
 episode menu for TV series).
+
+## Descriptor validation
+
+Descriptors loaded through a `--descriptor` option are validated with standard
+Jakarta Bean Validation annotations before the feature starts processing, so
+problems such as a missing source MKV or an unwritable output folder are
+reported up-front instead of failing mid-build. Every violation is listed at
+once with its JSON path:
+
+```
+simple-build: Invalid arguments for 'simple-build' (2 problem(s)):
+  - descriptor.discName: must not be blank (actual: )
+  - descriptor.sourceMkv: file does not exist (actual: /missing/movie.mkv)
+```
+
+Constraints are declared directly on the descriptor fields using
+`jakarta.validation.constraints.*` plus the BRTS filesystem constraints in
+`org.brts.common.validation` (`@ExistingFile`, `@ExistingDirectory`,
+`@WritableDirectory`). Nested descriptors are validated when the holding field
+or collection element is annotated with `@Valid`.

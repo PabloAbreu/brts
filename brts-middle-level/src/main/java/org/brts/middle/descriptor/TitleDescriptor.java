@@ -1,5 +1,12 @@
 package org.brts.middle.descriptor;
 
+import org.brts.common.validation.ExistingFile;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -31,28 +38,31 @@ import java.util.List;
 @Setter
 public class TitleDescriptor {
 
+	@Positive
 	private int titleId;
 
 	/** Optional display name for menu buttons. Falls back to source MKV filename if absent. */
 	private String displayName;
 
 	/** Path to the source MKV file. */
+	@NotBlank
+	@ExistingFile
 	private String sourceMkv;
 
 	/**
 	 * Ordered list of ISO 639-2 language codes for audio tracks to include. If null or empty, all audio tracks in the
 	 * MKV are included.
 	 */
-	private List<String> audioLanguages;
+	private List<@Pattern(regexp = LanguageCodeConstraints.PATTERN, message = LanguageCodeConstraints.MESSAGE) String> audioLanguages;
 
 	/**
 	 * Ordered list of ISO 639-2 language codes for subtitle (PG) tracks to include. If null or empty, all PG tracks in
 	 * the MKV are included.
 	 */
-	private List<String> subtitleLanguages;
+	private List<@Pattern(regexp = LanguageCodeConstraints.PATTERN, message = LanguageCodeConstraints.MESSAGE) String> subtitleLanguages;
 
 	/** Chapter markers expressed as seconds from stream start. */
-	private List<ChapterMarker> chapters;
+	private List<@Valid ChapterMarker> chapters;
 
 	/**
 	 * Controls popup menu generation for this title. Defaults to {@link PopupMenuMode#AUTO} which generates a popup
@@ -66,6 +76,7 @@ public class TitleDescriptor {
 	@Setter
 	public static class ChapterMarker {
 
+		@PositiveOrZero
 		private double timeSeconds;
 
 		private String label;

@@ -8,6 +8,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.validation.DescriptorValidationException;
+import org.brts.common.validation.DescriptorValidator;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -128,6 +130,16 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 		}
 
 		try {
+			validateOptions(opts);
+		} catch (DescriptorValidationException e) {
+			System.err.println(getCommandName() + ": " + e.getMessage());
+			if (opts.isErrorDetails()) {
+				e.printStackTrace();
+			}
+			System.exit(1);
+		}
+
+		try {
 			execute(opts);
 		} catch (Exception e) {
 			if (opts.isErrorDetails()) {
@@ -136,6 +148,14 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 			}
 			throw e;
 		}
+	}
+
+	/**
+	 * Validates the fully-parsed options bean before {@link #execute} runs, so that bad input is reported up-front
+	 * rather than failing mid-processing. Override to add programmatic checks beyond the declared constraints.
+	 */
+	protected void validateOptions(O opts) {
+		DescriptorValidator.validateOrThrow(opts, "arguments for '" + getCommandName() + "'");
 	}
 
 	private static class FeatureRunnerCmdLineParser extends CmdLineParser {

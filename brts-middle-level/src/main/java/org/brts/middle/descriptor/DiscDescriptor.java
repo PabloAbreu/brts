@@ -1,9 +1,16 @@
 package org.brts.middle.descriptor;
 
 import org.brts.common.menu.TextStyle;
+import org.brts.common.validation.WritableDirectory;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -33,8 +40,11 @@ import java.util.List;
 @Setter
 public class DiscDescriptor {
 
+	@NotBlank
 	private String discName;
 
+	@NotBlank
+	@WritableDirectory(createIfMissing = true)
 	private String outputFolder;// for the BD
 
 	/** If true, a top menu object will be generated (requires menu title config). */
@@ -44,6 +54,7 @@ public class DiscDescriptor {
 	 * Optional title menu configuration. When non-null and the disc has more than one title, a selectable title menu is
 	 * generated and wired as First Play and Top Menu.
 	 */
+	@Valid
 	private TitleMenuConfig titleMenuConfig;
 
 	/**
@@ -51,26 +62,37 @@ public class DiscDescriptor {
 	 * overrides (title menu style, popup style) are merged over. When {@code null}, defaults are resolved from
 	 * {@code textStyle.*} properties in brts.conf at the lowest layer.
 	 */
+	@Valid
 	private TextStyle style;
 
 	/**
 	 * Disc-wide popup menu style override. When non-null, merged over {@link #style} to produce the effective style for
 	 * all popup menus on this disc. When {@code null}, the global {@link #style} (or brts.conf defaults) is used.
 	 */
+	@Valid
 	private TextStyle popupStyle;
 
 	/**
 	 * Disc-wide popup menu configuration. When non-null, its presentation settings (layout, dimensions, style and
 	 * backgrounds) are applied to all auto-generated popup menus. Track entries and output clip names are per-title.
 	 */
+	@Valid
 	private PopupMenuConfig popupMenu;
 
 	/**
 	 * Disc-wide PGS subtitle rendering configuration applied to all titles during conversion. When null, defaults from
 	 * brts.conf / low-level configuration are used.
 	 */
+	@Valid
 	private PgsRenderConfig pgsConfig;
 
-	private List<TitleDescriptor> titles;
+	@NotEmpty
+	private List<@Valid TitleDescriptor> titles;
+
+	@JsonIgnore
+	@AssertTrue(message = "titleMenuConfig is required when hasTopMenu is true")
+	public boolean isTopMenuConfigConsistent() {
+		return !hasTopMenu || titleMenuConfig != null;
+	}
 
 }
