@@ -22,6 +22,7 @@ Define an alias for BRTS with something similar to this:
 
 ```bash
 alias brts='java -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar'
+alias brts_debug='java -Dlogback.configurationFile=classpath:logback-dev.xml -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar'
 ```
 
 ## CLI packaging
