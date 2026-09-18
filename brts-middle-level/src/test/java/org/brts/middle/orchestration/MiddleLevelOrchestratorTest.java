@@ -28,6 +28,7 @@ import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.PopupMenuMode;
 import org.brts.middle.descriptor.TitleDescriptor;
+import org.brts.middle.orchestration.launch.BashDeferredLaunchGenerator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -46,7 +47,7 @@ class MiddleLevelOrchestratorTest {
 	@BeforeEach
 	void setUp() {
 		titleBuilder = mock(SimpleTitleBuilder.class);
-		orchestrator = new MiddleLevelOrchestrator(titleBuilder);
+		orchestrator = new MiddleLevelOrchestrator(titleBuilder, new BashDeferredLaunchGenerator());
 		mapper = JsonMapperFactory.get();
 	}
 

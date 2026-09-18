@@ -33,6 +33,7 @@ import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.PopupMenuMode;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
+import org.brts.middle.orchestration.launch.DeferredLaunchGenerator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -69,6 +70,8 @@ public class MiddleLevelOrchestrator {
 
 	private final SimpleTitleBuilder titleBuilder;
 
+	private final DeferredLaunchGenerator launchGenerator;
+
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
 	/**
@@ -78,28 +81,19 @@ public class MiddleLevelOrchestrator {
 	 * @param outputDir directory where descriptors and the script will be written
 	 */
 	public void orchestrate(DiscDescriptor disc, Path outputDir) throws IOException {
+		if (outputDir == null) {
+			// when no explicit output dir is given, we create a temporary directory
+			// because we still need that, even if the user is not interested.
+			outputDir = Files.createTempDirectory("brts-orchestrate-");
+		}
 		Path descriptorsDir = outputDir.resolve("descriptors");
+		Files.createDirectories(descriptorsDir);
 		log.debug("Orchestrating disc '{}' to output directory {}", disc.getDiscName(), outputDir);
+
 		Path mediaFolder = Paths.get(disc.getOutputFolder()).toAbsolutePath().normalize();
-		Path discPath = mediaFolder.resolve(disc.getDiscName());// FIXME sanitize
-																// discName, maybe
-																// annotations on
-																// descriptors
+		Path discPath = mediaFolder.resolve(disc.getDiscName());
 		BrRoot brRoot = BrRoot.root(discPath, true);
 		Path bdmv = brRoot.bdmv().getPath();
-		Files.createDirectories(descriptorsDir);
-
-		List<String> scriptLines = new ArrayList<>();
-		scriptLines.add("#!/usr/bin/env bash");
-		scriptLines.add("# Auto-generated middle-level orchestration script");
-		scriptLines.add("# Run each step in order to produce the low-level Blu-ray files");
-		scriptLines.add(
-				"# 'java' must be in your PATH, and the BRTS CLI JAR must be at $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar");
-		scriptLines.add("set -euo pipefail");
-		scriptLines.add("");
-		scriptLines.add(
-				"BRTS_CLI=\"java -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar\"");
-		scriptLines.add("");
 
 		IndexBdmv index = new IndexBdmv();
 		index.setContentProviderName(BrtsFileConfig.getInstance().getProperty("index.bdmv.contentProviderName"));
@@ -137,8 +131,7 @@ public class MiddleLevelOrchestrator {
 			// Resolve popup menu toggle
 			String popupClipName = resolvePopupMenuClipName(title, result.mediaInfo(), clipName);
 
-			// Emit script lines
-			scriptLines.add("# Title " + title.getTitleId() + " — " + title.getSourceMkv());
+			launchGenerator.comment("Title " + title.getTitleId() + " — " + title.getSourceMkv());
 			MkvToPlaylistDescriptor mkvDescriptor = new MkvToPlaylistDescriptor();
 			mkvDescriptor.setInput(title.getSourceMkv());
 			mkvDescriptor.setClipName(clipName);
@@ -161,9 +154,7 @@ public class MiddleLevelOrchestrator {
 			}
 			File mkvDescriptorFile = descriptorsDir.resolve(clipName + "-mkv-descriptor.json").toFile();
 			mapper.writeValue(mkvDescriptorFile, mkvDescriptor);
-			scriptLines.add("$BRTS_CLI low mkv-to-playlist --descriptor " + mkvDescriptorFile.getAbsolutePath()
-					+ " --output " + bdmv);
-			scriptLines.add("");
+			launchGenerator.mkvToPlaylist(mkvDescriptorFile.toPath(), bdmv);
 			TitleEntry entry = new TitleEntry();
 			entry.setObjectType(1);// HDMV
 			entry.setHdmvObjectId(movieObjectIndex++);
@@ -204,10 +195,8 @@ public class MiddleLevelOrchestrator {
 			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
 			firstPlayMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
 
-			scriptLines.add("# Title menu");
-			scriptLines.add("$BRTS_CLI low create-title-menu --descriptor " + menuDescriptorFile.getAbsolutePath()
-					+ " --output " + discPath + " --base-dir " + baseDir);
-			scriptLines.add("");
+			launchGenerator.comment("Title menu");
+			launchGenerator.createTitleMenu(menuDescriptorFile.toPath(), discPath, baseDir);
 		} else {
 			// No menu: jump directly to title 1
 			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.jumpTitle(1));
@@ -236,17 +225,12 @@ public class MiddleLevelOrchestrator {
 		File moviesFile = descriptorsDir.resolve(MOVIE_OBJECT_JSON).toFile();
 		mapper.writeValue(moviesFile, movies);
 
-		// Emit index/movie-object generation step (placeholders)
-		scriptLines.add("# Generate BDMV index and MovieObject");
-		scriptLines.add("$BRTS_CLI low index-write --input " + indexFile.getAbsolutePath() + " --output " + bdmv);
-		scriptLines.add("$BRTS_CLI low mobj-write --input " + moviesFile.getAbsolutePath() + " --output " + bdmv);
-		scriptLines.add("");
-		scriptLines.add("echo \"Done. Check " + discPath + " for output.\"");
+		launchGenerator.comment("Generate BDMV index and MovieObject");
+		launchGenerator.indexWrite(indexFile.toPath(), bdmv);
+		launchGenerator.mobjWrite(moviesFile.toPath(), bdmv);
+		launchGenerator.message("Done. Check " + discPath + " for output.");
 
-		// Write orchestration script
-		Path scriptPath = outputDir.resolve("orchestrate.sh");
-		Files.writeString(scriptPath, String.join("\n", scriptLines) + "\n");
-		scriptPath.toFile().setExecutable(true);
+		Path scriptPath = launchGenerator.write(outputDir);
 		log.info("Wrote orchestration script to {}", scriptPath);
 	}
 

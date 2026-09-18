@@ -1,6 +1,7 @@
 package org.brts.middle.descriptor;
 
 import org.brts.common.menu.TextStyle;
+import jakarta.validation.constraints.Pattern;
 import org.brts.common.validation.WritableDirectory;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig;
@@ -42,6 +43,7 @@ public class DiscDescriptor {
 
 	/** Name of the disc. */
 	@NotBlank
+	@Pattern(regexp = "[A-Za-z0-9 _]+", message = "discName must not contain special characters")
 	private String discName;
 
 	/**

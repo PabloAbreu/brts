@@ -10,6 +10,7 @@ import java.lang.reflect.Type;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.validation.DescriptorValidationException;
 import org.brts.common.validation.DescriptorValidator;
+import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -19,7 +20,10 @@ import org.kohsuke.args4j.spi.Setters;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -32,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public abstract class FeatureRunner<O extends BaseOptions> {
+	private @Setter(AccessLevel.PACKAGE) @Getter(AccessLevel.PROTECTED) BrtsImmediateInvocator invocator;
 
 	/**
 	 * Checks whether the raw, unparsed command-line arguments request the banner to be suppressed (see

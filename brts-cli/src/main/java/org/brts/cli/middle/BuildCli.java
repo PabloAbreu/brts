@@ -10,6 +10,7 @@ import org.brts.common.validation.WritableDirectory;
 import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
+import org.brts.middle.orchestration.launch.BashDeferredLaunchGenerator;
 import org.kohsuke.args4j.Option;
 
 import jakarta.validation.Valid;
@@ -46,7 +47,8 @@ public class BuildCli {
 		@Override
 		protected void execute(BuildOptions opts) throws Exception {
 			SimpleTitleBuilder titleBuilder = new SimpleTitleBuilder(new MkvSourceMediaParser());
-			MiddleLevelOrchestrator orchestrator = new MiddleLevelOrchestrator(titleBuilder);
+			MiddleLevelOrchestrator orchestrator = new MiddleLevelOrchestrator(titleBuilder,
+					new BashDeferredLaunchGenerator());
 			orchestrator.orchestrate(opts.descriptor, opts.outputDir.toPath());
 
 			System.out.println("Middle-level orchestration complete. Check " + opts.outputDir);

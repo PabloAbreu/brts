@@ -7,6 +7,7 @@ import org.brts.highlevel.descriptor.HighLevelDiscDescriptor;
 import org.brts.highlevel.orchestration.HighLevelOrchestrator;
 import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
+import org.brts.middle.orchestration.launch.BashDeferredLaunchGenerator;
 import org.kohsuke.args4j.Option;
 
 import java.io.File;
@@ -43,7 +44,8 @@ public class HighLevelCli {
 			HighLevelDiscDescriptor descriptor = loadJson(opts.descriptor, HighLevelDiscDescriptor.class);
 
 			SimpleTitleBuilder titleBuilder = new SimpleTitleBuilder(new MkvSourceMediaParser());
-			MiddleLevelOrchestrator middleOrch = new MiddleLevelOrchestrator(titleBuilder);
+			MiddleLevelOrchestrator middleOrch = new MiddleLevelOrchestrator(titleBuilder,
+					new BashDeferredLaunchGenerator());
 			HighLevelOrchestrator highOrch = new HighLevelOrchestrator(middleOrch);
 
 			highOrch.orchestrate(descriptor, opts.outputDir.toPath());

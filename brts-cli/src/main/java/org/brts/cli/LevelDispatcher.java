@@ -51,6 +51,7 @@ public class LevelDispatcher {
 		}
 
 		String[] rest = Arrays.copyOfRange(args, 1, args.length);
+		runner.setInvocator(BrtsMain::main);
 		runner.run(rest);
 	}
 

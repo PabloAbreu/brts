@@ -1,11 +1,12 @@
 package org.brts.cli;
 
-import org.brts.cli.high.HighLevelCli;
-import org.brts.cli.middle.MiddleLevelCli;
-
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.brts.cli.high.HighLevelCli;
+import org.brts.cli.middle.MiddleLevelCli;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
