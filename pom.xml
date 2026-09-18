@@ -6,7 +6,7 @@
 
 	<groupId>org.brts</groupId>
 	<artifactId>brts-parent</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>BRTS - Blu-ray Tools Suite</name>

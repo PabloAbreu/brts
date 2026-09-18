@@ -18,13 +18,6 @@ Maven multi-module project, parent [`pom.xml`](../pom.xml), Java 21.
   (module names: `brts-common`, `brts-low-level`, `brts-middle-level`,
   `brts-high-level`, `brts-cli`)
 
-Define an alias for BRTS with something similar to this: 
-
-```bash
-alias brts='java -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar'
-alias brts_debug='java -Dlogback.configurationFile=classpath:logback-dev.xml -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar'
-```
-
 ## CLI packaging
 
 `brts-cli` produces a runnable fat jar via `maven-assembly-plugin`, exposing
@@ -63,3 +56,22 @@ regenerated.
 Some tests reference real Blu-ray sample assets under `samples/` (the
 `test.samples.dir` Maven property points there), and generated fixtures are
 written under `test_output/` for inspection.
+
+## Installing
+
+No installer yet.
+
+In the mean time ...
+
+To "install" BRTS, you may create a script named brts and place it on the PATH.
+```bash
+#! /bin/bash
+java -jar /path/to/brts/brts-cli/target/brts-cli.jar "@$"
+```
+
+Alternatively, you might want to define an alias for BRTS with something similar to this: 
+
+```bash
+alias brts='java -jar $HOME/.m2/repository/org/brts/brts-cli/0.0.1-SNAPSHOT/brts-cli-0.0.1-SNAPSHOT.jar'
+alias brts_debug='java -Dlogback.configurationFile=classpath:logback-dev.xml -jar $HOME/.m2/repository/org/brts/brts-cli/0.0.1-SNAPSHOT/brts-cli-0.0.1-SNAPSHOT.jar'
+```

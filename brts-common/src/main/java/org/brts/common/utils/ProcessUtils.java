@@ -4,9 +4,11 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.function.Consumer;
 
 import lombok.RequiredArgsConstructor;
@@ -75,6 +77,15 @@ public class ProcessUtils {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Returns the full command line to launch BRTS.
+	 *
+	 * @return the configured command to launch BRTS
+	 */
+	public static String getBrtsCommand() {
+		return BrtsFileConfig.getInstance().propertyOrDefault("brts.command", "brts");
 	}
 
 }

@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.utils.ProcessUtils;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -20,12 +22,10 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 		lines.add("#!/usr/bin/env bash");
 		lines.add("# Auto-generated middle-level orchestration script");
 		lines.add("# Run each step in order to produce the low-level Blu-ray files");
-		lines.add(
-				"# 'java' must be in your PATH, and the BRTS CLI JAR must be at $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar");
+		lines.add("# 'java' must be in your PATH");
 		lines.add("set -euo pipefail");
 		lines.add("");
-		lines.add(
-				"BRTS_CLI=\"java -jar $HOME/.m2/repository/org/brts/brts-cli/1.0.0-SNAPSHOT/brts-cli-1.0.0-SNAPSHOT.jar\"");
+		lines.add("BRTS_CLI=\"" + ProcessUtils.getBrtsCommand() + "\"");
 		lines.add("");
 	}
 
