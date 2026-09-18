@@ -1,0 +1,39 @@
+package org.brts.cli;
+
+import java.nio.file.Path;
+
+import org.brts.common.validation.WritableDirectory;
+import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
+import org.brts.middle.orchestration.launch.BashDeferredLaunchGenerator;
+import org.brts.middle.orchestration.launch.DeferredLaunchGenerator;
+import org.brts.middle.orchestration.launch.ImmediateLaunchGenerator;
+import org.kohsuke.args4j.Option;
+
+import jakarta.validation.constraints.AssertTrue;
+
+public class OrchestratorOptions extends BaseOptions {
+
+	public enum OutputType {
+		// TODO one day add cmd or powershell for those who need that
+		BASH, IMMEDIATE
+	}
+
+	@WritableDirectory(createIfMissing = true)
+	@Option(name = "--output", required = false, usage = "Output directory for descriptors and script. Required when not using IMMEDIATE.")
+	public Path outputDir;
+
+	@Option(name = "--output-type", required = false, usage = "Type of output: BASH or IMMEDIATE")
+	public OutputType outputType = OutputType.IMMEDIATE;
+
+	@AssertTrue(message = "--output is required unless --output-type is IMMEDIATE")
+	public boolean isOutputDirValid() {
+		return outputType == OutputType.IMMEDIATE || outputDir != null;
+	}
+
+	public DeferredLaunchGenerator getLaunchGenerator(BrtsImmediateInvocator invocator) {
+		if (outputType == OutputType.BASH) {
+			return new BashDeferredLaunchGenerator();
+		}
+		return new ImmediateLaunchGenerator(invocator);
+	}
+}

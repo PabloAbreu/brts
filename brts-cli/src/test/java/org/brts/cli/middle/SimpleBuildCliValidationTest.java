@@ -53,7 +53,7 @@ class SimpleBuildCliValidationTest {
 		NonExecutingRun runner = new NonExecutingRun();
 		SimpleBuildCli.SimpleBuildOptions opts = new SimpleBuildCli.SimpleBuildOptions();
 		opts.descriptor = JsonMapperFactory.get().readValue(descriptor.toFile(), SimpleBuildDescriptor.class);
-		opts.outputDir = tempDir.resolve("out").toFile();
+		opts.outputDir = tempDir.resolve("out");
 
 		assertThatThrownBy(() -> runner.check(opts)).isInstanceOf(DescriptorValidationException.class)
 				.hasMessageContaining("simple-build").hasMessageContaining("descriptor.discName")
@@ -71,7 +71,7 @@ class SimpleBuildCliValidationTest {
 		opts.descriptor.setDiscName("My Movie");
 		opts.descriptor.setOutputFolder(tempDir.resolve("bd").toString());
 		opts.descriptor.setSourceMkv(mkv.toString());
-		opts.outputDir = tempDir.resolve("out").toFile();
+		opts.outputDir = tempDir.resolve("out");
 
 		runner.check(opts);
 
