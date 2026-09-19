@@ -368,7 +368,7 @@
 						</goals>
 						<configuration>
 							<includes>
-								<include>**/*nException.java</include>
+								<include>**/*.java</include>
 							</includes>
 							<licenseName>lgpl_v3</licenseName>
 							<roots>
