@@ -59,6 +59,16 @@
 		<maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
 	</properties>
 
+	<!-- TODO upload jebml to maven central 
+	 	and get rid of this -->
+	<repositories>
+		<repository>
+			<id>github-jebml</id>
+			<name>GitHub Packages - BRTS jebml</name>
+			<url>https://maven.pkg.github.com/PabloAbreu/jebml</url>
+		</repository>
+	</repositories>
+
 	<dependencyManagement>
 		<dependencies>
 			<!-- Internal modules -->
