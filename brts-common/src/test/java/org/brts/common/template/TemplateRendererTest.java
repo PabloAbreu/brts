@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+import org.brts.common.test.sampledata.RequiresSamples;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -71,6 +72,7 @@ class TemplateRendererTest {
 	}
 
 	@Test
+	@RequiresSamples({ "PB/credits_template.svg.ftl", "PB/credits_tt31227572.json" })
 	void renderCreditsTemplate_withRealSampleData() {
 		Path samplesRoot = org.brts.common.test.sampledata.Samples.root();
 		Path templatePath = samplesRoot.resolve("PB/credits_template.svg.ftl");
