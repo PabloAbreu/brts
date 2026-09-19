@@ -1,4 +1,4 @@
-package org.brts.common.m2ts;
+package org.brts.lowlevel.m2ts;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 

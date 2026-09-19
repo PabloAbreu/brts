@@ -1,10 +1,11 @@
-package org.brts.common.m2ts;
+package org.brts.lowlevel.m2ts;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.brts.lowlevel.m2ts.M2tsIgsMuxer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

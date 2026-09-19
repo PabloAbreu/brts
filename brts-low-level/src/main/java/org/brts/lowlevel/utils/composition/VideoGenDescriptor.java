@@ -1,4 +1,6 @@
-package org.brts.common.utils.composition;
+package org.brts.lowlevel.utils.composition;
+
+import org.brts.common.utils.composition.ImagesComposition;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 

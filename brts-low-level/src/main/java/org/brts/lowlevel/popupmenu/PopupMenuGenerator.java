@@ -4,11 +4,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.brts.common.m2ts.M2tsIgsMuxer;
 import org.brts.common.utils.FileUtils;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
+import org.brts.lowlevel.m2ts.M2tsIgsMuxer;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 

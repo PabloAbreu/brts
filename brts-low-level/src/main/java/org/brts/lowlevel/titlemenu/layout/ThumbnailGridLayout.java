@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  * For each title, a thumbnail segment is extracted from the source media at the configured time offset (defaulting to
  * the middle of the video). These thumbnails are then composited into the background via
- * {@link org.brts.common.utils.composition.CompositedVideoGenerator}.
+ * {@link org.brts.lowlevel.utils.composition.CompositedVideoGenerator}.
  * <p>
  * The IGS buttons are transparent overlays that match the thumbnail positions (with a highlight border for
  * selected/activated states), giving the illusion of selectable animated thumbnails integrated into the video.

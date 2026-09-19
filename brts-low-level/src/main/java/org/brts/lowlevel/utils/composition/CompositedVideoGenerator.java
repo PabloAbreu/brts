@@ -1,4 +1,4 @@
-package org.brts.common.utils.composition;
+package org.brts.lowlevel.utils.composition;
 
 import static org.bytedeco.ffmpeg.global.avcodec.*;
 import static org.bytedeco.ffmpeg.global.avutil.*;
@@ -17,16 +17,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.common.m2ts.IStreamInfo;
-import org.brts.common.m2ts.M2tsClipWriterFactory;
-import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.AudioUtils;
 import org.brts.common.utils.FfmpegAudioExtractor;
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.composition.CompositionBuffer;
+import org.brts.common.utils.composition.CompositionContextImpl;
+import org.brts.common.utils.composition.ImageFrame;
+import org.brts.common.utils.composition.ImageReference;
+import org.brts.common.utils.composition.ImagesComposition;
+import org.brts.common.utils.composition.MediaRepository;
+import org.brts.common.utils.composition.MediaRepositoryImpl;
 import org.brts.common.utils.composition.sources.video.VideoFrames;
 import org.brts.common.utils.composition.sources.video.VideoFramesFactory;
+import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
+import org.brts.lowlevel.m2ts.M2tsWriter;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;

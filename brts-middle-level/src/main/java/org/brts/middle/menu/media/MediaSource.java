@@ -8,7 +8,7 @@ import java.nio.file.Path;
  * content in a setup menu.
  * <p>
  * Implementations handle specific container formats (MKV, MP4, etc.). The extracted elementary streams are written as
- * raw files suitable for feeding into {@link org.brts.common.m2ts.M2tsWriter}.
+ * raw files suitable for feeding into {@link org.brts.lowlevel.m2ts.M2tsWriter}.
  */
 public interface MediaSource {
 

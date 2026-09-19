@@ -25,7 +25,7 @@ public class LayoutResult {
 
 	/**
 	 * Optional composition descriptor for background video generation. When non-null, the orchestrator should use
-	 * {@link org.brts.common.utils.composition.CompositedVideoGenerator} to produce the background M2TS instead of
+	 * {@link org.brts.lowlevel.utils.composition.CompositedVideoGenerator} to produce the background M2TS instead of
 	 * simply muxing the source media.
 	 */
 	private ImagesComposition backgroundComposition;

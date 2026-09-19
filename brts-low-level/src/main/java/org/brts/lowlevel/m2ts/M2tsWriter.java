@@ -1,4 +1,4 @@
-package org.brts.common.m2ts;
+package org.brts.lowlevel.m2ts;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -12,14 +12,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.brts.common.m2ts.BitrateCode;
+import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
-import org.brts.common.utils.Crc32Utils;
 import org.brts.common.model.Timestamp;
+import org.brts.common.utils.Crc32Utils;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.clpi.EpMap;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**

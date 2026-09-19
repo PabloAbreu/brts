@@ -5,8 +5,8 @@ import java.nio.file.Path;
 
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
-import org.brts.common.utils.composition.CompositedVideoGenerator;
-import org.brts.common.utils.composition.VideoGenDescriptor;
+import org.brts.lowlevel.utils.composition.CompositedVideoGenerator;
+import org.brts.lowlevel.utils.composition.VideoGenDescriptor;
 import org.kohsuke.args4j.Option;
 
 /**

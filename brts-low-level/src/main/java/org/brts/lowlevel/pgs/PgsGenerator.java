@@ -45,7 +45,7 @@ import lombok.extern.slf4j.Slf4j;
  * </ol>
  * <p>
  * The resulting {@code .sup} / {@code .pgs} file can be muxed into an M2TS using the existing
- * {@link org.brts.common.m2ts.M2tsWriter} (which already supports {@code PRESENTATION_GRAPHICS} streams).
+ * {@link org.brts.lowlevel.m2ts.M2tsWriter} (which already supports {@code PRESENTATION_GRAPHICS} streams).
  */
 @Slf4j
 @RequiredArgsConstructor

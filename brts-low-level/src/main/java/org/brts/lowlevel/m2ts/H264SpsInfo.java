@@ -1,4 +1,4 @@
-package org.brts.common.m2ts;
+package org.brts.lowlevel.m2ts;
 
 /**
  * Minimal subset of SPS fields required to reconstruct per-frame POC values and to locate {@code pic_order_cnt_lsb}
