@@ -9,6 +9,12 @@
 		<name>Pablo ABREU</name>
 		<url>https://github.com/PabloAbreu/</url>
 	</organization>
+	<scm>
+		<connection>scm:git:git://github.com/PabloAbreu/brts.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/PabloAbreu/brts.git</developerConnection>
+		<url>https://github.com/PabloAbreu/brts</url>
+		<tag>HEAD</tag>
+	</scm>
 
 	<groupId>org.brts</groupId>
 	<artifactId>brts-parent</artifactId>
