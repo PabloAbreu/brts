@@ -1,6 +1,6 @@
 package org.brts.lowlevel.mkv;
 
-import org.brts.common.exception.BrtException;
+import org.brts.common.exception.BrtsException;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 
@@ -63,17 +63,17 @@ public class BlurayCompatibilityValidator {
 	}
 
 	/**
-	 * Validates all tracks and throws a {@link BrtException} if any track that is not convertible fails validation.
+	 * Validates all tracks and throws a {@link BrtsException} if any track that is not convertible fails validation.
 	 *
 	 * @param info the parsed MKV media info
 	 * @return list of validation results (all passing or convertible)
-	 * @throws BrtException if a non-convertible track is incompatible
+	 * @throws BrtsException if a non-convertible track is incompatible
 	 */
 	public List<TrackValidation> validateOrThrow(SourceMediaInfo info) {
 		List<TrackValidation> results = validate(info);
 		for (TrackValidation tv : results) {
 			if (!tv.compatible() && !tv.needsConversion()) {
-				throw new BrtException("Blu-ray incompatible track #" + tv.trackNumber() + " (" + tv.codingType()
+				throw new BrtsException("Blu-ray incompatible track #" + tv.trackNumber() + " (" + tv.codingType()
 						+ "): " + tv.message());
 			}
 		}

@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.brts.common.exception.BrtException;
+import org.brts.common.exception.BrtsException;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.menu.TextStyle;
@@ -119,8 +119,8 @@ public class MkvToPlaylistConverter {
 	 *
 	 * @param config conversion configuration
 	 * @return paths to the generated files
-	 * @throws IOException  on I/O error
-	 * @throws BrtException if any stream is incompatible with Blu-ray
+	 * @throws IOException   on I/O error
+	 * @throws BrtsException if any stream is incompatible with Blu-ray
 	 */
 	public Result convert(Config config) throws IOException {
 		Path mkvFile = config.getMkvFile();
@@ -256,7 +256,7 @@ public class MkvToPlaylistConverter {
 		// Ensure at least one video track
 		boolean hasVideo = result.stream().anyMatch(t -> t.getCodingType().isVideo());
 		if (!hasVideo) {
-			throw new BrtException("No video track found in the MKV file");
+			throw new BrtsException("No video track found in the MKV file");
 		}
 
 		return result;
@@ -426,7 +426,7 @@ public class MkvToPlaylistConverter {
 		}
 
 		if (outTime <= inTime) {
-			throw new BrtException(String.format(
+			throw new BrtsException(String.format(
 					"Invalid MPLS timing for clip %s (in=%d, out=%d). Check source duration and CLPI SequenceInfo.",
 					clipName, inTime, outTime));
 		}

@@ -3,6 +3,12 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
+	<inceptionYear>2026</inceptionYear>
+	<url>https://github.com/PabloAbreu/brts</url>
+	<organization>
+		<name>Pablo ABREU</name>
+		<url>https://github.com/PabloAbreu/</url>
+	</organization>
 
 	<groupId>org.brts</groupId>
 	<artifactId>brts-parent</artifactId>
@@ -27,6 +33,7 @@
 	</modules>
 
 	<properties>
+		<license.licenseName>lgpl_v3</license.licenseName>
 		<java.version>21</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
@@ -340,6 +347,37 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-pmd-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>2.7.1</version>
+				<configuration>
+					<descriptionTemplate>${maven.multiModuleProjectDirectory}/config/license-header.txt</descriptionTemplate>
+					<encoding>UTF-8</encoding>
+					<processStartTag> ===_LICENSE_BEGIN_=== </processStartTag>
+					<sectionDelimiter>==============================</sectionDelimiter>
+					<processEndTag> ===_LICENSE_END_=== </processEndTag>
+				</configuration>
+				<executions>
+					<execution>
+						<id>add-license-headers</id>
+						<phase>process-sources</phase>
+						<goals>
+							<goal>update-file-header</goal>
+						</goals>
+						<configuration>
+							<includes>
+								<include>**/*nException.java</include>
+							</includes>
+							<licenseName>lgpl_v3</licenseName>
+							<roots>
+								<root>src/main/java</root>
+								<root>src/test/java</root>
+							</roots>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 		<testResources>

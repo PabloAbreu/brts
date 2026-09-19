@@ -7,7 +7,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import org.brts.common.exception.BrtException;
+import org.brts.common.exception.BrtsException;
 import org.brts.common.menu.TextStyle;
 import org.brts.common.mkv.SourceMediaInfo.SourceTrack;
 import org.brts.common.model.StreamCodingType;
@@ -74,7 +74,7 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 	void buildPlaylist_throwsWhenTimelineIsNotPositive() {
 		ClipInfo clipInfo = clipInfoWithTiming(270_000L, 90_000L);
 
-		assertThatThrownBy(() -> invokeBuildPlaylist("00004", clipInfo, 0L)).isInstanceOf(BrtException.class)
+		assertThatThrownBy(() -> invokeBuildPlaylist("00004", clipInfo, 0L)).isInstanceOf(BrtsException.class)
 				.hasMessageContaining("Invalid MPLS timing");
 	}
 

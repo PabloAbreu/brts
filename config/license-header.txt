@@ -1,0 +1,3 @@
+BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
+
+This file '${file}' is part of BRTS.
