@@ -1,0 +1,101 @@
+{
+  "screenWidth": 1920,
+  "screenHeight": 1080,
+  "outputName": "00800",
+
+  "backgroundMedia": {
+    "type": "MKV",
+    "file": "/path/to/menu-background.mkv"
+  },
+
+  "globalStyle": {
+    "fontName": "SansSerif",
+    "fontSize": 32,
+    "fontStyle": 1,
+    "normalColor": "#FFFFFFFF",
+    "selectedColor": "#FFFFD700",
+    "activatedColor": "#FFFF6600",
+    "shadow": true,
+    "shadowColor": "#80000000",
+    "outline": false,
+    "backgroundShape": "ROUNDED_RECTANGLE",
+    "backgroundColor": "#40000000",
+    "backgroundAlpha": 64,
+    "cornerRadius": 12,
+    "paddingX": 24,
+    "paddingY": 10
+  },
+
+  "audioItems": [
+    {
+      "id": "audio-en",
+      "description": "English DTS-HD Master",
+      "streamNumber": 1,
+      "nav": {
+        "up": "misc-resume"
+      }
+    },
+    {
+      "id": "audio-fr",
+      "description": "French Dolby Digital",
+      "streamNumber": 2
+    },
+    {
+      "id": "audio-commentary",
+      "description": "Commentary Track",
+      "streamNumber": 3,
+      "style": {
+        "fontSize": 26,
+        "normalColor": "#FFCCCCCC"
+      }
+    }
+  ],
+
+  "subtitleItems": [
+    {
+      "id": "sub-en",
+      "description": "English Subtitles",
+      "streamNumber": 1
+    },
+    {
+      "id": "sub-fr",
+      "description": "Sous-titres français",
+      "streamNumber": 2
+    },
+    {
+      "id": "sub-off",
+      "description": "Subtitles Off",
+      "streamNumber": 0,
+      "nav": {
+        "down": "misc-play"
+      }
+    }
+  ],
+
+  "miscItems": [
+    {
+      "id": "misc-play",
+      "type": "LAUNCH",
+      "target": "00001",
+      "description": "Play Movie",
+      "icon": "/path/to/play-icon.png",
+      "nav": {
+        "up": "sub-off"
+      }
+    },
+    {
+      "id": "misc-back",
+      "type": "GO_BACK",
+      "target": "0",
+      "description": "Main Menu"
+    },
+    {
+      "id": "misc-resume",
+      "type": "RESUME",
+      "description": "Resume Playback",
+      "nav": {
+        "down": "audio-en"
+      }
+    }
+  ]
+}

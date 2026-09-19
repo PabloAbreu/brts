@@ -1,0 +1,124 @@
+{
+  "discName": "KAIJU_8_POPUP_BACKGROUNDS",
+  "outputFolder": "/video/output",
+  "titles": [
+    {
+      "titleId": 1,
+      "displayName": "4 - Fortitude 9,8",
+      "sourceMkv": "/video/input/Kaiju.No.8.S01E04.mkv",
+      "popupMenu": "TRUE"
+    },
+    {
+      "titleId": 2,
+      "displayName": "5 - Admis !",
+      "sourceMkv": "/video/input/Kaiju.No.8.S01E05.mkv",
+      "popupMenu": "TRUE"
+    },
+    {
+      "titleId": 3,
+      "displayName": "6 - Opération d'éradication à Sagamihara, à l'aube",
+      "sourceMkv": "/video/input/Kaiju.No.8.S01E06.mkv",
+      "popupMenu": "TRUE"
+    }
+  ],
+  "titleMenuConfig": {
+    "layoutType": "THUMBNAIL_GRID",
+    "backgroundSource": {
+      "imagePath": "/video/input/KAIJU_wallpaper.jpg",
+      "audioPath": "/video/input/leberch-dark-sci-fi-262600.ac3",
+      "durationSeconds": 10
+    },
+    "audioItems": [
+      {
+        "streamNumber": 1,
+        "description": "Français"
+      },
+      {
+        "streamNumber": 2,
+        "description": "Japonais"
+      }
+    ],
+    "subtitleItems": [
+      {
+        "streamNumber": 1,
+        "description": "Français Forcés"
+      },
+      {
+        "streamNumber": 2,
+        "description": "Français"
+      }
+    ]
+  },
+  "style": {
+    "fontName": "Paladins",
+    "fontSize": 28,
+    "normalColor": "#FFFFFF",
+    "selectedColor": "#a0fff7",
+    "activatedColor": "#ffaa00"
+  },
+  "popupMenu": {
+    "layout": "HORIZONTAL_BOTTOM",
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "style": {
+      "fontName": "Paladins",
+      "fontSize": 26,
+      "normalColor": "#E0F7FA",
+      "selectedColor": "#00F0FF",
+      "activatedColor": "#FFD700"
+    },
+    "backgrounds": {
+      "shared": [
+        {
+          "source": {
+            "syntheticImage": {
+              "type": "svg",
+              "srcPath": "assets/popup-menu-banner.svg"
+            }
+          },
+          "layout": {
+            "mode": "FULL_WIDTH_BOTTOM",
+            "height": 220,
+            "edgeOffset": 20,
+            "marginLeft": 40,
+            "marginRight": 40
+          }
+        }
+      ],
+      "audio": [
+        {
+          "source": {
+            "syntheticImage": {
+              "type": "svg",
+              "srcPath": "assets/popup-panel-card.svg"
+            }
+          },
+          "layout": {
+            "mode": "SELECTABLE_BOUNDS",
+            "marginTop": 16,
+            "marginRight": 24,
+            "marginBottom": 16,
+            "marginLeft": 24
+          }
+        }
+      ],
+      "subtitles": [
+        {
+          "source": {
+            "syntheticImage": {
+              "type": "svg",
+              "srcPath": "assets/popup-panel-card.svg"
+            }
+          },
+          "layout": {
+            "mode": "SELECTABLE_BOUNDS",
+            "marginTop": 16,
+            "marginRight": 24,
+            "marginBottom": 16,
+            "marginLeft": 24
+          }
+        }
+      ]
+    }
+  }
+}

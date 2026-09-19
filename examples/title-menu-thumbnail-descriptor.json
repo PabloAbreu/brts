@@ -1,0 +1,58 @@
+{
+  "screenWidth": 1920,
+  "screenHeight": 1080,
+
+  "backgroundMedia": {
+    "videoPath": "/path/to/menu-background.m2ts"
+  },
+
+  "titles": [
+    {
+      "titleNumber": 1,
+      "displayName": "Episode 1 - Pilot",
+      "sourceMediaPath": "/path/to/ep01.m2ts"
+    },
+    {
+      "titleNumber": 2,
+      "displayName": "Episode 2 - The Journey",
+      "sourceMediaPath": "/path/to/ep02.m2ts"
+    },
+    {
+      "titleNumber": 3,
+      "displayName": "Episode 3 - Revelations",
+      "sourceMediaPath": "/path/to/ep03.m2ts"
+    },
+    {
+      "titleNumber": 4,
+      "displayName": "Episode 4 - The End",
+      "sourceMediaPath": "/path/to/ep04.m2ts"
+    }
+  ],
+
+  "layout": {
+    "type": "THUMBNAIL_GRID",
+    "columns": 2,
+    "marginTop": 120,
+    "marginLeft": 100,
+    "marginRight": 100,
+    "spacingX": 60,
+    "spacingY": 80,
+    "thumbnailWidth": 400,
+    "thumbnailHeight": 225,
+    "thumbnailDurationSec": 5.0,
+    "showLabels": true,
+    "titleStyle": {
+      "fontName": "SansSerif",
+      "fontSize": 24,
+      "fontStyle": 1,
+      "normalColor": "#FFFFFFFF",
+      "selectedColor": "#FFFFD700",
+      "activatedColor": "#FFFF6600"
+    }
+  },
+
+  "outputBackgroundName": "00900",
+  "outputMenuName": "00901",
+  "outputPlaylistName": "00900",
+  "backgroundLoopCount": 50
+}

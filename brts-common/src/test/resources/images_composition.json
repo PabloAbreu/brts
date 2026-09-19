@@ -1,0 +1,22 @@
+{
+    "baseImageId" : "background",
+    "images": [
+        {
+            "imageId": "background",
+            "sourcePath": "src/test/resources/background.png"
+        },
+        {
+            "imageId": "im2",
+            "sourcePath": "src/test/resources/rectangle.jpg"
+        }
+    ],
+    "compositions": [ {
+        "imageId": "im2",
+        "topLeft" : { "x": 50, "y": 50 },
+        "opacity": 0.3
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": 1050, "y": 500 },
+        "opacity": 0.8
+    }]
+}

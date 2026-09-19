@@ -1,0 +1,17 @@
+{
+  "playlistName": "00001",
+  "isMenu": false,
+  "playItems": [
+    {
+      "clipName": "00001",
+      "inTimeTicks": 0,
+      "outTimeTicks": 8100000,
+      "streamPids": [4113, 4352, 4608]
+    }
+  ],
+  "chapters": [
+    { "playItemRef": 0, "markTimeTicks": 0 },
+    { "playItemRef": 0, "markTimeTicks": 2700000 },
+    { "playItemRef": 0, "markTimeTicks": 5400000 }
+  ]
+}

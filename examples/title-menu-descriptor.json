@@ -1,0 +1,62 @@
+{
+  "screenWidth": 1920,
+  "screenHeight": 1080,
+
+  "backgroundMedia": {
+    "videoPath": "/path/to/menu-background.m2ts"
+  },
+
+  "titles": [
+    {
+      "titleNumber": 1,
+      "displayName": "Play Movie",
+      "sourceMediaPath": "/path/to/movie.m2ts"
+    },
+    {
+      "titleNumber": 2,
+      "displayName": "Bonus Features",
+      "sourceMediaPath": "/path/to/bonus.m2ts",
+      "thumbnailExtractTimeSec": 30.0,
+      "thumbnailLoop": true
+    },
+    {
+      "titleNumber": 3,
+      "displayName": "Behind the Scenes",
+      "sourceMediaPath": "/path/to/bts.m2ts",
+      "thumbnailExtractTimeSec": 15.0,
+      "thumbnailLoop": false
+    },
+    {
+      "titleNumber": 4,
+      "displayName": "Director's Commentary"
+    }
+  ],
+
+  "layout": {
+    "type": "TEXT_LIST",
+    "columns": 1,
+    "marginTop": 200,
+    "spacingY": 70,
+    "titleStyle": {
+      "fontName": "SansSerif",
+      "fontSize": 36,
+      "fontStyle": 1,
+      "normalColor": "#FFFFFFFF",
+      "selectedColor": "#FFFFD700",
+      "activatedColor": "#FFFF6600",
+      "shadow": true,
+      "shadowColor": "#80000000",
+      "backgroundShape": "ROUNDED_RECTANGLE",
+      "backgroundColor": "#40000000",
+      "backgroundAlpha": 64,
+      "cornerRadius": 12,
+      "paddingX": 40,
+      "paddingY": 12
+    }
+  },
+
+  "outputBackgroundName": "00900",
+  "outputMenuName": "00901",
+  "outputPlaylistName": "00900",
+  "backgroundLoopCount": 50
+}

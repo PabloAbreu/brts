@@ -1,0 +1,17 @@
+{
+  "templateType": "MOVIE",
+  "discTitle": "My Movie",
+  "outputDirectory": "/tmp/my-movie-disc",
+  "mainFeature": {
+    "sourceMkv": "/path/to/movie.mkv",
+    "audioLanguages": ["eng", "fra"],
+    "subtitleLanguages": ["eng"]
+  },
+  "bonusTracks": [
+    {
+      "sourceMkv": "/path/to/making-of.mkv",
+      "label": "Making Of",
+      "audioLanguages": ["eng"]
+    }
+  ]
+}

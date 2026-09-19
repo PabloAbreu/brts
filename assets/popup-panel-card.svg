@@ -1,0 +1,61 @@
+<#-- Rendered as a FreeMarker template: width/height are supplied by PopupMenuBackgroundRenderer.
+  9-slice layout: corner = fixed-size corner zone; sides stretch along one axis; center stretches on both. -->
+<#assign corner = 40>
+<#assign chamfer = 20>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" preserveAspectRatio="none">
+  <defs>
+    <!-- Dark slate gradient background for maximum text contrast -->
+    <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#070e1c" stop-opacity="0.95" />
+      <stop offset="50%" stop-color="#0b172a" stop-opacity="0.90" />
+      <stop offset="100%" stop-color="#040810" stop-opacity="0.96" />
+    </linearGradient>
+
+    <!-- Top and bottom glow accent -->
+    <linearGradient id="edgeGlow" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.2" />
+      <stop offset="50%" stop-color="#00f0ff" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.2" />
+    </linearGradient>
+
+    <!-- Subtle radial glow behind button content -->
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Stretchable center and sides with fixed-size chamfered corner cuts -->
+  <polygon points="${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height - chamfer} ${width - chamfer},${height} ${chamfer},${height} 0,${height - chamfer} 0,${chamfer}" fill="url(#cardBg)" stroke="#00e5ff" stroke-width="2" stroke-opacity="0.6" />
+
+  <!-- Center subtle illumination -->
+  <polygon points="${chamfer},0 ${width - chamfer},0 ${width},${chamfer} ${width},${height - chamfer} ${width - chamfer},${height} ${chamfer},${height} 0,${height - chamfer} 0,${chamfer}" fill="url(#centerGlow)" />
+
+  <!-- Top and bottom side zones (constant height, stretch horizontally) -->
+  <line x1="${corner}" y1="0" x2="${width - corner}" y2="0" stroke="url(#edgeGlow)" stroke-width="3" />
+  <line x1="${corner}" y1="${height}" x2="${width - corner}" y2="${height}" stroke="url(#edgeGlow)" stroke-width="3" />
+
+  <!-- Top-left corner zone (constant size, anchored to the corner) -->
+  <polyline points="0,${corner} 0,${chamfer} ${chamfer},0 ${corner},0" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${chamfer}" cy="${chamfer}" r="3" fill="#00f0ff" />
+
+  <!-- Top-right corner zone (constant size, anchored to the corner) -->
+  <polyline points="${width - corner},0 ${width - chamfer},0 ${width},${chamfer} ${width},${corner}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${width - chamfer}" cy="${chamfer}" r="3" fill="#00f0ff" />
+
+  <!-- Bottom-right corner zone (constant size, anchored to the corner) -->
+  <polyline points="${width},${height - corner} ${width},${height - chamfer} ${width - chamfer},${height} ${width - corner},${height}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${width - chamfer}" cy="${height - chamfer}" r="3" fill="#00f0ff" />
+
+  <!-- Bottom-left corner zone (constant size, anchored to the corner) -->
+  <polyline points="${corner},${height} ${chamfer},${height} 0,${height - chamfer} 0,${height - corner}" fill="none" stroke="#26ffe6" stroke-width="3.5" stroke-linecap="round" />
+  <circle cx="${chamfer}" cy="${height - chamfer}" r="3" fill="#00f0ff" />
+
+  <!-- Left and right side zones (constant width, fixed-offset indicators anchored to each edge) -->
+  <g fill="#00e5ff" fill-opacity="0.7">
+    <rect x="6" y="100" width="3" height="24" />
+    <rect x="6" y="130" width="3" height="12" />
+    <rect x="${width - 9}" y="100" width="3" height="24" />
+    <rect x="${width - 9}" y="130" width="3" height="12" />
+  </g>
+</svg>
