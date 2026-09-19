@@ -1,0 +1,60 @@
+{
+  "screenWidth": 1920,
+  "screenHeight": 1080,
+  "backgroundMedia": {
+    "type": "MKV",
+    "file": "/video/video_work/menu_pb_617.mkv"
+  },
+  "globalStyle": {
+    "fontName": "SansSerif",
+    "fontSize": 10,
+    "fontColor": "#55FFDD",
+    "bold": true,
+    "italic": false
+  },
+  "audioItems": [
+    {
+      "id": "audio-en",
+      "description": "English",
+      "streamNumber": 1,
+      "nav": {
+        "up": "misc-main-menu"
+      }
+    },
+    {
+      "id": "audio-fr",
+      "description": "French",
+      "streamNumber": 2
+    }
+  ],
+  "subtitleItems": [
+    {
+      "id": "sub-en",
+      "description": "English SDH",
+      "streamNumber": 1
+    },
+    {
+      "id": "sub-off",
+      "description": "None",
+      "streamNumber": 0,
+      "nav": {
+        "down": "misc-play"
+      }
+    }
+  ],
+  "miscItems": [
+    {
+      "id": "misc-play",
+      "type": "LAUNCH",
+      "description": "Play Movie",
+      "target": "8"
+    },
+    {
+      "id": "misc-main-menu",
+      "type": "GO_BACK",
+      "description": "Main Menu",
+      "target": "1"
+    }
+  ],
+  "outputName": "00800"
+}

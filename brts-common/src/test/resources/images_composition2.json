@@ -1,0 +1,58 @@
+{
+    "constants": {
+        "menu_x": 1400
+    },
+    "baseImageId" : "video",
+    "images": [
+        {
+            "imageId": "video",
+            "videoPath": "samples/PB/BDMV/STREAM/00617.m2ts"
+        },
+        {
+            "imageId": "im2",
+            "sourcePath": "brts-common/src/test/resources/rectangle.jpg"
+        },
+        {
+            "imageId": "credits",
+            "syntheticImage": {
+                "type": "svg",
+                "srcPath" : "/data/work/brts/test_output/credits.svg"
+            }
+        }
+    ],
+    "compositions": [ {
+        "imageId": "im2", 
+        "topLeft" : { "x": 200, "y": 200 },
+        "opacity": "${frameNumber / 100.0}",
+        "rotation": {
+            "angle": "10"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 200 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.15}"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 500 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.3}"
+        }
+    },{
+        "imageId": "im2",
+        "topLeft" : { "x": "${menu_x}", "y": 800 },
+        "opacity": 0.6,
+        "rotation": {
+            "angle": "${frameNumber * 0.45}"
+        }
+    },{
+        "imageId": "credits",
+        "topLeft" : { "x": 200, "y": 200 },
+        "opacity": 1,
+        "crop" : { "topLeft": { "x": 500, "y": "${frameNumber * 3}" }, "size": { "width": 920, "height": 680 } }
+    }
+]
+}
