@@ -11,12 +11,12 @@
 		<connection>scm:git:git://github.com/PabloAbreu/brts.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/PabloAbreu/brts.git</developerConnection>
 		<url>https://github.com/PabloAbreu/brts</url>
-		<tag>0.0.2</tag>
+		<tag>HEAD</tag>
 	</scm>
 
 	<groupId>org.brts</groupId>
 	<artifactId>brts-parent</artifactId>
-	<version>0.0.2</version>
+	<version>0.0.3-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>BRTS - Blu-ray Tools Suite</name>
