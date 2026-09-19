@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.brts.common.json.JsonMapperFactory;
 import org.brts.doc.metadata.AnnotationMetadata;
 import org.brts.doc.metadata.CliMetadata;
 import org.brts.doc.metadata.CommandMetadata;
@@ -16,8 +15,21 @@ import org.brts.doc.metadata.FieldMetadata;
 import org.brts.doc.metadata.LevelMetadata;
 import org.brts.doc.metadata.OptionMetadata;
 import org.brts.doc.metadata.TypeMetadata;
+import org.brts.doc.metadata.display.AnnotationDisplayRegistry;
+import org.brts.doc.metadata.display.DisplayedAnnotation;
+import org.brts.doc.metadata.display.DisplayedAttribute;
 
 public final class MarkdownDocumentationGenerator implements DocumentationGenerator {
+
+	private final AnnotationDisplayRegistry annotationDisplayRegistry;
+
+	public MarkdownDocumentationGenerator() {
+		this(AnnotationDisplayRegistry.defaults());
+	}
+
+	public MarkdownDocumentationGenerator(AnnotationDisplayRegistry annotationDisplayRegistry) {
+		this.annotationDisplayRegistry = annotationDisplayRegistry;
+	}
 
 	@Override
 	public void generate(CliMetadata metadata, Path outputDirectory) throws IOException {
@@ -73,10 +85,13 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 				.append(command.description()).append("\n\n## Synopsis\n\n```text\nbrts ").append(command.path())
 				.append(" [options]\n```\n\n## Options\n\n");
 		for (OptionMetadata option : command.options()) {
+			if (option.hidden()) {
+				continue;
+			}
+			String type = simplifyType(option.javaType());
 			page.append("### `").append(option.name()).append("`\n\n").append(option.description()).append("\n\n")
-					.append("- Type: `").append(option.javaType()).append("`\n").append("- Required: `")
-					.append(option.required()).append("`\n").append("- Hidden: `").append(option.hidden()).append("`\n")
-					.append("- Inherited: `").append(option.inherited()).append("`\n");
+					.append("- Type: `").append(type).append("`\n").append("- Required: `").append(option.required())
+					.append("`\n").append("- Inherited: `").append(option.inherited()).append("`\n");
 			if (!option.aliases().isEmpty()) {
 				page.append("- Aliases: ").append(codeList(option.aliases())).append("\n");
 			}
@@ -128,8 +143,9 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 				if (field.description() != null) {
 					page.append(field.description()).append("\n\n");
 				}
-				page.append("- Java field: `").append(field.name()).append("`\n- Type: `").append(field.javaType())
-						.append("`\n- Required: `").append(field.required()).append("`\n");
+				page.append("- Java field: `").append(field.name()).append("`\n- Type: `")
+						.append(simplifyType(field.javaType())).append("`\n- Required: `").append(field.required())
+						.append("`\n");
 				if (field.typeRef() != null) {
 					page.append("- Nested type: [").append(field.typeRef()).append("](")
 							.append(typeFile(field.typeRef())).append(")\n");
@@ -142,22 +158,26 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 	}
 
 	private void appendAnnotations(StringBuilder page, List<AnnotationMetadata> annotations) {
-		if (annotations.isEmpty()) {
+		List<DisplayedAnnotation> displayed = annotationDisplayRegistry.display(annotations);
+		if (displayed.isEmpty()) {
 			return;
 		}
 		page.append("- Annotations:\n");
-		for (AnnotationMetadata annotation : annotations) {
-			page.append("  - `@").append(annotation.type()).append("` `")
-					.append(json(annotation.attributes()).replace("`", "\\`")).append("`\n");
+		for (DisplayedAnnotation annotation : displayed) {
+			page.append("  - `@").append(annotation.name()).append('`');
+			if (!annotation.attributes().isEmpty()) {
+				List<String> parts = new ArrayList<>();
+				for (DisplayedAttribute attribute : annotation.attributes()) {
+					parts.add(attribute.label() + ": `" + inlineCode(attribute.value()) + "`");
+				}
+				page.append(" - ").append(String.join(", ", parts));
+			}
+			page.append('\n');
 		}
 	}
 
-	private String json(Object value) {
-		try {
-			return JsonMapperFactory.get().writeValueAsString(value);
-		} catch (IOException e) {
-			throw new IllegalStateException("Cannot render annotation metadata", e);
-		}
+	private String inlineCode(String value) {
+		return value.replace("`", "\\`").replaceAll("\\s+", " ");
 	}
 
 	private String codeList(List<String> values) {
@@ -170,6 +190,15 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 
 	private String typeFile(String qualifiedName) {
 		return slug(qualifiedName) + ".md";
+	}
+
+	// strips package prefixes from qualified type names, including generics, e.g. "java.util.Set<java.lang.Integer>" ->
+	// "Set<Integer>"
+	private String simplifyType(String type) {
+		if (type == null) {
+			return null;
+		}
+		return type.replaceAll("\\b(?:[a-zA-Z_$][a-zA-Z0-9_$]*\\.)+([A-Za-z_$][a-zA-Z0-9_$]*)\\b", "$1");
 	}
 
 	private String slug(String value) {

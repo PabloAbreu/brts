@@ -28,11 +28,18 @@ class MarkdownDocumentationGeneratorTest {
 		String payloadType = "org.brts.example.BuildDescriptor";
 		OptionMetadata option = new OptionMetadata("--descriptor", List.of("-d"), "Input descriptor", payloadType, true,
 				false, false, List.of(), List.of(), false,
-				List.of(new AnnotationMetadata("jakarta.validation.Valid", Map.of())), payloadType);
+				List.of(new AnnotationMetadata("org.kohsuke.args4j.Option", Map.of("name", "--descriptor")),
+						new AnnotationMetadata("jakarta.validation.Valid", Map.of())),
+				payloadType);
 		CommandMetadata command = new CommandMetadata("mid", "build", "mid build", "Build a disc", "Runner", "Options",
 				List.of(option));
-		FieldMetadata field = new FieldMetadata("name", "discName", "java.lang.String", "Disc name", true, List.of(),
-				null, List.of());
+		Map<String, Object> patternAttributes = new LinkedHashMap<>();
+		patternAttributes.put("groups", List.of());
+		patternAttributes.put("payload", List.of());
+		patternAttributes.put("regexp", "[A-Za-z0-9 _]+");
+		FieldMetadata field = new FieldMetadata("name", "discName", "java.lang.String", "Disc name", true,
+				List.of(new AnnotationMetadata("jakarta.validation.constraints.Pattern", patternAttributes)), null,
+				List.of());
 		TypeMetadata type = new TypeMetadata(payloadType, "object", "Build input", null, List.of(), List.of(), null,
 				Map.of(), List.of(field));
 		Map<String, TypeMetadata> types = new LinkedHashMap<>();
@@ -45,9 +52,12 @@ class MarkdownDocumentationGeneratorTest {
 		assertThat(output.resolve("index.md")).content().contains("BRTS CLI Reference", "1.2.3",
 				"commands/mid/index.md");
 		assertThat(output.resolve("commands/mid/build.md")).content().contains("# `mid build`", "--descriptor",
-				"../../types/org-brts-example-builddescriptor.md");
+				"../../types/org-brts-example-builddescriptor.md", "  - `@Valid`");
+		assertThat(output.resolve("commands/mid/build.md")).content().doesNotContain("org.kohsuke.args4j");
 		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().contains("Build input",
-				"`discName`", "Disc name");
+				"`discName`", "Disc name", "  - `@Pattern` - regexp: `[A-Za-z0-9 _]+`");
+		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().doesNotContain("payload",
+				"groups");
 		assertThat(Files.list(output.resolve("commands/mid"))).hasSize(2);
 	}
 }
