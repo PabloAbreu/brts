@@ -232,13 +232,7 @@ public class IgsParser {
 		int numWindows = d[0] & 0xFF;
 		int pos = 1;
 		for (int i = 0; i < numWindows && pos + 9 <= d.length; i++) {
-			IgsWindow w = new IgsWindow();
-			w.setId(d[pos] & 0xFF);
-			w.setX(((d[pos + 1] & 0xFF) << 8) | (d[pos + 2] & 0xFF));
-			w.setY(((d[pos + 3] & 0xFF) << 8) | (d[pos + 4] & 0xFF));
-			w.setWidth(((d[pos + 5] & 0xFF) << 8) | (d[pos + 6] & 0xFF));
-			w.setHeight(((d[pos + 7] & 0xFF) << 8) | (d[pos + 8] & 0xFF));
-			wds.getWindows().add(w);
+			wds.getWindows().add(decodeWindow(d, pos));
 			pos += 9;
 		}
 		return wds;
@@ -546,13 +540,7 @@ public class IgsParser {
 		pos++;
 
 		for (int i = 0; i < numWindows && pos + 9 <= d.length; i++) {
-			IgsWindow w = new IgsWindow();
-			w.setId(d[pos] & 0xFF);
-			w.setX(((d[pos + 1] & 0xFF) << 8) | (d[pos + 2] & 0xFF));
-			w.setY(((d[pos + 3] & 0xFF) << 8) | (d[pos + 4] & 0xFF));
-			w.setWidth(((d[pos + 5] & 0xFF) << 8) | (d[pos + 6] & 0xFF));
-			w.setHeight(((d[pos + 7] & 0xFF) << 8) | (d[pos + 8] & 0xFF));
-			es.getWindows().add(w);
+			es.getWindows().add(decodeWindow(d, pos));
 			pos += 9;
 		}
 
@@ -574,6 +562,16 @@ public class IgsParser {
 
 		posRef[0] = pos;
 		return es;
+	}
+
+	private static IgsWindow decodeWindow(byte[] d, int pos) {
+		IgsWindow window = new IgsWindow();
+		window.setId(d[pos] & 0xFF);
+		window.setX(((d[pos + 1] & 0xFF) << 8) | (d[pos + 2] & 0xFF));
+		window.setY(((d[pos + 3] & 0xFF) << 8) | (d[pos + 4] & 0xFF));
+		window.setWidth(((d[pos + 5] & 0xFF) << 8) | (d[pos + 6] & 0xFF));
+		window.setHeight(((d[pos + 7] & 0xFF) << 8) | (d[pos + 8] & 0xFF));
+		return window;
 	}
 
 	private static IgsEffect decodeEffect(byte[] d, int[] posRef) {

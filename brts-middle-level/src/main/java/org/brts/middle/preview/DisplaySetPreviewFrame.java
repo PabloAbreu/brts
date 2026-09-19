@@ -107,7 +107,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 	// ── UI initialisation ───────────────────────────────────────────────────
 
 	private void initUI() {
-		setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 		setLayout(new BorderLayout());
 		add(panel, BorderLayout.CENTER);
 

@@ -244,11 +244,7 @@ public class M2tsIgsMuxer {
 		// PTS[21:15] | 1
 		// PTS[14:7]
 		// PTS[6:0] | 1
-		pes[9] = (byte) (0x31 | ((pts90 >> 29) & 0x0E));
-		pes[10] = (byte) ((pts90 >> 22) & 0xFF);
-		pes[11] = (byte) (0x01 | ((pts90 >> 14) & 0xFE));
-		pes[12] = (byte) ((pts90 >> 7) & 0xFF);
-		pes[13] = (byte) (0x01 | ((pts90 << 1) & 0xFE));
+		M2tsPacketUtils.writeTimestamp(pes, 9, 0x3, pts90);
 
 		// DTS encoding per ISO 13818-1 Table 2-21:
 		// byte: 0001 | DTS[32:30] | 1
@@ -257,11 +253,7 @@ public class M2tsIgsMuxer {
 		// DTS[14:7]
 		// DTS[6:0] | 1
 		if (writeDts) {
-			pes[14] = (byte) (0x11 | ((dts90 >> 29) & 0x0E));
-			pes[15] = (byte) ((dts90 >> 22) & 0xFF);
-			pes[16] = (byte) (0x01 | ((dts90 >> 14) & 0xFE));
-			pes[17] = (byte) ((dts90 >> 7) & 0xFF);
-			pes[18] = (byte) (0x01 | ((dts90 << 1) & 0xFE));
+			M2tsPacketUtils.writeTimestamp(pes, 14, 0x1, dts90);
 		}
 
 		System.arraycopy(payload, 0, pes, headerLen, payload.length);
@@ -385,15 +377,7 @@ public class M2tsIgsMuxer {
 	}
 
 	private void writeTsPacket(OutputStream out, int pid, boolean pusi, int ccVal, byte[] payload) throws IOException {
-		byte[] ts = new byte[TS_PACKET_SIZE];
-		ts[0] = (byte) SYNC_BYTE;
-		ts[1] = (byte) ((pusi ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
-		ts[2] = (byte) (pid & 0xFF);
-		ts[3] = (byte) (0x10 | (ccVal & 0x0F)); // payload only
-		int copy = Math.min(payload.length, TS_PACKET_SIZE - 4);
-		System.arraycopy(payload, 0, ts, 4, copy);
-		Arrays.fill(ts, 4 + copy, TS_PACKET_SIZE, (byte) 0xFF);
-		writeSourcePacket(out, ts);
+		writeSourcePacket(out, M2tsPacketUtils.buildTsPacket(pid, pusi, ccVal, payload));
 	}
 
 	// =========================================================================

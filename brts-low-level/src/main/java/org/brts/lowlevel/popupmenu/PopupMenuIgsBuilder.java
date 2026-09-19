@@ -1,13 +1,7 @@
 package org.brts.lowlevel.popupmenu;
 
-import static org.brts.common.utils.BrtsI18NLabels.MENU_EXIT;
-import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_AUDIO;
-import static org.brts.common.utils.BrtsI18NLabels.MENU_TO_SUBTITLES;
-import static org.brts.common.utils.BrtsI18NLabels.getLabel;
-import static org.brts.lowlevel.bdmv.NavigationCommandUtils.popupOff;
-import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setAudio;
-import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setButtonPage;
-import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setSubtitle;
+import static org.brts.common.utils.BrtsI18NLabels.*;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.*;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;

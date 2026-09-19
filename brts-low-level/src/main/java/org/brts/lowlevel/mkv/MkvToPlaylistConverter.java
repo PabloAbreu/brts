@@ -11,13 +11,13 @@ import java.util.Map;
 import java.util.Set;
 
 import org.brts.common.exception.BrtException;
-import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsClipWriter;
 import org.brts.common.m2ts.M2tsClipWriterFactory;
 import org.brts.common.m2ts.M2tsWriter;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.menu.TextStyle;
+import org.brts.common.mkv.MkvDemuxer;
 import org.brts.common.mkv.MkvDemuxerFactory;
 import org.brts.common.mkv.MkvSourceMediaParser;
 import org.brts.common.mkv.SourceMediaInfo;
@@ -39,6 +39,7 @@ import org.brts.lowlevel.popupmenu.PopupMenuGenerator;
 import org.brts.lowlevel.popupmenu.TrackDisplayNameResolver;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -385,78 +386,6 @@ public class MkvToPlaylistConverter {
 			}
 		}
 		return config;
-	}
-
-	// ── ClipInfo enrichment ─────────────────────────────────────────────────
-
-	private void enrichClipInfo(ClipInfo clipInfo, List<SourceMediaInfo.SourceTrack> tracks,
-			M2tsDescriptor descriptor) {
-		// Map PID → source track for enrichment
-		Map<Integer, SourceMediaInfo.SourceTrack> pidToSource = new HashMap<>();
-		List<M2tsDescriptor.StreamEntry> entries = descriptor.getStreams();
-		int trackIdx = 0;
-		for (SourceMediaInfo.SourceTrack st : tracks) {
-			if (trackIdx < entries.size()) {
-				pidToSource.put(entries.get(trackIdx).getPid(), st);
-				trackIdx++;
-			}
-		}
-
-		for (var cs : clipInfo.getStreams()) {
-			SourceMediaInfo.SourceTrack st = pidToSource.get(cs.getPid());
-			if (st == null)
-				continue;
-
-			if (cs.getCodingType() != null && cs.getCodingType().isVideo()) {
-				cs.setVideoFormat(deriveVideoFormat(st));
-				cs.setFrameRate(deriveFrameRateCode(st));
-				cs.setAspectRatio(3); // 16:9
-			} else if (cs.getCodingType() != null && cs.getCodingType().isAudio()) {
-				cs.setAudioChannelLayout(AudioChannelLayoutConverter.channelsToLayout(st.getChannels()));
-				cs.setSampleRate(deriveSampleRateCode(st));
-			}
-		}
-	}
-
-	private int deriveVideoFormat(SourceMediaInfo.SourceTrack track) {
-		Integer h = track.getHeightPixels();
-		if (h == null)
-			return 6; // default 1080p
-		if (h <= 480)
-			return 1; // 480i
-		if (h <= 576)
-			return 2; // 576i
-		if (h <= 720)
-			return 5; // 720p
-		if (h <= 1080)
-			return 6; // 1080p
-		return 6; // fallback 1080p
-	}
-
-	private int deriveFrameRateCode(SourceMediaInfo.SourceTrack track) {
-		Double fps = track.getFrameRateFps();
-		if (fps == null)
-			return 1; // default 23.976
-		if (fps < 24.5)
-			return 1; // 23.976
-		if (fps < 25.5)
-			return 3; // 25
-		if (fps < 30.5)
-			return 4; // 29.97
-		if (fps < 51.0)
-			return 6; // 50
-		return 7; // 59.94
-	}
-
-	private int deriveSampleRateCode(SourceMediaInfo.SourceTrack track) {
-		Integer sr = track.getSampleRateHz();
-		if (sr == null)
-			return 1; // 48 kHz
-		if (sr <= 48000)
-			return 1; // 48 kHz
-		if (sr <= 96000)
-			return 4; // 96 kHz
-		return 5; // 192 kHz
 	}
 
 	// ── MPLS builder ────────────────────────────────────────────────────────

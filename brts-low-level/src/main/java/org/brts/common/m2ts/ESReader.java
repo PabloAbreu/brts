@@ -258,6 +258,25 @@ public class ESReader implements Closeable {
 	}
 
 	/**
+	 * Builds [offset, length] frame pairs from a sorted list of frame-start offsets. When {@code firstStartsAtZero} is
+	 * {@code true}, the first frame is extended back to offset 0 to capture any preamble data (e.g. SPS/PPS before the
+	 * first AU); otherwise the first frame starts exactly at {@code starts.get(0)}.
+	 */
+	private List<int[]> framesFromStarts(List<Integer> starts, boolean firstStartsAtZero) {
+		List<int[]> frames = new ArrayList<>();
+		if (starts.isEmpty()) {
+			frames.add(new int[] { 0, esData.length });
+			return frames;
+		}
+		for (int j = 0; j < starts.size(); j++) {
+			int start = (firstStartsAtZero && j == 0) ? 0 : starts.get(j);
+			int end = (j + 1 < starts.size()) ? starts.get(j + 1) : esData.length;
+			frames.add(new int[] { start, end - start });
+		}
+		return frames;
+	}
+
+	/**
 	 * Detects frame boundaries and returns a list of [offset, length] pairs.
 	 */
 	private List<int[]> detectFrameBoundaries() {
@@ -307,16 +326,8 @@ public class ESReader implements Closeable {
 						}
 					}
 				}
-				if (auStarts.isEmpty()) {
-					frames.add(new int[] { 0, esData.length });
-				} else {
-					// First AU starts at offset 0 to capture any SPS/PPS preamble.
-					for (int j = 0; j < auStarts.size(); j++) {
-						int start = (j == 0) ? 0 : auStarts.get(j);
-						int end = (j + 1 < auStarts.size()) ? auStarts.get(j + 1) : esData.length;
-						frames.add(new int[] { start, end - start });
-					}
-				}
+				// First AU starts at offset 0 to capture any SPS/PPS preamble.
+				frames.addAll(framesFromStarts(auStarts, true));
 			}
 		} else if (codingType != null && codingType.isVideo()) {
 			// MPEG-2 video: split at picture_start_code (00 00 01 00)
@@ -326,15 +337,7 @@ public class ESReader implements Closeable {
 					picStarts.add(i);
 				}
 			}
-			if (picStarts.isEmpty()) {
-				frames.add(new int[] { 0, esData.length });
-			} else {
-				for (int j = 0; j < picStarts.size(); j++) {
-					int start = (j == 0) ? 0 : picStarts.get(j);
-					int end = (j + 1 < picStarts.size()) ? picStarts.get(j + 1) : esData.length;
-					frames.add(new int[] { start, end - start });
-				}
-			}
+			frames.addAll(framesFromStarts(picStarts, true));
 		} else if (codingType != null && codingType.isDolbyAudio()) {
 			// AC3 / E-AC3: split at sync word 0x0B77
 			List<Integer> syncStarts = new ArrayList<>();
@@ -343,15 +346,7 @@ public class ESReader implements Closeable {
 					syncStarts.add(i);
 				}
 			}
-			if (syncStarts.isEmpty()) {
-				frames.add(new int[] { 0, esData.length });
-			} else {
-				for (int j = 0; j < syncStarts.size(); j++) {
-					int start = syncStarts.get(j);
-					int end = (j + 1 < syncStarts.size()) ? syncStarts.get(j + 1) : esData.length;
-					frames.add(new int[] { start, end - start });
-				}
-			}
+			frames.addAll(framesFromStarts(syncStarts, false));
 		} else if (codingType != null && (codingType == StreamCodingType.DTS || codingType == StreamCodingType.DTS_HD
 				|| codingType == StreamCodingType.DTS_HD_MASTER_AUDIO)) {
 			// DTS: split at sync word 0x7FFE8001
@@ -362,15 +357,7 @@ public class ESReader implements Closeable {
 					syncStarts.add(i);
 				}
 			}
-			if (syncStarts.isEmpty()) {
-				frames.add(new int[] { 0, esData.length });
-			} else {
-				for (int j = 0; j < syncStarts.size(); j++) {
-					int start = syncStarts.get(j);
-					int end = (j + 1 < syncStarts.size()) ? syncStarts.get(j + 1) : esData.length;
-					frames.add(new int[] { start, end - start });
-				}
-			}
+			frames.addAll(framesFromStarts(syncStarts, false));
 		} else if (codingType == StreamCodingType.INTERACTIVE_GRAPHICS
 				|| codingType == StreamCodingType.PRESENTATION_GRAPHICS) {
 			// IGS / PGS: the raw ES file is a concatenation of bare segments:

@@ -101,10 +101,7 @@ public class DisplaySetPreviewModel {
 			selectedButtonId = page.getDefaultSelectedButtonIdRef();
 		} else {
 			// Fall back to first enabled button
-			for (var entry : bogEnabledButtons.entrySet()) {
-				selectedButtonId = entry.getValue();
-				return;
-			}
+			bogEnabledButtons.values().stream().findFirst().ifPresent(value -> selectedButtonId = value);
 		}
 	}
 

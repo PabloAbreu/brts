@@ -668,7 +668,7 @@ public class M2tsWriter {
 		// For stream_id 0xBD, prepend 1-byte sub-stream id inside the payload.
 		// ID_IG is already in the input stream as the first byte of the payload, so no
 		// need to prepend it again.
-		boolean needSubstreamId = (streamId == 0xBD) && substreamId != M2tsWriter.SUBSTREAM_ID_IG;
+		boolean needSubstreamId = (streamId == 0xBD) && substreamId != SUBSTREAM_ID_IG;
 		int pesDataLen = needSubstreamId ? 1 + payload.length : payload.length;
 		byte[] pes = new byte[headerLen + pesDataLen];
 		// start code prefix
@@ -686,27 +686,12 @@ public class M2tsWriter {
 		if (hasDts) {
 			pes[7] = (byte) 0xC0; // PTS_DTS_flags = 11 (PTS and DTS)
 			pes[8] = 0x0A; // PES_header_data_length = 10 (5 PTS + 5 DTS)
-			// PTS with '0011' 4-bit prefix (ISO 13818-1 Table 2-21)
-			pes[9] = (byte) (0x31 | ((pts90 >> 29) & 0x0E));
-			pes[10] = (byte) ((pts90 >> 22) & 0xFF);
-			pes[11] = (byte) (0x01 | ((pts90 >> 14) & 0xFE));
-			pes[12] = (byte) ((pts90 >> 7) & 0xFF);
-			pes[13] = (byte) (0x01 | ((pts90 << 1) & 0xFE));
-			// DTS with '0001' 4-bit prefix
-			pes[14] = (byte) (0x11 | ((dts90 >> 29) & 0x0E));
-			pes[15] = (byte) ((dts90 >> 22) & 0xFF);
-			pes[16] = (byte) (0x01 | ((dts90 >> 14) & 0xFE));
-			pes[17] = (byte) ((dts90 >> 7) & 0xFF);
-			pes[18] = (byte) (0x01 | ((dts90 << 1) & 0xFE));
+			M2tsPacketUtils.writeTimestamp(pes, 9, 0x3, pts90);
+			M2tsPacketUtils.writeTimestamp(pes, 14, 0x1, dts90);
 		} else {
 			pes[7] = (byte) 0x80; // PTS_DTS_flags = 10 (PTS only)
 			pes[8] = 0x05; // PES_header_data_length = 5 (PTS)
-			// PTS encoding: 4 bits marker + 33 bit PTS + 1 marker
-			pes[9] = (byte) (0x21 | ((pts90 >> 29) & 0x0E));
-			pes[10] = (byte) ((pts90 >> 22) & 0xFF);
-			pes[11] = (byte) (0x01 | ((pts90 >> 14) & 0xFE));
-			pes[12] = (byte) ((pts90 >> 7) & 0xFF);
-			pes[13] = (byte) (0x01 | ((pts90 << 1) & 0xFE));
+			M2tsPacketUtils.writeTimestamp(pes, 9, 0x2, pts90);
 		}
 		int dataOffset = headerLen;
 		if (needSubstreamId) {
@@ -774,18 +759,7 @@ public class M2tsWriter {
 
 	private void writeTsPacket(OutputStream out, int pid, boolean pusi, int ccVal, byte[] payload, long ats27)
 			throws IOException {
-		byte[] ts = new byte[TS_PACKET_SIZE];
-		ts[0] = (byte) SYNC_BYTE;
-		ts[1] = (byte) ((pusi ? 0x40 : 0x00) | ((pid >> 8) & 0x1F));
-		ts[2] = (byte) (pid & 0xFF);
-		ts[3] = (byte) (0x10 | (ccVal & 0x0F)); // payload only
-
-		int copy = Math.min(payload.length, TS_PACKET_SIZE - 4);
-		System.arraycopy(payload, 0, ts, 4, copy);
-		// Pad remainder with 0xFF
-		Arrays.fill(ts, 4 + copy, TS_PACKET_SIZE, (byte) 0xFF);
-
-		writeSourcePacket(out, ts, ats27);
+		writeSourcePacket(out, M2tsPacketUtils.buildTsPacket(pid, pusi, ccVal, payload), ats27);
 	}
 
 	// -------------------------------------------------------------------------
