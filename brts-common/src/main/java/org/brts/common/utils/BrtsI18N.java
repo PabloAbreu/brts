@@ -119,6 +119,10 @@ public class BrtsI18N {
 	}
 
 	public String getMessage(String languageCode, String key) {
+		return getMessage(languageCode, key, null);
+	}
+
+	public String getMessage(String languageCode, String key, String fallback) {
 		// return the localized message for the given key, based on the current language
 		// setting
 		// this is a placeholder implementation; you would replace this with actual
@@ -138,12 +142,13 @@ public class BrtsI18N {
 
 		// this one should never happen
 		if (labels == null)
-			return " -- missing labels -- ";
+			return fallback != null ? fallback : " -- missing labels -- ";
 		// uncomplete translation ?
 		// when not found we also could have returned the english label instead of the
 		// message
 		// but that would have made it harder to detect missing translations, so we
 		// return a clear message instead
-		return labels.getOrDefault(key, " - missing label for key " + key + " and language " + languageCode + " - ");
+		return labels.getOrDefault(key, fallback != null ? fallback
+				: " - missing label for key " + key + " and language " + languageCode + " - ");
 	}
 }
