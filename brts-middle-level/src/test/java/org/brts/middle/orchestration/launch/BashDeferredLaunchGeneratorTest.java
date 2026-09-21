@@ -54,15 +54,33 @@ class BashDeferredLaunchGeneratorTest {
 
 		assertThat(content).startsWith("#!/usr/bin/env bash");
 		assertThat(content).contains("# Title 1");
-		assertThat(content).contains("$BRTS_CLI low mkv-to-playlist --descriptor " + descriptor.toAbsolutePath()
-				+ " --output " + bdmv.toAbsolutePath());
-		assertThat(content).contains("$BRTS_CLI low index-write --input "
-				+ tempDir.resolve("index.json").toAbsolutePath() + " --output " + bdmv.toAbsolutePath());
-		assertThat(content).contains("echo \"Done.\"");
+		assertThat(content).contains("$BRTS_CLI 'low' 'mkv-to-playlist' '--descriptor' '" + descriptor.toAbsolutePath()
+				+ "' '--output' '" + bdmv.toAbsolutePath() + "'");
+		assertThat(content).contains("$BRTS_CLI 'low' 'index-write' '--input' '"
+				+ tempDir.resolve("index.json").toAbsolutePath() + "' '--output' '" + bdmv.toAbsolutePath() + "'");
+		assertThat(content).contains("echo 'Done.'");
 		// every invocation, including index-write, now gets a trailing blank line
-		assertThat(content).contains("$BRTS_CLI low index-write --input "
-				+ tempDir.resolve("index.json").toAbsolutePath() + " --output " + bdmv.toAbsolutePath() + "\n\n");
+		assertThat(content).contains("$BRTS_CLI 'low' 'index-write' '--input' '"
+				+ tempDir.resolve("index.json").toAbsolutePath() + "' '--output' '" + bdmv.toAbsolutePath() + "'\n\n");
 		assertThat(scriptPath.toFile().canExecute()).isTrue();
+	}
+
+	@Test
+	void write_quotesPathsAndValuesContainingSpacesAndSingleQuotes() throws IOException {
+		BashDeferredLaunchGenerator generator = new BashDeferredLaunchGenerator();
+		Path descriptor = tempDir.resolve("00001 mkv's descriptor.json");
+		Path bdmv = tempDir.resolve("BD MV");
+
+		generator.mkvToPlaylist(descriptor, bdmv);
+		generator.message("It's done.");
+
+		Path scriptPath = generator.write(tempDir);
+		String content = Files.readString(scriptPath);
+
+		assertThat(content).contains("$BRTS_CLI 'low' 'mkv-to-playlist' '--descriptor' '"
+				+ descriptor.toAbsolutePath().toString().replace("'", "'\\''") + "' '--output' '"
+				+ bdmv.toAbsolutePath() + "'");
+		assertThat(content).contains("echo 'It'\\''s done.'");
 	}
 
 }

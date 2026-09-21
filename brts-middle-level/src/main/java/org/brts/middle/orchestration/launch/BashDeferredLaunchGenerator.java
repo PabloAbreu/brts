@@ -49,7 +49,7 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 		lines.add("# 'java' must be in your PATH");
 		lines.add("set -euo pipefail");
 		lines.add("");
-		lines.add("BRTS_CLI=\"" + ProcessUtils.getBrtsCommand() + "\"");
+		lines.add("BRTS_CLI=" + quote(ProcessUtils.getBrtsCommand()));
 		lines.add("");
 	}
 
@@ -60,13 +60,25 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 
 	@Override
 	protected void invoke(BrtsCliInvocation invocation) {
-		lines.add("$BRTS_CLI " + String.join(" ", invocation.toTokens()));
+		StringBuilder line = new StringBuilder("$BRTS_CLI");
+		for (String token : invocation.toTokens()) {
+			line.append(' ').append(quote(token));
+		}
+		lines.add(line.toString());
 		lines.add("");
 	}
 
 	@Override
 	public void message(String text) {
-		lines.add("echo \"" + text + "\"");
+		lines.add("echo " + quote(text));
+	}
+
+	/**
+	 * Single-quotes a token for safe use in POSIX shells, escaping any embedded single quotes so paths and values
+	 * containing spaces or special characters are passed through unchanged.
+	 */
+	private static String quote(String token) {
+		return "'" + token.replace("'", "'\\''") + "'";
 	}
 
 	@Override
