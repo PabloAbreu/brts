@@ -33,6 +33,8 @@ import java.util.List;
 
 import org.brts.common.validation.DescriptorValidationException;
 import org.brts.common.validation.DescriptorValidator;
+import org.brts.middle.menu.descriptor.AudioMenuItem;
+import org.brts.middle.menu.descriptor.SubtitleMenuItem;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -105,6 +107,36 @@ class DescriptorConstraintsTest {
 
 		assertThat(DescriptorValidator.validate(disc)).extracting(v -> v.getPropertyPath().toString())
 				.containsExactly("titles[0].sourceMkv");
+	}
+
+	@Test
+	void titleMenuRejectsMultipleAudioDefaults() throws Exception {
+		DiscDescriptor disc = validDescriptor().toDiscDescriptor();
+		TitleMenuConfig menu = new TitleMenuConfig();
+		AudioMenuItem first = new AudioMenuItem();
+		first.setDefaultStream(true);
+		AudioMenuItem second = new AudioMenuItem();
+		second.setDefaultStream(true);
+		menu.setAudioItems(List.of(first, second));
+		disc.setTitleMenuConfig(menu);
+
+		assertThat(DescriptorValidator.validate(disc)).extracting(ConstraintViolation::getMessage)
+				.contains("title menu audioItems may contain at most one defaultStream");
+	}
+
+	@Test
+	void titleMenuRejectsMultipleSubtitleDefaults() throws Exception {
+		DiscDescriptor disc = validDescriptor().toDiscDescriptor();
+		TitleMenuConfig menu = new TitleMenuConfig();
+		SubtitleMenuItem first = new SubtitleMenuItem();
+		first.setDefaultStream(true);
+		SubtitleMenuItem second = new SubtitleMenuItem();
+		second.setDefaultStream(true);
+		menu.setSubtitleItems(List.of(first, second));
+		disc.setTitleMenuConfig(menu);
+
+		assertThat(DescriptorValidator.validate(disc)).extracting(ConstraintViolation::getMessage)
+				.contains("title menu subtitleItems may contain at most one defaultStream");
 	}
 
 }

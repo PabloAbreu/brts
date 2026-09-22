@@ -57,6 +57,7 @@ import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.PopupMenuMode;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
+import org.brts.middle.menu.descriptor.StreamMenuItem;
 import org.brts.middle.orchestration.launch.DeferredLaunchGenerator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -134,6 +135,9 @@ public class MiddleLevelOrchestrator {
 		boolean generateStreamSelectionProgram = menuConfig != null
 				&& ((menuConfig.getAudioItems() != null && !menuConfig.getAudioItems().isEmpty())
 						|| (menuConfig.getSubtitleItems() != null && !menuConfig.getSubtitleItems().isEmpty()));
+		int defaultAudioStream = menuConfig == null ? 0 : resolveDefaultStream(menuConfig.getAudioItems(), "audio", 0);
+		int defaultSubtitleStream = menuConfig == null ? -1
+				: resolveDefaultStream(menuConfig.getSubtitleItems(), "subtitle", -1);
 
 		// Resolve disc-wide popup style: popupStyle merged over global style (null-safe)
 		TextStyle resolvedPopupStyle = resolvePopupStyle(disc);
@@ -149,6 +153,8 @@ public class MiddleLevelOrchestrator {
 						"Duplicate title ID " + title.getTitleId() + " for title '" + title.getSourceMkv() + "'");
 			}
 			SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
+			validateDefaultStream(defaultAudioStream, countAudioTracks(result.mediaInfo(), title), "audio", 1);
+			validateDefaultStream(defaultSubtitleStream, countSubtitleTracks(result.mediaInfo(), title), "subtitle", 0);
 
 			String clipName = result.clipDescriptor().getClipName();
 
@@ -217,7 +223,10 @@ public class MiddleLevelOrchestrator {
 
 			// Top Menu and First Play both play the menu playlist
 			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
-			firstPlayMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
+			List<NavigationCommand> firstPlayCommands = new ArrayList<>(
+					NavigationCommandUtils.initializeAudioSubtitleChoices(defaultAudioStream, defaultSubtitleStream));
+			firstPlayCommands.addAll(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
+			firstPlayMovieObject.setNavigationCommands(firstPlayCommands);
 
 			launchGenerator.comment("Title menu");
 			launchGenerator.createTitleMenu(menuDescriptorFile.toPath(), discPath, baseDir);
@@ -256,6 +265,33 @@ public class MiddleLevelOrchestrator {
 
 		Path scriptPath = launchGenerator.write(outputDir);
 		log.info("Wrote orchestration script to {}", scriptPath);
+	}
+
+	private int resolveDefaultStream(List<? extends StreamMenuItem> items, String kind, int noDefault) {
+		if (items == null || items.isEmpty()) {
+			return noDefault;
+		}
+		StreamMenuItem selected = null;
+		for (StreamMenuItem item : items) {
+			if (item.isDefaultStream()) {
+				if (selected != null) {
+					throw new IllegalArgumentException(
+							"Title menu " + kind + " items may contain at most one defaultStream");
+				}
+				selected = item;
+			}
+		}
+		return selected == null ? noDefault : selected.getStreamNumber();
+	}
+
+	private void validateDefaultStream(int streamNumber, int trackCount, String kind, int minimum) {
+		if ((kind.equals("audio") && streamNumber == 0) || (kind.equals("subtitle") && streamNumber < 0)) {
+			return;
+		}
+		if (streamNumber < minimum || streamNumber > trackCount) {
+			throw new IllegalArgumentException("Default " + kind + " stream " + streamNumber
+					+ " is outside the available range " + minimum + ".." + trackCount);
+		}
 	}
 
 	// ── Title Menu Descriptor Builder ───────────────────────────────────────

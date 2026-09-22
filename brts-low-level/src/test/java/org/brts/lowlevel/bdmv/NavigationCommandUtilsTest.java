@@ -87,4 +87,19 @@ class NavigationCommandUtilsTest {
 		assertThat(NavigationCommandUtils.buildAudioSubtitleSelectionProgram(0, 0)).isEmpty();
 	}
 
+	@Test
+	void initializeAudioSubtitleChoices_writesOnlyDeclaredChoices() {
+		List<NavigationCommand> program = new ArrayList<>(NavigationCommandUtils.initializeAudioSubtitleChoices(2, 0));
+		NavigationCommandSimulator.SimulationResult result = new NavigationCommandSimulator(null, new HashMap<>(),
+				10_000).run(program);
+
+		assertThat(result.finalGprState()).containsEntry(NavigationCommandUtils.GPR_AUDIO_CHOICE, 2L)
+				.containsEntry(NavigationCommandUtils.GPR_SUB_CHOICE, 0L);
+	}
+
+	@Test
+	void initializeAudioSubtitleChoices_withoutDefaults_isEmpty() {
+		assertThat(NavigationCommandUtils.initializeAudioSubtitleChoices(0, -1)).isEmpty();
+	}
+
 }

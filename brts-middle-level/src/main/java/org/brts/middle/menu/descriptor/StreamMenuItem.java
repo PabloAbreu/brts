@@ -40,4 +40,7 @@ public abstract class StreamMenuItem extends MenuItem {
 	/** 1-based stream number. See subclasses for the exact PSR mapping and semantics. */
 	private int streamNumber;
 
+	/** Whether this stream should be selected when the disc is first played. */
+	private boolean defaultStream;
+
 }

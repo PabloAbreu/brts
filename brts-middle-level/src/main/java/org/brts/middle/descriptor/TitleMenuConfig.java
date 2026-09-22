@@ -34,6 +34,9 @@ import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
 import org.brts.middle.menu.descriptor.AudioMenuItem;
 import org.brts.middle.menu.descriptor.SubtitleMenuItem;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.validation.constraints.AssertTrue;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -106,5 +109,22 @@ public class TitleMenuConfig {
 
 	/** Subtitle track selection items for the embedded settings submenu (0 = subtitles off). */
 	private List<SubtitleMenuItem> subtitleItems = new ArrayList<>();
+
+	@JsonIgnore
+	@AssertTrue(message = "title menu audioItems may contain at most one defaultStream")
+	public boolean isAudioDefaultStreamConsistent() {
+		return countDefaults(audioItems) <= 1;
+	}
+
+	@JsonIgnore
+	@AssertTrue(message = "title menu subtitleItems may contain at most one defaultStream")
+	public boolean isSubtitleDefaultStreamConsistent() {
+		return countDefaults(subtitleItems) <= 1;
+	}
+
+	private static long countDefaults(List<? extends org.brts.middle.menu.descriptor.StreamMenuItem> items) {
+		return items == null ? 0
+				: items.stream().filter(org.brts.middle.menu.descriptor.StreamMenuItem::isDefaultStream).count();
+	}
 
 }

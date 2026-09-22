@@ -120,6 +120,19 @@ public class NavigationCommandUtils {
 		return cmdList(NavigationCommandMnemonic.MOVE, GPR_SUB_CHOICE, false, streamIndex, true);
 	}
 
+	/** Writes explicitly configured initial stream choices to their persistent GPRs. */
+	public static List<NavigationCommand> initializeAudioSubtitleChoices(int audioStreamIndex,
+			int subtitleStreamIndex) {
+		List<NavigationCommand> commands = new ArrayList<>();
+		if (audioStreamIndex > 0) {
+			commands.addAll(setAudioChoice(audioStreamIndex));
+		}
+		if (subtitleStreamIndex >= 0) {
+			commands.addAll(setSubtitleChoice(subtitleStreamIndex));
+		}
+		return commands;
+	}
+
 	/**
 	 * Builds a branch program on a single GPR: for each candidate value in {@code [minChoice, maxChoiceInclusive]}, if
 	 * the GPR equals that value the corresponding single-command action executes, otherwise the next candidate is
