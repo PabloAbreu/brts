@@ -173,8 +173,8 @@ public class PgsGenerator {
 		PgsCompositionSegment pcs = new PgsCompositionSegment();
 
 		VideoDescriptor vd = new VideoDescriptor();
-		vd.setWidth(config.getScreenWidth());
-		vd.setHeight(config.getScreenHeight());
+		vd.setWidth(config.effectiveScreenWidth());
+		vd.setHeight(config.effectiveScreenHeight());
 		vd.setFrameRateCode(config.getFrameRateCode());
 		pcs.setVideoDescriptor(vd);
 
@@ -236,8 +236,8 @@ public class PgsGenerator {
 		PgsCompositionSegment pcs = new PgsCompositionSegment();
 
 		VideoDescriptor vd = new VideoDescriptor();
-		vd.setWidth(config.getScreenWidth());
-		vd.setHeight(config.getScreenHeight());
+		vd.setWidth(config.effectiveScreenWidth());
+		vd.setHeight(config.effectiveScreenHeight());
 		vd.setFrameRateCode(config.getFrameRateCode());
 		pcs.setVideoDescriptor(vd);
 

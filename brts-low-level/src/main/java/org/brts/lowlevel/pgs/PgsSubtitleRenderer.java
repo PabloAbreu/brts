@@ -90,6 +90,9 @@ public class PgsSubtitleRenderer {
 	 * @return the rendered result
 	 */
 	public RenderResult render(String text, SubtitlePosition position) {
+
+		int screenW = config.effectiveScreenWidth();
+		int screenH = config.effectiveScreenHeight();
 		// Parse inline tags to produce plain text + style ranges
 		ParsedText parsed = parseHtmlTags(text);
 
@@ -105,7 +108,7 @@ public class PgsSubtitleRenderer {
 		gMeasure.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		gMeasure.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-		int maxLineWidth = config.getScreenWidth() - 2 * config.getHorizontalMargin();
+		int maxLineWidth = screenW - 2 * config.getHorizontalMargin();
 
 		// We need to track character offsets per line
 		int charOffset = 0;
@@ -204,8 +207,8 @@ public class PgsSubtitleRenderer {
 		}
 
 		// Clamp to screen bounds
-		screenX = Math.max(0, Math.min(screenX, config.getScreenWidth() - imgWidth));
-		screenY = Math.max(0, Math.min(screenY, config.getScreenHeight() - imgHeight));
+		screenX = Math.max(0, Math.min(screenX, screenW - imgWidth));
+		screenY = Math.max(0, Math.min(screenY, screenH - imgHeight));
 
 		return new RenderResult(image, screenX, screenY);
 	}
@@ -216,8 +219,9 @@ public class PgsSubtitleRenderer {
 	 * Computes screen (x, y) for numpad-style alignment.
 	 */
 	private int[] computeAlignedPosition(int imgWidth, int imgHeight, int alignment) {
-		int sw = config.getScreenWidth();
-		int sh = config.getScreenHeight();
+
+		int screenW = config.effectiveScreenWidth();
+		int screenH = config.effectiveScreenHeight();
 		int margin = config.getHorizontalMargin();
 		double vRatio = config.getVerticalPositionRatio();
 
@@ -227,16 +231,16 @@ public class PgsSubtitleRenderer {
 		int hPos = ((alignment - 1) % 3); // 0=left, 1=centre, 2=right
 		switch (hPos) {
 		case 0 -> x = margin;
-		case 2 -> x = sw - margin - imgWidth;
-		default -> x = (sw - imgWidth) / 2;
+		case 2 -> x = screenW - margin - imgWidth;
+		default -> x = (screenW - imgWidth) / 2;
 		}
 
 		// Vertical: 1,2,3 = bottom; 4,5,6 = middle; 7,8,9 = top
 		int vPos = ((alignment - 1) / 3); // 0=bottom, 1=middle, 2=top
 		switch (vPos) {
-		case 2 -> y = (int) (sh * 0.05); // top with small margin
-		case 1 -> y = (sh - imgHeight) / 2; // middle
-		default -> y = (int) (sh * vRatio) - imgHeight; // bottom
+		case 2 -> y = (int) (screenH * 0.05); // top with small margin
+		case 1 -> y = (screenH - imgHeight) / 2; // middle
+		default -> y = (int) (screenH * vRatio) - imgHeight; // bottom
 		}
 
 		return new int[] { x, y };

@@ -97,8 +97,8 @@ public class PopupMenuIgsBuilder {
 	 * @throws IOException on rendering errors
 	 */
 	public IgsDisplaySet build(PopupMenuConfig config) throws IOException {
-		int screenW = config.getScreenWidth();
-		int screenH = config.getScreenHeight();
+		int screenW = config.effectiveScreenWidth();
+		int screenH = config.effectiveScreenHeight();
 		List<SymbolicPage> symbolicPageSpecs = buildSymbolicPageSpecs(config);
 		if (symbolicPageSpecs == null)
 			return null;

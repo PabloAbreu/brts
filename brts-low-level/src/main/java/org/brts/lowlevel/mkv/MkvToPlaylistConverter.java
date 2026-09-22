@@ -388,6 +388,13 @@ public class MkvToPlaylistConverter {
 		config.setOutputClipName(popupClipName);
 		config.setAudioTracks(audioEntries);
 		config.setSubtitleTracks(subtitleEntries);
+		SourceMediaInfo.SourceTrack video = selectedTracks.stream().filter(t -> t.getCodingType().isVideo()).findFirst()
+				.orElseThrow();
+
+		if (video.getWidthPixels() != null && video.getHeightPixels() != null) {
+			config.setScreenWidth(video.getWidthPixels());
+			config.setScreenHeight(video.getHeightPixels());
+		}
 		return config;
 	}
 
@@ -395,8 +402,10 @@ public class MkvToPlaylistConverter {
 			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout, PopupMenuConfig template) {
 		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
 		if (config != null && template != null) {
-			config.setScreenWidth(template.getScreenWidth());
-			config.setScreenHeight(template.getScreenHeight());
+			if (template.getScreenWidth() != null)
+				config.setScreenWidth(template.getScreenWidth());
+			if (template.getScreenHeight() != null)
+				config.setScreenHeight(template.getScreenHeight());
 			config.setStyle(template.getStyle());
 			config.setLayout(template.getLayout());
 			config.setBackgrounds(template.getBackgrounds());

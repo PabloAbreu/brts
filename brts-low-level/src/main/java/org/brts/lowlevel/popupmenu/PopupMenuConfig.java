@@ -57,10 +57,18 @@ public class PopupMenuConfig {
 	private String outputClipName;
 
 	/** Screen width in pixels. */
-	private int screenWidth = 1920;
+	private Integer screenWidth;
+
+	public int effectiveScreenWidth() {
+		return screenWidth != null ? screenWidth : 1920;
+	}
 
 	/** Screen height in pixels. */
-	private int screenHeight = 1080;
+	private Integer screenHeight;
+
+	public int effectiveScreenHeight() {
+		return screenHeight != null ? screenHeight : 1080;
+	}
 
 	/**
 	 * Optional text style for popup menu buttons. When {@code null}, defaults are resolved from {@code textStyle.*}

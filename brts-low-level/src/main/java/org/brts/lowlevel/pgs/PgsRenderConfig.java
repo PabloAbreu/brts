@@ -41,10 +41,18 @@ import lombok.Setter;
 public class PgsRenderConfig {
 
 	/** Screen width in pixels. */
-	private int screenWidth = 1920;
+	private Integer screenWidth;
+
+	public int effectiveScreenWidth() {
+		return screenWidth != null ? screenWidth : 1920;
+	}
 
 	/** Screen height in pixels. */
-	private int screenHeight = 1080;
+	private Integer screenHeight;
+
+	public int effectiveScreenHeight() {
+		return screenHeight != null ? screenHeight : 1080;
+	}
 
 	/** Font family name. */
 	@BrtsValue
