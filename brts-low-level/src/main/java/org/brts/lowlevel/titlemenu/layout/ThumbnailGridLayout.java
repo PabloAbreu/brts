@@ -223,6 +223,8 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 			btn.setActivatedImage(activatedImg);
 			btn.setWidth(cellW);
 			btn.setHeight(cellH);
+			btn.setGridRow(row);
+			btn.setGridColumn(col);
 			positioned.add(btn);
 		}
 

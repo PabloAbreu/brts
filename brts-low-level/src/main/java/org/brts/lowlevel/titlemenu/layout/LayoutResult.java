@@ -100,6 +100,12 @@ public class LayoutResult {
 		/** Button height in pixels. */
 		private int height;
 
+		/** Zero-based row in the resolved visual grid. */
+		private int gridRow;
+
+		/** Zero-based column in the resolved visual grid. */
+		private int gridColumn;
+
 		/** Navigation commands for non-title buttons. Title buttons use JUMP_TITLE. */
 		private List<NavigationCommand> navigationCommands;
 

@@ -25,10 +25,12 @@ package org.brts.lowlevel.titlemenu.layout;
  */
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.util.List;
 
+import org.brts.common.menu.TextRenderer;
 import org.brts.common.menu.TextStyle;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
@@ -133,6 +135,88 @@ class TextListLayoutTest {
 			assertThat(btn.getHeight()).isEqualTo(expectedHeight);
 			assertThat(btn.getNormalImage().getHeight()).isEqualTo(expectedHeight);
 		}
+	}
+
+	@Test
+	void tenTitles_expandFromOneToTwoColumns() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(10, 1);
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		assertThat(result.getButtons()).extracting(LayoutResult.PositionedButton::getGridColumn).containsOnly(0, 1);
+		assertThat(result.getButtons().subList(0, 5)).allMatch(button -> button.getGridColumn() == 0);
+		assertThat(result.getButtons().subList(5, 10)).allMatch(button -> button.getGridColumn() == 1);
+		assertThat(result.getButtons())
+				.allMatch(button -> button.getY() + button.getHeight() <= descriptor.getScreenHeight() - 100);
+	}
+
+	@Test
+	void configuredColumns_areAminimumForTextLists() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(2, 2);
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		assertThat(result.getButtons()).extracting(LayoutResult.PositionedButton::getGridColumn).containsExactly(0, 1);
+	}
+
+	@Test
+	void layout_reducesSpacingBeforeFontSize() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(3, 1);
+		descriptor.setScreenWidth(360);
+		descriptor.setScreenHeight(320);
+		TextStyle style = new TextStyle();
+		style.setFontSize(16);
+		style.setPaddingX(30);
+		descriptor.getLayout().setTitleStyle(style);
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		LayoutResult.PositionedButton first = result.getButtons().get(0);
+		LayoutResult.PositionedButton second = result.getButtons().get(1);
+		assertThat(result.getButtons()).extracting(LayoutResult.PositionedButton::getGridColumn).containsOnly(0, 1);
+		assertThat(second.getY() - first.getY() - first.getHeight()).isBetween(0, 59);
+		assertThat(first.getHeight())
+				.isEqualTo(TextRenderer.renderTextButton("Title 1", style.withDefaults(), 80).height());
+	}
+
+	@Test
+	void layout_reducesFontSizeNoLowerThanSixteenPixels() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(1, 1);
+		descriptor.setScreenWidth(260);
+		descriptor.setScreenHeight(260);
+		TextStyle style = new TextStyle();
+		style.setFontSize(48);
+		descriptor.getLayout().setTitleStyle(style);
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		LayoutResult.PositionedButton button = result.getButtons().get(0);
+		TextStyle originalStyle = style.withDefaults();
+		TextStyle minimumStyle = new TextStyle();
+		minimumStyle.setFontSize(16);
+		minimumStyle = minimumStyle.mergeOver(originalStyle);
+		assertThat(button.getHeight()).isLessThan(TextRenderer.renderTextButton("Title 1", originalStyle, 75).height())
+				.isLessThanOrEqualTo(60)
+				.isGreaterThanOrEqualTo(TextRenderer.renderTextButton("Title 1", minimumStyle, 75).height());
+	}
+
+	@Test
+	void impossibleLayout_reportsAvailableGeometry() {
+		TitleMenuDescriptor descriptor = buildDescriptor(1, 1);
+		descriptor.setScreenHeight(201);
+
+		assertThatThrownBy(() -> new TextListLayout().layout(descriptor, Path.of(".")))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("1 titles")
+				.hasMessageContaining("1760x1").hasMessageContaining("minimum font size=16");
+	}
+
+	@Test
+	void emptyTitleList_returnsEmptyLayout() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(0, 1);
+
+		LayoutResult result = new TextListLayout().layout(descriptor, Path.of("."));
+
+		assertThat(result.getButtons()).isEmpty();
 	}
 
 	@Test

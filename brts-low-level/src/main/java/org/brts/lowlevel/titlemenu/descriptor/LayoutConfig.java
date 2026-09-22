@@ -45,7 +45,10 @@ public class LayoutConfig {
 	/** Layout algorithm to use. Defaults to the configured title-menu layout type. */
 	private LayoutType type;
 
-	/** Number of columns for button arrangement. Defaults to 1 for TEXT_LIST, 2 for THUMBNAIL_GRID. */
+	/**
+	 * Number of columns for button arrangement. For TEXT_LIST this is the preferred minimum and more columns may be
+	 * added to fit the available height. For THUMBNAIL_GRID it is fixed. Defaults to 1 and 2 respectively.
+	 */
 	private Integer columns;
 
 	/** Top margin in pixels. */
@@ -132,7 +135,7 @@ public class LayoutConfig {
 		}
 	}
 
-	/** Returns the effective number of columns, applying defaults based on layout type. */
+	/** Returns the preferred minimum (TEXT_LIST) or fixed (THUMBNAIL_GRID) number of columns. */
 	public int effectiveColumns() {
 		if (columns != null)
 			return columns;

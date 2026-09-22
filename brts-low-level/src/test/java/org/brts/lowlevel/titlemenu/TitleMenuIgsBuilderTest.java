@@ -40,6 +40,7 @@ import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
 import org.brts.lowlevel.titlemenu.layout.LayoutResult;
 import org.brts.lowlevel.titlemenu.layout.TextListLayout;
+import org.brts.lowlevel.titlemenu.layout.ThumbnailGridLayout;
 import org.junit.jupiter.api.Test;
 
 class TitleMenuIgsBuilderTest {
@@ -113,6 +114,51 @@ class TitleMenuIgsBuilderTest {
 		IgsButton btn3 = bogs.get(2).getButtons().get(0);
 		assertThat(btn3.getUpperButtonIdRef()).isEqualTo(2);
 		assertThat(btn3.getLowerButtonIdRef()).isEqualTo(1);
+	}
+
+	@Test
+	void build_wiresDpadNeighbours_fromResolvedColumnMajorGrid() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(5);
+		descriptor.getLayout().setColumns(2);
+		LayoutResult layoutResult = new TextListLayout().layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1).getBogs();
+
+		IgsButton first = bogs.get(0).getButtons().get(0);
+		assertThat(first.getUpperButtonIdRef()).isEqualTo(3);
+		assertThat(first.getLowerButtonIdRef()).isEqualTo(2);
+		assertThat(first.getLeftButtonIdRef()).isEqualTo(4);
+		assertThat(first.getRightButtonIdRef()).isEqualTo(4);
+
+		IgsButton fifth = bogs.get(4).getButtons().get(0);
+		assertThat(fifth.getUpperButtonIdRef()).isEqualTo(4);
+		assertThat(fifth.getLowerButtonIdRef()).isEqualTo(4);
+		assertThat(fifth.getLeftButtonIdRef()).isEqualTo(2);
+		assertThat(fifth.getRightButtonIdRef()).isEqualTo(2);
+	}
+
+	@Test
+	void build_wiresDpadNeighbours_fromResolvedRowMajorGrid() throws Exception {
+		TitleMenuDescriptor descriptor = buildDescriptor(5);
+		descriptor.getLayout().setType(LayoutType.THUMBNAIL_GRID);
+		descriptor.getLayout().setColumns(2);
+		LayoutResult layoutResult = new ThumbnailGridLayout().layout(descriptor, Path.of("."));
+
+		IgsDisplaySet displaySet = new TitleMenuIgsBuilder().build(layoutResult, descriptor);
+		List<IgsBog> bogs = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1).getBogs();
+
+		IgsButton first = bogs.get(0).getButtons().get(0);
+		assertThat(first.getUpperButtonIdRef()).isEqualTo(5);
+		assertThat(first.getLowerButtonIdRef()).isEqualTo(3);
+		assertThat(first.getLeftButtonIdRef()).isEqualTo(2);
+		assertThat(first.getRightButtonIdRef()).isEqualTo(2);
+
+		IgsButton fifth = bogs.get(4).getButtons().get(0);
+		assertThat(fifth.getUpperButtonIdRef()).isEqualTo(3);
+		assertThat(fifth.getLowerButtonIdRef()).isEqualTo(1);
+		assertThat(fifth.getLeftButtonIdRef()).isEqualTo(5);
+		assertThat(fifth.getRightButtonIdRef()).isEqualTo(5);
 	}
 
 	@Test

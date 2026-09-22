@@ -49,6 +49,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class TextListLayout implements TitleMenuLayout {
+	private static final int MIN_ADAPTIVE_FONT_SIZE = 16;
 	private static final int SETTINGS_ENTRY_PAGE_ID = 2;
 	private static final int SETTINGS_BUTTON_MAX_WIDTH = 800;
 	private static final int SETTINGS_BUTTON_HEIGHT = 40;
@@ -60,7 +61,6 @@ public class TextListLayout implements TitleMenuLayout {
 		LayoutConfig config = descriptor.getLayout();
 		int screenW = descriptor.getScreenWidth();
 		int screenH = descriptor.getScreenHeight();
-		int columns = config.effectiveColumns();
 
 		// When a valid bounding box is set, it replaces margins entirely
 		BoundingBox box = config.getBoundingBox();
@@ -84,76 +84,88 @@ public class TextListLayout implements TitleMenuLayout {
 			availableHeight = screenH - marginTop - marginBottom;
 		}
 		int spacingX = config.effectiveSpacingX();
-		int spacingY = config.effectiveSpacingY();
+		int requestedSpacingY = config.effectiveSpacingY();
 
 		TextStyle globalStyle = resolveGlobalStyle(config.getTitleStyle());
 		int maxButtonWidth = config.effectiveMaxButtonWidth(availableWidth);
 
 		List<TitleEntry> titles = descriptor.getTitles();
-		List<LayoutResult.PositionedButton> positioned = new ArrayList<>();
+		LayoutResult result = new LayoutResult();
+		result.setCompositeBackground(false);
+		result.setBackgroundComposition(null);
+		if (titles.isEmpty()) {
+			result.setButtons(new ArrayList<>());
+			layoutSettingsMenus(descriptor, result);
+			return result;
+		}
 
-		// Calculate available width per column
-		int totalSpacingX = (columns - 1) * spacingX;
-		int columnWidth = (availableWidth - totalSpacingX) / columns;
+		int requestedColumns = config.effectiveColumns();
+		if (requestedColumns <= 0) {
+			throw new IllegalArgumentException("Text-list columns must be greater than zero: " + requestedColumns);
+		}
 
-		// Distribute titles across columns
-		int titlesPerColumn = (int) Math.ceil((double) titles.size() / columns);
-
-		// ── Pass 1: render each button at its natural size to discover dimensions ──
-		List<TextStyle> resolvedStyles = new ArrayList<>();
-		List<ButtonImages> rendered = new ArrayList<>();
+		List<TextStyle> originalStyles = new ArrayList<>();
 		for (TitleEntry title : titles) {
 			TextStyle style = resolveItemStyle(title.getStyle(), globalStyle);
-			resolvedStyles.add(style);
-			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, maxButtonWidth);
-			rendered.add(images);
+			originalStyles.add(style);
 		}
 
-		// ── Uniform width: max natural width, capped at column width ──
-		int uniformWidth = 0;
-		for (ButtonImages bi : rendered) {
-			uniformWidth = Math.max(uniformWidth, bi.width());
+		int minimumColumns = Math.min(requestedColumns, titles.size());
+		LayoutCandidate candidate = findCandidate(titles, originalStyles, minimumColumns, spacingX, requestedSpacingY,
+				availableWidth, availableHeight, maxButtonWidth);
+		int fontReduction = 0;
+		if (candidate == null) {
+			candidate = findBestReducedSpacingCandidate(titles, originalStyles, minimumColumns, spacingX,
+					requestedSpacingY, availableWidth, availableHeight, maxButtonWidth);
 		}
-		uniformWidth = Math.min(uniformWidth, columnWidth);
-
-		// ── Row heights: use uniform height when vertical real estate permits ──
-		int globalMaxHeight = 0;
-		for (ButtonImages bi : rendered) {
-			globalMaxHeight = Math.max(globalMaxHeight, bi.height());
-		}
-		boolean uniformHeight = titlesPerColumn * globalMaxHeight + (titlesPerColumn - 1) * spacingY <= availableHeight;
-
-		int[] rowHeights = new int[titlesPerColumn];
-		if (uniformHeight) {
-			Arrays.fill(rowHeights, globalMaxHeight);
-		} else {
-			// Fall back to per-row max (current behaviour preserving existing code output)
-			for (int i = 0; i < rendered.size(); i++) {
-				int row = i % titlesPerColumn;
-				rowHeights[row] = Math.max(rowHeights[row], rendered.get(i).height());
+		int maximumFontReduction = originalStyles.stream().mapToInt(
+				style -> Math.max(0, style.getFontSize() - Math.min(style.getFontSize(), MIN_ADAPTIVE_FONT_SIZE))).max()
+				.orElse(0);
+		while (candidate == null && fontReduction < maximumFontReduction) {
+			fontReduction++;
+			List<TextStyle> reducedStyles = reduceFontSizes(originalStyles, fontReduction);
+			candidate = findCandidate(titles, reducedStyles, minimumColumns, spacingX, requestedSpacingY,
+					availableWidth, availableHeight, maxButtonWidth);
+			if (candidate == null) {
+				candidate = findBestReducedSpacingCandidate(titles, reducedStyles, minimumColumns, spacingX,
+						requestedSpacingY, availableWidth, availableHeight, maxButtonWidth);
 			}
 		}
 
-		int[] rowY = new int[titlesPerColumn];
-		rowY[0] = originY;
-		for (int r = 1; r < titlesPerColumn; r++) {
-			rowY[r] = rowY[r - 1] + rowHeights[r - 1] + spacingY;
+		if (candidate == null) {
+			throw new IllegalArgumentException(String.format(
+					"Text list with %d titles does not fit in %dx%d pixels (requested columns=%d, spacing=%d, minimum font size=%d)",
+					titles.size(), availableWidth, availableHeight, requestedColumns, requestedSpacingY,
+					MIN_ADAPTIVE_FONT_SIZE));
 		}
 
-		// ── Pass 2: re-render each button at the uniform (width, rowHeight) ──
-		int centreOffsetX = Math.max(0, (columnWidth - uniformWidth) / 2);
+		int[] rowHeights = candidate.rowHeights().clone();
+		boolean uniformHeight = candidate.rows() * candidate.globalMaxHeight()
+				+ (candidate.rows() - 1) * candidate.spacingY() <= availableHeight;
+		if (uniformHeight) {
+			Arrays.fill(rowHeights, candidate.globalMaxHeight());
+		}
+
+		int[] rowY = new int[candidate.rows()];
+		rowY[0] = originY;
+		for (int row = 1; row < candidate.rows(); row++) {
+			rowY[row] = rowY[row - 1] + rowHeights[row - 1] + candidate.spacingY();
+		}
+
+		List<LayoutResult.PositionedButton> positioned = new ArrayList<>();
+		int centreOffsetX = Math.max(0, (candidate.columnWidth() - candidate.uniformWidth()) / 2);
 		for (int i = 0; i < titles.size(); i++) {
 			TitleEntry title = titles.get(i);
-			TextStyle style = resolvedStyles.get(i);
+			TextStyle style = candidate.styles().get(i);
 
-			int col = i / titlesPerColumn;
-			int row = i % titlesPerColumn;
+			int col = i / candidate.rows();
+			int row = i % candidate.rows();
 			int targetHeight = rowHeights[row];
 
-			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, uniformWidth,
+			ButtonImages images = TextRenderer.renderTextButton(title.getDisplayName(), style, candidate.uniformWidth(),
 					targetHeight);
 
-			int colX = originX + col * (columnWidth + spacingX);
+			int colX = originX + col * (candidate.columnWidth() + spacingX);
 			int x = colX + centreOffsetX;
 			int y = rowY[row];
 
@@ -165,20 +177,112 @@ public class TextListLayout implements TitleMenuLayout {
 			btn.setNormalImage(images.normal());
 			btn.setSelectedImage(images.selected());
 			btn.setActivatedImage(images.activated());
-			btn.setWidth(uniformWidth);
+			btn.setWidth(candidate.uniformWidth());
 			btn.setHeight(targetHeight);
+			btn.setGridRow(row);
+			btn.setGridColumn(col);
 			positioned.add(btn);
 		}
 
-		LayoutResult result = new LayoutResult();
 		result.setButtons(positioned);
-		result.setCompositeBackground(false);
-		result.setBackgroundComposition(null);
 		layoutSettingsMenus(descriptor, result);
 
-		log.info("TextListLayout: {} titles arranged in {} column(s), button size {}×{} (uniform height: {})",
-				titles.size(), columns, uniformWidth, globalMaxHeight, uniformHeight);
+		log.info(
+				"TextListLayout: {} titles arranged in {} column(s), button width {}, max height {}, spacing {}, font reduction {} (uniform height: {})",
+				titles.size(), candidate.columns(), candidate.uniformWidth(), candidate.globalMaxHeight(),
+				candidate.spacingY(), fontReduction, uniformHeight);
 		return result;
+	}
+
+	private static LayoutCandidate findCandidate(List<TitleEntry> titles, List<TextStyle> styles, int minimumColumns,
+			int spacingX, int spacingY, int availableWidth, int availableHeight, int maxButtonWidth) {
+		for (int columns = minimumColumns; columns <= titles.size(); columns++) {
+			LayoutCandidate candidate = measureCandidate(titles, styles, columns, spacingX, spacingY, availableWidth,
+					maxButtonWidth);
+			if (candidate != null && candidate.totalHeight() <= availableHeight) {
+				return candidate;
+			}
+		}
+		return null;
+	}
+
+	private static LayoutCandidate findBestReducedSpacingCandidate(List<TitleEntry> titles, List<TextStyle> styles,
+			int minimumColumns, int spacingX, int requestedSpacingY, int availableWidth, int availableHeight,
+			int maxButtonWidth) {
+		LayoutCandidate best = null;
+		for (int columns = minimumColumns; columns <= titles.size(); columns++) {
+			LayoutCandidate unspaced = measureCandidate(titles, styles, columns, spacingX, 0, availableWidth,
+					maxButtonWidth);
+			if (unspaced == null || unspaced.totalHeight() > availableHeight) {
+				continue;
+			}
+			int spacingY = unspaced.rows() <= 1 ? requestedSpacingY
+					: Math.min(requestedSpacingY, (availableHeight - unspaced.contentHeight()) / (unspaced.rows() - 1));
+			LayoutCandidate candidate = unspaced.withSpacingY(spacingY);
+			if (best == null || candidate.spacingY() > best.spacingY()) {
+				best = candidate;
+			}
+		}
+		return best;
+	}
+
+	private static LayoutCandidate measureCandidate(List<TitleEntry> titles, List<TextStyle> styles, int columns,
+			int spacingX, int spacingY, int availableWidth, int maxButtonWidth) {
+		int totalSpacingX = (columns - 1) * spacingX;
+		int columnWidth = (availableWidth - totalSpacingX) / columns;
+		if (columnWidth <= 0) {
+			return null;
+		}
+
+		int renderWidth = Math.min(maxButtonWidth, columnWidth);
+		int minimumWidth = styles.stream().mapToInt(style -> 2 * style.getPaddingX() + 1).max().orElse(1);
+		if (renderWidth < minimumWidth) {
+			return null;
+		}
+
+		int rows = (int) Math.ceil((double) titles.size() / columns);
+		List<ButtonImages> rendered = new ArrayList<>();
+		int uniformWidth = 0;
+		int globalMaxHeight = 0;
+		for (int i = 0; i < titles.size(); i++) {
+			ButtonImages images = TextRenderer.renderTextButton(titles.get(i).getDisplayName(), styles.get(i),
+					renderWidth);
+			rendered.add(images);
+			uniformWidth = Math.max(uniformWidth, images.width());
+			globalMaxHeight = Math.max(globalMaxHeight, images.height());
+		}
+
+		int[] rowHeights = new int[rows];
+		for (int i = 0; i < rendered.size(); i++) {
+			int row = i % rows;
+			rowHeights[row] = Math.max(rowHeights[row], rendered.get(i).height());
+		}
+		int contentHeight = Arrays.stream(rowHeights).sum();
+		return new LayoutCandidate(columns, rows, columnWidth, uniformWidth, globalMaxHeight, rowHeights, contentHeight,
+				spacingY, styles);
+	}
+
+	private static List<TextStyle> reduceFontSizes(List<TextStyle> styles, int reduction) {
+		List<TextStyle> reduced = new ArrayList<>();
+		for (TextStyle style : styles) {
+			TextStyle fontOverride = new TextStyle();
+			int floor = Math.min(style.getFontSize(), MIN_ADAPTIVE_FONT_SIZE);
+			fontOverride.setFontSize(Math.max(floor, style.getFontSize() - reduction));
+			reduced.add(fontOverride.mergeOver(style));
+		}
+		return reduced;
+	}
+
+	private record LayoutCandidate(int columns, int rows, int columnWidth, int uniformWidth, int globalMaxHeight,
+			int[] rowHeights, int contentHeight, int spacingY, List<TextStyle> styles) {
+		int totalHeight() {
+			return contentHeight + (rows - 1) * spacingY;
+		}
+
+		LayoutCandidate withSpacingY(int newSpacingY) {
+			return new LayoutCandidate(columns, rows, columnWidth, uniformWidth, globalMaxHeight, rowHeights,
+					contentHeight, newSpacingY, styles);
+		}
 	}
 
 	static void layoutSettingsMenus(TitleMenuDescriptor descriptor, LayoutResult result) {
