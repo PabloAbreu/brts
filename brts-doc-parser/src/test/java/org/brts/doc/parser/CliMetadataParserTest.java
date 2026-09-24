@@ -45,7 +45,7 @@ class CliMetadataParserTest {
 
 		assertThat(metadata.schemaVersion()).isEqualTo("1.0");
 		assertThat(metadata.levels()).extracting("name").containsExactly("low", "mid", "high");
-		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(40);
+		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(41);
 		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).extracting("path").contains("mid build",
 				"high build");
 

@@ -68,12 +68,6 @@ public class DisplaySetPanel extends JPanel {
 
 	public static final int STATUS_BAR_HEIGHT = 24;
 
-	private static final int CHECKER_SIZE = 32;
-
-	private static final Color CHECKER_LIGHT = new Color(0x55, 0x55, 0x55);
-
-	private static final Color CHECKER_DARK = new Color(0x33, 0x33, 0x33);
-
 	private static final Color NORMAL_HIGHLIGHT = new Color(0x00, 0x77, 0xAA, 0x80);
 
 	private static final Color SELECTION_HIGHLIGHT = new Color(0x00, 0xAA, 0xFF, 0x90);
@@ -209,17 +203,7 @@ public class DisplaySetPanel extends JPanel {
 	}
 
 	private void drawCheckerboard(Graphics2D g2, Rectangle vp) {
-		AffineTransform saved = g2.getTransform();
-		g2.setTransform(new AffineTransform());
-
-		for (int y = vp.y; y < vp.y + vp.height; y += CHECKER_SIZE * 2) {
-			for (int x = vp.x; x < vp.x + vp.width; x += CHECKER_SIZE * 2) {
-				// copy pre-rendered tile for better performance
-				g2.drawImage(checkerboardTile, x, y, null);
-			}
-		}
-
-		g2.setTransform(saved);
+		CheckerboardRenderer.paint(g2, vp, checkerboardTile);
 	}
 
 	private void renderPage(Graphics2D g2) {
@@ -609,15 +593,7 @@ public class DisplaySetPanel extends JPanel {
 	// ── Checkerboard tile ───────────────────────────────────────────────────
 
 	private void buildCheckerboardTile() {
-		int size = CHECKER_SIZE * 2;
-		checkerboardTile = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
-		Graphics2D tg = checkerboardTile.createGraphics();
-		tg.setColor(CHECKER_LIGHT);
-		tg.fillRect(0, 0, size, size);
-		tg.setColor(CHECKER_DARK);
-		tg.fillRect(0, CHECKER_SIZE, CHECKER_SIZE, CHECKER_SIZE);
-		tg.fillRect(CHECKER_SIZE, 0, CHECKER_SIZE, CHECKER_SIZE);
-		tg.dispose();
+		checkerboardTile = CheckerboardRenderer.buildTile();
 	}
 
 }

@@ -36,7 +36,7 @@ public class MiddleLevelCli {
 	static {
 		dispatcher = new LevelDispatcher("mid");
 		dispatcher.register(new BuildCli.Run()).register(new SimpleBuildCli.Run()).register(new ScanPlaylistsCli.Run())
-				.register(new DsPreviewCli.Run()).register(new SetupMenuCli.Run())
+				.register(new DsPreviewCli.Run()).register(new PgsPreviewCli.Run()).register(new SetupMenuCli.Run())
 				.register(new FindFirstPlaylistCli.Run());
 	}
 
