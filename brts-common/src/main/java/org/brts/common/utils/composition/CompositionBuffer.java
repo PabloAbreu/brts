@@ -32,7 +32,6 @@ import java.util.Map;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
 import org.brts.common.utils.composition.sources.video.VideoFrames;
-import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -59,14 +58,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class CompositionBuffer {
-	static {
-		try {
-			String v = Loader.Detector.getPlatform();
-			System.out.println("\n\nOpenCV platform: " + v + "\n\n");
-		} catch (Throwable t) {
-			log.warn("Failed to load OpenCV native libraries: {}", t.getMessage());
-		}
-	}
 
 	private final @Getter ImagesComposition configuration;
 
