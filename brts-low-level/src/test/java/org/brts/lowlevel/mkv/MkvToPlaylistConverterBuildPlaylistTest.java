@@ -119,7 +119,8 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 		backgrounds.setShared(List.of(layer));
 		template.setBackgrounds(backgrounds);
 
-		PopupMenuConfig result = invokeBuildPopupMenuConfig(List.of(audioTrack(1), audioTrack(2)), template);
+		PopupMenuConfig result = invokeBuildPopupMenuConfig(List.of(videoTrack(1), audioTrack(2), audioTrack(3)),
+				template);
 
 		assertThat(result.getLayout()).isEqualTo(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM);
 		assertThat(result.getScreenWidth()).isEqualTo(1280);
@@ -131,10 +132,7 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 
 	private PopupMenuConfig invokeBuildPopupMenuConfig(List<SourceTrack> tracks, PopupMenuConfig template)
 			throws Exception {
-		Method method = MkvToPlaylistConverter.class.getDeclaredMethod("buildPopupMenuConfig", String.class, List.class,
-				TextStyle.class, PopupMenuConfig.Layout.class, PopupMenuConfig.class);
-		method.setAccessible(true);
-		return (PopupMenuConfig) method.invoke(converter, "00800", tracks, null, PopupMenuConfig.Layout.VERTICAL_LIST,
+		return MkvToPlaylistConverter.buildPopupMenuConfig("00800", tracks, null, PopupMenuConfig.Layout.VERTICAL_LIST,
 				template);
 	}
 
@@ -142,6 +140,14 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 		SourceTrack track = new SourceTrack();
 		track.setTrackNumber(trackNumber);
 		track.setCodingType(StreamCodingType.DOLBY_AC3);
+		track.setLanguage("eng");
+		return track;
+	}
+
+	private static SourceTrack videoTrack(int trackNumber) {
+		SourceTrack track = new SourceTrack();
+		track.setTrackNumber(trackNumber);
+		track.setCodingType(StreamCodingType.H264_AVC);
 		track.setLanguage("eng");
 		return track;
 	}

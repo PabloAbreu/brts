@@ -351,7 +351,7 @@ public class MkvToPlaylistConverter {
 
 	// ── Popup Menu Config builder ───────────────────────────────────────────
 
-	private PopupMenuConfig buildPopupMenuConfig(String popupClipName,
+	static PopupMenuConfig buildPopupMenuConfig(String popupClipName,
 			List<SourceMediaInfo.SourceTrack> selectedTracks) {
 
 		List<PopupMenuConfig.TrackEntry> audioEntries = new ArrayList<>();
@@ -398,7 +398,7 @@ public class MkvToPlaylistConverter {
 		return config;
 	}
 
-	private PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
+	static PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
 			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout, PopupMenuConfig template) {
 		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
 		if (config != null && template != null) {
