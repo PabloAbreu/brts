@@ -283,33 +283,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 	 * @param model the fully loaded preview model
 	 */
 	public static void showAndWait(DisplaySetPreviewModel model) {
-		log.info("Opening DS Preview: {}×{}, {} pages", model.getScreenWidth(), model.getScreenHeight(),
-				model.getPages().size());
-
-		final Object lock = new Object();
-
-		SwingUtilities.invokeLater(() -> {
-			DisplaySetPreviewFrame frame = new DisplaySetPreviewFrame(model);
-			frame.addWindowListener(new WindowAdapter() {
-				@Override
-				public void windowClosed(WindowEvent e) {
-					synchronized (lock) {
-						lock.notifyAll();
-					}
-				}
-			});
-			frame.setVisible(true);
-		});
-
-		synchronized (lock) {
-			try {
-				lock.wait();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-
-		log.info("DS Preview window closed");
+		UIUtils.showAndWait(model, () -> new DisplaySetPreviewFrame(model));
 	}
 
 }

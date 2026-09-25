@@ -42,12 +42,9 @@ import java.util.Map;
  */
 @Getter
 @Setter
-public class DisplaySetPreviewModel {
+public class DisplaySetPreviewModel extends ScreenModel {
 
 	// ── Static data (from the parsed display set) ───────────────────────────
-
-	/** Video descriptor (screen width / height). */
-	private VideoDescriptor videoDescriptor;
 
 	/** All pages in the interactive composition. */
 	private List<IgsPage> pages = new ArrayList<>();
@@ -92,14 +89,6 @@ public class DisplaySetPreviewModel {
 			return pages.get(currentPageIndex);
 		}
 		return null;
-	}
-
-	public int getScreenWidth() {
-		return videoDescriptor != null ? videoDescriptor.getWidth() : 1920;
-	}
-
-	public int getScreenHeight() {
-		return videoDescriptor != null ? videoDescriptor.getHeight() : 1080;
 	}
 
 	/**

@@ -38,6 +38,12 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -46,7 +52,6 @@ import javax.swing.JComponent;
 import javax.swing.JFrame;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.SwingWorker;
 
 import org.brts.lowlevel.thumbnail.VideoFrameGrabber;
 
@@ -74,6 +79,15 @@ public class PgsPreviewFrame extends JFrame {
 
 	private VideoFrameGrabber frameGrabber;
 
+	/** Number of items ahead of the current one to prefetch snapshots for. */
+	private static final int PREFETCH_AHEAD = 3;
+
+	/** Serializes all grabs since {@link VideoFrameGrabber} shares mutable decoder/seek state. */
+	private ExecutorService frameGrabberExecutor;
+
+	/** Indices with a queued or running grab task, keyed so stale ones can be cancelled; EDT-only access. */
+	private final Map<Integer, Future<?>> pendingSnapshotFutures = new HashMap<>();
+
 	public PgsPreviewFrame(PgsPreviewModel model) {
 		super("BRTS — PGS Preview");
 		this.model = model;
@@ -83,6 +97,7 @@ public class PgsPreviewFrame extends JFrame {
 		if (model.getBackgroundMode() == PgsPreviewModel.BackgroundMode.VIDEO_SNAPSHOT) {
 			try {
 				frameGrabber = new VideoFrameGrabber(model.getVideoSource());
+				frameGrabberExecutor = Executors.newSingleThreadExecutor();
 			} catch (IOException e) {
 				log.warn("Could not open video snapshot source {}, falling back to checkerboard",
 						model.getVideoSource(), e);
@@ -131,6 +146,9 @@ public class PgsPreviewFrame extends JFrame {
 		addWindowListener(new WindowAdapter() {
 			@Override
 			public void windowClosed(WindowEvent e) {
+				if (frameGrabberExecutor != null) {
+					frameGrabberExecutor.shutdownNow();
+				}
 				if (frameGrabber != null) {
 					frameGrabber.close();
 				}
@@ -214,40 +232,69 @@ public class PgsPreviewFrame extends JFrame {
 	}
 
 	/**
-	 * Grabs (or reuses the cached) video snapshot for the current item on a background thread, then repaints.
+	 * Grabs (or reuses the cached) video snapshots for the current item and the next {@value #PREFETCH_AHEAD} items, on
+	 * a serialized background thread, then repaints as each one becomes available. Queued requests that fall outside
+	 * the new window are cancelled.
 	 */
 	private void requestSnapshotForCurrentItem() {
 		if (frameGrabber == null) {
 			return;
 		}
-		PgsSubtitleItem item = model.getCurrentItem();
-		if (item == null || model.getSnapshotCache().containsKey(item.getIndex())) {
+		int firstIndex = model.getCurrentIndex();
+		int lastIndex = Math.min(firstIndex + PREFETCH_AHEAD, model.getItems().size() - 1);
+
+		pendingSnapshotFutures.entrySet().removeIf(entry -> {
+			int index = entry.getKey();
+			if (index >= firstIndex && index <= lastIndex) {
+				return false;
+			}
+			entry.getValue().cancel(false);
+			return true;
+		});
+
+		for (int index = firstIndex; index <= lastIndex; index++) {
+			requestSnapshot(index);
+		}
+	}
+
+	/**
+	 * Submits a background grab for a single item's snapshot, unless it is already cached or already pending.
+	 */
+	private void requestSnapshot(int index) {
+		if (index < 0 || index >= model.getItems().size()) {
 			return;
 		}
-		int index = item.getIndex();
+		if (model.getSnapshotCache().containsKey(index) || pendingSnapshotFutures.containsKey(index)) {
+			return;
+		}
+		PgsSubtitleItem item = model.getItems().get(index);
 		double seconds = item.getShowPtsTicks() / 90000.0;
 
-		new SwingWorker<BufferedImage, Void>() {
-			@Override
-			protected BufferedImage doInBackground() throws Exception {
-				return frameGrabber.grabFrameAt(seconds);
+		Future<?> future = frameGrabberExecutor.submit(() -> {
+			BufferedImage snapshot = null;
+			Exception failure = null;
+			try {
+				snapshot = frameGrabber.grabFrameAt(seconds);
+			} catch (Exception e) {
+				failure = e;
 			}
-
-			@Override
-			protected void done() {
-				try {
-					BufferedImage snapshot = get();
-					if (snapshot != null) {
-						model.getSnapshotCache().put(index, snapshot);
-						if (model.getCurrentIndex() == index) {
-							panel.repaint();
-						}
-					}
-				} catch (Exception e) {
-					log.warn("Failed to grab video snapshot at {}s for item {}", seconds, index, e);
+			BufferedImage finalSnapshot = snapshot;
+			Exception finalFailure = failure;
+			SwingUtilities.invokeLater(() -> {
+				pendingSnapshotFutures.remove(index);
+				if (finalFailure != null) {
+					log.warn("Failed to grab video snapshot at {}s for item {}", seconds, index, finalFailure);
+					return;
 				}
-			}
-		}.execute();
+				if (finalSnapshot != null) {
+					model.getSnapshotCache().put(index, finalSnapshot);
+					if (model.getCurrentIndex() == index) {
+						panel.repaint();
+					}
+				}
+			});
+		});
+		pendingSnapshotFutures.put(index, future);
 	}
 
 	// ── Public launch helper ────────────────────────────────────────────────
@@ -258,33 +305,7 @@ public class PgsPreviewFrame extends JFrame {
 	 * @param model the fully loaded preview model
 	 */
 	public static void showAndWait(PgsPreviewModel model) {
-		log.info("Opening PGS Preview: {}×{}, {} item(s)", model.getScreenWidth(), model.getScreenHeight(),
-				model.getItems().size());
-
-		final Object lock = new Object();
-
-		SwingUtilities.invokeLater(() -> {
-			PgsPreviewFrame frame = new PgsPreviewFrame(model);
-			frame.addWindowListener(new WindowAdapter() {
-				@Override
-				public void windowClosed(WindowEvent e) {
-					synchronized (lock) {
-						lock.notifyAll();
-					}
-				}
-			});
-			frame.setVisible(true);
-		});
-
-		synchronized (lock) {
-			try {
-				lock.wait();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-
-		log.info("PGS Preview window closed");
+		UIUtils.showAndWait(model, () -> new PgsPreviewFrame(model));
 	}
 
 }

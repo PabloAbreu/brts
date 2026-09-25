@@ -1,5 +1,12 @@
 package org.brts.middle.preview;
 
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
@@ -26,14 +33,6 @@ package org.brts.middle.preview;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.brts.lowlevel.igs.model.VideoDescriptor;
-
-import java.awt.image.BufferedImage;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Holds the runtime state for a PGS preview session: the parsed, navigable subtitle items and the background rendering
@@ -41,14 +40,11 @@ import java.util.Map;
  */
 @Getter
 @Setter
-public class PgsPreviewModel {
+public class PgsPreviewModel extends ScreenModel {
 
 	public enum BackgroundMode {
 		CHECKERBOARD, VIDEO_SNAPSHOT
 	}
-
-	/** Screen dimensions shared by all display sets in this stream. */
-	private VideoDescriptor videoDescriptor;
 
 	/** Navigable subtitle items, ordered by PTS. Item PTS fields remain in the stream's raw, absolute clock. */
 	private List<PgsSubtitleItem> items = new ArrayList<>();
@@ -71,14 +67,6 @@ public class PgsPreviewModel {
 
 	/** Lazily-populated video snapshot cache, keyed by subtitle item index. */
 	private Map<Integer, BufferedImage> snapshotCache = new HashMap<>();
-
-	public int getScreenWidth() {
-		return videoDescriptor != null ? videoDescriptor.getWidth() : 1920;
-	}
-
-	public int getScreenHeight() {
-		return videoDescriptor != null ? videoDescriptor.getHeight() : 1080;
-	}
 
 	public PgsSubtitleItem getCurrentItem() {
 		if (currentIndex >= 0 && currentIndex < items.size()) {
