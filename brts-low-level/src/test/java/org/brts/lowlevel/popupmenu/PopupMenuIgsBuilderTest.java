@@ -248,7 +248,7 @@ class PopupMenuIgsBuilderTest {
 		ImageReference bannerSource = new ImageReference();
 		ImageReference.SyntheticImageSource bannerSvg = new ImageReference.SyntheticImageSource();
 		bannerSvg.setType("svg");
-		bannerSvg.setSrcPath("../assets/popup-menu-banner.svg");
+		bannerSvg.setSrcPath("../assets/styles/sci-fi/popup-menu-banner.svg");
 		bannerSource.setSyntheticImage(bannerSvg);
 
 		BackgroundLayout bannerLayout = new BackgroundLayout();
@@ -263,7 +263,7 @@ class PopupMenuIgsBuilderTest {
 		ImageReference cardSource = new ImageReference();
 		ImageReference.SyntheticImageSource cardSvg = new ImageReference.SyntheticImageSource();
 		cardSvg.setType("svg");
-		cardSvg.setSrcPath("../assets/popup-panel-card.svg");
+		cardSvg.setSrcPath("../assets/styles/sci-fi/popup-panel-card.svg");
 		cardSource.setSyntheticImage(cardSvg);
 
 		BackgroundLayout cardLayout = new BackgroundLayout();

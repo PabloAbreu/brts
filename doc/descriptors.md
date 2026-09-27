@@ -130,6 +130,38 @@ Each high-level template produces a full disc under `outputDirectory`,
 including auto-generated navigation and menus where applicable (e.g. an
 episode menu for TV series).
 
+### Style templates
+
+The optional `styleTemplate` field selects a style template that provides
+menu text styles and default media assets:
+
+- `"brts:<name>"` — an installed template, looked up as
+  `<root>/styles/<name>/`. The root is `brts.assets.dir` from `brts.conf` when
+  set, otherwise `~/.brts/assets` then `/usr/share/brts/assets`.
+- any other value — a path to a template folder.
+
+A template folder contains a `style-template.json` manifest; every asset path
+in it is relative to the folder:
+
+| Field | Applied to |
+|-------|-----------|
+| `style` | disc-wide `TextStyle` (middle-level `style`) |
+| `popupMenu` | popup `layout`, `screenWidth`, `screenHeight`, `style`, `backgrounds` |
+| `titleMenu.style`, `layoutType`, `boundingBox` | title menu configuration |
+| `titleMenu.backgroundSource` | title menu screen background (video, image or composition, optional `audioPath`) |
+
+The template background is used when the descriptor provides none
+(`menuBackgroundVideoPath` wins for TV series). MOVIE discs get a title menu
+only when a style template with a title menu background is set and there is
+more than one title.
+
+The repository ships `assets/styles/sci-fi` (cyan HUD panels on a dark navy
+backdrop, no background audio). Install it with
+`mkdir -p ~/.brts/assets/styles && cp -r assets/styles/* ~/.brts/assets/styles/`,
+or point `brts.assets.dir` (e.g. `-Dbrts.assets.dir=$PWD/assets`) at the
+repository `assets` folder during development. Example:
+[`examples/tv-series-disc-sci-fi.json`](../examples/tv-series-disc-sci-fi.json).
+
 ## Descriptor validation
 
 Descriptors loaded through a `--descriptor` option are validated with standard

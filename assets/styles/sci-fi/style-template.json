@@ -1,0 +1,68 @@
+{
+  "name": "sci-fi",
+  "description": "Cyan HUD panels on a dark navy backdrop, inspired by space-opera interfaces.",
+  "style": {
+    "fontName": "SansSerif",
+    "fallbackFontName": "Dialog",
+    "fontSize": 28,
+    "fontStyle": 1,
+    "normalColor": "#E0F7FA",
+    "selectedColor": "#00F0FF",
+    "activatedColor": "#FFD700",
+    "shadow": true,
+    "shadowColor": "#B0000814",
+    "outline": true,
+    "outlineColor": "#FF03060C",
+    "outlineWidth": 2.0
+  },
+  "titleMenu": {
+    "layoutType": "TEXT_LIST",
+    "boundingBox": { "x": 180, "y": 220, "width": 800, "height": 640 },
+    "style": {
+      "fontSize": 34
+    },
+    "backgroundSource": {
+      "composition": {
+        "canvasWidth": 1920,
+        "canvasHeight": 1080,
+        "baseImageId": "background",
+        "images": [
+          {
+            "imageId": "background",
+            "syntheticImage": { "type": "svg", "srcPath": "screen-background.svg", "frameRate" : 24 }
+          }
+        ],
+        "compositions": []
+      },
+      "durationSeconds": 30
+    }
+  },
+  "popupMenu": {
+    "layout": "HORIZONTAL_BOTTOM",
+    "screenWidth": 1920,
+    "screenHeight": 1080,
+    "style": {
+      "fontSize": 26
+    },
+    "backgrounds": {
+      "shared": [
+        {
+          "source": { "syntheticImage": { "type": "svg", "srcPath": "popup-menu-banner.svg" } },
+          "layout": { "mode": "FULL_WIDTH_BOTTOM", "height": 220, "edgeOffset": 20, "marginLeft": 40, "marginRight": 40 }
+        }
+      ],
+      "audio": [
+        {
+          "source": { "syntheticImage": { "type": "svg", "srcPath": "popup-panel-card.svg" } },
+          "layout": { "mode": "SELECTABLE_BOUNDS", "marginTop": 16, "marginRight": 24, "marginBottom": 16, "marginLeft": 24 }
+        }
+      ],
+      "subtitles": [
+        {
+          "source": { "syntheticImage": { "type": "svg", "srcPath": "popup-panel-card.svg" } },
+          "layout": { "mode": "SELECTABLE_BOUNDS", "marginTop": 16, "marginRight": 24, "marginBottom": 16, "marginLeft": 24 }
+        }
+      ]
+    }
+  }
+}

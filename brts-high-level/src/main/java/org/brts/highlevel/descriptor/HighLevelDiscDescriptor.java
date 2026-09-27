@@ -38,18 +38,26 @@ import lombok.Setter;
  * <li>{@code "TV_SERIES"} → {@link TvSeriesDiscDescriptor}</li>
  * </ul>
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "templateType")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "templateType", include = JsonTypeInfo.As.PROPERTY, visible = true)
 @JsonSubTypes({ @JsonSubTypes.Type(value = MovieDiscDescriptor.class, name = "MOVIE"),
 		@JsonSubTypes.Type(value = TvSeriesDiscDescriptor.class, name = "TV_SERIES") })
 @Getter
 @Setter
 public abstract class HighLevelDiscDescriptor {
 
+	/** Discriminator for the type of high-level disc descriptor. */
 	private String templateType;
 
+	/** Title of the disc. */
 	private String discTitle;
 
+	/** Output directory for the generated disc. */
 	private String outputDirectory;
+
+	/**
+	 * Optional style template: {@code brts:<name>} for an installed template, otherwise a path to a template folder.
+	 */
+	private String styleTemplate;
 
 	/**
 	 * If true, the high-level step only generates middle-level descriptors without running them.

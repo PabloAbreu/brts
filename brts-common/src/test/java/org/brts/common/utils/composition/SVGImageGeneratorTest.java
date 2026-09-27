@@ -127,7 +127,8 @@ class SVGImageGeneratorTest {
 			assertThat(frame48).isNotNull();
 			assertThat(frame0.width()).isEqualTo(100);
 			assertThat(frame48.width()).isEqualTo(100);
-			// Different frames should be different object instances (not cached)
+			assertThat(frame0.toBufferedImage().getRGB(50, 50)).isNotEqualTo(frame48.toBufferedImage().getRGB(50, 50));
+			// Animated frames should be freshly rendered, not returned from the static-frame cache.
 			assertThat(frame0).isNotSameAs(frame48);
 		}
 	}

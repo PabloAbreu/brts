@@ -73,7 +73,7 @@
           "source": {
             "syntheticImage": {
               "type": "svg",
-              "srcPath": "assets/popup-menu-banner.svg"
+              "srcPath": "assets/styles/sci-fi/popup-menu-banner.svg"
             }
           },
           "layout": {
@@ -90,7 +90,7 @@
           "source": {
             "syntheticImage": {
               "type": "svg",
-              "srcPath": "assets/popup-panel-card.svg"
+              "srcPath": "assets/styles/sci-fi/popup-panel-card.svg"
             }
           },
           "layout": {
@@ -107,7 +107,7 @@
           "source": {
             "syntheticImage": {
               "type": "svg",
-              "srcPath": "assets/popup-panel-card.svg"
+              "srcPath": "assets/styles/sci-fi/popup-panel-card.svg"
             }
           },
           "layout": {

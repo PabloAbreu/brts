@@ -25,6 +25,7 @@ package org.brts.cli.high;
  */
 
 import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
 import org.brts.cli.LevelDispatcher;
 import org.brts.cli.OrchestratorOptions;
 import org.brts.common.mkv.MkvSourceMediaParser;
@@ -32,7 +33,6 @@ import org.brts.highlevel.descriptor.HighLevelDiscDescriptor;
 import org.brts.highlevel.orchestration.HighLevelOrchestrator;
 import org.brts.middle.api.SimpleTitleBuilder;
 import org.brts.middle.orchestration.MiddleLevelOrchestrator;
-import org.kohsuke.args4j.Option;
 
 import jakarta.validation.constraints.AssertTrue;
 
@@ -46,8 +46,8 @@ public class HighLevelCli {
 			outputType = OutputType.BASH;
 		}
 
-		@Option(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
-		java.io.File descriptor;
+		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the high-level disc JSON descriptor")
+		HighLevelDiscDescriptor descriptor;
 
 		@AssertTrue(message = "--output-type IMMEDIATE is not supported for high-level builds")
 		public boolean isBashOutputRequired() {
@@ -70,14 +70,13 @@ public class HighLevelCli {
 
 		@Override
 		protected void execute(BuildOptions opts) throws Exception {
-			HighLevelDiscDescriptor descriptor = loadJson(opts.descriptor, HighLevelDiscDescriptor.class);
 
 			SimpleTitleBuilder titleBuilder = new SimpleTitleBuilder(new MkvSourceMediaParser());
 			MiddleLevelOrchestrator middleOrch = new MiddleLevelOrchestrator(titleBuilder,
 					opts.getLaunchGenerator(getInvocator()));
 			HighLevelOrchestrator highOrch = new HighLevelOrchestrator(middleOrch);
 
-			highOrch.orchestrate(descriptor, opts.outputDir);
+			highOrch.orchestrate(opts.descriptor, opts.outputDir);
 			System.out.println("High-level orchestration complete. Check " + opts.outputDir);
 		}
 

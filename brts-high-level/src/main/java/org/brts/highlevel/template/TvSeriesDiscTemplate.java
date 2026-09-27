@@ -25,6 +25,7 @@ package org.brts.highlevel.template;
  */
 
 import org.brts.highlevel.descriptor.TvSeriesDiscDescriptor;
+import org.brts.highlevel.style.StyleTemplate;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
@@ -53,7 +54,7 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 	}
 
 	@Override
-	public DiscDescriptor expand(TvSeriesDiscDescriptor descriptor) throws IOException {
+	public DiscDescriptor expand(TvSeriesDiscDescriptor descriptor, StyleTemplate style) throws IOException {
 		log.info("Expanding TV_SERIES template: {} S{:02d}", descriptor.getSeriesName(), descriptor.getSeasonNumber());
 
 		List<String> episodePaths = resolveEpisodePaths(descriptor);
@@ -61,14 +62,25 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 
 		DiscDescriptor disc = new DiscDescriptor();
 		disc.setDiscName(descriptor.getDiscTitle());
-		disc.setHasTopMenu(descriptor.isGenerateEpisodeMenu());
+		disc.setOutputFolder(descriptor.getOutputDirectory());
+		if (style != null) {
+			style.applyTo(disc);
+		}
 
-		if (descriptor.isGenerateEpisodeMenu() && descriptor.getMenuBackgroundVideoPath() != null) {
+		boolean hasBackground = descriptor.getMenuBackgroundVideoPath() != null
+				|| (style != null && style.hasTitleMenuBackground());
+		if (descriptor.isGenerateEpisodeMenu() && hasBackground) {
 			TitleMenuConfig menuConfig = new TitleMenuConfig();
-			BackgroundSource bgSource = new BackgroundSource();
-			bgSource.setVideoPath(descriptor.getMenuBackgroundVideoPath());
-			menuConfig.setBackgroundSource(bgSource);
+			if (descriptor.getMenuBackgroundVideoPath() != null) {
+				BackgroundSource bgSource = new BackgroundSource();
+				bgSource.setVideoPath(descriptor.getMenuBackgroundVideoPath());
+				menuConfig.setBackgroundSource(bgSource);
+			}
+			if (style != null) {
+				style.applyTo(menuConfig);
+			}
 			disc.setTitleMenuConfig(menuConfig);
+			disc.setHasTopMenu(true);
 		}
 
 		List<TitleDescriptor> titles = new ArrayList<>();

@@ -45,6 +45,7 @@ import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.AudioUtils;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.utils.FfmpegAudioExtractor;
 import org.brts.common.utils.FileUtils;
 import org.brts.common.utils.composition.CompositionBuffer;
@@ -61,8 +62,10 @@ import org.brts.lowlevel.m2ts.M2tsWriter;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
+import org.bytedeco.ffmpeg.avutil.AVDictionary;
 import org.bytedeco.ffmpeg.avutil.AVFrame;
 import org.bytedeco.ffmpeg.swscale.SwsContext;
+import org.bytedeco.javacpp.IntPointer;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -88,6 +91,19 @@ public class CompositedVideoGenerator {
 
 	/** Base PID for audio streams. */
 	private static final int BASE_AUDIO_PID = 0x1100;
+
+	/** Config key enabling ordered dithering before the BGRA to YUV420P conversion. */
+	private static final String DITHER_PROPERTY = "brts.composition.video.dither";
+
+	private static final boolean DEFAULT_DITHER = true;
+
+	/**
+	 * 8x8 Bayer threshold matrix, values 0..63, used to spread the rounding error of the 8-bit limited-range YUV
+	 * quantisation over a pixel neighbourhood instead of letting it form contours.
+	 */
+	private static final int[] BAYER_8X8 = { 0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36,
+			14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25,
+			15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21 };
 
 	// -------------------------------------------------------------------------
 	// Configuration
@@ -300,11 +316,14 @@ public class CompositedVideoGenerator {
 		long bitrate = config.getBitrateKbps() * 1000L;
 		int fpsInt = (int) Math.round(fps);
 
-		var codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+		var codec = avcodec_find_encoder_by_name("libx264");
+		if (codec == null) {
+			codec = avcodec_find_encoder(AV_CODEC_ID_H264); // fall back to whatever is built in
+		}
 		if (codec == null) {
 			throw new IOException("H.264 video encoder not available in this FFmpeg build");
 		}
-
+		log.info("H.264 encoder: {}", codec.name().getString());
 		AVCodecContext codecCtx = avcodec_alloc_context3(codec);
 		if (codecCtx == null) {
 			throw new IOException("Could not allocate AVCodecContext");
@@ -327,7 +346,7 @@ public class CompositedVideoGenerator {
 			codecCtx.time_base().den(fpsInt);
 			codecCtx.framerate().num(fpsInt);
 			codecCtx.framerate().den(1);
-			codecCtx.gop_size(12);
+			codecCtx.gop_size(24);
 			codecCtx.max_b_frames(0); // B-frames reorder decode vs. display order; the
 										// raw ES muxer
 										// assigns PTS sequentially and writes PTS-only
@@ -335,8 +354,26 @@ public class CompositedVideoGenerator {
 										// B-frames produce corrupt DTS and choppy
 										// playback.
 			codecCtx.pix_fmt(AV_PIX_FMT_YUV420P);
+			// Blu-ray HD video is BT.709 limited range; tagging it keeps players from
+			// guessing (and usually assuming BT.601, which tints greys).
+			codecCtx.colorspace(AVCOL_SPC_BT709);
+			codecCtx.color_primaries(AVCOL_PRI_BT709);
+			codecCtx.color_trc(AVCOL_TRC_BT709);
+			codecCtx.color_range(AVCOL_RANGE_MPEG);
 
-			int ret = avcodec_open2(codecCtx, codec, (org.bytedeco.ffmpeg.avutil.AVDictionary) null);
+			// as this class is used for menus (short videos, very possibly with gradients), we consider
+			// enabling x264 grain tuning to preserve fine gradient detail.
+			// and we do not care about speed.
+			AVDictionary opts = new AVDictionary(null);
+			av_dict_set(opts, "preset", "slow", 0);
+			av_dict_set(opts, "tune", "grain", 0); // preserves dither/fine gradient detail
+			av_dict_set(opts, "x264-params",
+					"aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:deadzone-intra=0:deadzone-inter=0:no-dct-decimate=1:qpmin=6",
+					0);
+			int ret = avcodec_open2(codecCtx, codec, opts);
+			// not clear if i should free this now or after encoding is done,
+			// but freeing it here seems to work.
+			av_dict_free(opts);
 			if (ret < 0) {
 				throw new IOException("avcodec_open2 failed: " + ret);
 			}
@@ -354,8 +391,22 @@ public class CompositedVideoGenerator {
 			bgrFrame.height(height);
 			av_frame_get_buffer(bgrFrame, 0);
 
+			// SWS_ACCURATE_RND and full chroma interpolation cost a little speed but avoid
+			// the coarse rounding that turns smooth gradients into visible bands.
 			SwsContext swsCtx = sws_getContext(width, height, AV_PIX_FMT_BGRA, width, height, AV_PIX_FMT_YUV420P,
-					SWS_BILINEAR, null, null, (double[]) null);
+					SWS_BILINEAR | SWS_ACCURATE_RND | SWS_FULL_CHR_H_INT | SWS_FULL_CHR_H_INP, null, null,
+					(double[]) null);
+			if (swsCtx == null) {
+				throw new IOException("Could not allocate SwsContext for " + width + "x" + height + " BGRA to YUV420P");
+			}
+			// Composited frames are full-range RGB; the output must be BT.709 limited range.
+			IntPointer bt709 = sws_getCoefficients(SWS_CS_ITU709);
+			int csRet = sws_setColorspaceDetails(swsCtx, bt709, 1, bt709, 0, 0, 1 << 16, 1 << 16);
+			if (csRet < 0) {
+				log.warn("sws_setColorspaceDetails failed ({}); falling back to swscale defaults (BT.601)", csRet);
+			}
+
+			boolean dither = BrtsFileConfig.getInstance().parseBooleanProperty(DITHER_PROPERTY, DEFAULT_DITHER);
 
 			AVPacket packet = av_packet_alloc();
 
@@ -367,7 +418,7 @@ public class CompositedVideoGenerator {
 						CompositionContextImpl ctx = new CompositionContextImpl(i, composition, baseDir);
 						CompositionBuffer cb = new CompositionBuffer(composition, repo, ctx);
 						try (ImageFrame frame = cb.compose()) {
-							fillBgraFrame(frame.toBufferedImage(), bgrFrame, width, height);
+							fillBgraFrame(frame.toBufferedImage(), bgrFrame, width, height, dither);
 						}
 						sws_scale(swsCtx, bgrFrame.data(), bgrFrame.linesize(), 0, height, yuvFrame.data(),
 								yuvFrame.linesize());
@@ -431,8 +482,10 @@ public class CompositedVideoGenerator {
 	 * <p>
 	 * The only case that falls back to a Graphics2D redraw is when the image dimensions do not match the target size
 	 * (resize path).
+	 *
+	 * @param dither when {@code true}, applies an ordered +/-1 LSB pattern to the RGB channels
 	 */
-	private static void fillBgraFrame(BufferedImage img, AVFrame bgraFrame, int width, int height) {
+	private static void fillBgraFrame(BufferedImage img, AVFrame bgraFrame, int width, int height, boolean dither) {
 		if (img.getWidth() != width || img.getHeight() != height) {
 			// After scaling, scaleImage returns TYPE_3BYTE_BGR; convert to ARGB for the
 			// common copy path below.
@@ -452,10 +505,46 @@ public class CompositedVideoGenerator {
 		int linestride = byteStride / 4; // stride in ints (4 bytes per BGRA pixel)
 		IntBuffer buf = bgraFrame.data(0).position(0).capacity((long) byteStride * height).asByteBuffer()
 				.order(ByteOrder.nativeOrder()).asIntBuffer();
-		for (int y = 0; y < height; y++) {
-			buf.position(y * linestride);
-			buf.put(argbPixels, y * width, width);
+
+		if (!dither) {
+			for (int y = 0; y < height; y++) {
+				buf.position(y * linestride);
+				buf.put(argbPixels, y * width, width);
+			}
+			return;
 		}
+
+		// Dither into a scratch row: argbPixels belongs to the composited image, which may
+		// be cached and reused across frames.
+		int[] row = new int[width];
+		for (int y = 0; y < height; y++) {
+			int bayerRow = (y & 7) << 3;
+			int srcOffset = y * width;
+			for (int x = 0; x < width; x++) {
+				row[x] = ditherPixel(argbPixels[srcOffset + x], BAYER_8X8[bayerRow + (x & 7)]);
+			}
+			buf.position(y * linestride);
+			buf.put(row, 0, width);
+		}
+	}
+
+	/**
+	 * Offsets the R, G and B channels of one {@code 0xAARRGGBB} pixel by -1, 0 or +1 depending on the pixel's Bayer
+	 * threshold, leaving alpha untouched.
+	 */
+	private static int ditherPixel(int argb, int threshold) {
+		int offset = threshold < 21 ? -1 : (threshold < 43 ? 0 : 1);
+		if (offset == 0) {
+			return argb;
+		}
+		int r = clampChannel(((argb >> 16) & 0xFF) + offset);
+		int g = clampChannel(((argb >> 8) & 0xFF) + offset);
+		int b = clampChannel((argb & 0xFF) + offset);
+		return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
+	}
+
+	private static int clampChannel(int value) {
+		return value < 0 ? 0 : (value > 255 ? 255 : value);
 	}
 
 	// -------------------------------------------------------------------------

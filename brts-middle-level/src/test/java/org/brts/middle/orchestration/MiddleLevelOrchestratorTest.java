@@ -284,7 +284,8 @@ class MiddleLevelOrchestratorTest {
 		assertThat(descriptor.getPopupMenu().getBackgrounds().getSubtitles()).hasSize(1);
 
 		BackgroundLayer sharedLayer = descriptor.getPopupMenu().getBackgrounds().getShared().get(0);
-		assertThat(sharedLayer.getSource().getSyntheticImage().getSrcPath()).isEqualTo("assets/popup-menu-banner.svg");
+		assertThat(sharedLayer.getSource().getSyntheticImage().getSrcPath())
+				.isEqualTo("assets/styles/sci-fi/popup-menu-banner.svg");
 		assertThat(sharedLayer.getLayout().getMode()).isEqualTo(BackgroundLayoutMode.FULL_WIDTH_BOTTOM);
 	}
 }

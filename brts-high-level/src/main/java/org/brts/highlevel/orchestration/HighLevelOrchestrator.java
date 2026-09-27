@@ -33,6 +33,8 @@ import java.util.Map;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.highlevel.descriptor.HighLevelDiscDescriptor;
+import org.brts.highlevel.style.StyleTemplate;
+import org.brts.highlevel.style.StyleTemplateLoader;
 import org.brts.highlevel.template.DiscTemplate;
 import org.brts.highlevel.template.MovieDiscTemplate;
 import org.brts.highlevel.template.TvSeriesDiscTemplate;
@@ -54,10 +56,17 @@ public class HighLevelOrchestrator {
 
 	private final MiddleLevelOrchestrator middleOrchestrator;
 
+	private final StyleTemplateLoader styleTemplateLoader;
+
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
 	public HighLevelOrchestrator(MiddleLevelOrchestrator middleOrchestrator) {
+		this(middleOrchestrator, new StyleTemplateLoader());
+	}
+
+	public HighLevelOrchestrator(MiddleLevelOrchestrator middleOrchestrator, StyleTemplateLoader styleTemplateLoader) {
 		this.middleOrchestrator = middleOrchestrator;
+		this.styleTemplateLoader = styleTemplateLoader;
 		this.templates = Map.of("MOVIE", new MovieDiscTemplate(), "TV_SERIES", new TvSeriesDiscTemplate());
 	}
 
@@ -76,7 +85,12 @@ public class HighLevelOrchestrator {
 		}
 
 		log.info("Expanding high-level descriptor (type={}) …", type);
-		DiscDescriptor middleDescriptor = template.expand(descriptor);
+		StyleTemplate style = descriptor.getStyleTemplate() == null ? null
+				: styleTemplateLoader.load(descriptor.getStyleTemplate());
+		DiscDescriptor middleDescriptor = template.expand(descriptor, style);
+		if (middleDescriptor.getOutputFolder() == null) {
+			middleDescriptor.setOutputFolder(outputDir.toAbsolutePath().toString());
+		}
 
 		// Write the middle-level disc descriptor for traceability
 		Path middleDir = outputDir.resolve("middle-level");

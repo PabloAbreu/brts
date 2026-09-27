@@ -111,6 +111,10 @@ public class SVGImageGenerator implements SyntheticImageGenerator {
 		BufferedImageTranscoder transcoder = new BufferedImageTranscoder();
 
 		if (!isStatic()) {
+			// Batik only applies KEY_SNAPSHOT_TIME when dynamic processing is enabled. Keep SVG scripts disabled
+			// while enabling the SMIL animation engine for deterministic frame snapshots.
+			transcoder.addTranscodingHint(ImageTranscoder.KEY_EXECUTE_ONLOAD, true);
+			transcoder.addTranscodingHint(ImageTranscoder.KEY_ALLOWED_SCRIPT_TYPES, "");
 			transcoder.addTranscodingHint(ImageTranscoder.KEY_SNAPSHOT_TIME, snapshotTime);
 		}
 
