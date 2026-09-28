@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+launcher_source=${BASH_SOURCE[0]}
+while [[ -L "$launcher_source" ]]; do
+	launcher_dir=$(cd -P "$(dirname "$launcher_source")" >/dev/null 2>&1 && pwd)
+	link_target=$(readlink "$launcher_source")
+	if [[ "$link_target" == /* ]]; then
+		launcher_source=$link_target
+	else
+		launcher_source=$launcher_dir/$link_target
+	fi
+done
+
+launcher_dir=$(cd -P "$(dirname "$launcher_source")" >/dev/null 2>&1 && pwd)
+launcher_path=$launcher_dir/$(basename "$launcher_source")
+install_root=$(cd "$launcher_dir/.." >/dev/null 2>&1 && pwd)
+config_example=$install_root/etc/brts.conf.example
+config_file=$install_root/etc/brts.conf
+assets_dir=$install_root/assets
+cli_jar=$install_root/lib/brts-cli.jar
+
+if [[ -n "${JAVA_HOME:-}" ]]; then
+	java_command=$JAVA_HOME/bin/java
+	if [[ ! -x "$java_command" ]]; then
+		echo "BRTS requires Java 21 or newer, but JAVA_HOME does not contain an executable bin/java: $JAVA_HOME" >&2
+		exit 1
+	fi
+else
+	java_command=$(command -v java || true)
+	if [[ -z "$java_command" ]]; then
+		echo "BRTS requires Java 21 or newer, but java was not found on PATH." >&2
+		exit 1
+	fi
+fi
+
+if ! java_version_output=$("$java_command" -version 2>&1); then
+	echo "Unable to determine the Java version using: $java_command" >&2
+	exit 1
+fi
+
+java_version_line=${java_version_output%%$'\n'*}
+if [[ "$java_version_line" =~ \"?([0-9]+)(\.([0-9]+))? ]]; then
+	java_major=${BASH_REMATCH[1]}
+	if [[ "$java_major" == 1 && -n "${BASH_REMATCH[3]:-}" ]]; then
+		java_major=${BASH_REMATCH[3]}
+	fi
+else
+	echo "Unable to parse the Java version from: $java_version_line" >&2
+	exit 1
+fi
+
+if ((java_major < 21)); then
+	echo "BRTS requires Java 21 or newer; detected Java $java_major using: $java_command" >&2
+	exit 1
+fi
+
+if [[ ! -f "$config_file" ]]; then
+	if [[ ! -f "$config_example" ]]; then
+		echo "BRTS configuration example not found: $config_example" >&2
+		exit 1
+	fi
+	cp "$config_example" "$config_file"
+fi
+
+if [[ ! -f "$cli_jar" ]]; then
+	echo "BRTS CLI jar not found: $cli_jar" >&2
+	exit 1
+fi
+
+exec "$java_command" \
+	"-Dbrts.command=$launcher_path" \
+	"-Dbrts.conf=$config_file" \
+	"-Dbrts.assets.dir=$assets_dir" \
+	-jar "$cli_jar" "$@"

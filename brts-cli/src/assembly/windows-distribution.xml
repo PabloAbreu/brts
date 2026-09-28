@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
+	<id>windows</id>
+	<formats>
+		<format>zip</format>
+	</formats>
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<baseDirectory>brts-${project.version}</baseDirectory>
+	<files>
+		<file>
+			<source>${project.basedir}/src/main/dist/bin/brts.bat</source>
+			<outputDirectory>bin</outputDirectory>
+			<destName>brts.bat</destName>
+		</file>
+		<file>
+			<source>${project.build.directory}/brts-cli.jar</source>
+			<outputDirectory>lib</outputDirectory>
+			<destName>brts-cli.jar</destName>
+		</file>
+		<file>
+			<source>${project.basedir}/src/main/resources/brts.conf</source>
+			<outputDirectory>etc</outputDirectory>
+			<destName>brts.conf.example</destName>
+		</file>
+	</files>
+	<fileSets>
+		<fileSet>
+			<directory>${maven.multiModuleProjectDirectory}/assets</directory>
+			<outputDirectory>assets</outputDirectory>
+		</fileSet>
+	</fileSets>
+</assembly>

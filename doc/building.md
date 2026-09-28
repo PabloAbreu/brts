@@ -51,6 +51,23 @@ when publishing binaries for multiple platforms.
 java -jar brts-cli/target/brts-cli.jar <level> <command> [options]
 ```
 
+On Linux, the same build also produces a versioned binary distribution:
+
+```text
+brts-cli/target/brts-<version>-linux.zip
+└── brts-<version>/
+  ├── assets/
+  ├── bin/brts
+  ├── etc/brts.conf.example
+  └── lib/brts-cli.jar
+```
+
+Build it with the CLI and all required modules:
+
+```bash
+mvn -pl brts-cli -am clean package
+```
+
 ## Local debug launcher
 
 For BRTS developers only.
@@ -83,19 +100,17 @@ written under `test_output/` for inspection.
 
 ## Installing
 
-No installer yet.
-
-In the mean time ...
-
-To "install" BRTS, you may create a script named brts and place it on the PATH.
-```bash
-#! /bin/bash
-java -jar /path/to/brts/brts-cli/target/brts-cli.jar "@$"
-```
-
-Alternatively, you might want to define an alias for BRTS with something similar to this: 
+Extract the Linux distribution and run its launcher:
 
 ```bash
-alias brts='java -jar $HOME/.m2/repository/org/brts/brts-cli/0.0.1-SNAPSHOT/brts-cli-0.0.1-SNAPSHOT.jar'
-alias brts_debug='java -Dlogback.configurationFile=classpath:logback-dev.xml -jar $HOME/.m2/repository/org/brts/brts-cli/0.0.1-SNAPSHOT/brts-cli-0.0.1-SNAPSHOT.jar'
+unzip brts-cli/target/brts-<version>-linux.zip
+./brts-<version>/bin/brts <level> <command> [options]
 ```
+
+The launcher requires Java 21 or newer. It uses `$JAVA_HOME/bin/java` when
+`JAVA_HOME` is set and otherwise finds `java` on `PATH`.
+
+On first launch, `etc/brts.conf.example` is copied to `etc/brts.conf`. Later
+launches preserve that local configuration. The launcher selects this file and
+the distribution's bundled `assets/` directory automatically, including when
+`bin/brts` is invoked through a symbolic link.
