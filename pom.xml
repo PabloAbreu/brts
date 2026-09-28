@@ -43,6 +43,7 @@
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<test.samples.dir>${maven.multiModuleProjectDirectory}/samples</test.samples.dir>
+		<javacpp.platform>${os.detected.classifier}</javacpp.platform>
 
 		<!-- Dependency versions -->
 		<jackson.version>2.17.2</jackson.version>
@@ -54,9 +55,8 @@
 		<mockito.version>5.12.0</mockito.version>
 		<assertj.version>3.26.3</assertj.version>
 		<ffmpeg.version>8.0.1-1.5.13</ffmpeg.version>
-		<ffmpeg.platform>linux-x86_64</ffmpeg.platform>
 		<opencv.version>4.13.0-1.5.13</opencv.version>
-		<opencv.platform>linux-x86_64</opencv.platform>
+		<openblas.version>0.3.31-1.5.13</openblas.version>
 		<batik.version>1.18</batik.version>
 		<freemarker.version>2.3.34</freemarker.version>
 		<jakarta.validation.version>3.1.0</jakarta.validation.version>
@@ -68,6 +68,7 @@
 		<maven-jar-plugin.version>3.4.2</maven-jar-plugin.version>
 		<maven-assembly-plugin.version>3.7.1</maven-assembly-plugin.version>
 		<maven-pmd-plugin.version>3.26.0</maven-pmd-plugin.version>
+		<os-maven-plugin.version>1.7.1</os-maven-plugin.version>
 	</properties>
 
 	<!-- TODO upload jebml to maven central 
@@ -171,7 +172,7 @@
 				<groupId>org.bytedeco</groupId>
 				<artifactId>ffmpeg</artifactId>
 				<version>${ffmpeg.version}</version>
-				<classifier>${ffmpeg.platform}</classifier>
+				<classifier>${javacpp.platform}</classifier>
 			</dependency>
 			<dependency>
 				<groupId>org.bytedeco</groupId>
@@ -182,7 +183,13 @@
 				<groupId>org.bytedeco</groupId>
 				<artifactId>opencv</artifactId>
 				<version>${opencv.version}</version>
-				<classifier>${opencv.platform}</classifier>
+				<classifier>${javacpp.platform}</classifier>
+			</dependency>
+			<dependency>
+				<groupId>org.bytedeco</groupId>
+				<artifactId>openblas</artifactId>
+				<version>${openblas.version}</version>
+				<classifier>${javacpp.platform}</classifier>
 			</dependency>
 
 			<dependency>
@@ -273,6 +280,13 @@
 	</dependencies>
 
 	<build>
+		<extensions>
+			<extension>
+				<groupId>kr.motd.maven</groupId>
+				<artifactId>os-maven-plugin</artifactId>
+				<version>${os-maven-plugin.version}</version>
+			</extension>
+		</extensions>
 		<pluginManagement>
 			<plugins>
 				<plugin>
@@ -396,4 +410,45 @@
 			</testResource>
 		</testResources>
 	</build>
+
+	<profiles>
+		<profile>
+			<!-- Profile for Linux x86_64 GPL platform 
+			 	 The packages produced by this profile are
+				 not redistributable because of conflicting licenses -->
+			<id>platform-linux-x86_64-gpl</id>
+			<activation>
+				<property>
+					<name>env.BRTS_LINUX_X86_64_GPL</name>
+				</property>
+			</activation>
+			<properties>
+				<javacpp.platform>linux-x86_64-gpl</javacpp.platform>
+			</properties>
+		</profile>
+		<profile>
+			<id>platform-macosx-x86_64</id>
+			<activation>
+				<os>
+					<family>mac</family>
+					<arch>x86_64</arch>
+				</os>
+			</activation>
+			<properties>
+				<javacpp.platform>macosx-x86_64</javacpp.platform>
+			</properties>
+		</profile>
+		<profile>
+			<id>platform-macosx-arm64</id>
+			<activation>
+				<os>
+					<family>mac</family>
+					<arch>aarch64</arch>
+				</os>
+			</activation>
+			<properties>
+				<javacpp.platform>macosx-arm64</javacpp.platform>
+			</properties>
+		</profile>
+	</profiles>
 </project>

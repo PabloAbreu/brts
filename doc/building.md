@@ -18,6 +18,30 @@ Maven multi-module project, parent [`pom.xml`](../pom.xml), Java 21.
   (module names: `brts-common`, `brts-low-level`, `brts-middle-level`,
   `brts-high-level`, `brts-cli`)
 
+## Native platform selection
+
+Maven automatically selects the FFmpeg native artifact for the host running the
+build. The optional OpenCV and OpenBLAS native artifacts use the same platform
+when OpenCV is enabled with `-DenableOpenCV`.
+
+Supported build hosts are:
+
+- Linux x86-64 (`linux-x86_64`)
+- Windows x86-64 (`windows-x86_64`)
+- Intel macOS (`macosx-x86_64`)
+- Apple Silicon macOS (`macosx-arm64`)
+
+Override the detected JavaCPP classifier when cross-targeting or diagnosing a
+build:
+
+```bash
+mvn clean package -Djavacpp.platform=windows-x86_64
+```
+
+The generated CLI fat jar contains native libraries for one platform and must
+run on the platform targeted by that build. Build separately on each target OS
+when publishing binaries for multiple platforms.
+
 ## CLI packaging
 
 `brts-cli` produces a runnable fat jar via `maven-assembly-plugin`, exposing

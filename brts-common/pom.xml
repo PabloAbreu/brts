@@ -41,7 +41,7 @@
 		<dependency>
 			<groupId>org.bytedeco</groupId>
 			<artifactId>ffmpeg</artifactId>
-			<classifier>${ffmpeg.platform}</classifier>
+			<classifier>${javacpp.platform}</classifier>
 		</dependency>
 		<dependency>
 			<groupId>org.bytedeco</groupId>
@@ -126,12 +126,12 @@
 				<dependency>
 					<groupId>org.bytedeco</groupId>
 					<artifactId>opencv</artifactId>
-					<classifier>${opencv.platform}</classifier>
+					<classifier>${javacpp.platform}</classifier>
 				</dependency>
 				<dependency>
 					<groupId>org.bytedeco</groupId>
-					<artifactId>openblas-platform</artifactId>
-					<version>0.3.31-1.5.13</version>
+					<artifactId>openblas</artifactId>
+					<classifier>${javacpp.platform}</classifier>
 				</dependency>
 			</dependencies>
 		</profile>
