@@ -6,7 +6,8 @@ set "LAUNCHER_PATH=%~f0"
 set "CONFIG_EXAMPLE=%INSTALL_ROOT%\etc\brts.conf.example"
 set "CONFIG_FILE=%INSTALL_ROOT%\etc\brts.conf"
 set "ASSETS_DIR=%INSTALL_ROOT%\assets"
-set "CLI_JAR=%INSTALL_ROOT%\lib\brts-cli.jar"
+set "CLI_JAR="
+for %%I in ("%INSTALL_ROOT%\lib\brts-cli-*.jar") do if exist "%%~fI" set "CLI_JAR=%%~fI"
 
 if defined JAVA_HOME (
     set "JAVA_COMMAND=%JAVA_HOME%\bin\java.exe"
@@ -59,7 +60,7 @@ if not exist "%CONFIG_FILE%" (
 )
 
 if not exist "%CLI_JAR%" (
-    >&2 echo BRTS CLI jar not found: %CLI_JAR%
+    >&2 echo Platform-specific BRTS CLI jar not found in: %INSTALL_ROOT%\lib
     exit /b 1
 )
 

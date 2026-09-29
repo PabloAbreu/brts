@@ -5,7 +5,7 @@ The CLI entry point is `org.brts.cli.BrtsMain`, packaged as a fat jar by
 `brts_debug_launch.sh` when developping:
 
 ```bash
-java -jar brts-cli.jar <level> <command> [options]
+java -jar brts-cli-<classifier>.jar <level> <command> [options]
 # or
 ./brts_debug_launch.sh <level> <command> [options]
 ```
@@ -22,7 +22,7 @@ Disable it by setting `brts.cli.banner=false` through any source supported by
 `BrtsFileConfig`:
 
 ```bash
-java -Dbrts.cli.banner=false -jar brts-cli.jar low clip-parse --input 00001.clpi
+java -Dbrts.cli.banner=false -jar brts-cli-<classifier>.jar low clip-parse --input 00001.clpi
 BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 ```
 

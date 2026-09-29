@@ -15,6 +15,10 @@
 		Each subcommand is an independently launchable main class.
 	</description>
 
+	<properties>
+		<brts.launcher>brts</brts.launcher>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.brts</groupId>
@@ -60,6 +64,39 @@
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.5.0</version>
+				<executions>
+					<execution>
+						<id>validate-platform</id>
+						<phase>validate</phase>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireProperty>
+									<property>javacpp.platform</property>
+									<regex>^(linux-x86_64(-gpl)?|windows-x86_64|macosx-(x86_64|arm64))$</regex>
+									<regexMessage>Unsupported javacpp.platform. Supported classifiers: linux-x86_64, linux-x86_64-gpl, windows-x86_64, macosx-x86_64, macosx-arm64.</regexMessage>
+								</requireProperty>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>default-jar</id>
+						<phase>none</phase>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<executions>
 					<execution>
@@ -78,40 +115,99 @@
 							<descriptorRefs>
 								<descriptorRef>jar-with-dependencies</descriptorRef>
 							</descriptorRefs>
-							<finalName>brts-cli</finalName>
+							<finalName>brts-cli-${javacpp.platform}</finalName>
 							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 					<execution>
-						<id>package-linux-distribution</id>
+						<id>package-platform-distribution</id>
 						<phase>package</phase>
 						<goals>
 							<goal>single</goal>
 						</goals>
 						<configuration>
 							<descriptors>
-								<descriptor>src/assembly/linux-distribution.xml</descriptor>
+								<descriptor>src/assembly/platform-distribution.xml</descriptor>
 							</descriptors>
-							<finalName>brts-${project.version}</finalName>
-							<appendAssemblyId>true</appendAssemblyId>
-						</configuration>
-					</execution>
-					<execution>
-						<id>package-windows-distribution</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-						<configuration>
-							<descriptors>
-								<descriptor>src/assembly/windows-distribution.xml</descriptor>
-							</descriptors>
-							<finalName>brts-${project.version}</finalName>
-							<appendAssemblyId>true</appendAssemblyId>
+							<finalName>brts-${project.version}-${javacpp.platform}</finalName>
+							<appendAssemblyId>false</appendAssemblyId>
 						</configuration>
 					</execution>
 				</executions>
 			</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>windows-host-launcher</id>
+			<activation>
+				<os>
+					<family>Windows</family>
+				</os>
+			</activation>
+			<properties>
+				<brts.launcher>brts.bat</brts.launcher>
+			</properties>
+		</profile>
+		<profile>
+			<id>windows-target-launcher</id>
+			<activation>
+				<property>
+					<name>javacpp.platform</name>
+					<value>windows-x86_64</value>
+				</property>
+			</activation>
+			<properties>
+				<brts.launcher>brts.bat</brts.launcher>
+			</properties>
+		</profile>
+		<profile>
+			<id>unix-target-launcher</id>
+			<activation>
+				<property>
+					<name>javacpp.platform</name>
+					<value>linux-x86_64</value>
+				</property>
+			</activation>
+			<properties>
+				<brts.launcher>brts</brts.launcher>
+			</properties>
+		</profile>
+		<profile>
+			<id>linux-gpl-target-launcher</id>
+			<activation>
+				<property>
+					<name>javacpp.platform</name>
+					<value>linux-x86_64-gpl</value>
+				</property>
+			</activation>
+			<properties>
+				<brts.launcher>brts</brts.launcher>
+			</properties>
+		</profile>
+		<profile>
+			<id>macos-target-launcher</id>
+			<activation>
+				<property>
+					<name>javacpp.platform</name>
+					<value>macosx-x86_64</value>
+				</property>
+			</activation>
+			<properties>
+				<brts.launcher>brts</brts.launcher>
+			</properties>
+		</profile>
+		<profile>
+			<id>apple-silicon-target-launcher</id>
+			<activation>
+				<property>
+					<name>javacpp.platform</name>
+					<value>macosx-arm64</value>
+				</property>
+			</activation>
+			<properties>
+				<brts.launcher>brts</brts.launcher>
+			</properties>
+		</profile>
+	</profiles>
 </project>

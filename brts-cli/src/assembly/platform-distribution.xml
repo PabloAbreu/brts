@@ -2,33 +2,38 @@
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 https://maven.apache.org/xsd/assembly-2.2.0.xsd">
-	<id>windows</id>
+	<id>platform</id>
 	<formats>
 		<format>zip</format>
 	</formats>
 	<includeBaseDirectory>true</includeBaseDirectory>
-	<baseDirectory>brts-${project.version}</baseDirectory>
+	<baseDirectory>brts-${project.version}-${javacpp.platform}</baseDirectory>
 	<files>
 		<file>
-			<source>${project.basedir}/src/main/dist/bin/brts.bat</source>
+			<source>${project.basedir}/src/main/dist/bin/${brts.launcher}</source>
 			<outputDirectory>bin</outputDirectory>
-			<destName>brts.bat</destName>
+			<destName>${brts.launcher}</destName>
+			<fileMode>0755</fileMode>
 		</file>
 		<file>
-			<source>${project.build.directory}/brts-cli.jar</source>
+			<source>${project.build.directory}/brts-cli-${javacpp.platform}.jar</source>
 			<outputDirectory>lib</outputDirectory>
-			<destName>brts-cli.jar</destName>
+			<destName>brts-cli-${javacpp.platform}.jar</destName>
+			<fileMode>0644</fileMode>
 		</file>
 		<file>
 			<source>${project.basedir}/src/main/resources/brts.conf</source>
 			<outputDirectory>etc</outputDirectory>
 			<destName>brts.conf.example</destName>
+			<fileMode>0644</fileMode>
 		</file>
 	</files>
 	<fileSets>
 		<fileSet>
 			<directory>${maven.multiModuleProjectDirectory}/assets</directory>
 			<outputDirectory>assets</outputDirectory>
+			<fileMode>0644</fileMode>
+			<directoryMode>0755</directoryMode>
 		</fileSet>
 	</fileSets>
 </assembly>

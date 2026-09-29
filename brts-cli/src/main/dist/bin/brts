@@ -19,7 +19,16 @@ install_root=$(cd "$launcher_dir/.." >/dev/null 2>&1 && pwd)
 config_example=$install_root/etc/brts.conf.example
 config_file=$install_root/etc/brts.conf
 assets_dir=$install_root/assets
-cli_jar=$install_root/lib/brts-cli.jar
+cli_jar=
+for candidate in "$install_root"/lib/brts-cli-*.jar; do
+	if [[ -f "$candidate" ]]; then
+		if [[ -n "$cli_jar" ]]; then
+			echo "Multiple platform-specific BRTS CLI jars found in: $install_root/lib" >&2
+			exit 1
+		fi
+		cli_jar=$candidate
+	fi
+done
 
 if [[ -n "${JAVA_HOME:-}" ]]; then
 	java_command=$JAVA_HOME/bin/java
@@ -65,7 +74,7 @@ if [[ ! -f "$config_file" ]]; then
 fi
 
 if [[ ! -f "$cli_jar" ]]; then
-	echo "BRTS CLI jar not found: $cli_jar" >&2
+	echo "Platform-specific BRTS CLI jar not found in: $install_root/lib" >&2
 	exit 1
 fi
 

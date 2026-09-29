@@ -24,12 +24,15 @@ Maven automatically selects the FFmpeg native artifact for the host running the
 build. The optional OpenCV and OpenBLAS native artifacts use the same platform
 when OpenCV is enabled with `-DenableOpenCV`.
 
-Supported build hosts are:
+Common JavaCPP classifiers are:
 
-- Linux x86-64 (`linux-x86_64`)
+- Linux x86-64 (`linux-x86_64`; optionally `linux-x86_64-gpl`)
 - Windows x86-64 (`windows-x86_64`)
 - Intel macOS (`macosx-x86_64`)
 - Apple Silicon macOS (`macosx-arm64`)
+
+The optional `BRTS_LINUX_X86_64_GPL` environment profile selects
+`linux-x86_64-gpl`; the root POM documents its redistribution restriction.
 
 Override the detected JavaCPP classifier when cross-targeting or diagnosing a
 build:
@@ -38,9 +41,15 @@ build:
 mvn clean package -Djavacpp.platform=windows-x86_64
 ```
 
+The classifier is used verbatim in the fat-jar and ZIP filenames. The selected
+classifier also determines the packaged launcher (`brts.bat` for Windows,
+`brts` for Linux and macOS).
+
 The generated CLI fat jar contains native libraries for one platform and must
-run on the platform targeted by that build. Build separately on each target OS
-when publishing binaries for multiple platforms.
+run on the platform targeted by that build. Its filename includes the
+JavaCPP classifier, and the build produces one matching ZIP distribution.
+Build separately for each target when publishing binaries for multiple
+platforms; pass `-Djavacpp.platform=<classifier>` to cross-target.
 
 ## CLI packaging
 
@@ -48,19 +57,25 @@ when publishing binaries for multiple platforms.
 `org.brts.cli.BrtsMain` as the entry point:
 
 ```bash
-java -jar brts-cli/target/brts-cli.jar <level> <command> [options]
+java -jar brts-cli/target/brts-cli-<classifier>.jar <level> <command> [options]
 ```
 
-On Linux, the same build also produces a versioned binary distribution:
+For example, a standard Linux x86-64 build produces:
 
 ```text
-brts-cli/target/brts-<version>-linux.zip
-└── brts-<version>/
+brts-cli/target/brts-cli-<classifier>.jar
+brts-cli/target/brts-<version>-<classifier>.zip
+└── brts-<version>-<classifier>/
   ├── assets/
   ├── bin/brts
   ├── etc/brts.conf.example
-  └── lib/brts-cli.jar
+  └── lib/brts-cli-<classifier>.jar
 ```
+
+Each build produces one platform-specific fat jar and one matching ZIP. On
+Windows, the package contains `bin/brts.bat`; Linux and macOS packages contain
+the shell launcher. The standalone fat jar and the ZIP's `lib/` directory
+contain the same target-specific jar.
 
 Build it with the CLI and all required modules:
 
@@ -100,17 +115,24 @@ written under `test_output/` for inspection.
 
 ## Installing
 
-Extract the Linux distribution and run its launcher:
+Extract the matching platform distribution and run its launcher. For a
+standard Linux x86-64 build:
 
 ```bash
-unzip brts-cli/target/brts-<version>-linux.zip
-./brts-<version>/bin/brts <level> <command> [options]
+unzip brts-cli/target/brts-<version>-linux-x86_64.zip
+./brts-<version>-linux-x86_64/bin/brts <level> <command> [options]
 ```
 
-The launcher requires Java 21 or newer. It uses `$JAVA_HOME/bin/java` when
-`JAVA_HOME` is set and otherwise finds `java` on `PATH`.
+On Windows, extract `brts-<version>-windows-x86_64.zip` and run
+`brts-<version>-windows-x86_64\\bin\\brts.bat` with the same CLI arguments.
+
+For the optional Linux GPL build, use the classifier selected by
+`BRTS_LINUX_X86_64_GPL` (normally `linux-x86_64-gpl`) in the ZIP filename and
+extracted directory name.
+
+The launcher requires Java 21 or newer. It uses `JAVA_HOME` when set and
+otherwise finds Java on `PATH`.
 
 On first launch, `etc/brts.conf.example` is copied to `etc/brts.conf`. Later
 launches preserve that local configuration. The launcher selects this file and
-the distribution's bundled `assets/` directory automatically, including when
-`bin/brts` is invoked through a symbolic link.
+the distribution's bundled `assets/` directory automatically.
