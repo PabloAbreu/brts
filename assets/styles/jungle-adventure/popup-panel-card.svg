@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="280" viewBox="0 0 820 280">
+  <defs>
+    <linearGradient id="cardBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#173b2e"/>
+      <stop offset="100%" stop-color="#0d241b"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f7d782"/>
+      <stop offset="100%" stop-color="#f9c74f"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="804" height="264" rx="18" fill="url(#cardBg)" stroke="#90d39c" stroke-opacity="0.75" stroke-width="2"/>
+  <rect x="24" y="24" width="772" height="18" fill="url(#gold)" opacity="0.7"/>
+  <rect x="28" y="70" width="764" height="180" rx="14" fill="#0d241b" opacity="0.48" stroke="#5b8f6b" stroke-opacity="0.5"/>
+
+  <g opacity="0.65" fill="#93d3a2">
+    <path d="M90 200 C120 172, 140 166, 170 200 C138 208, 118 220, 90 200 Z"/>
+    <path d="M690 206 C720 173, 752 170, 784 206 C748 214, 724 228, 690 206 Z"/>
+  </g>
+
+  <g opacity="0.8" stroke="#d7f0d0" stroke-width="2" fill="none">
+    <path d="M58 206 C150 165, 250 175, 330 206"/>
+    <path d="M500 206 C560 168, 650 168, 762 208"/>
+  </g>
+</svg>

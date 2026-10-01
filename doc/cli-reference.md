@@ -79,6 +79,14 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | Command | Description |
 |---|---|
 | `build` | Build a Blu-ray disc from a high-level template descriptor |
+| `title-menu-simulate` | Render a single JPEG preview frame of a high-level title menu |
+
+`title-menu-simulate` requires `--descriptor` and `--output`. It previews the background at
+`--time-seconds` (default `0`), with `--selected-title` (default `1`) shown in
+`--button-state` (`normal`, `selected`, or `activated`; default `selected`). Relative media paths
+are resolved from the current directory unless `--base-dir` is supplied. Previewing does not
+generate Blu-ray authoring files, and it allows a single-title menu even when a normal build would
+omit one.
 
 ## Examples
 
@@ -91,6 +99,9 @@ brts low clip-write --input 00001.clpi.json --output 00001.clpi
 
 # Build a full disc from a high-level template descriptor
 brts high build --descriptor examples/movie-disc.json --output /tmp/out
+
+# Preview the title menu defined by a high-level descriptor and style template
+brts high title-menu-simulate --descriptor examples/tv-series-disc-sci-fi.json --output /tmp/title-menu.jpg
 
 # Scan an existing disc's playlists to identify content type
 brts mid scan-playlists --input /path/to/BDMV

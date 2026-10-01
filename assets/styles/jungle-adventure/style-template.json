@@ -1,23 +1,23 @@
 {
-  "name": "sci-fi",
-  "description": "Cyan HUD panels on a dark navy backdrop, inspired by space-opera interfaces.",
+  "name": "jungle-adventure",
+  "description": "Sunlit jungle expedition panels with emerald tones and gold highlights for adventure movies.",
   "style": {
-    "fontName": "Paladins",
+    "fontName": "SF Fedora Titles",
     "fallbackFontName": "SansSerif",
     "fontSize": 28,
     "fontStyle": 1,
-    "normalColor": "#E0F7FA",
-    "selectedColor": "#00F0FF",
-    "activatedColor": "#FFD700",
+    "normalColor": "#F4F7E9",
+    "selectedColor": "#D5FF6F",
+    "activatedColor": "#F9C74F",
     "shadow": true,
-    "shadowColor": "#B0000814",
+    "shadowColor": "#001E1580",
     "outline": true,
-    "outlineColor": "#FF03060C",
+    "outlineColor": "#10261512",
     "outlineWidth": 2.0
   },
   "titleMenu": {
     "layoutType": "TEXT_LIST",
-    "boundingBox": { "x": 180, "y": 220, "width": 800, "height": 640 },
+    "boundingBox": { "x": 180, "y": 220, "width": 820, "height": 620 },
     "style": {
       "fontSize": 34
     },
@@ -29,7 +29,7 @@
         "images": [
           {
             "imageId": "background",
-            "syntheticImage": { "type": "svg", "srcPath": "screen-background.svg", "frameRate" : 24 }
+            "syntheticImage": { "type": "svg", "srcPath": "screen-background.svg", "frameRate": 24 }
           }
         ],
         "compositions": []

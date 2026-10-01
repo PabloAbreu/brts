@@ -49,7 +49,7 @@ public class JsonInputOptionHandler extends OneArgumentOptionHandler<Object> {
 		try {
 			return JsonMapperFactory.get().readValue(new File(argument), setter.getType());
 		} catch (Exception e) {
-			throw new CmdLineException(owner, "Failed to parse JSON input: " + argument, e);
+			throw new CmdLineException(owner, "Failed to parse JSON input: " + argument + " " + e.getMessage(), e);
 		}
 	}
 
