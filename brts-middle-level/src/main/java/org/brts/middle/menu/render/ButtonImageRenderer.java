@@ -1,5 +1,3 @@
-package org.brts.middle.menu.render;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
@@ -22,6 +20,8 @@ package org.brts.middle.menu.render;
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.menu.render;
 
 import java.awt.BasicStroke;
 import java.awt.Color;

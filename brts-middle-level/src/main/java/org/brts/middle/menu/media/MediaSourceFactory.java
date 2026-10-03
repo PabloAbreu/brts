@@ -1,5 +1,3 @@
-package org.brts.middle.menu.media;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
@@ -22,6 +20,8 @@ package org.brts.middle.menu.media;
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.menu.media;
 
 import org.brts.middle.menu.descriptor.BackgroundMediaDescriptor;
 import org.brts.middle.menu.descriptor.MkvBackgroundMedia;

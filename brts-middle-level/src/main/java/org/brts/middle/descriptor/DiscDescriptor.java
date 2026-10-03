@@ -1,5 +1,3 @@
-package org.brts.middle.descriptor;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
@@ -22,6 +20,8 @@ package org.brts.middle.descriptor;
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.descriptor;
 
 import org.brts.common.menu.TextStyle;
 import jakarta.validation.constraints.Pattern;

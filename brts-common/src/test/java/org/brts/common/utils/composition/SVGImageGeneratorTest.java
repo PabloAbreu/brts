@@ -1,27 +1,6 @@
 package org.brts.common.utils.composition;
 
-/*-
- * ===_LICENSE_BEGIN_===
- * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- * This file 'brts-common/src/test/java/org/brts/common/utils/composition/SVGImageGeneratorTest.java' is part of BRTS.
- * ==============================
- * Copyright (C) 2026 Pablo ABREU
- * ==============================
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Lesser Public License for more details.
- * 
- * You should have received a copy of the GNU General Lesser Public
- * License along with this program.  If not, see
- * <http://www.gnu.org/licenses/lgpl-3.0.html>.
- * ===_LICENSE_END_===
- */
+
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+import org.brts.common.template.TemplateRenderer;
 import org.brts.common.utils.composition.sources.synth.SVGImageGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -174,6 +154,40 @@ class SVGImageGeneratorTest {
 
 			assertThat(first.width()).isEqualTo(150);
 			assertThat(second.width()).isEqualTo(300);
+		}
+	}
+
+	@Test
+	void junglePopupTemplates_fitDifferentDestinationSizes() throws Exception {
+		for (String asset : new String[] { "popup-menu-banner.svg", "popup-panel-card.svg" }) {
+			Path assetPath = Path.of("../assets/styles/jungle-adventure", asset);
+			ImageReference.SyntheticImageSource source = new ImageReference.SyntheticImageSource();
+			source.setType("SVG");
+			source.setSrcPath(assetPath.toString());
+
+			int[][] sizes = asset.equals("popup-menu-banner.svg")
+					? new int[][] { { 1920, 220 }, { 1840, 220 }, { 900, 240 } }
+					: new int[][] { { 820, 280 }, { 1100, 360 }, { 320, 130 } };
+			try (SVGImageGenerator generator = new SVGImageGenerator(source)) {
+				for (int[] size : sizes) {
+					String rendered = TemplateRenderer.render(Files.readString(assetPath),
+							Map.of("width", size[0], "height", size[1]));
+					assertThat(rendered).contains("viewBox=\"0 0 " + size[0] + " " + size[1] + "\"");
+					if (asset.equals("popup-menu-banner.svg")) {
+						assertThat(rendered).contains(
+								"x=\"28\" y=\"26\" width=\"" + (size[0] - 56) + "\" height=\"" + (size[1] - 52) + "\"");
+					} else {
+						assertThat(rendered).contains(
+								"x=\"8\" y=\"8\" width=\"" + (size[0] - 16) + "\" height=\"" + (size[1] - 16) + "\"");
+					}
+					try (ImageFrame image = generator.generate(0, Map.of("width", size[0], "height", size[1]))) {
+						assertThat(image.width()).isEqualTo(size[0]);
+						assertThat(image.height()).isEqualTo(size[1]);
+						assertThat(image.toBufferedImage().getRGB(size[0] - 10, size[1] / 2) >>> 24)
+								.as("right side of %s at %dx%d", asset, size[0], size[1]).isGreaterThan(0);
+					}
+				}
+			}
 		}
 	}
 

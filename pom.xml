@@ -376,6 +376,8 @@
 					<processStartTag> ===_LICENSE_BEGIN_=== </processStartTag>
 					<sectionDelimiter>==============================</sectionDelimiter>
 					<processEndTag> ===_LICENSE_END_=== </processEndTag>
+					<addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
+					<emptyLineAfterHeader>true</emptyLineAfterHeader>
 				</configuration>
 				<executions>
 					<execution>
