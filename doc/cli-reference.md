@@ -62,6 +62,7 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `rle-to-png` | Convert IGS RLE bitmaps to PNG images |
 | `pgs-create` | Generate a PGS subtitle stream from SRT/SSA/ASS |
 | `render-template` | Render an output file from a template and a data model (e.g. JSON) |
+| `batch-run` | Run an ordered list of BRTS commands from a JSON descriptor (fail-fast, resumable with `--resume`) |
 
 ## `mid` — middle-level disc authoring operations
 
@@ -73,6 +74,9 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `find-first-playlist` | Find the first playlist played via HDMV navigation chain |
 | `create-setup-menu` | Generate a Blu-ray setup/settings menu M2TS |
 | `ds-preview` | Interactive Swing preview for IGS menus in M2TS |
+
+`build` and `simple-build` accept `--output-type`: `IMMEDIATE` runs the low-level steps directly, `BASH` writes
+`orchestrate.sh`, and `JSON` writes `orchestrate.json` to be run with `brts low batch-run`.
 
 ## `high` — high-level template-based disc building
 
@@ -108,6 +112,11 @@ brts mid scan-playlists --input /path/to/BDMV
 
 # Build a single-title disc with no top menu from a simplified descriptor
 brts mid simple-build --descriptor examples/simple-build-descriptor.json --output /tmp/out
+
+# Generate the low-level steps as a batch descriptor, run them, and resume after a failure
+brts mid simple-build --descriptor examples/simple-build-descriptor.json --output /tmp/out --output-type JSON
+brts low batch-run --descriptor /tmp/out/orchestrate.json
+brts low batch-run --descriptor /tmp/out/orchestrate.json --resume
 ```
 
 See [descriptors.md](descriptors.md) for the JSON formats referenced above.

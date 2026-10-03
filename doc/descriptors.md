@@ -19,6 +19,7 @@ Examples:
 - [`examples/setup-menu-descriptor.json`](../examples/setup-menu-descriptor.json) — setup/settings menu descriptor
 - [`examples/title-menu-descriptor.json`](../examples/title-menu-descriptor.json) — title selection menu descriptor
 - [`examples/title-menu-thumbnail-descriptor.json`](../examples/title-menu-thumbnail-descriptor.json) — title menu thumbnail composition
+- [`examples/batch-run-descriptor.json`](../examples/batch-run-descriptor.json) — ordered list of commands for `batch-run`
 
 ### Popup menu backgrounds
 
@@ -73,6 +74,21 @@ Layout modes are `ABSOLUTE` (`x`, `y`, `width`, `height`), `SELECTABLE_BOUNDS` (
 stretched to the calculated rectangle without preserving aspect ratio. Rectangles must stay within the configured
 screen dimensions. Relative raster and SVG paths resolve from the process working directory. Video and animated SVG
 backgrounds are not supported in popup IGS.
+
+### Batch-run descriptor
+
+`brts low batch-run --descriptor batch.json` runs an ordered list of BRTS commands in-process
+([`examples/batch-run-descriptor.json`](../examples/batch-run-descriptor.json)). Each entry of `steps` is either an
+invocation (`level`, `command`, ordered `arguments` of `{ "flag", "value" }` — omit `value` for boolean flags) or a
+`comment` (logged) / `message` (printed) step. Every level/command is checked before the first step runs. Relative
+paths in arguments resolve from the process working directory.
+
+Execution stops at the first failing step. Progress is kept in `<java.io.tmpdir>/brts-batch-run/`; after fixing the
+problem (in referenced files, or in the failed and later steps of the batch), re-run with `--resume` to continue from
+the failed step. Editing already completed steps invalidates the saved progress. A run without `--resume` always
+starts from the first step.
+
+The middle-level orchestrator writes such a descriptor as `orchestrate.json` with `--output-type JSON`.
 
 ## Middle-level descriptors
 

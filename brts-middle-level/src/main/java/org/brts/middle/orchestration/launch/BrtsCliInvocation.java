@@ -28,6 +28,9 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.lowlevel.batch.BatchArgument;
+import org.brts.lowlevel.batch.BatchStep;
+
 /**
  * A CLI-agnostic description of a single {@code brts} invocation: which level dispatcher to use, which command, and
  * which ordered flag/value arguments to pass. Renderer-specific {@link DeferredLaunchGenerator} implementations (bash,
@@ -49,6 +52,11 @@ public record BrtsCliInvocation(String level, String command, List<Argument> arg
 			tokens.add(argument.value());
 		}
 		return tokens;
+	}
+
+	public BatchStep toBatchStep() {
+		return BatchStep.invocation(level, command,
+				arguments.stream().map(a -> new BatchArgument(a.flag(), a.value())).toList());
 	}
 
 	private static String toAbsolute(Path path) {

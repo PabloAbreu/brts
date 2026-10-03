@@ -1,0 +1,39 @@
+{
+  "steps" : [ {
+    "comment" : "Title 1"
+  }, {
+    "level" : "low",
+    "command" : "mkv-to-playlist",
+    "arguments" : [ {
+      "flag" : "--descriptor",
+      "value" : "/output/my-disc/00001-mkv-descriptor.json"
+    }, {
+      "flag" : "--output",
+      "value" : "/output/my-disc/BDMV"
+    } ]
+  }, {
+    "level" : "low",
+    "command" : "index-write",
+    "arguments" : [ {
+      "flag" : "--input",
+      "value" : "/output/my-disc/index.json"
+    }, {
+      "flag" : "--output",
+      "value" : "/output/my-disc/BDMV"
+    }, {
+      "flag" : "--error-details"
+    } ]
+  }, {
+    "level" : "low",
+    "command" : "mobj-write",
+    "arguments" : [ {
+      "flag" : "--input",
+      "value" : "/output/my-disc/movieobjects.json"
+    }, {
+      "flag" : "--output",
+      "value" : "/output/my-disc/BDMV"
+    } ]
+  }, {
+    "message" : "Done. Check /output/my-disc for output."
+  } ]
+}

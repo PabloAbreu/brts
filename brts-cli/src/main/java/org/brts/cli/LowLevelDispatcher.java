@@ -24,6 +24,7 @@ package org.brts.cli;
  * ===_LICENSE_END_===
  */
 
+import org.brts.cli.low.BatchRunCli;
 import org.brts.cli.low.BdjoCli;
 import org.brts.cli.low.BrtsInfoCli;
 import org.brts.cli.low.ChapterThumbnailsCli;
@@ -66,7 +67,8 @@ public class LowLevelDispatcher {
 				.register(new PlaylistToMkvCli.Extract()).register(new MkvToPlaylistCli.Convert())
 				.register(new BrtsInfoCli.Info()).register(new NavSimulCli.Simul()).register(new DiscCli.Create())
 				.register(new TitleMenuCli.Create()).register(new VideoGenCli.Generate())
-				.register(new ChapterThumbnailsCli.Extract()).register(new TemplateCli.Render());
+				.register(new ChapterThumbnailsCli.Extract()).register(new TemplateCli.Render())
+				.register(new BatchRunCli.Run());
 	}
 
 	public static LevelDispatcher getLevelDispatcher() {
