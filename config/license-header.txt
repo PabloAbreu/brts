@@ -1,3 +1,4 @@
 BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
-
-This file '${file}' is part of BRTS.
+<#assign repoRoot = project.parent.basedir?replace("\\", "/") + "/">
+<#assign sourcePath = file.absolutePath?replace("\\", "/")>
+This file '${sourcePath?substring(repoRoot?length)}' is part of BRTS.
