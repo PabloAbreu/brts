@@ -25,6 +25,16 @@ existing Blu-ray files back into JSON for inspection and debugging.
 See [TODO.md](TODO.md) for the current backlog and
 [CLI documentation generation](doc/cli-documentation-generation.md) for the release metadata and reference pipeline.
 
+## Intended audience
+
+In its current form, BRTS is intended for developers and advanced users.
+
+The user is expected to
+ - install a JDK, compile and run Java code
+ - have a basic understanding of the Blu-ray disc structure
+ - be comfortable reading and editing JSON files
+ - use the command line
+
 ## Structure
 
 The project is a Maven multi-module build with four authoring layers plus a
