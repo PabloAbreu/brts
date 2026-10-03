@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="220" viewBox="0 0 1920 220">
+<#-- Popup backgrounds receive their destination width and height from PopupMenuBackgroundRenderer. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
   <defs>
     <linearGradient id="bannerBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#183d2c"/>
@@ -10,25 +11,42 @@
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="1920" height="220" fill="url(#bannerBg)"/>
-  <rect x="28" y="26" width="1864" height="168" rx="18" fill="none" stroke="#88c990" stroke-opacity="0.7" stroke-width="3"/>
-  <rect x="60" y="40" width="1800" height="10" fill="url(#gold)" opacity="0.7"/>
+  <rect x="0" y="0" width="${width}" height="${height}" fill="url(#bannerBg)"/>
+  <#if width gt 56 && height gt 52>
+  <rect x="28" y="26" width="${width - 56}" height="${height - 52}" rx="18" fill="none" stroke="#88c990" stroke-opacity="0.7" stroke-width="3"/>
+  </#if>
+  <#if width gt 120 && height gt 50>
+  <rect x="60" y="40" width="${width - 120}" height="10" fill="url(#gold)" opacity="0.7"/>
+  </#if>
 
+  <#-- Keep leaves and vines at their original size, anchored to the bottom corners. -->
+  <#if width gte 900 && height gte 190>
   <g opacity="0.8" fill="#8ad999">
-    <path d="M120 176 C150 148, 180 146, 210 176 C182 180, 158 194, 120 176 Z"/>
-    <path d="M1700 184 C1740 158, 1782 158, 1810 184 C1768 194, 1732 206, 1700 184 Z"/>
-    <path d="M280 174 C308 148, 344 146, 368 174 C334 180, 306 194, 280 174 Z"/>
-    <path d="M1630 166 C1668 130, 1700 132, 1730 166 C1688 176, 1662 190, 1630 166 Z"/>
+    <g transform="translate(0 ${height - 220})">
+      <path d="M120 176 C150 148, 180 146, 210 176 C182 180, 158 194, 120 176 Z"/>
+      <path d="M280 174 C308 148, 344 146, 368 174 C334 180, 306 194, 280 174 Z"/>
+    </g>
+    <g transform="translate(${width - 1920} ${height - 220})">
+      <path d="M1700 184 C1740 158, 1782 158, 1810 184 C1768 194, 1732 206, 1700 184 Z"/>
+      <path d="M1630 166 C1668 130, 1700 132, 1730 166 C1688 176, 1662 190, 1630 166 Z"/>
+    </g>
   </g>
 
   <g opacity="0.55" stroke="#d7f0d0" stroke-width="2" fill="none">
-    <path d="M70 160 C140 120, 240 125, 330 160"/>
-    <path d="M1590 156 C1690 118, 1790 120, 1848 160"/>
+    <g transform="translate(0 ${height - 220})">
+      <path d="M70 160 C140 120, 240 125, 330 160"/>
+    </g>
+    <g transform="translate(${width - 1920} ${height - 220})">
+      <path d="M1590 156 C1690 118, 1790 120, 1848 160"/>
+    </g>
   </g>
+  </#if>
 
   <g opacity="0.85" fill="url(#gold)">
-    <circle cx="960" cy="110" r="5"/>
-    <circle cx="930" cy="110" r="5"/>
-    <circle cx="990" cy="110" r="5"/>
+    <circle cx="${width / 2}" cy="${height / 2}" r="5"/>
+    <#if width gte 90>
+    <circle cx="${width / 2 - 30}" cy="${height / 2}" r="5"/>
+    <circle cx="${width / 2 + 30}" cy="${height / 2}" r="5"/>
+    </#if>
   </g>
 </svg>
