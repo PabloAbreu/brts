@@ -378,6 +378,10 @@
 					<processEndTag> ===_LICENSE_END_=== </processEndTag>
 					<addJavaLicenseAfterPackage>false</addJavaLicenseAfterPackage>
 					<emptyLineAfterHeader>true</emptyLineAfterHeader>
+					<!-- Due to quirks in formatter-maven-plugin which does not
+					  100% honor disabling formatting of license headers, 
+					  we force systematic update here -->
+					<canUpdateDescription>true</canUpdateDescription>
 				</configuration>
 				<executions>
 					<execution>

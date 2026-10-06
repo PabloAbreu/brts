@@ -172,11 +172,25 @@ only when a style template with a title menu background is set and there is
 more than one title.
 
 The repository ships `assets/styles/sci-fi` (cyan HUD panels on a dark navy
-backdrop, no background audio). Install it with
+backdrop, no background audio) and `assets/styles/sober-dark` (black, square
+grey frames, white text and a selected-only yellow underline). Install with
 `mkdir -p ~/.brts/assets/styles && cp -r assets/styles/* ~/.brts/assets/styles/`,
 or point `brts.assets.dir` (e.g. `-Dbrts.assets.dir=$PWD/assets`) at the
 repository `assets` folder during development. Example:
 [`examples/tv-series-disc-sci-fi.json`](../examples/tv-series-disc-sci-fi.json).
+
+Button text styles may optionally specify `stateOverlays` with `normal`,
+`selected` and/or `activated` image references. Each state accepts a static
+`sourcePath` or a `syntheticImage` with `type: "svg"` and either inline `data`
+or a file-backed `srcPath`. Missing states leave their button images unchanged;
+item styles override shared styles state by state. An SVG is rendered as a
+FreeMarker template with the final button's `width`, `height`, `textX`,
+`textY` (text baseline), `textWidth`, and `textHeight`. The label bounds refer
+to the last visible line when text wraps; a button without a label has
+`textWidth = 0`. Overlays must render at exactly the button's dimensions.
+They are composited over the text/icon before encoding the button states.
+Popup background SVG templates also receive `width` and `height`, but title
+menu composition backgrounds do not receive template variables.
 
 ## Descriptor validation
 

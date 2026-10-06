@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import org.brts.common.utils.composition.ImageFrame;
 import org.brts.common.utils.composition.ImageReference;
@@ -78,6 +79,52 @@ class StyleTemplateLoaderTest {
 		} finally {
 			generator.close();
 		}
+	}
+
+	@Test
+	void loadsSoberDarkWithSelectedInlineSvgAndBlackBackground() throws IOException {
+		StyleTemplate template = new StyleTemplateLoader(() -> List.of(REPO_ASSETS)).load("brts:sober-dark");
+		assertThat(template.manifest().getStyle().getSelectedColor()).isEqualTo("#FFFFFF");
+		assertThat(template.manifest().getStyle().getStateOverlays().getSelected().getSyntheticImage().getData())
+				.contains("#FFD400", "textWidth");
+		assertThat(template.manifest().getPopupMenu().getBackgrounds().getShared().get(0).getSource()
+				.getSyntheticImage().getSrcPath())
+				.isEqualTo(template.directory().resolve("popup-menu-banner.svg.ftl").toString());
+		assertThat(template.manifest().getTitleMenu().getBackgroundSource().getComposition().getImages().get(0)
+				.getSyntheticImage().getSrcPath())
+				.isEqualTo(template.directory().resolve("screen-background.svg").toString());
+	}
+
+	@Test
+	void soberDarkPopupPanelsRenderAtDifferentSizes() throws IOException {
+		StyleTemplate template = new StyleTemplateLoader(() -> List.of(REPO_ASSETS)).load("brts:sober-dark");
+		var backgrounds = template.manifest().getPopupMenu().getBackgrounds();
+		for (ImageReference ref : List.of(backgrounds.getShared().get(0).getSource(),
+				backgrounds.getAudio().get(0).getSource())) {
+			try (SVGImageGenerator generator = new SVGImageGenerator(ref.getSyntheticImage())) {
+				for (int[] dimensions : new int[][] { { 480, 100 }, { 1840, 220 } }) {
+					ImageFrame frame = generator.generate(0, Map.of("width", dimensions[0], "height", dimensions[1]));
+					assertThat(frame.width()).isEqualTo(dimensions[0]);
+					assertThat(frame.height()).isEqualTo(dimensions[1]);
+					assertThat(frame.toBufferedImage().getRGB(dimensions[0] / 2, dimensions[1] / 2))
+							.isEqualTo(0xFF000000);
+				}
+			}
+		}
+	}
+
+	@Test
+	void resolvesFileBackedStateOverlayAndRejectsMissingAsset() throws IOException {
+		Path dir = tmp.resolve("overlays");
+		writeManifest(dir, """
+				{"style":{"stateOverlays":{"selected":{"syntheticImage":{"type":"svg","srcPath":"selected.svg.ftl"}}}}}
+				""");
+		assertThatThrownBy(() -> new StyleTemplateLoader(List::of).load(dir.toString()))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("selected.svg.ftl");
+		Files.writeString(dir.resolve("selected.svg.ftl"), "<svg/>");
+		StyleTemplate template = new StyleTemplateLoader(List::of).load(dir.toString());
+		assertThat(template.manifest().getStyle().getStateOverlays().getSelected().getSyntheticImage().getSrcPath())
+				.isEqualTo(dir.resolve("selected.svg.ftl").toString());
 	}
 
 	@Test

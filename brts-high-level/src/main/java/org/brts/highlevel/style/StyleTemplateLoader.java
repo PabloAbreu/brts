@@ -93,6 +93,10 @@ public class StyleTemplateLoader {
 
 	private static void absolutize(StyleTemplateManifest manifest, Path directory, Path manifestPath) {
 		PathFixer fixer = new PathFixer(directory, manifestPath);
+		fixer.fixStyle(manifest.getStyle());
+		if (manifest.getTitleMenu() != null) {
+			fixer.fixStyle(manifest.getTitleMenu().getStyle());
+		}
 		if (manifest.getTitleMenu() != null && manifest.getTitleMenu().getBackgroundSource() != null) {
 			BackgroundSource bg = manifest.getTitleMenu().getBackgroundSource();
 			fixer.fix(bg.getVideoPath(), bg::setVideoPath);
@@ -105,6 +109,9 @@ public class StyleTemplateLoader {
 			}
 		}
 		PopupMenuConfig popup = manifest.getPopupMenu();
+		if (popup != null) {
+			fixer.fixStyle(popup.getStyle());
+		}
 		if (popup != null && popup.getBackgrounds() != null) {
 			PopupMenuConfig.PageBackgrounds backgrounds = popup.getBackgrounds();
 			for (List<BackgroundLayer> layers : List.of(backgrounds.getShared(), backgrounds.getRoot(),
@@ -117,6 +124,14 @@ public class StyleTemplateLoader {
 	}
 
 	private record PathFixer(Path directory, Path manifestPath) {
+		void fixStyle(org.brts.common.menu.TextStyle style) {
+			if (style != null && style.getStateOverlays() != null) {
+				var overlays = style.getStateOverlays();
+				fixRef(overlays.getNormal());
+				fixRef(overlays.getSelected());
+				fixRef(overlays.getActivated());
+			}
+		}
 
 		void fix(String path, Consumer<String> setter) {
 			if (path == null || path.isBlank()) {
@@ -135,14 +150,17 @@ public class StyleTemplateLoader {
 				return;
 			}
 			for (ImageReference ref : refs) {
-				if (ref == null) {
-					continue;
-				}
-				fix(ref.getSourcePath(), ref::setSourcePath);
-				fix(ref.getVideoPath(), ref::setVideoPath);
-				if (ref.getSyntheticImage() != null) {
-					fix(ref.getSyntheticImage().getSrcPath(), ref.getSyntheticImage()::setSrcPath);
-				}
+				fixRef(ref);
+			}
+		}
+
+		void fixRef(ImageReference ref) {
+			if (ref == null)
+				return;
+			fix(ref.getSourcePath(), ref::setSourcePath);
+			fix(ref.getVideoPath(), ref::setVideoPath);
+			if (ref.getSyntheticImage() != null) {
+				fix(ref.getSyntheticImage().getSrcPath(), ref.getSyntheticImage()::setSrcPath);
 			}
 		}
 

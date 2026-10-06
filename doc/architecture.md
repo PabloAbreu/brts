@@ -2,7 +2,7 @@
 
 ## Module layers
 
-BRTS is split into five Maven modules, each depending only on the ones above
+BRTS is split into seven Maven modules, each depending only on the ones above
 it in this list:
 
 1. **`brts-common`** — shared utilities and cross-module abstractions:
@@ -30,9 +30,13 @@ it in this list:
    entry point (`org.brts.cli.BrtsMain`) exposing every layer as its own set
    of subcommands, so any step can be run standalone, not just through the
    top-level "build a full disc" use case.
+6. **`brts-doc-parser`** (depends on `brts-cli`) parses javadoc and annotations
+   from the source code to generate a meta-model.
+7. **`brts-doc-generator`** (depends on `brts-doc-parser`) generates markdown
+   documentation or other artifacts based on the meta-model produced by the doc parser.
 
 ```
-brts-common → brts-low-level → brts-middle-level → brts-high-level → brts-cli
+brts-common → brts-low-level → brts-middle-level → brts-high-level → brts-cli → brts-doc-parser → brts-doc-generator
 ```
 
 **Rule:** lower layers must never depend on higher layers. Shared logic
@@ -41,9 +45,6 @@ dependencies.
 
 ## Package layout
 
-- Low-level code currently exists in both `org.brts.lowlevel.*` and
-  `org.brts.common.m2ts.*`. This split is existing project state and is not
-  migrated wholesale without an explicit request.
 - CLI commands are grouped by level under `org.brts.cli.{low,middle,high}`,
   each level backed by a `LevelDispatcher` that registers one
   `FeatureRunner` per command (see `org.brts.cli.FeatureRunner`,

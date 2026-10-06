@@ -85,6 +85,9 @@ public class TextStyle {
 	/** Text colour in the activated (pressed) state. */
 	private @BrtsValue String activatedColor;
 
+	/** Optional per-state images drawn over the button after its text/icon. */
+	private ButtonStateOverlays stateOverlays;
+
 	// ── Text effects ────────────────────────────────────────────────────────
 
 	/** Whether to draw a drop shadow behind the text. */
@@ -202,6 +205,8 @@ public class TextStyle {
 		result.normalColor = coalesce(overlay.normalColor, base.normalColor);
 		result.selectedColor = coalesce(overlay.selectedColor, base.selectedColor);
 		result.activatedColor = coalesce(overlay.activatedColor, base.activatedColor);
+		result.stateOverlays = overlay.stateOverlays != null ? overlay.stateOverlays.mergeOver(base.stateOverlays)
+				: base.stateOverlays;
 		result.shadow = coalesce(overlay.shadow, base.shadow);
 		result.shadowColor = coalesce(overlay.shadowColor, base.shadowColor);
 		result.outline = coalesce(overlay.outline, base.outline);
