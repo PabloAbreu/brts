@@ -433,6 +433,7 @@ public class MiddleLevelOrchestrator {
 		}
 
 		if (!generate) {
+			log.info("Popup menu not generated for title: {}", title.getTitleId());
 			return null;
 		}
 

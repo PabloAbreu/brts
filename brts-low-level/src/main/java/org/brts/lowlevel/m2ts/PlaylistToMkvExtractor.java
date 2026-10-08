@@ -35,6 +35,7 @@ import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.paths.BrPath.StreamPath;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
@@ -69,7 +70,7 @@ public class PlaylistToMkvExtractor {
 	/**
 	 * Extracts the given playlist into an MKV file, retaining all audio and subtitle streams.
 	 */
-	public void extract(Path streamDir, MoviePlaylist playlist, Path outputMkv) throws IOException {
+	public void extract(StreamPath streamDir, MoviePlaylist playlist, Path outputMkv) throws IOException {
 		extract(streamDir, playlist, outputMkv, null, null);
 	}
 
@@ -83,7 +84,7 @@ public class PlaylistToMkvExtractor {
 	 * @param subtitlePids subtitle PIDs to retain; {@code null} or empty = all subs
 	 * @throws IOException on I/O error
 	 */
-	public void extract(Path streamDir, MoviePlaylist playlist, Path outputMkv, Set<Integer> audioPids,
+	public void extract(StreamPath streamDir, MoviePlaylist playlist, Path outputMkv, Set<Integer> audioPids,
 			Set<Integer> subtitlePids) throws IOException {
 
 		List<PlayItem> items = playlist.getPlayItems();
@@ -100,7 +101,7 @@ public class PlaylistToMkvExtractor {
 				selectedPids.stream().map(p -> "0x" + Integer.toHexString(p)).collect(Collectors.joining(", ")));
 
 		// --- Build a merged M2tsInfo from the first clip for track setup -----
-		Path firstClip = resolveClipPath(streamDir, items.get(0).getClipName());
+		Path firstClip = streamDir.m2ts(items.get(0).getClipName());
 		M2tsInfo firstInfo = parser.parse(firstClip);
 
 		// Filter the M2tsInfo to only contain selected PIDs
@@ -111,7 +112,7 @@ public class PlaylistToMkvExtractor {
 
 			for (int i = 0; i < items.size(); i++) {
 				PlayItem item = items.get(i);
-				Path clipPath = resolveClipPath(streamDir, item.getClipName());
+				Path clipPath = streamDir.m2ts(item.getClipName());
 
 				log.info("  Demuxing play item {}/{}: {} (in={} out={})", i + 1, items.size(), item.getClipName(),
 						item.getInTimeTicks(), item.getOutTimeTicks());
@@ -165,10 +166,6 @@ public class PlaylistToMkvExtractor {
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
-
-	private Path resolveClipPath(Path streamDir, String clipName) {
-		return streamDir.resolve(clipName + ".m2ts");
-	}
 
 	/**
 	 * Returns a copy of the given info with only the streams matching {@code pids}.

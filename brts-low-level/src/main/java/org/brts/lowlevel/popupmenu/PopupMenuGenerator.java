@@ -28,6 +28,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
+import org.brts.common.utils.paths.BrPath.ClipinfPath;
+import org.brts.common.utils.paths.BrPath.StreamPath;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -64,10 +68,10 @@ public class PopupMenuGenerator {
 	public Result generate(PopupMenuConfig config, Path outputDir) throws IOException {
 		String clipName = config.getOutputClipName();
 
-		Path streamDir = outputDir.resolve("STREAM");
-		Path clipDir = outputDir.resolve("CLIPINF");
-		Files.createDirectories(streamDir);
-		Files.createDirectories(clipDir);
+		BdmvPath bdmv = BrPath.bdmv(outputDir);
+		bdmv.createFolderStructure();
+		StreamPath stream = bdmv.stream();
+		ClipinfPath clipinfo = bdmv.clipinf();
 
 		// 1. Build IGS display set
 		PopupMenuIgsBuilder igsBuilder = new PopupMenuIgsBuilder();
@@ -86,8 +90,8 @@ public class PopupMenuGenerator {
 		try {
 			Path igsEsFile = workDir.resolve("popup.igs");
 			Files.write(igsEsFile, igsEs);
-			Path igsM2ts = streamDir.resolve(clipName + ".m2ts");
-			Path igsClpi = clipDir.resolve(clipName + ".clpi");
+			Path igsM2ts = stream.m2ts(clipName);
+			Path igsClpi = clipinfo.clpi(clipName);
 
 			M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
 			m2tsigsMuxer.mux(igsEsFile, igsM2ts);

@@ -44,6 +44,8 @@ import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.model.Timestamp;
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
 import org.brts.lowlevel.m2ts.M2tsClipWriter;
 import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
 import org.brts.lowlevel.m2ts.M2tsWriter;
@@ -213,11 +215,9 @@ public class MkvToPlaylistConverter {
 				textSubTrackNos);
 
 		// 9. Write M2TS+CLPI
-		Path streamDir = outputDir.resolve("STREAM");
-		Path m2tsPath = streamDir.resolve(clipName + ".m2ts");
-
-		Path clipinfDir = outputDir.resolve("CLIPINF");
-		Path clpiPath = clipinfDir.resolve(clipName + ".clpi");
+		BdmvPath bdmvPath = BrPath.bdmv(outputDir);
+		Path m2tsPath = bdmvPath.stream(clipName);
+		Path clpiPath = bdmvPath.clipinf(clipName);
 
 		M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
 		writer.write(descriptor, m2tsPath, clpiPath);

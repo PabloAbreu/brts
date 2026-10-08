@@ -36,6 +36,21 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public abstract class BrPath {
+	private static final String BDMV_FOLDER = "BDMV";
+	private static final String CERTIFICATE_FOLDER = "CERTIFICATE";
+	private static final String BACKUP_FOLDER = "BACKUP";
+	private static final String BDJO_FOLDER = "BDJO";
+	private static final String CLIPINF_FOLDER = "CLIPINF";
+	private static final String JAR_FOLDER = "JAR";
+	private static final String META_FOLDER = "META";
+	private static final String PLAYLIST_FOLDER = "PLAYLIST";
+	private static final String STREAM_FOLDER = "STREAM";
+	private static final String INDEX_BDMV_FILE = "index.bdmv";
+	private static final String MOVIE_OBJECT_BDMV_FILE = "MovieObject.bdmv";
+	private static final String CLPI_EXTENSION = ".clpi";
+	private static final String MPLS_EXTENSION = ".mpls";
+	private static final String M2TS_EXTENSION = ".m2ts";
+
 	private final @Getter Path path;
 
 	protected Path subPath(String path) {
@@ -69,12 +84,12 @@ public abstract class BrPath {
 		}
 
 		public BdmvPath bdmv() {
-			return new BdmvPath(subPath("BDMV"));
+			return new BdmvPath(subPath(BDMV_FOLDER));
 		}
 
 		public Path certificate() {
 			// placebo
-			return subPath("CERTIFICATE");
+			return subPath(CERTIFICATE_FOLDER);
 		}
 
 		public void createFolderStructure() {
@@ -99,39 +114,39 @@ public abstract class BrPath {
 		}
 
 		public Path backup() {
-			return subPath("BACKUP");
+			return subPath(BACKUP_FOLDER);
 		}
 
 		public Path bdjo() {
-			return subPath("BDJO");
+			return subPath(BDJO_FOLDER);
 		}
 
 		public ClipinfPath clipinf() {
-			return new ClipinfPath(subPath("CLIPINF"));
+			return new ClipinfPath(subPath(CLIPINF_FOLDER));
 		}
 
 		public Path jar() {
-			return subPath("JAR");
+			return subPath(JAR_FOLDER);
 		}
 
 		public Path meta() {
-			return subPath("META");
+			return subPath(META_FOLDER);
 		}
 
 		public PlaylistPath playlist() {
-			return new PlaylistPath(subPath("PLAYLIST"));
+			return new PlaylistPath(subPath(PLAYLIST_FOLDER));
 		}
 
 		public StreamPath stream() {
-			return new StreamPath(subPath("STREAM"));
+			return new StreamPath(subPath(STREAM_FOLDER));
 		}
 
 		public Path indexBdmv() {
-			return subPath("index.bdmv");
+			return subPath(INDEX_BDMV_FILE);
 		}
 
 		public Path MovieObjectBdmv() {
-			return subPath("MovieObject.bdmv");
+			return subPath(MOVIE_OBJECT_BDMV_FILE);
 		}
 
 		// Shortcut methods for common sub-paths
@@ -163,7 +178,7 @@ public abstract class BrPath {
 		}
 
 		public Path clpi(String clipName) {
-			return subPath(clipName + ".clpi");
+			return subPath(clipName + CLPI_EXTENSION);
 		}
 	}
 
@@ -173,7 +188,7 @@ public abstract class BrPath {
 		}
 
 		public Path mpls(String playlistName) {
-			return subPath(playlistName + ".mpls");
+			return subPath(playlistName + MPLS_EXTENSION);
 		}
 	}
 
@@ -183,7 +198,7 @@ public abstract class BrPath {
 		}
 
 		public Path m2ts(String streamName) {
-			return subPath(streamName + ".m2ts");
+			return subPath(streamName + M2TS_EXTENSION);
 		}
 	}
 }
