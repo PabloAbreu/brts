@@ -35,7 +35,7 @@ import lombok.Setter;
 /**
  * Configuration for popup menu generation.
  * <p>
- * Describes the audio and subtitle tracks to present as selectable buttons in the popup menu IGS overlay.
+ * Describes the audio/subtitle tracks and disc titles to present in the popup menu IGS overlay.
  */
 @Getter
 @Setter
@@ -51,6 +51,12 @@ public class PopupMenuConfig {
 
 	/** Ordered list of subtitle tracks for the popup menu. */
 	private List<TrackEntry> subtitleTracks;
+
+	/** Ordered list of disc titles available from this popup menu. */
+	private List<TitleEntry> titles;
+
+	/** Blu-ray title number currently playing; its entry is shown muted without a navigation command. */
+	private Integer currentTitleNumber;
 
 	/** 5-digit clip name for the IGS M2TS output (e.g. "00800"). */
 	private String outputClipName;
@@ -99,6 +105,9 @@ public class PopupMenuConfig {
 
 		/** Layers displayed on subtitle-selection pages. */
 		private List<BackgroundLayer> subtitles = new ArrayList<>();
+
+		/** Layers displayed on title-selection pages. */
+		private List<BackgroundLayer> titles = new ArrayList<>();
 	}
 
 	/** One decorative image layer and its destination layout. */
@@ -179,6 +188,18 @@ public class PopupMenuConfig {
 		/** ISO 639-2 language code (e.g. "eng", "fra"). */
 		private String language;
 
+	}
+
+	/** A title entry available from the popup title-selection submenu. */
+	@Getter
+	@Setter
+	public static class TitleEntry {
+
+		/** Blu-ray title number used by the {@code JUMP_TITLE} navigation command. */
+		private int titleNumber;
+
+		/** Human-readable display name for the title button. */
+		private String displayName;
 	}
 
 }

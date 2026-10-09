@@ -28,6 +28,7 @@ import java.util.Locale;
 public class BrtsI18NLabels {
 	public static final String MENU_TO_AUDIO = "i18n.output.menu.to.audio";
 	public static final String MENU_TO_SUBTITLES = "i18n.output.menu.to.subtitles";
+	public static final String MENU_TO_TITLES = "i18n.output.menu.to.titles";
 	public static final String MENU_EXIT = "i18n.output.menu.exit";
 	public static final String MENU_BACK = "i18n.output.menu.back";
 	public static final String MENU_SETTINGS = "i18n.output.menu.settings";

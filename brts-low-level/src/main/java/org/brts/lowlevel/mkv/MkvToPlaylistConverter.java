@@ -408,6 +408,8 @@ public class MkvToPlaylistConverter {
 			config.setStyle(template.getStyle());
 			config.setLayout(template.getLayout());
 			config.setBackgrounds(template.getBackgrounds());
+			config.setTitles(template.getTitles());
+			config.setCurrentTitleNumber(template.getCurrentTitleNumber());
 		}
 		if (config != null && template == null) {
 			if (popupMenuStyle != null) {

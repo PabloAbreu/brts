@@ -107,6 +107,7 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 		template.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM);
 		template.setScreenWidth(1280);
 		template.setScreenHeight(720);
+		template.setCurrentTitleNumber(2);
 		TextStyle style = new TextStyle();
 		style.setFontSize(32);
 		template.setStyle(style);
@@ -124,6 +125,7 @@ class MkvToPlaylistConverterBuildPlaylistTest {
 		assertThat(result.getLayout()).isEqualTo(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM);
 		assertThat(result.getScreenWidth()).isEqualTo(1280);
 		assertThat(result.getScreenHeight()).isEqualTo(720);
+		assertThat(result.getCurrentTitleNumber()).isEqualTo(2);
 		assertThat(result.getStyle().getFontSize()).isEqualTo(32);
 		assertThat(result.getBackgrounds()).isSameAs(backgrounds);
 		assertThat(result.getAudioTracks()).hasSize(2);

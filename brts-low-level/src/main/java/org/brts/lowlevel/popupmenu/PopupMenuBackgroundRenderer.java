@@ -44,7 +44,7 @@ import org.brts.lowlevel.popupmenu.PopupMenuConfig.PageBackgrounds;
 final class PopupMenuBackgroundRenderer {
 
 	enum PageRole {
-		ROOT, AUDIO, SUBTITLES
+		ROOT, AUDIO, SUBTITLES, TITLES
 	}
 
 	List<IgsMenuAssembler.PositionedDecoration> render(PageBackgrounds backgrounds, PageRole role, boolean includesRoot,
@@ -61,6 +61,7 @@ final class PopupMenuBackgroundRenderer {
 		switch (role) {
 		case AUDIO -> addAll(layers, backgrounds.getAudio());
 		case SUBTITLES -> addAll(layers, backgrounds.getSubtitles());
+		case TITLES -> addAll(layers, backgrounds.getTitles());
 		case ROOT -> {
 			// Root-specific layers were included above.
 		}

@@ -189,6 +189,42 @@ class MiddleLevelOrchestratorTest {
 	}
 
 	@Test
+	void orchestrate_populatesPopupTitleChoicesAndCurrentTitlePerClip() throws IOException {
+		when(titleBuilder.build(any(TitleDescriptor.class))).thenAnswer(invocation -> {
+			TitleDescriptor title = invocation.getArgument(0);
+			return createMockTitleResult(String.format("%05d", title.getTitleId()), 2, 2);
+		});
+
+		DiscDescriptor disc = new DiscDescriptor();
+		disc.setDiscName("TestDisc");
+		disc.setOutputFolder(tempDir.toString());
+		disc.setPopupMenu(new PopupMenuConfig());
+
+		TitleDescriptor first = new TitleDescriptor();
+		first.setTitleId(1);
+		first.setDisplayName("Opening Episode");
+		first.setSourceMkv("/media/opening.mkv");
+		TitleDescriptor second = new TitleDescriptor();
+		second.setTitleId(2);
+		second.setSourceMkv("/media/finale.mkv");
+		disc.setTitles(List.of(first, second));
+
+		orchestrator.orchestrate(disc, tempDir);
+
+		MkvToPlaylistDescriptor firstDescriptor = mapper.readValue(
+				tempDir.resolve("descriptors/00001-mkv-descriptor.json").toFile(), MkvToPlaylistDescriptor.class);
+		MkvToPlaylistDescriptor secondDescriptor = mapper.readValue(
+				tempDir.resolve("descriptors/00002-mkv-descriptor.json").toFile(), MkvToPlaylistDescriptor.class);
+
+		assertThat(firstDescriptor.getPopupMenu().getTitles()).extracting(PopupMenuConfig.TitleEntry::getDisplayName)
+				.containsExactly("Opening Episode", "finale");
+		assertThat(firstDescriptor.getPopupMenu().getTitles()).extracting(PopupMenuConfig.TitleEntry::getTitleNumber)
+				.containsExactly(1, 2);
+		assertThat(firstDescriptor.getPopupMenu().getCurrentTitleNumber()).isEqualTo(1);
+		assertThat(secondDescriptor.getPopupMenu().getCurrentTitleNumber()).isEqualTo(2);
+	}
+
+	@Test
 	void orchestrate_stylePrecedence_popupMenuOverridesPopupStyleAndGlobalStyle() throws IOException {
 		when(titleBuilder.build(any(TitleDescriptor.class))).thenReturn(createMockTitleResult("00001", 2, 1));
 

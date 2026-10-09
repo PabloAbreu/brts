@@ -30,9 +30,13 @@ import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 /**
  * A button description before rendering: label text and navigation behavior, with no image/style concerns yet.
  */
-public record SymbolicButton(String text, List<NavigationCommand> commands, boolean autoAction) {
+public record SymbolicButton(String text, List<NavigationCommand> commands, boolean autoAction, boolean muted) {
+
+	public SymbolicButton(String text, List<NavigationCommand> commands, boolean autoAction) {
+		this(text, commands, autoAction, false);
+	}
 
 	public SymbolicButton(String text, List<NavigationCommand> commands) {
-		this(text, commands, false);
+		this(text, commands, false, false);
 	}
 }

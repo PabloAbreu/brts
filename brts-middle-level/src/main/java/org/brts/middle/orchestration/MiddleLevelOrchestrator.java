@@ -175,6 +175,13 @@ public class MiddleLevelOrchestrator {
 					popupMenuConfig.setScreenHeight(disc.getPopupMenu().getScreenHeight());
 					popupMenuConfig.setBackgrounds(disc.getPopupMenu().getBackgrounds());
 				}
+				popupMenuConfig.setTitles(disc.getTitles().stream().map(discTitle -> {
+					PopupMenuConfig.TitleEntry popupTitle = new PopupMenuConfig.TitleEntry();
+					popupTitle.setTitleNumber(discTitle.getTitleId());
+					popupTitle.setDisplayName(resolveDisplayName(discTitle));
+					return popupTitle;
+				}).toList());
+				popupMenuConfig.setCurrentTitleNumber(title.getTitleId());
 				popupMenuConfig.setOutputClipName(popupClipName);
 				if (resolvedPopupStyle != null) {
 					popupMenuConfig.setStyle(resolvedPopupStyle);

@@ -51,20 +51,15 @@ import org.brts.lowlevel.popupmenu.PopupMenuBackgroundRenderer.PageRole;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Builds an {@link IgsDisplaySet} for a popup audio/subtitle selection menu.
+ * Builds an {@link IgsDisplaySet} for a popup audio, subtitle, and title selection menu.
  * <p>
  * The menu structure depends on how many selectable track groups exist:
  * <ul>
- * <li><b>Both groups (audio &gt; 1 and subtitles &gt; 1)</b>:
- * <ul>
- * <li>Page 0 (Root): "Audio &#9658;" + "Subtitles &#9658;" + "Exit" navigation buttons</li>
- * <li>Page 1 (Audio): persistent root controls + one button per audio track</li>
- * <li>Page 2 (Subtitles): persistent root controls + one button per subtitle track</li>
- * </ul>
- * </li>
- * <li><b>Audio only (audio &gt; 1, subtitles &le; 1)</b>: Page 0 lists audio tracks + "Exit" directly.</li>
- * <li><b>Subtitles only (subtitles &gt; 1, audio &le; 1)</b>: Page 0 lists subtitle tracks + "Exit" directly.</li>
- * <li><b>Neither</b>: {@link #build(PopupMenuConfig)} returns {@code null}.</li>
+ * <li><b>Multiple groups</b>: a root page followed by one page per eligible audio, subtitle, or title group. Each
+ * submenu keeps the root controls visible.</li>
+ * <li><b>One group</b>: its entries and an Exit button are shown directly on page 0.</li>
+ * <li><b>Current title</b>: shown in muted colors without a navigation command.</li>
+ * <li><b>No groups</b>: {@link #build(PopupMenuConfig)} returns {@code null}.</li>
  * </ul>
  * <p>
  * The interactive composition uses {@code streamModel=IgsInteractiveComposition.STREAM_MODEL_OUT_OF_MUX} (Out-Of-Mux)
@@ -74,7 +69,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PopupMenuIgsBuilder {
 
 	private static final int BUTTON_MAX_WIDTH = 800;
-	private static final int ROOT_BUTTON_COUNT = 3;
+	private static final String MUTED_TITLE_COLOR = "#FF808080";
 
 	private record ButtonSpec(ButtonImages images, List<NavigationCommand> commands, boolean autoAction) {
 	}
@@ -82,17 +77,26 @@ public class PopupMenuIgsBuilder {
 	private record SymbolicPage(PageRole role, boolean includesRoot, List<SymbolicButton> buttons) {
 	}
 
-	private static ButtonSpec render(String text, TextStyle style, List<NavigationCommand> commands, boolean autoAction)
-			throws IOException {
-		return new ButtonSpec(TextRenderer.renderTextButton(text, style, BUTTON_MAX_WIDTH), commands, autoAction);
+	private static ButtonSpec render(String text, TextStyle style, List<NavigationCommand> commands, boolean autoAction,
+			boolean muted) throws IOException {
+		TextStyle effectiveStyle = muted ? mutedStyle(style) : style;
+		return new ButtonSpec(TextRenderer.renderTextButton(text, effectiveStyle, BUTTON_MAX_WIDTH), commands,
+				autoAction);
+	}
+
+	private static TextStyle mutedStyle(TextStyle style) {
+		TextStyle muted = new TextStyle();
+		muted.setNormalColor(MUTED_TITLE_COLOR);
+		muted.setSelectedColor(MUTED_TITLE_COLOR);
+		muted.setActivatedColor(MUTED_TITLE_COLOR);
+		return muted.mergeOver(style);
 	}
 
 	/**
 	 * Builds the popup menu IGS display set.
 	 *
 	 * @param config the popup menu configuration
-	 * @return a fully-populated {@link IgsDisplaySet}, or {@code null} if neither audio nor subtitle tracks warrant a
-	 *         menu (both groups have &le; 1 entry)
+	 * @return a fully-populated {@link IgsDisplaySet}, or {@code null} if no track or title group warrants a menu
 	 * @throws IOException on rendering errors
 	 */
 	public IgsDisplaySet build(PopupMenuConfig config) throws IOException {
@@ -177,7 +181,7 @@ public class PopupMenuIgsBuilder {
 	/**
 	 * Builds the page/button structure with labels and navigation commands, without rendering any images.
 	 *
-	 * @return the symbolic pages, or {@code null} if neither audio nor subtitle tracks warrant a menu
+	 * @return the symbolic pages, or {@code null} if no selection group warrants a menu
 	 */
 	List<List<SymbolicButton>> buildSymbolicPages(PopupMenuConfig config) {
 		List<SymbolicPage> pages = buildSymbolicPageSpecs(config);
@@ -190,65 +194,109 @@ public class PopupMenuIgsBuilder {
 		List<PopupMenuConfig.TrackEntry> subtitleTracks = config.getSubtitleTracks() != null
 				? config.getSubtitleTracks()
 				: List.of();
-
-		boolean needsAudio = audioTracks.size() > 1;
-		boolean needsSubs = subtitleTracks.size() > 1;
-
-		if (!needsAudio && !needsSubs) {
-			log.info("Popup menu skipped: neither audio ({}) nor subtitle ({}) tracks warrant a menu",
-					audioTracks.size(), subtitleTracks.size());
-			return null;
-		}
+		List<PopupMenuConfig.TitleEntry> titles = config.getTitles() != null ? config.getTitles() : List.of();
+		validateTitles(titles, config.getCurrentTitleNumber());
 
 		List<SymbolicPage> pages = new ArrayList<>();
-
-		if (needsAudio && needsSubs) {
-			// BOTH: root page (0) + persistent-root audio/subtitle pages (1/2)
-			List<SymbolicButton> rootSpecs = new ArrayList<>();
-			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(1, ROOT_BUTTON_COUNT + 1)));
-			rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(2, ROOT_BUTTON_COUNT + 1)));
-			rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(new SymbolicPage(PageRole.ROOT, true, rootSpecs));
-
-			List<SymbolicButton> audioSpecs = clonedRootSpecs();
-			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
-				audioSpecs.add(new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
-			}
-			pages.add(new SymbolicPage(PageRole.AUDIO, true, audioSpecs));
-
-			List<SymbolicButton> subSpecs = clonedRootSpecs();
-			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
-				subSpecs.add(new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
-			}
-			pages.add(new SymbolicPage(PageRole.SUBTITLES, true, subSpecs));
-
-		} else if (needsAudio) {
-			// AUDIO_ONLY: direct track list on page 0
-			List<SymbolicButton> audioSpecs = new ArrayList<>();
-			for (PopupMenuConfig.TrackEntry entry : audioTracks) {
-				audioSpecs.add(new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())));
-			}
-			audioSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(new SymbolicPage(PageRole.AUDIO, false, audioSpecs));
-
-		} else {
-			// SUBS_ONLY: direct track list on page 0
-			List<SymbolicButton> subSpecs = new ArrayList<>();
-			for (PopupMenuConfig.TrackEntry entry : subtitleTracks) {
-				subSpecs.add(new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())));
-			}
-			subSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
-			pages.add(new SymbolicPage(PageRole.SUBTITLES, false, subSpecs));
+		if (audioTracks.size() > 1) {
+			log.debug("Adding audio page");
+			pages.add(new SymbolicPage(PageRole.AUDIO, false, audioButtons(audioTracks)));
+		}
+		if (subtitleTracks.size() > 1) {
+			log.debug("Adding subtitle page");
+			pages.add(new SymbolicPage(PageRole.SUBTITLES, false, subtitleButtons(subtitleTracks)));
+		}
+		if (titles.size() > 1) {
+			log.debug("Adding titles page");
+			pages.add(new SymbolicPage(PageRole.TITLES, false, titleButtons(titles, config.getCurrentTitleNumber())));
 		}
 
-		return pages;
+		if (pages.isEmpty()) {
+			log.info("Popup menu skipped: audio ({}), subtitle ({}), and title ({}) entries do not warrant a menu",
+					audioTracks.size(), subtitleTracks.size(), titles.size());
+			return null;
+		}
+		if (pages.size() == 1) {
+			List<SymbolicButton> directButtons = new ArrayList<>(pages.get(0).buttons());
+			directButtons.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
+			SymbolicPage onlyPage = pages.get(0);
+			return List.of(new SymbolicPage(onlyPage.role(), false, directButtons));
+		}
+
+		int rootControlCount = pages.size() + 1;
+		List<SymbolicButton> rootButtons = new ArrayList<>();
+		for (int groupIndex = 0; groupIndex < pages.size(); groupIndex++) {
+			SymbolicPage page = pages.get(groupIndex);
+			rootButtons.add(
+					new SymbolicButton(groupLabel(page.role()), setButtonPage(groupIndex + 1, rootControlCount + 1)));
+		}
+		rootButtons.add(new SymbolicButton(getLabel(MENU_EXIT), popupOff()));
+		List<SymbolicPage> result = new ArrayList<>();
+		result.add(new SymbolicPage(PageRole.ROOT, true, rootButtons));
+		for (int pageIndex = 0; pageIndex < pages.size(); pageIndex++) {
+			SymbolicPage page = pages.get(pageIndex);
+			List<SymbolicButton> buttons = clonedRootSpecs(pages);
+			buttons.addAll(page.buttons());
+			result.add(new SymbolicPage(page.role(), true, buttons));
+		}
+		return result;
 	}
 
-	private static List<SymbolicButton> clonedRootSpecs() {
+	private static void validateTitles(List<PopupMenuConfig.TitleEntry> titles, Integer currentTitleNumber) {
+		if (titles.isEmpty()) {
+			return;
+		}
+		if (currentTitleNumber == null) {
+			throw new IllegalArgumentException("currentTitleNumber is required when popup titles are configured");
+		}
+		boolean currentTitleFound = false;
+		for (PopupMenuConfig.TitleEntry title : titles) {
+			if (title == null || title.getTitleNumber() < 1) {
+				throw new IllegalArgumentException("Popup title entries must have a positive titleNumber");
+			}
+			currentTitleFound |= title.getTitleNumber() == currentTitleNumber;
+		}
+		if (!currentTitleFound) {
+			throw new IllegalArgumentException(
+					"currentTitleNumber " + currentTitleNumber + " is not present in the popup title list");
+		}
+	}
+
+	private static List<SymbolicButton> audioButtons(List<PopupMenuConfig.TrackEntry> tracks) {
+		return tracks.stream()
+				.map(entry -> new SymbolicButton(entry.getDisplayName(), setAudio(entry.getStreamIndex())))
+				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+	}
+
+	private static List<SymbolicButton> subtitleButtons(List<PopupMenuConfig.TrackEntry> tracks) {
+		return tracks.stream()
+				.map(entry -> new SymbolicButton(entry.getDisplayName(), setSubtitle(entry.getStreamIndex())))
+				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+	}
+
+	private static List<SymbolicButton> titleButtons(List<PopupMenuConfig.TitleEntry> titles, int currentTitleNumber) {
+		return titles.stream()
+				.map(entry -> entry.getTitleNumber() == currentTitleNumber
+						? new SymbolicButton(entry.getDisplayName(), List.of(), false, true)
+						: new SymbolicButton(entry.getDisplayName(), jumpTitle(entry.getTitleNumber())))
+				.collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+	}
+
+	private static String groupLabel(PageRole role) {
+		return switch (role) {
+		case AUDIO -> getLabel(MENU_TO_AUDIO);
+		case SUBTITLES -> getLabel(MENU_TO_SUBTITLES);
+		case TITLES -> getLabel(MENU_TO_TITLES);
+		case ROOT -> throw new IllegalArgumentException("Root page is not a selectable popup group");
+		};
+	}
+
+	private static List<SymbolicButton> clonedRootSpecs(List<SymbolicPage> pages) {
 		List<SymbolicButton> rootSpecs = new ArrayList<>();
-		rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_AUDIO), setButtonPage(0, 1), true));
-		rootSpecs.add(new SymbolicButton(getLabel(MENU_TO_SUBTITLES), setButtonPage(0, 2), true));
-		rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), setButtonPage(0, 3), true));
+		for (int i = 0; i < pages.size(); i++) {
+			rootSpecs.add(new SymbolicButton(groupLabel(pages.get(i).role()), setButtonPage(0, i + 1), true));
+		}
+		rootSpecs.add(new SymbolicButton(getLabel(MENU_EXIT), setButtonPage(0, pages.size() + 1), true));
 		return rootSpecs;
 	}
 
@@ -262,7 +310,7 @@ public class PopupMenuIgsBuilder {
 		for (List<SymbolicButton> symbolicPage : symbolicPages) {
 			List<ButtonSpec> specs = new ArrayList<>();
 			for (SymbolicButton button : symbolicPage) {
-				specs.add(render(button.text(), style, button.commands(), button.autoAction()));
+				specs.add(render(button.text(), style, button.commands(), button.autoAction(), button.muted()));
 			}
 			pages.add(specs);
 		}

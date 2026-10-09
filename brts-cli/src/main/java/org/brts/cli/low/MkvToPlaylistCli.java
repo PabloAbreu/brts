@@ -23,6 +23,10 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+import java.nio.file.Paths;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.mkv.MkvToPlaylistConverter;
@@ -31,15 +35,12 @@ import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Paths;
-
 /**
  * CLI for converting an MKV file into a Blu-ray clip triplet (M2TS + CLPI + MPLS).
  */
 public class MkvToPlaylistCli {
 
-	public static class ConvertOptions extends org.brts.cli.BaseOptions {
+	public static class ConvertOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the mkv-to-playlist JSON descriptor")
 		MkvToPlaylistDescriptor descriptor;

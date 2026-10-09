@@ -23,12 +23,6 @@
 
 package org.brts.cli.low;
 
-import org.brts.cli.FeatureRunner;
-import org.brts.lowlevel.m2ts.PlaylistToMkvExtractor;
-import org.brts.lowlevel.model.mpls.MoviePlaylist;
-import org.brts.lowlevel.parser.MoviePlaylistParser;
-import org.kohsuke.args4j.Option;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -36,12 +30,20 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.brts.cli.BaseOptions;
+import org.brts.cli.FeatureRunner;
+import org.brts.common.utils.paths.BrPath.StreamPath;
+import org.brts.lowlevel.m2ts.PlaylistToMkvExtractor;
+import org.brts.lowlevel.model.mpls.MoviePlaylist;
+import org.brts.lowlevel.parser.MoviePlaylistParser;
+import org.kohsuke.args4j.Option;
+
 /**
  * CLI for extracting a Blu-ray playlist directly to an MKV container.
  */
 public class PlaylistToMkvCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@Option(name = "--playlist", required = true, usage = "Path to the .mpls playlist file")
 		File playlist;
@@ -83,7 +85,8 @@ public class PlaylistToMkvCli {
 			Set<Integer> audioPids = parsePidList(opts.audioPids);
 			Set<Integer> subtitlePids = parsePidList(opts.subtitlePids);
 
-			new PlaylistToMkvExtractor().extract(streamDir, playlist, outputMkv, audioPids, subtitlePids);
+			new PlaylistToMkvExtractor().extract(new StreamPath(streamDir), playlist, outputMkv, audioPids,
+					subtitlePids);
 			System.out.println("Playlist→MKV complete → " + outputMkv);
 		}
 
