@@ -33,6 +33,7 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -46,8 +47,88 @@ import org.brts.lowlevel.popupmenu.PopupMenuConfig.TrackEntry;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig.TitleEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class PopupMenuIgsBuilderTest {
+
+	@Test
+	void buildsHorizontalSubmenuRowsAbovePersistentRoot() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS);
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		List<IgsPage> pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		assertThat(pages).hasSize(3);
+		List<IgsButton> root = buttons(pages.get(0));
+		assertThat(root).hasSize(3).noneMatch(IgsButton::isAutoAction);
+		assertThat(root).extracting(IgsButton::getYPos).containsOnly(root.get(0).getYPos());
+		for (int pageId = 1; pageId < pages.size(); pageId++) {
+			IgsPage page = pages.get(pageId);
+			List<IgsButton> pageButtons = buttons(page);
+			List<IgsButton> submenu = pageButtons.subList(3, 5);
+			assertThat(pageButtons).extracting(IgsButton::getId).containsExactly(1, 2, 3, 4, 5);
+			assertThat(pageButtons.subList(0, 3)).allMatch(IgsButton::isAutoAction);
+			for (int i = 0; i < root.size(); i++) {
+				assertThat(pageButtons.get(i).getXPos()).isEqualTo(root.get(i).getXPos());
+				assertThat(pageButtons.get(i).getYPos()).isEqualTo(root.get(i).getYPos());
+				assertThat(pageButtons.get(i).getNavigationCommands().get(0).getOperand2()).isEqualTo(i + 1);
+				assertThat(pageButtons.get(i).getNavigationCommands().get(1).getOperand2()).isZero();
+			}
+			int rowHeight = submenu.stream().mapToInt(button -> object(displaySet, button).getHeight()).max()
+					.orElseThrow();
+			assertThat(submenu).noneMatch(IgsButton::isAutoAction);
+			assertThat(submenu).extracting(IgsButton::getYPos).containsOnly(root.get(0).getYPos() - 16 - rowHeight);
+			assertThat(submenu.get(1).getXPos())
+					.isEqualTo(submenu.get(0).getXPos() + object(displaySet, submenu.get(0)).getWidth() + 16);
+			assertThat(submenu).extracting(IgsButton::getUpperButtonIdRef).containsExactly(4, 5);
+			assertThat(submenu).extracting(IgsButton::getLowerButtonIdRef).containsOnly(pageId);
+			assertThat(submenu).extracting(IgsButton::getLeftButtonIdRef).containsExactly(5, 4);
+			assertThat(submenu).extracting(IgsButton::getRightButtonIdRef).containsExactly(5, 4);
+			assertThat(submenu).allSatisfy(button -> assertThat(button.getNavigationCommands()).singleElement()
+					.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("SET_STREAM")));
+			assertThat(page.getDefaultSelectedButtonIdRef()).isEqualTo(4);
+		}
+	}
+
+	@ParameterizedTest
+	@EnumSource(PopupMenuConfig.Layout.class)
+	void layoutValuesRoundTripThroughDescriptorMapper(PopupMenuConfig.Layout layout) throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(layout);
+		PopupMenuConfig restored = JsonMapperFactory.get().readValue(JsonMapperFactory.get().writeValueAsString(config),
+				PopupMenuConfig.class);
+		assertThat(restored.getLayout()).isEqualTo(layout);
+		assertThat(new PopupMenuIgsBuilder().build(restored)).isNotNull();
+	}
+
+	@Test
+	void nullLayoutRetainsVerticalFallbackAndOmittedLayoutRetainsDefault() throws IOException {
+		assertThat(JsonMapperFactory.get().readValue("{}", PopupMenuConfig.class).getLayout())
+				.isEqualTo(PopupMenuConfig.Layout.VERTICAL_LIST);
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(null);
+		List<IgsPage> pages = new PopupMenuIgsBuilder().build(config).getCompositionSegment()
+				.getInteractiveComposition().getPages();
+		assertThat(buttons(pages.get(0))).extracting(IgsButton::getXPos)
+				.containsOnly(buttons(pages.get(0)).get(0).getXPos());
+		assertThat(buttons(pages.get(1)).subList(3, 5)).extracting(IgsButton::getLeftButtonIdRef).containsOnly(1);
+	}
+
+	@Test
+	void horizontalSubmenuLayoutKeepsSingleGroupInOneBottomRow() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 1);
+		config.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS);
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		List<IgsPage> pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		assertThat(pages).hasSize(1);
+		List<IgsButton> row = buttons(pages.get(0));
+		assertThat(row).hasSize(3).noneMatch(IgsButton::isAutoAction);
+		assertThat(row).extracting(IgsButton::getYPos)
+				.containsOnly(1080 - 80 - object(displaySet, row.get(0)).getHeight());
+		assertThat(row).extracting(IgsButton::getLeftButtonIdRef).containsExactly(3, 1, 2);
+		assertThat(row).extracting(IgsButton::getRightButtonIdRef).containsExactly(2, 3, 1);
+		assertThat(pages.get(0).getDefaultSelectedButtonIdRef()).isEqualTo(1);
+	}
 
 	@Test
 	void buildsPersistentRootOnAudioAndSubtitlePages() throws IOException {
@@ -204,9 +285,11 @@ class PopupMenuIgsBuilderTest {
 		assertThat(displaySet.getObjects()).hasSize(47);
 	}
 
-	@Test
-	void fitsBackgroundAroundRenderedSelectableBounds() throws IOException {
-		PopupMenuConfig config = configWithTracks(2, 1);
+	@ParameterizedTest
+	@EnumSource(PopupMenuConfig.Layout.class)
+	void fitsBackgroundAroundRenderedSelectableBounds(PopupMenuConfig.Layout layout) throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(layout);
 		BackgroundLayer layer = svgLayer("#101010", 0);
 		layer.getLayout().setMode(BackgroundLayoutMode.SELECTABLE_BOUNDS);
 		layer.getLayout().setMarginTop(7);
@@ -218,7 +301,7 @@ class PopupMenuIgsBuilderTest {
 		config.setBackgrounds(backgrounds);
 
 		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
-		IgsPage page = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0);
+		IgsPage page = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1);
 		List<IgsButton> pageButtons = buttons(page);
 		IgsButton decoration = pageButtons.get(0);
 		List<IgsButton> selectable = pageButtons.subList(1, pageButtons.size());

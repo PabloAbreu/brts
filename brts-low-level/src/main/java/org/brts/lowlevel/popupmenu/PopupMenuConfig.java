@@ -43,7 +43,12 @@ public class PopupMenuConfig {
 
 	/** Built-in button arrangements supported by popup menus. */
 	public enum Layout {
-		VERTICAL_LIST, HORIZONTAL_BOTTOM
+		/** Persistent root column to the left of vertical submenu lists (default). */
+		VERTICAL_LIST,
+		/** Bottom root row with vertical submenu lists above it. */
+		HORIZONTAL_BOTTOM,
+		/** Bottom root row with a single centered horizontal submenu row above it. */
+		HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS
 	}
 
 	/** Ordered list of audio tracks for the popup menu. */

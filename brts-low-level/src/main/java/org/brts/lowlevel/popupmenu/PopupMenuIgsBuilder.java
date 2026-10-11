@@ -43,6 +43,7 @@ import org.brts.lowlevel.igs.model.IgsObject;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.brts.lowlevel.popupmenu.layout.HorizontalBottomHorizontalPopupMenuLayout;
 import org.brts.lowlevel.popupmenu.layout.HorizontalBottomPopupMenuLayout;
 import org.brts.lowlevel.popupmenu.layout.PopupMenuLayout;
 import org.brts.lowlevel.popupmenu.layout.VerticalPopupMenuLayout;
@@ -170,9 +171,11 @@ public class PopupMenuIgsBuilder {
 						.map(s -> new IgsMenuAssembler.LabeledButton(s.images(), s.commands(), s.autoAction()))
 						.toList())
 				.toList();
-		PopupMenuLayout layoutStrategy = layout == PopupMenuConfig.Layout.HORIZONTAL_BOTTOM
-				? new HorizontalBottomPopupMenuLayout()
-				: new VerticalPopupMenuLayout();
+		PopupMenuLayout layoutStrategy = switch (layout != null ? layout : PopupMenuConfig.Layout.VERTICAL_LIST) {
+		case VERTICAL_LIST -> new VerticalPopupMenuLayout();
+		case HORIZONTAL_BOTTOM -> new HorizontalBottomPopupMenuLayout();
+		case HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS -> new HorizontalBottomHorizontalPopupMenuLayout();
+		};
 		return layoutStrategy.layout(labeledPages, screenW, screenH);
 	}
 

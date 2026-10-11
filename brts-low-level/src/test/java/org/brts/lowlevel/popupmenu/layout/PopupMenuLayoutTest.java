@@ -25,6 +25,7 @@ package org.brts.lowlevel.popupmenu.layout;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.brts.lowlevel.bdmv.NavigationCommandUtils.setAudio;
 
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -135,6 +136,119 @@ class PopupMenuLayoutTest {
 				.get(0);
 
 		assertThat(page.buttons()).extracting(IgsMenuAssembler.PositionedButton::y).containsExactly(872, 940);
+	}
+
+	@Test
+	void horizontalSubmenuLayoutSharesSinglePageAndRootRowBehavior() {
+		List<IgsMenuAssembler.LabeledButton> root = labeledButtons(3, 160);
+		List<PopupMenuLayout.Page> expected = new HorizontalBottomPopupMenuLayout().layout(List.of(root), SCREEN_WIDTH,
+				SCREEN_HEIGHT);
+		assertThat(new HorizontalBottomHorizontalPopupMenuLayout().layout(List.of(root), SCREEN_WIDTH, SCREEN_HEIGHT))
+				.isEqualTo(expected);
+		assertThat(new HorizontalBottomHorizontalPopupMenuLayout()
+				.layout(List.of(root, compositePage(root, labeledButtons(2, 200))), SCREEN_WIDTH, SCREEN_HEIGHT).get(0))
+				.isEqualTo(expected.get(0));
+	}
+
+	@Test
+	void horizontalSubmenusWrapWithinTheirIdsAndReturnDownToMatchingRootControl() {
+		List<IgsMenuAssembler.LabeledButton> root = labeledButtons(3, 160);
+		List<IgsMenuAssembler.LabeledButton> clonedRoot = root.stream()
+				.map(button -> new IgsMenuAssembler.LabeledButton(button.images(), button.commands(), true)).toList();
+		List<IgsMenuAssembler.LabeledButton> tracks = List.of(
+				new IgsMenuAssembler.LabeledButton(buttonImages(200, 40), setAudio(1), true),
+				new IgsMenuAssembler.LabeledButton(buttonImages(200, 40), setAudio(2)));
+		List<PopupMenuLayout.Page> pages = new HorizontalBottomHorizontalPopupMenuLayout().layout(
+				List.of(root, compositePage(clonedRoot, tracks), compositePage(clonedRoot, tracks)), SCREEN_WIDTH,
+				SCREEN_HEIGHT);
+
+		assertThat(pages.get(0).defaultSelectedButtonIdRef()).isEqualTo(1);
+		for (int pageId = 1; pageId < pages.size(); pageId++) {
+			PopupMenuLayout.Page page = pages.get(pageId);
+			List<IgsMenuAssembler.PositionedButton> rootRow = page.buttons().subList(0, 3);
+			List<IgsMenuAssembler.PositionedButton> submenu = page.buttons().subList(3, 5);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::x).containsExactly(704, 880, 1056);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::y).containsOnly(960);
+			assertThat(rootRow).allMatch(IgsMenuAssembler.PositionedButton::autoAction);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::upperButtonIdRef).containsExactly(1, 2,
+					3);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::lowerButtonIdRef).containsExactly(1, 2,
+					3);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::leftButtonIdRef).containsExactly(1, 2, 3);
+			assertThat(rootRow).extracting(IgsMenuAssembler.PositionedButton::rightButtonIdRef).containsExactly(1, 2,
+					3);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::x).containsExactly(752, 968);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::y).containsOnly(904);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::upperButtonIdRef).containsExactly(4, 5);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::lowerButtonIdRef).containsOnly(pageId);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::leftButtonIdRef).containsExactly(5, 4);
+			assertThat(submenu).extracting(IgsMenuAssembler.PositionedButton::rightButtonIdRef).containsExactly(5, 4);
+			assertThat(page.defaultSelectedButtonIdRef()).isEqualTo(4);
+			for (int i = 0; i < tracks.size(); i++) {
+				assertThat(submenu.get(i).images()).isSameAs(tracks.get(i).images());
+				assertThat(submenu.get(i).commands()).isSameAs(tracks.get(i).commands());
+				assertThat(submenu.get(i).autoAction()).isEqualTo(tracks.get(i).autoAction());
+			}
+		}
+	}
+
+	@Test
+	void horizontalSubmenusUseRenderedWidthsAndMaximumRowHeights() {
+		List<IgsMenuAssembler.LabeledButton> root = List.of(
+				new IgsMenuAssembler.LabeledButton(buttonImages(160, 40), List.of()),
+				new IgsMenuAssembler.LabeledButton(buttonImages(240, 60), List.of()));
+		List<IgsMenuAssembler.LabeledButton> tracks = List.of(
+				new IgsMenuAssembler.LabeledButton(buttonImages(100, 80), List.of()),
+				new IgsMenuAssembler.LabeledButton(buttonImages(300, 40), List.of()));
+		PopupMenuLayout.Page page = new HorizontalBottomHorizontalPopupMenuLayout()
+				.layout(List.of(root, compositePage(root, tracks)), SCREEN_WIDTH, SCREEN_HEIGHT).get(1);
+
+		assertThat(page.buttons().subList(0, 2)).extracting(IgsMenuAssembler.PositionedButton::x).containsExactly(752,
+				928);
+		assertThat(page.buttons().subList(0, 2)).extracting(IgsMenuAssembler.PositionedButton::y).containsOnly(940);
+		assertThat(page.buttons().subList(2, 4)).extracting(IgsMenuAssembler.PositionedButton::x).containsExactly(752,
+				868);
+		assertThat(page.buttons().subList(2, 4)).extracting(IgsMenuAssembler.PositionedButton::y).containsOnly(844);
+	}
+
+	@Test
+	void singleEntryHorizontalSubmenuHasSelfNeighboursAndReturnsDownToRoot() {
+		List<IgsMenuAssembler.LabeledButton> root = labeledButtons(3, 160);
+		PopupMenuLayout.Page page = new HorizontalBottomHorizontalPopupMenuLayout()
+				.layout(List.of(root, compositePage(root, labeledButtons(1, 200))), SCREEN_WIDTH, SCREEN_HEIGHT).get(1);
+		IgsMenuAssembler.PositionedButton entry = page.buttons().get(3);
+		assertThat(entry.x()).isEqualTo(860);
+		assertThat(entry.y()).isEqualTo(904);
+		assertThat(entry.upperButtonIdRef()).isEqualTo(4);
+		assertThat(entry.leftButtonIdRef()).isEqualTo(4);
+		assertThat(entry.rightButtonIdRef()).isEqualTo(4);
+		assertThat(entry.lowerButtonIdRef()).isEqualTo(1);
+	}
+
+	@Test
+	void horizontalSubmenuAcceptsExactWidthAndHeightFit() {
+		List<IgsMenuAssembler.LabeledButton> root = labeledButtons(3, 160);
+		PopupMenuLayout.Page page = new HorizontalBottomHorizontalPopupMenuLayout()
+				.layout(List.of(root, compositePage(root, labeledButtons(2, 912))), SCREEN_WIDTH, 176).get(1);
+		assertThat(page.buttons().subList(3, 5)).extracting(IgsMenuAssembler.PositionedButton::x).containsExactly(40,
+				968);
+		assertThat(page.buttons().subList(3, 5)).extracting(IgsMenuAssembler.PositionedButton::y).containsOnly(0);
+	}
+
+	@Test
+	void horizontalSubmenuRejectsWidthAndHeightOverflow() {
+		List<IgsMenuAssembler.LabeledButton> root = labeledButtons(3, 160);
+		HorizontalBottomHorizontalPopupMenuLayout layout = new HorizontalBottomHorizontalPopupMenuLayout();
+		assertThatThrownBy(() -> layout.layout(List.of(root, compositePage(root, labeledButtons(2, 913))), SCREEN_WIDTH,
+				SCREEN_HEIGHT)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("Popup horizontal button row does not fit within the screen width");
+		assertThatThrownBy(
+				() -> layout.layout(List.of(root, compositePage(root, labeledButtons(2, 200))), SCREEN_WIDTH, 175))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("Popup submenu button row does not fit above the bottom row");
+		assertThatThrownBy(() -> layout.layout(List.of(labeledButtons(3, 700)), SCREEN_WIDTH, SCREEN_HEIGHT))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessage("Popup horizontal button row does not fit within the screen width");
 	}
 
 	private static List<IgsMenuAssembler.LabeledButton> labeledButtons(int count, int width) {

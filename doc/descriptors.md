@@ -21,6 +21,19 @@ Examples:
 - [`examples/title-menu-thumbnail-descriptor.json`](../examples/title-menu-thumbnail-descriptor.json) — title menu thumbnail composition
 - [`examples/batch-run-descriptor.json`](../examples/batch-run-descriptor.json) — ordered list of commands for `batch-run`
 
+### Popup menu button layouts
+
+`popupMenu.layout` selects the button arrangement:
+
+- `VERTICAL_LIST` (default): a persistent root column to the left of vertical submenu lists.
+- `HORIZONTAL_BOTTOM`: a bottom root row with vertical submenu lists above it.
+- `HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS`: a bottom root row with one centered horizontal submenu row above it.
+  Left/Right wraps within the submenu; Down returns to the matching root control. The submenu is separated from
+  the root by 16 pixels. Rows that exceed the available width or do not fit above the root are rejected rather
+  than wrapped or resized.
+
+With only one selectable group, either bottom-row layout places its entries and Exit together in a single bottom row.
+
 ### Popup menu backgrounds
 
 `popupMenu.backgrounds` adds ordered, non-interactive image layers behind popup menu buttons. Layers in each array are
