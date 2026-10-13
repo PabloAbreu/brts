@@ -63,10 +63,17 @@ class MarkdownDocumentationGeneratorTest {
 		FieldMetadata field = new FieldMetadata("name", "discName", "java.lang.String", "Disc name", true,
 				List.of(new AnnotationMetadata("jakarta.validation.constraints.Pattern", patternAttributes)), null,
 				List.of());
-		TypeMetadata type = new TypeMetadata(payloadType, "object", "Build input", null, List.of(), List.of(), null,
+		String description = "<p>\nBuild input references {@code discName}, {@code name}, and {@code unknownField};\n"
+				+ "see {@link org.brts.example.BuildDescriptor}, {@link Shared}, and {@link MissingType}.\n</p>\n"
+				+ "<ul>\n<li>Use {@link org.brts.example.BuildDescriptor} with {@code discName}.</li>\n</ul>";
+		TypeMetadata type = new TypeMetadata(payloadType, "object", description, null, List.of(), List.of(), null,
 				Map.of(), List.of(field));
 		Map<String, TypeMetadata> types = new LinkedHashMap<>();
 		types.put(payloadType, type);
+		types.put("org.brts.example.Shared", new TypeMetadata("org.brts.example.Shared", "object", null, null,
+				List.of(), List.of(), null, Map.of(), List.of()));
+		types.put("org.brts.other.Shared", new TypeMetadata("org.brts.other.Shared", "object", null, null, List.of(),
+				List.of(), null, Map.of(), List.of()));
 		CliMetadata metadata = new CliMetadata("1.0", "1.2.3", List.of(new LevelMetadata("mid", List.of(command))),
 				types, List.of());
 
@@ -78,7 +85,13 @@ class MarkdownDocumentationGeneratorTest {
 				"../../types/org-brts-example-builddescriptor.md", "  - `@Valid`");
 		assertThat(output.resolve("commands/mid/build.md")).content().doesNotContain("org.kohsuke.args4j");
 		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().contains("Build input",
-				"`discName`", "Disc name", "  - `@Pattern` - regexp: `[A-Za-z0-9 _]+`");
+				"<a href=\"#discname\"><code>discName</code></a>", "<a href=\"#discname\"><code>name</code></a>",
+				"<code>unknownField</code>", "<a href=\"org-brts-example-builddescriptor.md\">BuildDescriptor</a>",
+				"<a href=\"org-brts-example-shared.md\">Shared</a>", "MissingType.", "<li>Use ", "</li>", "Disc name",
+				"  - `@Pattern` - regexp: `[A-Za-z0-9 _]+`");
+		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().doesNotContain("{@code",
+				"{@link", "org-brts-other-shared.md", "[`discName`](#discname)",
+				"[BuildDescriptor](org-brts-example-builddescriptor.md)");
 		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().doesNotContain("payload",
 				"groups");
 		assertThat(Files.list(output.resolve("commands/mid"))).hasSize(2);
