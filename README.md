@@ -55,6 +55,9 @@ brts-cli           command-line entry point exposing all three levels
 Lower layers never depend on higher layers. Details in
 [doc/architecture.md](doc/architecture.md).
 
+The low-level Java API also includes [video conversion](doc/video-conversion.md)
+from compressed elementary streams using FFmpeg, NVEncC, VCEEncC or QSVEncC.
+
 ## Usage
 
 All commands go through the CLI fat jar built by `brts-cli`:

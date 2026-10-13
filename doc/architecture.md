@@ -45,6 +45,11 @@ dependencies.
 
 ## Package layout
 
+- `org.brts.lowlevel.utils.video.VideoConverter` provides
+   [compressed elementary-video conversion](video-conversion.md) with protected
+   Blu-ray/UHD-targeted encoder policy. It does not extract streams, mux discs,
+   retime audio or depend on higher authoring layers.
+
 - CLI commands are grouped by level under `org.brts.cli.{low,middle,high}`,
   each level backed by a `LevelDispatcher` that registers one
   `FeatureRunner` per command (see `org.brts.cli.FeatureRunner`,

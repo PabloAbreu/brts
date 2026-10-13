@@ -57,12 +57,19 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `disc-create` | Create a full disc from a descriptor and video files |
 | `create-title-menu` | Generate a Blu-ray title selection menu (MPLS + M2TS/CLPI) |
 | `video-gen` | Generate a composited M2TS video from an ImagesComposition descriptor |
+| `convert-video` | Convert compressed elementary video to AVC/HEVC using FFmpeg or hardware encoders |
 | `igs-demux` | Demux a raw IGS elementary stream into resources |
 | `igs-mux` | Mux demuxed IGS resources back into an IGS stream |
 | `rle-to-png` | Convert IGS RLE bitmaps to PNG images |
 | `pgs-create` | Generate a PGS subtitle stream from SRT/SSA/ASS |
 | `render-template` | Render an output file from a template and a data model (e.g. JSON) |
 | `batch-run` | Run an ordered list of BRTS commands from a JSON descriptor (fail-fast, resumable with `--resume`) |
+
+`convert-video` requires `--input`, `--output` and either `--bitrate-kbps` or a native quality option.
+Pass approved encoder options generically by repeating `--engine-option KEY=VALUE`, for example
+`--engine-option crf=20 --engine-option preset=slow`. Keys have no leading dashes and must be unique.
+`--timeout-seconds` sets a positive whole-second time limit; `--overwrite` permits output replacement.
+See [video conversion](video-conversion.md#cli) for all arguments, engine restrictions and timing caveats.
 
 ## `mid` — middle-level disc authoring operations
 
@@ -100,6 +107,10 @@ brts low clip-parse --input BDMV/CLIPINF/00001.clpi
 
 # Round-trip: regenerate the same CLPI from parsed JSON
 brts low clip-write --input 00001.clpi.json --output 00001.clpi
+
+# Convert compressed elementary video with FFmpeg quality control
+brts low convert-video --input source.264 --output converted.264 --engine ffmpeg \
+	--engine-option crf=20 --engine-option preset=slow
 
 # Build a full disc from a high-level template descriptor
 brts high build --descriptor examples/movie-disc.json --output /tmp/out
