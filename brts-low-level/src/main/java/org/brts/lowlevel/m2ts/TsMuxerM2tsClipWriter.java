@@ -99,7 +99,7 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		} catch (InterruptedException e) {
 			log.error("tsMuxeR process was interrupted", e);
 		} finally {
-			// FileUtils.deleteDir(workDir);
+			FileUtils.deleteDir(workDir);
 		}
 	}
 }

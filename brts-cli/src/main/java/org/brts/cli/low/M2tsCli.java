@@ -33,11 +33,11 @@ import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsDemuxer;
 import org.brts.lowlevel.igs.IgsMuxer;
+import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
 import org.brts.lowlevel.m2ts.M2tsDumpFormatter;
 import org.brts.lowlevel.m2ts.M2tsDumpTableFormatter;
 import org.brts.lowlevel.m2ts.M2tsDumper;
 import org.brts.lowlevel.m2ts.M2tsIgsMuxer;
-import org.brts.lowlevel.m2ts.M2tsWriter;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.kohsuke.args4j.Option;
@@ -275,20 +275,9 @@ public class M2tsCli {
 			Path clpiDir = opts.clpiDir != null ? opts.clpiDir.toPath() : outputDir;
 			Path clpiPath = clpiDir.resolve(outputName + ".clpi");
 
-			// --- Write M2TS ---
-			M2tsWriter writer = new M2tsWriter();
-			writer.write(descriptor, m2tsPath);
+			// --- Write M2TS and matching CLPI ---
+			M2tsClipWriterFactory.createWriter().write(descriptor, m2tsPath, clpiPath);
 			System.out.println("M2TS written → " + m2tsPath);
-
-			// --- Build and write matching CLPI ---
-			int applicationType = ClipInfo.APPLICATION_TYPE_MOVIE;
-			// if only one stream and it's a IGS, set application type to interactive graphics
-			if (descriptor.getStreams().size() == 1 && descriptor.getStreams().get(0)
-					.getStreamTypeByte() == StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte()) {
-				applicationType = ClipInfo.APPLICATION_TYPE_INTERACTIVE_GRAPHICS;
-			}
-			ClipInfo clipInfo = writer.buildClipInfo(descriptor, outputName, applicationType);
-			new ClipInfoWriter().write(clipInfo, clpiPath);
 			System.out.println("CLPI written → " + clpiPath);
 		}
 
