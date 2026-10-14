@@ -35,7 +35,7 @@ import java.io.File;
 import java.nio.file.Path;
 
 /**
- * CLI for the {@code clpi-regen} command.
+ * CLI for the {@code clip-regen} command.
  */
 public class ClipRegenCli {
 
@@ -59,7 +59,7 @@ public class ClipRegenCli {
 
 		@Override
 		public String getCommandName() {
-			return "clpi-regen";
+			return "clip-regen";
 		}
 
 		@Override

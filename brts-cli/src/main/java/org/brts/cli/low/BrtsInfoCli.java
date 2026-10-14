@@ -38,7 +38,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * CLI for the {@code clpi-regen} command.
+ * CLI for the {@code brts-info} command.
  */
 public class BrtsInfoCli {
 	public static class InfoOptions extends org.brts.cli.BaseOptions {

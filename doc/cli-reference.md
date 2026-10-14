@@ -41,7 +41,7 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `m2ts-dump` | Dump M2TS packet information for debugging |
 | `clip-parse` | Parse a `.clpi` binary file to JSON |
 | `clip-write` | Generate a `.clpi` binary from a JSON descriptor |
-| `clpi-regen` | Regenerate a CLPI file from an M2TS stream |
+| `clip-regen` | Regenerate a CLPI file from an M2TS stream |
 | `playlist-parse` | Parse a `.mpls` binary file to JSON |
 | `playlist-write` | Generate a `.mpls` binary from a JSON descriptor |
 | `find-playlist` | Find playlists referencing a given clip name |
