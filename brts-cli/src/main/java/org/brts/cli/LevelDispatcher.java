@@ -82,7 +82,8 @@ public class LevelDispatcher {
 	public void printHelp(PrintStream out) {
 		out.println("BRTS " + levelName + " commands:");
 		int maxLen = runners.keySet().stream().mapToInt(String::length).max().orElse(0);
-		for (FeatureRunner<?> runner : runners.values()) {
+		for (FeatureRunner<?> runner : runners.values().stream()
+				.sorted((a, b) -> a.getCommandName().compareTo(b.getCommandName())).toList()) {
 			out.printf("  %-" + (maxLen + 2) + "s %s%n", runner.getCommandName(), runner.getDescription());
 		}
 		out.println();
