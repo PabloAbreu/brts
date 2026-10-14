@@ -30,7 +30,6 @@ import org.assertj.core.api.Assertions;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.test.sampledata.RequiresSamples;
 import org.brts.common.utils.composition.ImagesComposition;
-import org.brts.lowlevel.utils.composition.CompositedVideoGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

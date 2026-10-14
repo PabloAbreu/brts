@@ -366,8 +366,9 @@ public class CompositedVideoGenerator {
 			AVDictionary opts = new AVDictionary(null);
 			av_dict_set(opts, "preset", "slow", 0);
 			av_dict_set(opts, "tune", "grain", 0); // preserves dither/fine gradient detail
+			av_dict_set(opts, "level", "41", 0);// 41 is 4.1
 			av_dict_set(opts, "x264-params",
-					"aq-mode=3:aq-strength=1.0:psy-rd=1.0,0.15:deadzone-intra=0:deadzone-inter=0:no-dct-decimate=1:qpmin=6",
+					"aq-mode=3:aq-strength=1:psy-rd=1.0,0.15:deadzone-intra=0:deadzone-inter=0:no-dct-decimate=1:qpmin=6",
 					0);
 			int ret = avcodec_open2(codecCtx, codec, opts);
 			// not clear if i should free this now or after encoding is done,
