@@ -60,7 +60,7 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 
 	@Override
 	public void generate(CliMetadata metadata, Path outputDirectory) throws IOException {
-		if (!"1.0".equals(metadata.schemaVersion())) {
+		if (!List.of("1.0", "1.1").contains(metadata.schemaVersion())) {
 			throw new IllegalArgumentException("Unsupported CLI metadata schema version: " + metadata.schemaVersion());
 		}
 		Files.createDirectories(outputDirectory);

@@ -14,8 +14,10 @@ BRTS generates machine-readable CLI metadata and Markdown documentation as part 
 
 - The documentation generator JAR.
 - `brts-doc-generator-<version>-markdown-docs.zip`, attached with classifier `markdown-docs`.
+- `brts-doc-generator-<version>-bash-completion.zip`, attached with classifier `bash-completion`.
 
 The unpacked Markdown tree is available under `brts-doc-generator/target/generated-docs`.
+The generated Bash completion script is `brts-doc-generator/target/generated-completion/brts.bash`.
 
 ## Generate release documentation
 
@@ -55,4 +57,18 @@ java -cp <generator-and-dependencies> org.brts.doc.generator.DocumentationGenera
   --output generated-docs
 ```
 
-Consumers must reject unsupported metadata schema versions. The current schema version is `1.0`.
+The Bash completion entry point is `org.brts.doc.generator.BashCompletionGeneratorMain`:
+
+```bash
+java -cp <generator-and-dependencies> org.brts.doc.generator.BashCompletionGeneratorMain \
+  --input cli-metadata.json \
+  --output brts.bash
+```
+
+To enable completion for the current shell, source `brts.bash`, or add a source command for its installed location to
+`~/.bashrc`. The generated function completes command levels, commands, visible options and aliases, enum choices, and
+filesystem paths for `File`/`Path` options. Hidden options are intentionally omitted. Other option values are left to
+normal shell completion.
+
+Metadata schema `1.1` adds enum values to CLI option metadata. The generators also accept schema `1.0`; enum-value
+completion is unavailable for metadata produced with that version. Consumers must reject unsupported schema versions.

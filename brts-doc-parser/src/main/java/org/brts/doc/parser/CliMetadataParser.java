@@ -60,7 +60,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 public final class CliMetadataParser {
 
-	public static final String SCHEMA_VERSION = "1.0";
+	public static final String SCHEMA_VERSION = "1.1";
 
 	private final SourceDocumentationIndex documentation;
 	private final AnnotationMetadataExtractor annotations = new AnnotationMetadataExtractor();
@@ -104,6 +104,9 @@ public final class CliMetadataParser {
 
 	private OptionMetadata option(Field field, Class<?> optionsType, Option option, JsonInputOption jsonOption) {
 		String inputTypeRef = null;
+		List<String> enumValues = field.getType().isEnum()
+				? Arrays.stream(field.getType().getEnumConstants()).map(value -> ((Enum<?>) value).name()).toList()
+				: List.of();
 		if (jsonOption != null) {
 			inputTypeRef = referenceName(field.getGenericType());
 			enqueueReferencedTypes(field.getGenericType());
@@ -116,7 +119,8 @@ public final class CliMetadataParser {
 				option != null ? option.hidden() : jsonOption.hidden(),
 				List.of(option != null ? option.depends() : jsonOption.depends()),
 				List.of(option != null ? option.forbids() : jsonOption.forbids()),
-				field.getDeclaringClass() != optionsType, annotations.extract(field.getAnnotations()), inputTypeRef);
+				field.getDeclaringClass() != optionsType, annotations.extract(field.getAnnotations()), inputTypeRef,
+				enumValues);
 	}
 
 	private void inspectType(Class<?> type) {

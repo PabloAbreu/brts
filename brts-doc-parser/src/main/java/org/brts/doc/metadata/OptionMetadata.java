@@ -27,5 +27,16 @@ import java.util.List;
 
 public record OptionMetadata(String name, List<String> aliases, String description, String javaType, boolean required,
 		boolean help, boolean hidden, List<String> depends, List<String> forbids, boolean inherited,
-		List<AnnotationMetadata> annotations, String inputTypeRef) {
+		List<AnnotationMetadata> annotations, String inputTypeRef, List<String> enumValues) {
+
+	public OptionMetadata {
+		enumValues = enumValues == null ? List.of() : List.copyOf(enumValues);
+	}
+
+	public OptionMetadata(String name, List<String> aliases, String description, String javaType, boolean required,
+			boolean help, boolean hidden, List<String> depends, List<String> forbids, boolean inherited,
+			List<AnnotationMetadata> annotations, String inputTypeRef) {
+		this(name, aliases, description, javaType, required, help, hidden, depends, forbids, inherited, annotations,
+				inputTypeRef, List.of());
+	}
 }

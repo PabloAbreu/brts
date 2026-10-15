@@ -53,7 +53,7 @@ class MarkdownDocumentationGeneratorTest {
 				false, false, List.of(), List.of(), false,
 				List.of(new AnnotationMetadata("org.kohsuke.args4j.Option", Map.of("name", "--descriptor")),
 						new AnnotationMetadata("jakarta.validation.Valid", Map.of())),
-				payloadType);
+				payloadType, List.of());
 		CommandMetadata command = new CommandMetadata("mid", "build", "mid build", "Build a disc", "Runner", "Options",
 				List.of(option));
 		Map<String, Object> patternAttributes = new LinkedHashMap<>();

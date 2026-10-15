@@ -30,6 +30,7 @@ import java.util.List;
 
 import org.brts.doc.metadata.CliMetadata;
 import org.brts.doc.metadata.CommandMetadata;
+import org.brts.doc.metadata.OptionMetadata;
 import org.brts.doc.metadata.TypeMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -42,7 +43,7 @@ class CliMetadataParserTest {
 				root.resolve("brts-low-level/src/main/java"), root.resolve("brts-middle-level/src/main/java"),
 				root.resolve("brts-high-level/src/main/java"), root.resolve("brts-cli/src/main/java"))).parse("test");
 
-		assertThat(metadata.schemaVersion()).isEqualTo("1.0");
+		assertThat(metadata.schemaVersion()).isEqualTo("1.1");
 		assertThat(metadata.levels()).extracting("name").containsExactly("low", "mid", "high");
 		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(44);
 		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).extracting("path").contains("mid build",
@@ -63,6 +64,13 @@ class CliMetadataParserTest {
 				.satisfies(option -> assertThat(option.required()).isTrue());
 		assertThat(convertVideo.options()).filteredOn(option -> option.name().equals("--timeout-seconds"))
 				.singleElement().satisfies(option -> assertThat(option.javaType()).isEqualTo("java.lang.Long"));
+		assertThat(convertVideo.options()).filteredOn(option -> option.name().equals("--codec")).singleElement()
+				.satisfies(option -> assertThat(option.enumValues()).isEmpty());
+		List<OptionMetadata> outputTypeOptions = metadata.levels().stream().flatMap(level -> level.commands().stream())
+				.flatMap(command -> command.options().stream()).filter(option -> option.name().equals("--output-type"))
+				.toList();
+		assertThat(outputTypeOptions).isNotEmpty()
+				.allSatisfy(option -> assertThat(option.enumValues()).containsExactly("BASH", "JSON", "IMMEDIATE"));
 
 		CommandMetadata middleBuild = metadata.levels().stream().flatMap(level -> level.commands().stream())
 				.filter(command -> command.path().equals("mid build")).findFirst().orElseThrow();
