@@ -126,14 +126,31 @@ class BrtsInfoCliTest {
 		info.setEnvironmentVariables(Map.of(key, value));
 		List<String> lines = BrtsInfoCli.renderText(info).lines().toList();
 		String header = lines.get(4);
-		assertThat(header.indexOf("Value")).isEqualTo(key.length() + 2);
-		assertThat(header.indexOf("Origin")).isEqualTo(key.length() + 2 + value.length() + 2);
+		assertThat(header).isEqualTo("Key  Value  Origin  Overridden");
 		int system = lines.indexOf("System Properties");
 		int environment = lines.indexOf("Environment Variables");
 		assertThat(lines.get(system + 1)).isEqualTo("Key" + " ".repeat(key.length() - 3 + 2) + "Value");
+		assertThat(lines.get(environment + 1)).isEqualTo(lines.get(system + 1));
 		assertThat(lines.get(system + 2).strip()).startsWith("a").endsWith("first");
 		assertThat(lines.get(system + 3).strip()).startsWith("z").endsWith("last");
 		assertThat(lines.get(environment + 2)).isEqualTo(key + "  " + value);
+	}
+
+	@Test
+	void configurationWidthsDoNotWidenOptionalSections() {
+		BrtsInfo info = new BrtsInfo();
+		String key = "the.longest.configuration.key";
+		info.setConfigProperties(List.of(new Entry(key, "value", "origin")));
+		info.setSystemProperties(Map.of("system", "first"));
+		info.setEnvironmentVariables(Map.of("env", "last"));
+		List<String> lines = BrtsInfoCli.renderText(info).lines().toList();
+		assertThat(lines.get(4).indexOf("Value")).isEqualTo(key.length() + 2);
+		int system = lines.indexOf("System Properties");
+		int environment = lines.indexOf("Environment Variables");
+		assertThat(lines.get(system + 1)).isEqualTo("Key     Value");
+		assertThat(lines.get(environment + 1)).isEqualTo(lines.get(system + 1));
+		assertThat(lines.get(system + 2)).isEqualTo("system  first");
+		assertThat(lines.get(environment + 2)).isEqualTo("env     last");
 	}
 
 	@Test

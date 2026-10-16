@@ -102,9 +102,10 @@ public class BrtsInfoCli {
 		sections.put("Configuration Properties", configRows);
 		addPropertySection(sections, "System Properties", info.getSystemProperties());
 		addPropertySection(sections, "Environment Variables", info.getEnvironmentVariables());
-		int[] widths = new int[4];
+		Map<Integer, int[]> widthsByColumnCount = new LinkedHashMap<>();
 		for (List<String[]> rows : sections.values()) {
 			for (String[] row : rows) {
+				int[] widths = widthsByColumnCount.computeIfAbsent(row.length, columnCount -> new int[columnCount]);
 				for (int column = 0; column < row.length; column++) {
 					row[column] = displayCell(row[column]);
 					widths[column] = Math.max(widths[column], row[column].length());
@@ -118,6 +119,7 @@ public class BrtsInfoCli {
 		for (Map.Entry<String, List<String[]>> section : sections.entrySet()) {
 			output.append('\n').append(section.getKey()).append('\n');
 			for (String[] row : section.getValue()) {
+				int[] widths = widthsByColumnCount.get(row.length);
 				for (int column = 0; column < row.length; column++) {
 					output.append(row[column]);
 					if (column < row.length - 1) {
