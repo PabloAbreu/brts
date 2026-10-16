@@ -79,7 +79,17 @@ public class CompositionBuffer {
 	}
 
 	private SyntheticImageGenerator getSyntheticGenerator(ImageReference ref) {
-		return mediaRepository.getSyntheticImageGenerator(ref.getSyntheticImage());
+		ImageReference.SyntheticImageSource source = ref.getSyntheticImage();
+		if ((source.getData() == null || source.getData().isBlank()) && source.getSrcPath() != null
+				&& !source.getSrcPath().isBlank()) {
+			ImageReference.SyntheticImageSource resolved = new ImageReference.SyntheticImageSource();
+			resolved.setType(source.getType());
+			resolved.setData(source.getData());
+			resolved.setFrameRate(source.getFrameRate());
+			resolved.setSrcPath(resolvePath(source.getSrcPath()).toString());
+			return mediaRepository.getSyntheticImageGenerator(resolved);
+		}
+		return mediaRepository.getSyntheticImageGenerator(source);
 	}
 
 	public CompositionBuffer(ImagesComposition configuration, MediaRepository mediaRepository,

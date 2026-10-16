@@ -25,7 +25,9 @@ package org.brts.common.utils.composition;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 
@@ -40,6 +42,99 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class CompositionBufferTest {
 
 	private static final ObjectMapper mapper = JsonMapperFactory.get();
+
+	private static final String SVG = """
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="10">
+				<rect fill="red" width="20" height="10"/>
+			</svg>
+			""";
+
+	@Test
+	void syntheticFileResolvesAgainstBasePathWithoutMutatingSource(@TempDir Path basePath) throws Exception {
+		Files.writeString(basePath.resolve("background.svg"), SVG);
+		ImagesComposition config = syntheticComposition("background.svg");
+		ImageReference.SyntheticImageSource source = config.getImages().getFirst().getSyntheticImage();
+		source.setFrameRate(25.0);
+
+		try (MediaRepository repository = new MediaRepositoryImpl()) {
+			assertSyntheticWidth(config, repository, basePath, 20);
+			assertSyntheticWidth(config, repository, basePath, 20);
+		}
+		Assertions.assertThat(source.getSrcPath()).isEqualTo("background.svg");
+		Assertions.assertThat(source.getFrameRate()).isEqualTo(25.0);
+	}
+
+	@Test
+	void syntheticCacheDistinguishesBasePaths(@TempDir Path tempDir) throws Exception {
+		Path firstBase = Files.createDirectory(tempDir.resolve("first"));
+		Path secondBase = Files.createDirectory(tempDir.resolve("second"));
+		Files.writeString(firstBase.resolve("background.svg"), SVG);
+		Files.writeString(secondBase.resolve("background.svg"), SVG.replace("width=\"20\"", "width=\"30\""));
+		ImagesComposition config = syntheticComposition("background.svg");
+
+		try (MediaRepository repository = new MediaRepositoryImpl()) {
+			assertSyntheticWidth(config, repository, firstBase, 20);
+			assertSyntheticWidth(config, repository, secondBase, 30);
+		}
+		Assertions.assertThat(config.getImages().getFirst().getSyntheticImage().getSrcPath())
+				.isEqualTo("background.svg");
+	}
+
+	@Test
+	void syntheticAbsolutePathIsPreserved(@TempDir Path tempDir) throws Exception {
+		Path svgFile = tempDir.resolve("background.svg");
+		Files.writeString(svgFile, SVG);
+		Path basePath = Files.createDirectory(tempDir.resolve("other"));
+		ImagesComposition config = syntheticComposition(svgFile.toString());
+
+		try (MediaRepository repository = new MediaRepositoryImpl()) {
+			assertSyntheticWidth(config, repository, basePath, 20);
+		}
+	}
+
+	@Test
+	void syntheticInlineDataTakesPrecedenceOverPath(@TempDir Path basePath) {
+		ImagesComposition config = syntheticComposition("../unused.svg");
+		config.getImages().getFirst().getSyntheticImage().setData(SVG);
+
+		try (MediaRepository repository = new MediaRepositoryImpl()) {
+			assertSyntheticWidth(config, repository, basePath, 20);
+		}
+	}
+
+	@Test
+	void syntheticRelativePathCannotEscapeBasePath(@TempDir Path basePath) {
+		ImagesComposition config = syntheticComposition("../outside.svg");
+
+		try (MediaRepository repository = new MediaRepositoryImpl()) {
+			CompositionBuffer buffer = new CompositionBuffer(config, repository,
+					new CompositionContextImpl(0, config, basePath));
+			Assertions.assertThatThrownBy(buffer::compose).isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("outside of base path");
+		}
+	}
+
+	private ImagesComposition syntheticComposition(String srcPath) {
+		ImageReference.SyntheticImageSource source = new ImageReference.SyntheticImageSource();
+		source.setType("svg");
+		source.setSrcPath(srcPath);
+		ImageReference ref = new ImageReference();
+		ref.setImageId("background");
+		ref.setSyntheticImage(source);
+		ImagesComposition config = new ImagesComposition();
+		config.setImages(List.of(ref));
+		config.setCompositions(List.of());
+		return config;
+	}
+
+	private void assertSyntheticWidth(ImagesComposition config, MediaRepository repository, Path basePath, int width) {
+		CompositionBuffer buffer = new CompositionBuffer(config, repository,
+				new CompositionContextImpl(0, config, basePath));
+		try (ImageFrame result = buffer.compose()) {
+			Assertions.assertThat(result.width()).isEqualTo(width);
+			Assertions.assertThat(result.height()).isEqualTo(10);
+		}
+	}
 
 	private CompositionBuffer makeBuffer(String path, Path basePath) throws Exception {
 		ImagesComposition config = mapper.readValue(new File(path), ImagesComposition.class);

@@ -43,6 +43,11 @@ its role-specific layers because it has no cloned root controls.
 
 Raster files use `sourcePath`. SVG backgrounds use the existing synthetic image form with inline `data` or `srcPath`:
 
+In image compositions, relative `sourcePath`, `videoPath`, and `syntheticImage.srcPath` values are resolved against the
+composition's base path. Relative paths must remain within that base after normalization; absolute paths are used
+unchanged. Non-blank inline SVG `data` takes precedence over `srcPath`. Style-template assets are resolved against the
+template directory when the template is loaded.
+
 ```json
 {
   "popupMenu": {
