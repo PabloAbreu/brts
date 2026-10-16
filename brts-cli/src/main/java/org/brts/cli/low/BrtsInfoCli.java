@@ -23,6 +23,8 @@
 
 package org.brts.cli.low;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -41,9 +43,16 @@ import lombok.Setter;
  * CLI for the {@code brts-info} command.
  */
 public class BrtsInfoCli {
+	public enum OutputFormat {
+		JSON, TEXT
+	}
+
 	public static class InfoOptions extends org.brts.cli.BaseOptions {
 		@Option(name = "--all", usage = "Include all system properties and environment variables in the output")
 		boolean includeAll;
+
+		@Option(name = "--format", usage = "Output format: JSON (default) or TEXT (human-readable tables)")
+		OutputFormat format = OutputFormat.JSON;
 	}
 
 	public static class Info extends FeatureRunner<InfoOptions> {
@@ -70,10 +79,89 @@ public class BrtsInfoCli {
 				info.setSystemProperties(new TreeMap<>((Map) System.getProperties())); // sort system properties by key
 				info.setEnvironmentVariables(new TreeMap<>(System.getenv())); // sort environment variables by key
 			}
-			ObjectMapper mapper = JsonMapperFactory.get();
-			String configJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(info);
-			System.out.println(configJson);
+			switch (opts.format) {
+			case JSON -> {
+				ObjectMapper mapper = JsonMapperFactory.get();
+				System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(info));
+			}
+			case TEXT -> System.out.print(renderText(info));
+			}
 		}
+	}
+
+	static String renderText(BrtsInfo info) {
+		Map<String, List<String[]>> sections = new LinkedHashMap<>();
+		List<String[]> configRows = new ArrayList<>();
+		configRows.add(new String[] { "Key", "Value", "Origin", "Overridden" });
+		if (info.getConfigProperties() != null) {
+			for (BrtsFileConfig.Entry entry : info.getConfigProperties()) {
+				configRows.add(new String[] { entry.getKey(), entry.getValue(), entry.getOrigin(),
+						Boolean.toString(entry.isOverridden()) });
+			}
+		}
+		sections.put("Configuration Properties", configRows);
+		addPropertySection(sections, "System Properties", info.getSystemProperties());
+		addPropertySection(sections, "Environment Variables", info.getEnvironmentVariables());
+		int[] widths = new int[4];
+		for (List<String[]> rows : sections.values()) {
+			for (String[] row : rows) {
+				for (int column = 0; column < row.length; column++) {
+					row[column] = displayCell(row[column]);
+					widths[column] = Math.max(widths[column], row[column].length());
+				}
+			}
+		}
+		StringBuilder output = new StringBuilder();
+		output.append(displayCell(info.getAppName() == null ? "BRTS" : info.getAppName())).append('\n');
+		output.append("Version: ").append(displayCell(info.getVersion() == null ? "unknown" : info.getVersion()))
+				.append('\n');
+		for (Map.Entry<String, List<String[]>> section : sections.entrySet()) {
+			output.append('\n').append(section.getKey()).append('\n');
+			for (String[] row : section.getValue()) {
+				for (int column = 0; column < row.length; column++) {
+					output.append(row[column]);
+					if (column < row.length - 1) {
+						output.append(" ".repeat(widths[column] - row[column].length())).append("  ");
+					}
+				}
+				output.append('\n');
+			}
+		}
+		return output.toString();
+	}
+
+	private static void addPropertySection(Map<String, List<String[]>> sections, String title,
+			Map<String, String> properties) {
+		if (properties != null) {
+			List<String[]> rows = new ArrayList<>();
+			rows.add(new String[] { "Key", "Value" });
+			new TreeMap<>(properties).forEach((key, value) -> rows.add(new String[] { key, value }));
+			sections.put(title, rows);
+		}
+	}
+
+	private static String displayCell(String value) {
+		if (value == null) {
+			return "";
+		}
+		StringBuilder result = new StringBuilder();
+		for (int index = 0; index < value.length(); index++) {
+			char character = value.charAt(index);
+			switch (character) {
+			case '\\' -> result.append("\\\\");
+			case '\n' -> result.append("\\n");
+			case '\r' -> result.append("\\r");
+			case '\t' -> result.append("\\t");
+			default -> {
+				if (Character.isISOControl(character)) {
+					result.append(String.format("\\u%04x", (int) character));
+				} else {
+					result.append(character);
+				}
+			}
+			}
+		}
+		return result.toString();
 	}
 
 	@Getter
