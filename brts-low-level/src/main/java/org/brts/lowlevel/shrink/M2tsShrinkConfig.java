@@ -35,11 +35,11 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class M2tsShrinkConfig {
-	/** Audio PIDs to retain. Missing/empty means retain no audio tracks. */
-	private List<Integer> audioPids = new ArrayList<>();
+	/** Audio PIDs to retain. Missing/null retains all audio tracks; empty retains none. */
+	private List<Integer> audioPids;
 
-	/** PGS/text subtitle PIDs to retain. Missing/empty means retain no subtitle tracks. */
-	private List<Integer> subtitlePids = new ArrayList<>();
+	/** PGS/text subtitle PIDs to retain. Missing/null retains all subtitle tracks; empty retains none. */
+	private List<Integer> subtitlePids;
 
 	/** Optional transformations for retained audio tracks; execution is not implemented yet. */
 	private Map<Integer, AudioDowngrade> audioDowngrades = new LinkedHashMap<>();
@@ -81,7 +81,7 @@ public class M2tsShrinkConfig {
 			for (var entry : audioDowngrades.entrySet()) {
 				int pid = requirePid(entry.getKey(), "audioDowngrades");
 				var track = inventory.track(pid);
-				if (!selectedAudio.contains(pid) || track == null || track.codingType() == null
+				if ((audioPids != null && !selectedAudio.contains(pid)) || track == null || track.codingType() == null
 						|| !track.codingType().isAudio()) {
 					throw new IllegalArgumentException("audioDowngrades PID " + pid + " must be a retained audio PID");
 				}

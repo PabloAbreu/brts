@@ -45,9 +45,9 @@ public final class M2tsShrinkPlanner {
 			throw new IllegalArgumentException("targetBytes must be positive");
 		}
 		config.validate(inventory);
-		Set<Integer> audioToKeep = new HashSet<>(config.getAudioPids() == null ? List.of() : config.getAudioPids());
-		Set<Integer> subtitlesToKeep = new HashSet<>(
-				config.getSubtitlePids() == null ? List.of() : config.getSubtitlePids());
+		Set<Integer> audioToKeep = config.getAudioPids() == null ? null : new HashSet<>(config.getAudioPids());
+		Set<Integer> subtitlesToKeep = config.getSubtitlePids() == null ? null
+				: new HashSet<>(config.getSubtitlePids());
 		List<Integer> retainedAudio = new ArrayList<>();
 		List<Integer> retainedSubtitles = new ArrayList<>();
 		List<Integer> removed = new ArrayList<>();
@@ -55,14 +55,14 @@ public final class M2tsShrinkPlanner {
 		for (M2tsShrinkInventory.Track track : inventory.tracks()) {
 			StreamCodingType type = track.codingType();
 			if (type != null && type.isAudio()) {
-				if (audioToKeep.contains(track.pid())) {
+				if (audioToKeep == null || audioToKeep.contains(track.pid())) {
 					retainedAudio.add(track.pid());
 				} else {
 					removed.add(track.pid());
 					removedBytes = Math.addExact(removedBytes, track.sourceTransportBytes());
 				}
 			} else if (type != null && type.isSubtitle()) {
-				if (subtitlesToKeep.contains(track.pid())) {
+				if (subtitlesToKeep == null || subtitlesToKeep.contains(track.pid())) {
 					retainedSubtitles.add(track.pid());
 				} else {
 					removed.add(track.pid());

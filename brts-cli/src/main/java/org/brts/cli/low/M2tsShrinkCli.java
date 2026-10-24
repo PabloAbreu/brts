@@ -33,7 +33,6 @@ import org.brts.cli.JsonInputOption;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.validation.ExistingDirectory;
-import org.brts.common.validation.ExistingFile;
 import org.brts.lowlevel.shrink.M2tsShrinkConfig;
 import org.brts.lowlevel.shrink.M2tsShrinkInputResolver;
 import org.brts.lowlevel.shrink.M2tsShrinkPlan;
@@ -60,7 +59,6 @@ public class M2tsShrinkCli {
 		@Option(name = "--clip-id", required = true, usage = "Five-digit clip identifier, e.g. 00001")
 		String clipId;
 
-		@ExistingFile
 		@JsonInputOption(name = "--config", required = true, usage = "Versioned m2ts-shrink JSON filtering config")
 		M2tsShrinkConfig config;
 

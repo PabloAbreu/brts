@@ -35,6 +35,7 @@ public enum BitrateCode {
 	AC3_128kbps(0x20, 128, 2), //
 	AC3_192kbps(0x29, 192, 2), //
 	AC3_224kbps(0x2C, 224, 2), //
+	AC3_224kbps_alias(0x2D, 224, 2), //
 	AC3_320kbps(0x34, 320, 2), //
 	AC3_320kbps_alias(0x35, 320, 2), //
 	// not sure about this one

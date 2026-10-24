@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,85 @@ import org.junit.jupiter.api.Test;
 class M2tsShrinkPlannerTest {
 
 	private final M2tsShrinkPlanner planner = new M2tsShrinkPlanner();
+
+	@Test
+	void defaultMissingAndNullSelectionsRetainAllTracks() throws Exception {
+		var inventory = inventory(20_000, track(0x1100, StreamCodingType.DOLBY_AC3, 10),
+				track(0x1101, StreamCodingType.DTS, 20), track(0x1200, StreamCodingType.PRESENTATION_GRAPHICS, 5));
+		for (var config : List.of(new M2tsShrinkConfig(),
+				JsonMapperFactory.get().readValue("{}", M2tsShrinkConfig.class), JsonMapperFactory.get()
+						.readValue("{\"audioPids\":null,\"subtitlePids\":null}", M2tsShrinkConfig.class))) {
+			var plan = planner.plan(inventory, "00001", config, 30_000, Engine.FFMPEG);
+
+			assertThat(plan.retainedAudioPids()).containsExactly(0x1100, 0x1101);
+			assertThat(plan.retainedSubtitlePids()).containsExactly(0x1200);
+			assertThat(plan.removedPids()).isEmpty();
+			assertThat(plan.exactDroppedTransportBytes()).isZero();
+			assertThat(plan.estimatedBytesAfterPidRemoval()).isEqualTo(20_000);
+			assertThat(config.getAudioPids()).isNull();
+			assertThat(config.getSubtitlePids()).isNull();
+		}
+	}
+
+	@Test
+	void explicitEmptySelectionsDiscardAllTracks() throws Exception {
+		var inventory = inventory(20_000, track(0x1100, StreamCodingType.DOLBY_AC3, 10),
+				track(0x1200, StreamCodingType.PRESENTATION_GRAPHICS, 5));
+		var config = JsonMapperFactory.get().readValue("{\"audioPids\":[],\"subtitlePids\":[]}",
+				M2tsShrinkConfig.class);
+
+		var plan = planner.plan(inventory, "00001", config, 30_000, Engine.FFMPEG);
+
+		assertThat(plan.retainedAudioPids()).isEmpty();
+		assertThat(plan.retainedSubtitlePids()).isEmpty();
+		assertThat(plan.removedPids()).containsExactly(0x1100, 0x1200);
+		assertThat(plan.exactDroppedTransportBytes()).isEqualTo(15L * 192);
+	}
+
+	@Test
+	void audioAndSubtitleSelectionsAreIndependent() throws Exception {
+		var inventory = inventory(20_000, track(0x1100, StreamCodingType.DOLBY_AC3, 10),
+				track(0x1200, StreamCodingType.PRESENTATION_GRAPHICS, 5));
+		var audioOnly = JsonMapperFactory.get().readValue("{\"subtitlePids\":[]}", M2tsShrinkConfig.class);
+		var subtitlesOnly = JsonMapperFactory.get().readValue("{\"audioPids\":[]}", M2tsShrinkConfig.class);
+
+		var audioPlan = planner.plan(inventory, "00001", audioOnly, 30_000, Engine.FFMPEG);
+		assertThat(audioPlan.retainedAudioPids()).containsExactly(0x1100);
+		assertThat(audioPlan.retainedSubtitlePids()).isEmpty();
+		assertThat(audioPlan.removedPids()).containsExactly(0x1200);
+
+		var subtitlePlan = planner.plan(inventory, "00001", subtitlesOnly, 30_000, Engine.FFMPEG);
+		assertThat(subtitlePlan.retainedAudioPids()).isEmpty();
+		assertThat(subtitlePlan.retainedSubtitlePids()).containsExactly(0x1200);
+		assertThat(subtitlePlan.removedPids()).containsExactly(0x1100);
+	}
+
+	@Test
+	void unspecifiedAudioSelectionAllowsOnlyValidRetainedDowngrades() {
+		var inventory = inventory(20_000, track(0x1100, StreamCodingType.DTS, 10),
+				track(0x1101, StreamCodingType.DOLBY_AC3, 10),
+				track(0x1200, StreamCodingType.PRESENTATION_GRAPHICS, 5));
+		var config = new M2tsShrinkConfig();
+		config.setAudioDowngrades(Map.of(0x1100, M2tsShrinkConfig.AudioDowngrade.DTS_TO_AC3));
+		var plan = planner.plan(inventory, "00001", config, 30_000, Engine.FFMPEG);
+		assertThat(plan.retainedAudioPids()).containsExactly(0x1100, 0x1101);
+		assertThat(plan.exactDroppedTransportBytes()).isZero();
+
+		for (var selection : List.of(List.<Integer>of(), List.of(0x1101))) {
+			config.setAudioPids(selection);
+			assertThatThrownBy(() -> config.validate(inventory)).isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("must be a retained audio PID");
+		}
+		config.setAudioPids(null);
+		for (int pid : List.of(0x1102, 0x1200)) {
+			config.setAudioDowngrades(Map.of(pid, M2tsShrinkConfig.AudioDowngrade.DTS_TO_AC3));
+			assertThatThrownBy(() -> config.validate(inventory)).isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("must be a retained audio PID");
+		}
+		config.setAudioDowngrades(Map.of(0x1101, M2tsShrinkConfig.AudioDowngrade.DTS_TO_AC3));
+		assertThatThrownBy(() -> config.validate(inventory)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("requires a DTS-family PID");
+	}
 
 	@Test
 	void exactRemovedAudioAndSubtitlePacketsCanProveFitWithSafetyReserve() {
@@ -63,6 +143,7 @@ class M2tsShrinkPlannerTest {
 		var inventory = inventory(100_000, track(0x1011, StreamCodingType.H265_HEVC, 400),
 				track(0x1100, StreamCodingType.DOLBY_TRUEHD, 20));
 		M2tsShrinkConfig config = new M2tsShrinkConfig();
+		config.setAudioPids(List.of());
 
 		var plan = planner.plan(inventory, "00002", config, 50_000, Engine.FFMPEG);
 
