@@ -40,11 +40,15 @@ public class PlayItemStream implements IStreamInfo {
 	public static final int STREAM_TYPE_OUT_OF_MUX = 0x02;
 	// so says chatgpt
 	public static final int STREAM_TYPE_REPEATABLE_OUT_OF_MUX = 0x03;
+	// found in a UHD playlist for a secondary video stream (HDR DV)
+	// the playlist defines a subpath with subPathType=10, with the same clipName
+	// both video streams are in the same M2TS file
+	public static final int STREAM_TYPE_DOLBY_VISION = 0x04;
 	/** PID of the stream within the transport stream. */
 	private int pid;
 
-	/** Stream type: 0x01=in-mux, 0x02=out-of-mux, 0x03=repeatable out-of-mux, etc. */
-	private int streamType; // 0x01=in-mux, 0x02=out-of-mux, etc.
+	/** Stream type: 1=in-mux, 2=out-of-mux, 3=repeatable out-of-mux, 4=Dolby Vision, etc. */
+	private int streamType;
 
 	/** Sub-path index (applicable for stream types 2, 3, 4). */
 	private int subpathId;

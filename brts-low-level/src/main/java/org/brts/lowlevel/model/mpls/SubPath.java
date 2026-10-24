@@ -42,10 +42,12 @@ public class SubPath {
 	 * <ul>
 	 * <li>2 — Primary audio of Browse-able slideshow</li>
 	 * <li>3 — Interactive graphics presentation menu</li>
-	 * <li>4 — Text subtitle</li>
+	 * <li>4 — Text subtitle (or audio commentary ?)</li>
 	 * <li>6 — Secondary video with secondary audio</li>
 	 * <li>7 — Secondary audio of a Play item</li>
+	 * <li>10 — UHD: Secondary video HDR (Dolby Vision)</li>
 	 * </ul>
+	 * 4,6,7 are really not sure.
 	 */
 	private int subPathType;
 

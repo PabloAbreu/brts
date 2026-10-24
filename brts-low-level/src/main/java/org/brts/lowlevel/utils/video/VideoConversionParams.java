@@ -56,6 +56,15 @@ public class VideoConversionParams {
 		}
 	}
 
+	/**
+	 * Choice of rate control method for video encoding.
+	 *
+	 * Note that most of them are bad for blu-rays due to strict bitrate requirements. Blu-ray discs typically require
+	 * CBR or constrained VBR for compliance.
+	 *
+	 * However in practice, other rate control methods may be used when reducing file size for use with tolerant
+	 * hardware players.
+	 */
 	public enum RateControl {
 		VBR, CBR, CRF, CQP, ICQ, LA_ICQ, QVBR
 	}

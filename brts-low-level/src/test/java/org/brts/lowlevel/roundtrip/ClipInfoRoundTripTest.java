@@ -24,11 +24,16 @@
 package org.brts.lowlevel.roundtrip;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.List;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.model.Timestamp;
 import org.brts.lowlevel.model.clpi.ClipInfo;
@@ -36,6 +41,9 @@ import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Round-trip test: write a ClipInfo to binary, re-parse it, and verify field consistency.
@@ -77,6 +85,88 @@ class ClipInfoRoundTripTest {
 				.orElseThrow();
 		assertThat(audioOut.getPid()).isEqualTo(0x1100);
 		assertThat(audioOut.getLanguage()).isEqualTo("eng");
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(strings = { "0200", "0300" })
+	void roundTrip_versionIsSelectedAndPreserved(String version) throws Exception {
+		ClipInfo original = buildSampleClipInfo();
+		assertThat(original.getVersion()).isEqualTo("0200");
+		original.setVersion(version);
+		byte[] bytes = write(original);
+		String expected = version == null ? "0200" : version;
+		assertThat(new String(bytes, 0, 8, StandardCharsets.US_ASCII)).isEqualTo("HDMV" + expected);
+		assertThat(parser.parse(new ByteArrayInputStream(bytes)).getVersion()).isEqualTo(expected);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "0100", "0400", "", "300", "03000", " 0300" })
+	void unsupportedWriteVersionIsRejectedBeforeOutput(String version) {
+		ClipInfo original = buildSampleClipInfo();
+		original.setVersion(version);
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		assertThatThrownBy(() -> writer.write(original, out)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CLPI write version").hasMessageContaining("0200 or 0300");
+		assertThat(out.size()).isZero();
+	}
+
+	@Test
+	void version0100ParsingRetainsLegacyFields() throws Exception {
+		byte[] bytes = write(buildSampleClipInfo());
+		ClipInfo expected = parser.parse(new ByteArrayInputStream(bytes));
+		System.arraycopy("0100".getBytes(StandardCharsets.US_ASCII), 0, bytes, 4, 4);
+		ClipInfo parsed = parser.parse(new ByteArrayInputStream(bytes));
+		assertThat(parsed.getVersion()).isEqualTo("0100");
+		assertThat(parsed).usingRecursiveComparison().ignoringFields("version").isEqualTo(expected);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "H264_AVC", "H265_HEVC" })
+	void default0200BytesMatchPreChangeGoldenHash(String codec) throws Exception {
+		ClipInfo original = buildSampleClipInfo();
+		ClipStream video = original.getStreams().getFirst();
+		video.setCodingType(StreamCodingType.valueOf(codec));
+		String expected = codec.equals("H264_AVC") ? "bc8dc1aa8fb45b8e946df238f58f915a286d8532599e2e596fdb485e1187114d"
+				: "df50af8ee32c5c74db51df384b6b23f51aaf1231945bd0109e6fde2e19f91fb1";
+		// Captured from the pre-0300 writer with this exact AVC/HEVC + AC3 model.
+		assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(write(original))))
+				.isEqualTo(expected);
+		video.setOcFlag(true);
+		video.setCrFlag(true);
+		video.setDynamicRangeType(15);
+		video.setColorSpace(15);
+		video.setHdrPlusFlag(true);
+		assertThat(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(write(original))))
+				.isEqualTo(expected);
+	}
+
+	@Test
+	void jsonVersionDefaultsAnd0300MetadataArePreserved() throws Exception {
+		var mapper = JsonMapperFactory.get();
+		assertThat(mapper.readValue("{}", ClipInfo.class).getVersion()).isEqualTo("0200");
+		ClipInfo nullVersion = mapper.readValue("{\"version\":null}", ClipInfo.class);
+		assertThat(parser.parse(new ByteArrayInputStream(write(nullVersion))).getVersion()).isEqualTo("0200");
+		ClipInfo original = buildSampleClipInfo();
+		original.setVersion("0300");
+		ClipStream video = original.getStreams().getFirst();
+		video.setCodingType(StreamCodingType.H265_HEVC);
+		video.setOcFlag(true);
+		video.setCrFlag(true);
+		video.setDynamicRangeType(2);
+		video.setColorSpace(6);
+		video.setHdrPlusFlag(true);
+		byte[] bytes = write(original);
+		ClipInfo parsed = parser.parse(new ByteArrayInputStream(bytes));
+		ClipInfo fromJson = mapper.readValue(mapper.writeValueAsString(parsed), ClipInfo.class);
+		assertThat(fromJson).usingRecursiveComparison().isEqualTo(parsed);
+		assertThat(write(fromJson)).isEqualTo(bytes);
+	}
+
+	private byte[] write(ClipInfo model) throws Exception {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		writer.write(model, out);
+		return out.toByteArray();
 	}
 
 	private ClipInfo buildSampleClipInfo() {

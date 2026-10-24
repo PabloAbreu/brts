@@ -23,23 +23,27 @@
 
 package org.brts.cli.low;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
+import java.nio.file.Path;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
+import org.brts.cli.JsonInputOption;
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.lowlevel.clpi.ClpiRegenOptions;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Path;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * CLI for the {@code clip-regen} command.
  */
 public class ClipRegenCli {
 
-	public static class RegenOptions extends org.brts.cli.BaseOptions {
+	public static class RegenOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the source .m2ts file to parse")
 		File input;
@@ -52,6 +56,9 @@ public class ClipRegenCli {
 
 		@Option(name = "--json", usage = "Also write the ClipInfo model as a JSON sidecar file alongside the .clpi")
 		boolean writeJson;
+
+		@JsonInputOption(name = "--options", required = false, usage = "Path to optional CLPI regeneration JSON options (probe mode and per-PID video overrides)")
+		ClpiRegenOptions regenOptions;
 
 	}
 
@@ -72,7 +79,7 @@ public class ClipRegenCli {
 			Path inputPath = opts.input.toPath();
 			String clipName = resolveClipName(opts);
 
-			ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(inputPath, clipName);
+			ClipInfo clipInfo = new M2tsClpiRegenBuilder().build(inputPath, clipName, opts.regenOptions);
 
 			Path outputDir = opts.outputDir.toPath();
 			Path clpiPath = outputDir.resolve(clipName + ".clpi");

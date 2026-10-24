@@ -25,6 +25,7 @@ package org.brts.lowlevel.m2ts;
 
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
+import org.brts.common.m2ts.PesTimestampParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
@@ -112,24 +113,13 @@ public class M2tsDumper {
 				groupCount = 1;
 				groupAts = ats;
 				groupPesLength = -1;
+				groupPts = -1;
+				groupDts = -1;
 
 				if (payloadUnitStart && detectPesStart(payload, offset, length)) {
 					groupPesLength = ((payload[offset + 4] & 0xFF) << 8) | (payload[offset + 5] & 0xFF);
-					if (length >= 12) {
-						groupPts = -1;
-						groupDts = -1;
-						long pts = parsePts(payload, offset + 6);
-						long dts = parseDts(payload, offset + 6);
-						if (pts >= 0) {
-							groupPts = pts;
-						}
-						if (dts >= 0) {
-							groupDts = dts;
-						}
-					}
-				} else {
-					groupPts = -1;
-					groupDts = -1;
+					groupPts = PesTimestampParser.parsePts(payload, offset, length);
+					groupDts = PesTimestampParser.parseDts(payload, offset, length);
 				}
 			} else {
 				groupCount++;
@@ -175,28 +165,6 @@ public class M2tsDumper {
 
 		private boolean detectPesStart(byte[] payload, int offset, int length) {
 			return length >= 6 && payload[offset] == 0x00 && payload[offset + 1] == 0x00 && payload[offset + 2] == 0x01;
-		}
-
-		private long parsePts(byte[] payload, int offset) {
-			int ptsDtsFlags = payload[offset + 1] & 0xC0;
-			if ((ptsDtsFlags & 0x80) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 3);
-			}
-			return -1;
-		}
-
-		private long parseDts(byte[] payload, int offset) {
-			int ptsDtsFlags = payload[offset + 1] & 0xC0;
-			if ((ptsDtsFlags & 0x40) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 8);
-			}
-			return -1;
-		}
-
-		private static long parsePtsOrDtsTimestamp(byte[] data, int offset) {
-			return ((long) (data[offset] & 0x0E) << 29) | ((data[offset + 1] & 0xFF) << 22)
-					| ((data[offset + 2] & 0xFE) << 14) | ((data[offset + 3] & 0xFF) << 7)
-					| ((data[offset + 4] & 0xFE) >> 1);
 		}
 
 	}

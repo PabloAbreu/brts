@@ -65,6 +65,7 @@ public interface IStreamInfo {
 		case 3 -> "720p";
 		case 4 -> "1080i";
 		case 6 -> "1080p";
+		case 8 -> "2160p";
 		default -> "unknown video format " + getVideoFormat();
 		};
 	}
@@ -77,6 +78,7 @@ public interface IStreamInfo {
 		case 1, 2 -> 720;
 		case 3 -> 1280;
 		case 4, 6 -> 1920;
+		case 8 -> 3840;
 		default -> null;
 		};
 	}
@@ -89,6 +91,7 @@ public interface IStreamInfo {
 		case 1, 2 -> 480;
 		case 3 -> 720;
 		case 4, 6 -> 1080;
+		case 8 -> 2160;
 		default -> null;
 		};
 	}

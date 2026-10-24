@@ -1,5 +1,10 @@
 # List of things to do
 
+## work in progress
+
+ - shrink
+ - video conversion
+
 ## features
 
  - support for version 0300 (4k)

@@ -140,7 +140,7 @@ public class M2tsDemuxer {
 				if (transportError || !activePids.contains(pid)) {
 					// log only if unknown PID
 					if (pid != 0x1FFF && pid != 0 && pid != 0x100 && pid != 0x1F && pid != 0x1001)
-						log.debug("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex,
+						log.trace("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex,
 								pid, transportError, adaptCtrl);
 					packetIndex++;
 					continue;
@@ -154,7 +154,7 @@ public class M2tsDemuxer {
 						// FIXME call that for PCR in other cases too
 						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
 					} else
-						log.debug("Skipped adaptation field only packet at index {}", packetIndex);
+						log.trace("Skipped adaptation field only packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}
@@ -164,7 +164,7 @@ public class M2tsDemuxer {
 					payloadOff += 1 + afLen;
 
 					if (payloadOff >= SOURCE_PACKET_SIZE) {
-						log.debug("Skipped adaptation field + payload packet at index {}", packetIndex);
+						log.trace("Skipped adaptation field + payload packet at index {}", packetIndex);
 						packetIndex++;
 						continue;
 					}
@@ -172,7 +172,7 @@ public class M2tsDemuxer {
 				// adaptCtrl == 1: payload only (payloadOff stays as-is)
 
 				if (payloadOff >= SOURCE_PACKET_SIZE) {
-					log.debug("Skipped payloadOff too big packet at index {}", packetIndex);
+					log.trace("Skipped payloadOff too big packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}

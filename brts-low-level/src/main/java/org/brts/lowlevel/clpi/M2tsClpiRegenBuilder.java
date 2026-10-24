@@ -26,9 +26,12 @@ package org.brts.lowlevel.clpi;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.AudioChannelLayoutConverter;
@@ -39,6 +42,8 @@ import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.model.Timestamp;
+import org.brts.common.utils.AudioUtils;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.clpi.EpMap;
@@ -55,14 +60,36 @@ import lombok.extern.slf4j.Slf4j;
  * format/frame-rate, audio channels, languages).</li>
  * <li><b>Phase 2 – Full-file EP scan</b>: {@link M2tsDemuxer} iterates every source packet; for each video PES access
  * unit the PTS is decoded from the PES header and the bitstream is probed to determine whether the access unit is a
- * keyframe (IDR for H.264/HEVC, I-frame for MPEG-2). Every keyframe produces an {@link EpMap.EpMapEntry} with its PTS
- * (90 kHz) and SPN (source packet number).</li>
+ * random-access picture (IDR for H.264, BLA/IDR/CRA for HEVC, I-frame for MPEG-2). Every entry contains its PTS (90
+ * kHz) and SPN (source packet number).</li>
  * <li><b>Phase 3 – Assembly</b>: stream metadata and EP entries are composed into a {@link ClipInfo} model ready for
  * {@link org.brts.lowlevel.writer.ClipInfoWriter}.</li>
  * </ol>
  */
 @Slf4j
 public class M2tsClpiRegenBuilder {
+
+	@FunctionalInterface
+	interface MetadataProbe {
+		Map<Integer, M2tsVideoMetadataProbe.Metadata> probe(Path path, Map<Integer, StreamCodingType> videos)
+				throws IOException;
+	}
+
+	private final MetadataProbe metadataProbe;
+
+	static final String PROBE_ENGINE_PROPERTY = M2tsVideoMetadataProbeFactory.ENGINE_PROPERTY;
+
+	public M2tsClpiRegenBuilder() {
+		this(defaultProbe(BrtsFileConfig.getInstance()::getProperty));
+	}
+
+	static MetadataProbe defaultProbe(UnaryOperator<String> config) {
+		return M2tsVideoMetadataProbeFactory.createDefault(config)::probe;
+	}
+
+	M2tsClpiRegenBuilder(MetadataProbe metadataProbe) {
+		this.metadataProbe = metadataProbe;
+	}
 
 	/** MPEG-2 PTS/PCR_base modulo in 90 kHz ticks (33-bit counter). */
 	static final long PTS_MODULO = 1L << 33;
@@ -79,23 +106,196 @@ public class M2tsClpiRegenBuilder {
 	 * @throws IOException on I/O error
 	 */
 	public ClipInfo build(Path m2tsPath, String clipName) throws IOException {
+		return build(m2tsPath, clipName, null);
+	}
+
+	/**
+	 * Regenerates CLPI with automatic UHD version selection and optional per-PID overrides. Probing defaults to best
+	 * effort; strict mode requires known HEVC dynamic range and color space before scanning the full file.
+	 */
+	public ClipInfo build(Path m2tsPath, String clipName, ClpiRegenOptions options) throws IOException {
 		log.info("Regenerating CLPI for clip '{}' from {}", clipName, m2tsPath);
 
 		// Phase 1 – stream metadata from PAT/PMT
 		M2tsInfo info = new M2tsParser().parse(m2tsPath);
 		log.debug("M2TS stream info: {}",
 				JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
+		ClipInfo metadata = prepareMetadata(m2tsPath, info, options);
 
 		M2tsStreamInfo videoStream = findFirstVideoStream(info);
 		if (videoStream == null) {
 			log.warn("No video stream found in {}; CLPI will have empty EP map", m2tsPath.getFileName());
 		}
 
-		// Phase 2 – full-file scan for PTS range and IDR/I-frame entry points
+		// Phase 2 – full-file scan for PTS range and random-access entry points
 		EpScanResult scan = doEpScan(m2tsPath, info, videoStream);
 
 		// Phase 3 – assemble ClipInfo
-		return assemble(clipName, info, videoStream, scan);
+		ClipInfo clip = assemble(clipName, info, videoStream, scan);
+		clip.setVersion(metadata.getVersion());
+		clip.setStreams(metadata.getStreams());
+		return clip;
+	}
+
+	/** Metadata-only phase, separated for deterministic testing and validation before the full EP scan. */
+	ClipInfo prepareMetadata(Path path, M2tsInfo info, ClpiRegenOptions options) throws IOException {
+		ClpiRegenOptions effective = options != null ? options : new ClpiRegenOptions();
+		ClpiRegenOptions.ProbeMode mode = effective.getProbeMode() != null ? effective.getProbeMode()
+				: ClpiRegenOptions.ProbeMode.BEST_EFFORT;
+		Map<Integer, ClpiRegenOptions.VideoOverrides> overrides = effective.getVideoStreams() != null
+				? effective.getVideoStreams()
+				: Map.of();
+		Map<Integer, StreamCodingType> videos = M2tsVideoMetadataProbeFactory.videoStreamsByPid(info);
+		validateOverrides(overrides, videos);
+		Map<Integer, M2tsVideoMetadataProbe.Metadata> detected = Map.of();
+		if (mode != ClpiRegenOptions.ProbeMode.DISABLED && !videos.isEmpty()) {
+			try {
+				detected = metadataProbe.probe(path, videos);
+			} catch (IOException | LinkageError e) {
+				log.warn("CLPI metadata probe failed for {} (PIDs {}): {}; using PMT metadata and overrides", path,
+						videos.keySet(), e.toString());
+			}
+		}
+		List<ClipStream> streams = buildClipStreams(info.getStreams());
+		boolean uhd = false;
+		for (ClipStream stream : streams) {
+			// first audio overrides
+			if (stream.getCodingType().isAudio() && effective.getAudioStreams() != null) {
+				ClpiRegenOptions.AudioOverrides audioOverride = effective.getAudioStreams().get(stream.getPid());
+				if (audioOverride != null) {
+					applyAudioOverrides(stream, audioOverride);
+				}
+			} else if (stream.getCodingType().isSubtitle() && effective.getSubtitleStreams() != null) {
+				ClpiRegenOptions.SubtitleOverrides subtitleOverride = effective.getSubtitleStreams()
+						.get(stream.getPid());
+				if (subtitleOverride != null) {
+					applySubtitleOverrides(stream, subtitleOverride);
+				}
+			}
+
+			// then video
+			if (!stream.getCodingType().isVideo()) {
+				continue;
+			}
+			boolean hevc = stream.getCodingType() == StreamCodingType.H265_HEVC;
+			boolean fourK = Integer.valueOf(8).equals(stream.getVideoFormat());
+			M2tsVideoMetadataProbe.Metadata metadata = detected.get(stream.getPid());
+			if (metadata != null) {
+				fourK |= metadata.fourK();
+				if (metadata.videoFormat() != null) {
+					stream.setVideoFormat(metadata.videoFormat());
+				}
+				if (hevc) {
+					stream.setDynamicRangeType(metadata.dynamicRangeType());
+					stream.setColorSpace(metadata.colorSpace());
+					stream.setHdrPlusFlag(metadata.hdrPlusFlag());
+				}
+			}
+			ClpiRegenOptions.VideoOverrides override = overrides.get(stream.getPid());
+			if (override != null) {
+				if (fourK && override.getVideoFormat() != null && override.getVideoFormat() != 8) {
+					throw new IllegalArgumentException("CLPI override for PID " + stream.getPid()
+							+ " videoFormat conflicts with detected 4K video; expected 8");
+				}
+				applyOverrides(stream, override);
+			}
+			uhd |= hevc || fourK || Integer.valueOf(8).equals(stream.getVideoFormat());
+			if (hevc) {
+				boolean rangeKnown = stream.getDynamicRangeType() != null && stream.getDynamicRangeType() <= 2;
+				boolean colorKnown = Integer.valueOf(1).equals(stream.getColorSpace())
+						|| Integer.valueOf(2).equals(stream.getColorSpace());
+				if (!rangeKnown || !colorKnown) {
+					String message = "Unresolved HEVC dynamicRangeType/colorSpace for PID " + stream.getPid() + " in "
+							+ path + "; supply per-PID CLPI overrides (unknowns encode as zero)";
+					if (mode == ClpiRegenOptions.ProbeMode.STRICT) {
+						throw new IOException(message);
+					}
+					log.warn(message);
+				}
+				if (stream.getOcFlag() == null || stream.getCrFlag() == null || stream.getHdrPlusFlag() == null) {
+					log.warn(
+							"CLPI PID {} in {} has unknown OC/CR/HDR+ flags; unset flags encode as false. "
+									+ "A bounded prefix cannot prove absence; provide overrides if known",
+							stream.getPid(), path);
+				}
+			}
+
+			// if values are missing, processing will halt here with an exception
+			if (stream.getVideoFormat() == null || stream.getFrameRate() == null || stream.getAspectRatio() == null) {
+				throw new IllegalStateException(
+						"Missing required video stream parameters videoFormat/frameRate/aspectRatio for PID: "
+								+ stream.getPid());
+			}
+		}
+		ClipInfo clip = new ClipInfo();
+		clip.setVersion(uhd ? "0300" : "0200");
+		clip.setStreams(streams);
+		return clip;
+	}
+
+	private static void validateOverrides(Map<Integer, ClpiRegenOptions.VideoOverrides> overrides,
+			Map<Integer, StreamCodingType> videos) {
+		for (var entry : overrides.entrySet()) {
+			Integer pid = entry.getKey();
+			if (!videos.containsKey(pid)) {
+				throw new IllegalArgumentException("CLPI override PID " + pid + " is not a known video PID");
+			}
+			var value = entry.getValue();
+			if (value == null) {
+				continue;
+			}
+			validateNibble(pid, "videoFormat", value.getVideoFormat());
+			validateNibble(pid, "frameRate", value.getFrameRate());
+			validateNibble(pid, "aspectRatio", value.getAspectRatio());
+			validateNibble(pid, "dynamicRangeType", value.getDynamicRangeType());
+			validateNibble(pid, "colorSpace", value.getColorSpace());
+			if (videos.get(pid) != StreamCodingType.H265_HEVC
+					&& (value.getCrFlag() != null || value.getDynamicRangeType() != null
+							|| value.getColorSpace() != null || value.getHdrPlusFlag() != null)) {
+				throw new IllegalArgumentException(
+						"CLPI override PID " + pid + " has HEVC-only attributes on " + videos.get(pid));
+			}
+		}
+	}
+
+	private static void validateNibble(int pid, String field, Integer value) {
+		if (value != null && (value < 0 || value > 15)) {
+			throw new IllegalArgumentException(
+					"CLPI override PID " + pid + " " + field + " must be between 0 and 15, got " + value);
+		}
+	}
+
+	private static void applyAudioOverrides(ClipStream stream, ClpiRegenOptions.AudioOverrides value) {
+		if (value.getAudioChannelLayout() != null)
+			stream.setAudioChannelLayout(value.getAudioChannelLayout());
+		if (value.getSampleRate() != null)
+			stream.setSampleRate(value.getSampleRate());
+		if (value.getLanguage() != null)
+			stream.setLanguage(value.getLanguage());
+	}
+
+	private static void applySubtitleOverrides(ClipStream stream, ClpiRegenOptions.SubtitleOverrides value) {
+		if (value.getLanguage() != null)
+			stream.setLanguage(value.getLanguage());
+	}
+
+	private static void applyOverrides(ClipStream stream, ClpiRegenOptions.VideoOverrides value) {
+		if (value.getVideoFormat() != null)
+			stream.setVideoFormat(value.getVideoFormat());
+		if (value.getFrameRate() != null)
+			stream.setFrameRate(value.getFrameRate());
+		if (value.getAspectRatio() != null)
+			stream.setAspectRatio(value.getAspectRatio());
+		if (value.getOcFlag() != null)
+			stream.setOcFlag(value.getOcFlag());
+		if (value.getCrFlag() != null)
+			stream.setCrFlag(value.getCrFlag());
+		if (value.getDynamicRangeType() != null)
+			stream.setDynamicRangeType(value.getDynamicRangeType());
+		if (value.getColorSpace() != null)
+			stream.setColorSpace(value.getColorSpace());
+		if (value.getHdrPlusFlag() != null)
+			stream.setHdrPlusFlag(value.getHdrPlusFlag());
 	}
 
 	// =========================================================================
@@ -110,7 +310,7 @@ public class M2tsClpiRegenBuilder {
 	}
 
 	// =========================================================================
-	// Phase 2 – full-file IDR / I-frame scan
+	// Phase 2 – full-file random-access picture scan
 	// =========================================================================
 
 	/** Accumulated results of the EP-map scan pass. */
@@ -143,7 +343,36 @@ public class M2tsClpiRegenBuilder {
 		info.setFirstPcr27MHz(-1);
 		info.setLastPcr27MHz(-1);
 
-		new M2tsDemuxer().demux(path, info, new M2tsPacketHandler() {
+		VideoEntryPointScanner scanner = new VideoEntryPointScanner(videoType, raw -> {
+			long pts = ptsUnwrapper.unwrap(raw);
+			if (result.firstPts < 0 || pts < result.firstPts)
+				result.firstPts = pts;
+			if (pts > result.lastPts)
+				result.lastPts = pts;
+			return pts;
+		}, (pts, spn) -> {
+			if (!result.entries.isEmpty()) {
+				EpMap.EpMapEntry previous = result.entries.getLast();
+				if (previous.getPtsTicks() == pts && previous.getSpn() == spn)
+					return;
+				if (pts < previous.getPtsTicks())
+					log.warn("Non-monotonic video entry PTS in {}: PID={} SPN={} PTS={} previous={}", path, videoPid,
+							spn, pts, previous.getPtsTicks());
+			}
+			EpMap.EpMapEntry entry = new EpMap.EpMapEntry();
+			entry.setPtsTicks(pts);
+			entry.setSpn(spn);
+			result.entries.add(entry);
+			log.trace("EP entry: PTS={} SPN={}", pts, spn);
+		});
+
+		try (M2tsPacketHandler handler = new M2tsPacketHandler() {
+
+			private int lastCounter = -1;
+
+			private byte[] previousPacket;
+
+			private long transportResets;
 
 			@Override
 			public void onPayload(int pid, byte[] sp, int offset, int length, boolean payloadUnitStart,
@@ -158,54 +387,54 @@ public class M2tsClpiRegenBuilder {
 							info.setLastPcr27MHz(pcr);
 					}
 				}
-				if (!payloadUnitStart)
+				if (pid != videoPid)
 					return;
-				// Need at least 14 bytes: 3 start-code + stream_id + 2 length +
-				// 2 flags + 1 header-data-len + 5 PTS bytes.
-				if (offset + 14 > sp.length)
-					return;
-
-				// Validate PES start code: 00 00 01
-				if ((sp[offset] & 0xFF) != 0x00 || (sp[offset + 1] & 0xFF) != 0x00 || (sp[offset + 2] & 0xFF) != 0x01)
-					return;
-
-				// PTS_DTS_flags in byte 7, bits 7-6; 0 means no PTS
-				int ptsDtsFlags = (sp[offset + 7] >> 6) & 0x03;
-				if (ptsDtsFlags == 0)
-					return;
-
-				long pts = ptsUnwrapper.unwrap(decodePts(sp, offset + 9));
-				if (pts < 0)
-					return;
-
-				if (result.firstPts < 0 || pts < result.firstPts)
-					result.firstPts = pts;
-				if (pts > result.lastPts)
-					result.lastPts = pts;
-
-				// ES data starts after the variable-length PES header
-				int pesHeaderDataLen = sp[offset + 8] & 0xFF;
-				int esOff = offset + 9 + pesHeaderDataLen;
-				if (esOff >= offset + length)
-					return;
-
-				if (isKeyframe(videoType, sp, esOff, offset + length)) {
-					EpMap.EpMapEntry e = new EpMap.EpMapEntry();
-					e.setPtsTicks(pts);
-					e.setSpn(packetIndex);
-					result.entries.add(e);
-					log.trace("EP entry: PTS={} SPN={}", pts, packetIndex);
+				int control = (sp[7] >> 4) & 3;
+				boolean discontinuity = (control == 2 || control == 3) && (sp[8] & 0xFF) > 0 && (sp[9] & 0x80) != 0;
+				if (discontinuity) {
+					scanner.reset();
+					lastCounter = -1;
 				}
+				if (control == 2 || control == 0)
+					return; // adaptation-only PCR callbacks contain no ES bytes
+				int counter = sp[7] & 15;
+				if (counter == lastCounter && previousPacket != null
+						&& Arrays.equals(previousPacket, 4, sp.length, sp, 4, sp.length))
+					return; // an exact retransmission, not another PES/access unit
+				boolean lost = lastCounter >= 0 && counter != ((lastCounter + 1) & 15);
+				boolean scrambled = (sp[7] & 0xC0) != 0;
+				if (lost || scrambled) {
+					scanner.reset();
+					if (transportResets++ < 5)
+						log.warn("Resetting EP scanner in {}: PID={} SPN={} continuityLoss={} scrambled={}", path,
+								videoPid, packetIndex, lost, scrambled);
+				}
+				lastCounter = counter;
+				if (previousPacket == null)
+					previousPacket = new byte[sp.length];
+				System.arraycopy(sp, 0, previousPacket, 0, sp.length);
+				if (!scrambled)
+					scanner.accept(sp, offset, length, payloadUnitStart, packetIndex);
 			}
 
 			@Override
 			public void close() {
-				/* no resources to release */ }
+				scanner.reset();
+			}
 
-		}, filter);
+		}) {
+			// keepTables includes a dedicated PCR PID in the demuxer's candidate set; the explicit filter still
+			// limits callbacks to video and PCR. No global PID-filter semantics need to change.
+			new M2tsDemuxer().demux(path, info, handler, filter, 0, -1, true);
+		}
+		if (scanner.malformedHeaders() > 0 || scanner.untimestampedPictures() > 0)
+			log.warn(
+					"EP scan in {} (PID={}): rejected {} malformed PES headers; skipped {} random-access pictures "
+							+ "without a dedicated PTS",
+					path, videoPid, scanner.malformedHeaders(), scanner.untimestampedPictures());
 
-		log.info("EP scan complete: {} IDR entries, PTS range [{} .. {}]", result.entries.size(), result.firstPts,
-				result.lastPts);
+		log.info("EP scan complete: {} random-access entries, PTS range [{} .. {}]", result.entries.size(),
+				result.firstPts, result.lastPts);
 		return result;
 	}
 
@@ -249,6 +478,8 @@ public class M2tsClpiRegenBuilder {
 
 		// EP map — one stream entry for the primary video PID
 		if (videoStream != null && !scan.entries.isEmpty()) {
+			log.debug("Adding EP map for video stream PID: {}", videoStream.getPid());
+			log.debug("EP entries found: {}", scan.entries.size());
 			EpMap.EpMapStream eps = new EpMap.EpMapStream();
 			eps.setPid(videoStream.getPid());
 			eps.setEpType(1); // I-frame only (standard)
@@ -257,6 +488,8 @@ public class M2tsClpiRegenBuilder {
 			EpMap epMap = new EpMap();
 			epMap.setStreams(List.of(eps));
 			clip.setEpMap(epMap);
+		} else {
+			log.warn("No video stream or EP entries found for clip: {}", clipName);
 		}
 
 		return clip;
@@ -275,16 +508,12 @@ public class M2tsClpiRegenBuilder {
 			if (si.getCodingType().isVideo()) {
 				// videoFormat and frameRate codes come directly from the HDMV
 				// registration descriptor parsed by M2tsParser.
-				cs.setVideoFormat(si.getVideoFormat() != null ? si.getVideoFormat() : 6); // default
-																							// 1080p
-				cs.setFrameRate(si.getFrameRate() != null ? si.getFrameRate() : 2); // default
-																					// 24
-																					// fps
-				cs.setAspectRatio(si.getAspectRatio() != null ? si.getAspectRatio() : 3); // default
-																							// 16:9
+				cs.setVideoFormat(si.getVideoFormat());
+				cs.setFrameRate(si.getFrameRate());
+				cs.setAspectRatio(si.getAspectRatio());
 			} else if (si.getCodingType().isAudio()) {
 				cs.setAudioChannelLayout(AudioChannelLayoutConverter.channelsToLayout(si.getChannels()));
-				cs.setSampleRate(sampleRateToCode(si.getSampleRateHz()));
+				cs.setSampleRate(AudioUtils.sampleRateHzToBlurayAudioSampleRateCode(si.getSampleRateHz()));
 				cs.setLanguage(si.getLanguage() != null ? si.getLanguage() : "und");
 			} else {
 				// PGS / IG / text subtitle
@@ -332,159 +561,8 @@ public class M2tsClpiRegenBuilder {
 
 	}
 
-	/**
-	 * Decodes the 33-bit PTS value from the 5-byte PES PTS field starting at {@code buf[off]}. Returns {@code -1} when
-	 * the buffer does not contain enough bytes.
-	 */
-	static long decodePts(byte[] buf, int off) {
-		if (off + 5 > buf.length)
-			return -1;
-		return (((long) (buf[off] & 0x0E)) << 29) | (((long) (buf[off + 1] & 0xFF)) << 22)
-				| (((long) (buf[off + 2] & 0xFE)) << 14) | (((long) (buf[off + 3] & 0xFF)) << 7)
-				| (((long) (buf[off + 4] & 0xFE)) >> 1);
-	}
-
-	/**
-	 * Returns {@code true} when the ES data starting at {@code esOff} is a keyframe access unit for the given
-	 * {@code codingType}:
-	 * <ul>
-	 * <li>H.264: first significant NAL unit (after AUD/SPS/PPS) has type 5 (IDR_slice).</li>
-	 * <li>HEVC: first significant NAL unit has type 19 (IDR_W_RADL) or 20 (IDR_N_LP).</li>
-	 * <li>MPEG-2: a picture start code is found with {@code picture_coding_type == 1} (I-frame).</li>
-	 * </ul>
-	 */
-	static boolean isKeyframe(StreamCodingType codingType, byte[] buf, int esOff, int endOff) {
-		if (codingType == null || esOff >= endOff)
-			return false;
-		return switch (codingType) {
-		case H264_AVC -> isH264Idr(buf, esOff, endOff);
-		case H265_HEVC -> isHevcIdr(buf, esOff, endOff);
-		case MPEG2_VIDEO -> isMpeg2Iframe(buf, esOff, endOff);
-		default -> false;
-		};
-	}
-
-	/**
-	 * H.264 Annex-B: scans NAL units up to {@code start + 512} bytes. Skips AUD (type 9), SPS (type 7), and PPS (type
-	 * 8); returns {@code true} when the first remaining NAL has type 5 (IDR_slice).
-	 */
-	private static boolean isH264Idr(byte[] buf, int start, int end) {
-		int maxScan = Math.min(end, start + 512);
-		int pos = start;
-		while (pos < maxScan - 3) {
-			int sc = findStartCode(buf, pos, maxScan);
-			if (sc < 0)
-				break;
-			int nalOff = nalByteOffset(buf, sc);
-			if (nalOff >= maxScan)
-				break;
-			int nalType = buf[nalOff] & 0x1F; // H.264: lower 5 bits of NAL header byte
-			switch (nalType) {
-			case 9, 7, 8 -> pos = nalOff + 1; // AUD / SPS / PPS: continue scanning
-			case 5 -> {
-				return true;
-			} // IDR slice
-			default -> {
-				return false;
-			} // non-IDR: P/B/... frame
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * HEVC Annex-B: scans NAL units up to {@code start + 512} bytes. Skips AUD (35), VPS (32), SPS (33), PPS (34), and
-	 * PREFIX_SEI (39); returns {@code true} for type 19 (IDR_W_RADL) or 20 (IDR_N_LP).
-	 */
-	private static boolean isHevcIdr(byte[] buf, int start, int end) {
-		int maxScan = Math.min(end, start + 512);
-		int pos = start;
-		while (pos < maxScan - 3) {
-			int sc = findStartCode(buf, pos, maxScan);
-			if (sc < 0)
-				break;
-			int nalOff = nalByteOffset(buf, sc);
-			if (nalOff + 1 >= maxScan)
-				break;
-			// HEVC 2-byte NAL header: nal_unit_type = (first_byte & 0x7E) >> 1
-			int nalType = (buf[nalOff] & 0x7E) >> 1;
-			switch (nalType) {
-			case 35, 32, 33, 34, 39 -> pos = nalOff + 2; // skip infra NALs
-			case 19, 20 -> {
-				return true;
-			} // IDR_W_RADL / IDR_N_LP
-			default -> {
-				return false;
-			} // non-IDR
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * MPEG-2: returns {@code true} when a picture start code ({@code 00 00 01 00}) is found with
-	 * {@code picture_coding_type == 1} (I-frame).
-	 */
-	private static boolean isMpeg2Iframe(byte[] buf, int start, int end) {
-		int maxScan = Math.min(end, start + 256);
-		for (int i = start; i <= maxScan - 6; i++) {
-			if ((buf[i] & 0xFF) == 0x00 && (buf[i + 1] & 0xFF) == 0x00 && (buf[i + 2] & 0xFF) == 0x01
-					&& (buf[i + 3] & 0xFF) == 0x00) {
-				// picture_coding_type occupies bits 5-3 of byte i+5:
-				// byte i+4: temporal_reference[9:2]
-				// byte i+5: temporal_reference[1:0] | picture_coding_type[2:0] |
-				// vbv_delay[15:13]
-				int picType = (buf[i + 5] >> 3) & 0x07;
-				return picType == 1; // 1 = I-frame
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Finds the next Annex-B start code ({@code 00 00 01} or {@code 00 00 00 01}) at or after {@code from}, returning
-	 * the index of the first zero byte, or {@code -1} if none is found before {@code end}.
-	 */
-	private static int findStartCode(byte[] buf, int from, int end) {
-		for (int i = from; i < end - 2; i++) {
-			if ((buf[i] & 0xFF) == 0x00 && (buf[i + 1] & 0xFF) == 0x00) {
-				if ((buf[i + 2] & 0xFF) == 0x01)
-					return i;
-				if (i + 3 < end && (buf[i + 2] & 0xFF) == 0x00 && (buf[i + 3] & 0xFF) == 0x01)
-					return i;
-			}
-		}
-		return -1;
-	}
-
-	/**
-	 * Returns the byte offset of the first NAL header byte after the start code whose first zero byte is at {@code sc}.
-	 * Handles both 3-byte ({@code 00 00 01}) and 4-byte ({@code 00 00 00 01}) start codes.
-	 */
-	private static int nalByteOffset(byte[] buf, int sc) {
-		// 4-byte start code: buf[sc..sc+3] = 00 00 00 01 → NAL at sc+4
-		if ((buf[sc + 2] & 0xFF) == 0x00)
-			return sc + 4;
-		// 3-byte start code: buf[sc..sc+2] = 00 00 01 → NAL at sc+3
-		return sc + 3;
-	}
-
 	// =========================================================================
 	// Blu-ray attribute code mappings
 	// =========================================================================
-
-	/**
-	 * Maps a sample rate in Hz to the Blu-ray {@code audio_sample_rate} code used in CLPI. Defaults to {@code 0x01} (48
-	 * kHz) for unrecognised values.
-	 */
-	private static int sampleRateToCode(Integer sampleRateHz) {
-		if (sampleRateHz == null)
-			return 0x01; // 48 kHz default
-		return switch (sampleRateHz) {
-		case 96000 -> 0x04;
-		case 192000 -> 0x05;
-		default -> 0x01; // 48 kHz
-		};
-	}
 
 }

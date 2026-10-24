@@ -25,6 +25,7 @@ package org.brts.common.m2ts;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -323,18 +324,8 @@ public class M2tsParser {
 
 	private static final String descriptor_tag_registration_AC_3 = "AC-3";
 
-	private static final int descriptor_tag_registration_HDMV_mystery_byte = 0xFF;// this
-																					// thing
-																					// seems
-																					// to
-																					// be
-																					// FF
-																					// all
-																					// the
-																					// time,
-																					// even
-																					// for
-																					// audio
+	// this thing seems to be FF all the time, even for audio
+	private static final int descriptor_tag_registration_HDMV_mystery_byte = 0xFF;
 
 	/**
 	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not contain a recognisable PMT.
@@ -395,7 +386,7 @@ public class M2tsParser {
 				case descriptor_tag_registration -> {
 					// Registration descriptor (e.g. "HDMV" for Blu-ray)
 					if (descLen >= 4) {
-						String reg = new String(sp, descPos + 2, 4, java.nio.charset.StandardCharsets.US_ASCII);
+						String reg = new String(sp, descPos + 2, 4, StandardCharsets.US_ASCII);
 						log.debug("  Registration descriptor: {}", reg);
 						if (!reg.isBlank())
 							streamInfo.setRegistration(reg);
@@ -412,24 +403,21 @@ public class M2tsParser {
 									int todo = ((sp[descPos + 8] & 0xFF) << 8) | (sp[descPos + 9] & 0xFF);
 									if (streamInfo.getCodingType().isVideo()) {
 										int vfr = sp[descPos + 8] & 0xFF;
+										log.warn("  Video VFR value: {}", vfr);
 										streamInfo.setVfr(vfr);
 									} else if (todo == 0x31FF && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(2304);// based upon
-																		// one LPCM
-																		// example
+										// based upon one LPCM example
+										streamInfo.setBitrateKbps(2304);
 										streamInfo.setSampleRateHz(48000);
 										streamInfo.setChannels(2);
 									} else if (todo == 0x317F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(1536);// based upon
-																		// one 16-bit
-																		// LPCM
-																		// example
+										// based upon one 16-bit LPCM example
+										streamInfo.setBitrateKbps(1536);
 										streamInfo.setSampleRateHz(48000);
 										streamInfo.setChannels(2);
 									} else if (todo == 0x617F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(4608);// based upon
-																		// one LPCM
-																		// example
+										// based upon one LPCM example
+										streamInfo.setBitrateKbps(4608);
 									} else {
 										log.warn(
 												"  TODO developers: reverse engineer that. HDMV registration has some original bytes: 0x{}",
@@ -600,23 +588,7 @@ public class M2tsParser {
 	 * types.
 	 */
 	public static StreamCodingType mapStreamType(int streamTypeByte) {
-		return switch (streamTypeByte) {
-		case 0x02 -> StreamCodingType.MPEG2_VIDEO;
-		case 0x1B -> StreamCodingType.H264_AVC;
-		case 0x24 -> StreamCodingType.H265_HEVC;
-		case 0xEA -> StreamCodingType.VC1;
-		case 0x80 -> StreamCodingType.LPCM;
-		case 0x81 -> StreamCodingType.DOLBY_AC3;
-		case 0x82 -> StreamCodingType.DTS;
-		case 0x83 -> StreamCodingType.DOLBY_TRUEHD;
-		case 0x84 -> StreamCodingType.DOLBY_AC3_PLUS;
-		case 0x85 -> StreamCodingType.DTS_HD;
-		case 0x86 -> StreamCodingType.DTS_HD_MASTER_AUDIO;
-		case 0x90 -> StreamCodingType.PRESENTATION_GRAPHICS;
-		case 0x91 -> StreamCodingType.INTERACTIVE_GRAPHICS;
-		case 0x92 -> StreamCodingType.TEXT_SUBTITLE;
-		default -> null;
-		};
+		return StreamCodingType.fromByte(streamTypeByte, false);
 	}
 
 	// -------------------------------------------------------------------------

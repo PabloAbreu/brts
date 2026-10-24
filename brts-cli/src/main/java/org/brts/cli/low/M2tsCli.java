@@ -30,7 +30,10 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
+import org.brts.lowlevel.clpi.M2tsVideoMetadataProbe;
+import org.brts.lowlevel.clpi.M2tsVideoMetadataProbeFactory;
 import org.brts.lowlevel.igs.IgsDemuxer;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
@@ -47,6 +50,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -87,6 +91,52 @@ public class M2tsCli {
 			writeJson(opts.output, info);
 			if (opts.output != null) {
 				System.out.println("M2TS info → " + opts.output);
+			}
+		}
+
+	}
+
+	// =========================================================================
+	// m2ts-probe
+	// =========================================================================
+
+	public static class ProbeOptions extends org.brts.cli.BaseOptions {
+
+		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to probe")
+		File input;
+
+		@Option(name = "--output", usage = "Output JSON file path (default: stdout)")
+		File output;
+
+	}
+
+	/** Combined transport metadata and bounded decoded video metadata, keyed by transport PID. */
+	public record ProbeResult(M2tsInfo info, Map<Integer, M2tsVideoMetadataProbe.Metadata> videoMetadataByPid) {
+	}
+
+	public static class Probe extends FeatureRunner<ProbeOptions> {
+
+		@Override
+		public String getCommandName() {
+			return "m2ts-probe";
+		}
+
+		@Override
+		public String getDescription() {
+			return "Probe M2TS transport and decoded video metadata";
+		}
+
+		@Override
+		protected void execute(ProbeOptions opts) throws Exception {
+			Path inputPath = opts.input.toPath();
+			M2tsInfo info = new M2tsParser().parse(inputPath);
+			Map<Integer, StreamCodingType> videos = M2tsVideoMetadataProbeFactory.videoStreamsByPid(info);
+			Map<Integer, M2tsVideoMetadataProbe.Metadata> videoMetadata = videos.isEmpty() ? Map.of()
+					: M2tsVideoMetadataProbeFactory.createDefault(BrtsFileConfig.getInstance()::getProperty)
+							.probe(inputPath, videos);
+			writeJson(opts.output, new ProbeResult(info, videoMetadata));
+			if (opts.output != null) {
+				System.out.println("M2TS probe → " + opts.output);
 			}
 		}
 

@@ -44,7 +44,7 @@ public class ClipStream {
 	// --- Video-specific ---
 
 	/**
-	 * Video format (0x01=480i, 0x02=576i, 0x03=480p, 0x04=1080i, 0x05=720p, 0x06=1080p, 0x07=576p).
+	 * Video format (0x01=480i, 0x02=576i, 0x03=480p, 0x04=1080i, 0x05=720p, 0x06=1080p, 0x07=576p, 0x08=2160p).
 	 */
 	private Integer videoFormat;
 
@@ -55,6 +55,21 @@ public class ClipStream {
 
 	/** Aspect ratio (0x02=4:3, 0x03=16:9). */
 	private Integer aspectRatio;
+
+	/** Video OC flag, preserved for version 0300. Null encodes as false. */
+	private Boolean ocFlag;
+
+	/** HEVC CR flag, preserved for version 0300. Null encodes as false. */
+	private Boolean crFlag;
+
+	/** HEVC dynamic range type, raw unsigned four-bit value (0..15). Null encodes as zero. */
+	private Integer dynamicRangeType;
+
+	/** HEVC color space, raw unsigned four-bit value (0..15). Null encodes as zero. */
+	private Integer colorSpace;
+
+	/** HEVC HDR plus flag, preserved for version 0300. Null encodes as false. */
+	private Boolean hdrPlusFlag;
 
 	// --- Audio-specific ---
 

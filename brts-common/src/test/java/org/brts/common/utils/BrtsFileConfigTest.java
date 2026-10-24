@@ -54,6 +54,12 @@ class BrtsFileConfigTest {
 		System.setProperty(NO_KEY, "FALSE");
 		System.setProperty(BLANK_KEY, " ");
 		System.setProperty(INVALID_KEY, "maybe");
+		// log them all to be sure
+		log.debug(
+				"Set test system properties: TRUE_KEY='{}', YES_KEY='{}', ONE_KEY='{}', FALSE_KEY='{}', ZERO_KEY='{}', NO_KEY='{}', BLANK_KEY='{}', INVALID_KEY='{}'",
+				System.getProperty(TRUE_KEY), System.getProperty(YES_KEY), System.getProperty(ONE_KEY),
+				System.getProperty(FALSE_KEY), System.getProperty(ZERO_KEY), System.getProperty(NO_KEY),
+				System.getProperty(BLANK_KEY), System.getProperty(INVALID_KEY));
 		// force re-resolution in case another test class already resolved the singleton in this fork
 		BrtsFileConfig.resetForTests();
 		BrtsFileConfig.registerForTests(

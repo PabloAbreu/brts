@@ -21,6 +21,47 @@ Examples:
 - [`examples/title-menu-thumbnail-descriptor.json`](../examples/title-menu-thumbnail-descriptor.json) — title menu thumbnail composition
 - [`examples/batch-run-descriptor.json`](../examples/batch-run-descriptor.json) — ordered list of commands for `batch-run`
 
+### CLPI regeneration and UHD metadata
+
+`brts low clip-regen` keeps its existing `--input`, `--output`, `--clip-name`, and `--json` arguments. An optional
+`--options regen-options.json` accepts a `ClpiRegenOptions` JSON object. The builder auto-selects CLPI version `0300`
+if any video is HEVC, has the PMT's 2160p format code (`videoFormat: 8`), or probing detects 4K; otherwise it uses
+`0200`. This does not change the default version used by direct `ClipInfoWriter` calls. Positive HEVC/4K detection
+cannot be downgraded by a conflicting `videoFormat` override.
+
+The options object supports `probeMode` (`BEST_EFFORT`, the default; `STRICT`; or `DISABLED`) and a `streams` object
+whose keys are decimal MPEG-TS PIDs. Explicit non-null fields override detected metadata; otherwise positive probe
+evidence is used before existing PMT values/defaults. Explicit `false` and `0` values are overrides. Supported
+per-video fields are `videoFormat`, `frameRate`, `aspectRatio`, `ocFlag`, `crFlag`, `dynamicRangeType`, `colorSpace`,
+and `hdrPlusFlag`. For example:
+
+```json
+{
+  "probeMode": "BEST_EFFORT",
+  "streams": {
+    "4113": {
+      "dynamicRangeType": 1,
+      "colorSpace": 2,
+      "hdrPlusFlag": false,
+      "crFlag": false
+    }
+  }
+}
+```
+
+The CLPI values are `dynamicRangeType: 0` SDR, `1` HDR10, or `2` Dolby Vision; `colorSpace: 1` BT.709 or `2`
+BT.2020 (`0` is reserved). FFmpeg probing is local and bounded to a 16 MiB input prefix and at most 512 packets after
+stream analysis, with first-frame metadata per PID. HDR10+ and Dolby Vision flags are set only on positive evidence;
+absence in a bounded prefix does not prove absence. `ocFlag` and `crFlag` are not inferred and can be supplied by the
+caller. Unresolved values remain unknown in the model, but the current CLPI writer serializes unset metadata bits as
+zero/false.
+
+`BEST_EFFORT` warns and continues when probing fails or metadata is unknown. `STRICT` requires a supported dynamic
+range and color space for each HEVC stream, either detected or supplied in the options. `DISABLED` skips FFmpeg
+probing but still applies PMT-based version selection and caller overrides. Overrides must reference video PIDs in the
+input; four-bit fields must be in the range 0–15. This first-frame snapshot is not a complete UHD/HDR validation and
+does not detect metadata changes later in the stream.
+
 ### Popup menu button layouts
 
 `popupMenu.layout` selects the button arrangement:

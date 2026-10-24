@@ -25,6 +25,7 @@ package org.brts.lowlevel.pgs;
 
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
+import org.brts.common.m2ts.PesTimestampParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
@@ -91,7 +92,7 @@ public class PgsM2tsExtractor {
 
 				if (payloadUnitStart && payloadLen > 8 && payload[payloadOff] == 0x00 && payload[payloadOff + 1] == 0x00
 						&& payload[payloadOff + 2] == 0x01) {
-					long pts = readPesPts(payload, payloadOff, payloadLen);
+					long pts = PesTimestampParser.parsePts(payload, payloadOff, payloadLen);
 					boundaries.add(new PtsBoundary(out.size(), pts));
 
 					int pesHeaderLen = (payload[payloadOff + 8] & 0xFF) + 9;
@@ -142,30 +143,6 @@ public class PgsM2tsExtractor {
 			pos += 3 + seg.getSegmentData().length;
 		}
 		return segments;
-	}
-
-	/**
-	 * Reads the PTS from a PES header (returns -1 if not present).
-	 * <p>
-	 * Layout: bytes[0-2] = {@code 00 00 01} start code, byte[3] = stream id, bytes[4-5] = PES_packet_length, byte[6] =
-	 * flags1, byte[7] = flags2 (bits 7-6 = PTS_DTS_flags), byte[8] = PES_header_data_length, bytes[9-13] = PTS (present
-	 * when PTS_DTS_flags != 00).
-	 */
-	private static long readPesPts(byte[] payload, int offset, int length) {
-		if (length < 14)
-			return -1;
-		int ptsDtsFlags = (payload[offset + 7] & 0xC0) >> 6;
-		if (ptsDtsFlags == 0)
-			return -1;
-
-		int b0 = payload[offset + 9] & 0xFF;
-		int b1 = payload[offset + 10] & 0xFF;
-		int b2 = payload[offset + 11] & 0xFF;
-		int b3 = payload[offset + 12] & 0xFF;
-		int b4 = payload[offset + 13] & 0xFF;
-
-		return ((long) (b0 & 0x0E) << 29) | ((long) b1 << 22) | ((long) (b2 & 0xFE) << 14) | ((long) b3 << 7)
-				| ((b4 & 0xFE) >> 1);
 	}
 
 }

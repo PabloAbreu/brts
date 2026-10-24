@@ -36,6 +36,9 @@ import org.junit.jupiter.api.Test;
 
 class CliMetadataParserTest {
 
+	// update this when adding a feature
+	private static final int TOTAL_NUMBER_OF_FEATURES = 46;
+
 	@Test
 	void extractsRegisteredCommandsOptionsAndTypedInputGraph() throws Exception {
 		Path root = Path.of("..").toAbsolutePath().normalize();
@@ -45,7 +48,8 @@ class CliMetadataParserTest {
 
 		assertThat(metadata.schemaVersion()).isEqualTo("1.1");
 		assertThat(metadata.levels()).extracting("name").containsExactly("low", "mid", "high");
-		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(44);
+
+		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(TOTAL_NUMBER_OF_FEATURES);
 		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).extracting("path").contains("mid build",
 				"high build", "high title-menu-simulate", "low video-convert");
 

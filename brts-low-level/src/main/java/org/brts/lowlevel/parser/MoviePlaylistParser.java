@@ -105,6 +105,32 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		// Detect whether this playlist represents a menu
 		playlist.setMenu(detectMenu(playlist));
 
+		// info trace for chapters, in the format expected by tsmuxer : 00:00:00.000;00:05:14.230;00:12:35.800
+		if (playlist.getPlayMarks() != null && !playlist.getPlayMarks().isEmpty()) {
+			StringBuilder chapterTrace = new StringBuilder();
+			for (PlayMark mark : playlist.getPlayMarks()) {
+				int playItemRef = mark.getPlayItemRef();
+				// find the play item in the list to substract the start time of the play item from the mark's timecode
+				PlayItem playItem = playItemRef >= 0 && playItemRef < playlist.getPlayItems().size()
+						? playlist.getPlayItems().get(playItemRef)
+						: null;
+
+				if (playItem != null) {
+					// delta in ms converted from 45 kHz ticks
+					long delta = (mark.getMarkTimeTicks() - playItem.getInTimeTicks()) / 45;
+					if (chapterTrace.length() > 0) {
+						chapterTrace.append(";");
+					}
+					// now convert delta to hh:mm:ss.SSS format
+					long hours = delta / 3600_000;
+					long minutes = (delta % 3600_000) / 60_000;
+					long seconds = (delta % 60_000) / 1000;
+					long millis = delta % 1000;
+					chapterTrace.append(String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis));
+				}
+			}
+			log.info("Chapters: " + chapterTrace.toString());
+		}
 		return playlist;
 	}
 

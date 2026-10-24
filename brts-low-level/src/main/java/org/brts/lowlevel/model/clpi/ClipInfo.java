@@ -52,6 +52,9 @@ public class ClipInfo {
 	public static final int APPLICATION_TYPE_INTERACTIVE_GRAPHICS = 5;
 	public static final int APPLICATION_TYPE_TEXT_SUBTITLE = 6;
 
+	/** CLPI version: writes support 0200 (default) and 0300; parsing also accepts 0100. */
+	private String version = "0200";
+
 	/**
 	 * Base name of the associated M2TS file, without extension (5 digits, e.g. "00001").
 	 */

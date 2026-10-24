@@ -66,11 +66,18 @@ public enum StreamCodingType {
 	}
 
 	public static StreamCodingType fromByte(int b) {
+		return fromByte(b, true);
+	}
+
+	public static StreamCodingType fromByte(int b, boolean throwIfNotFound) {
 		for (StreamCodingType t : values()) {
 			if (t.codingTypeByte == b)
 				return t;
 		}
-		throw new IllegalArgumentException("Unknown stream coding type byte: 0x" + Integer.toHexString(b));
+		if (throwIfNotFound) {
+			throw new IllegalArgumentException("Unknown stream coding type byte: 0x" + Integer.toHexString(b));
+		}
+		return null;
 	}
 
 	public boolean isVideo() {
@@ -79,7 +86,7 @@ public enum StreamCodingType {
 
 	public boolean isAudio() {
 		return this == LPCM || this == DOLBY_AC3 || this == DTS || this == DOLBY_TRUEHD || this == DOLBY_AC3_PLUS
-				|| this == DTS_HD || this == DTS_HD_MASTER_AUDIO;
+				|| this == DTS_HD || this == DTS_HD_MASTER_AUDIO || this == DTS_EXPRESS;
 	}
 
 	public boolean isDolbyAudio() {

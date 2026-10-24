@@ -35,6 +35,7 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `mkv-extract` | Demux elementary streams from an MKV file |
 | `mp4-info` | Inspect an MP4/MOV file and emit track metadata as JSON |
 | `m2ts-info` | Inspect stream and timing metadata of an M2TS file |
+| `m2ts-probe` | Probe M2TS transport and decoded video metadata |
 | `m2ts-extract` | Demux elementary streams from an M2TS file |
 | `m2ts-create` | Mux elementary streams into a new M2TS file with matching CLPI |
 | `m2ts-igs-mux` | Mux an IGS stream into a new M2TS file with matching CLPI |
@@ -70,6 +71,14 @@ Pass approved encoder options generically by repeating `--engine-option KEY=VALU
 `--engine-option crf=20 --engine-option preset=slow`. Keys have no leading dashes and must be unique.
 `--timeout-seconds` sets a positive whole-second time limit; `--overwrite` permits output replacement.
 See [video conversion](video-conversion.md#cli) for all arguments, engine restrictions and timing caveats.
+
+`m2ts-probe --input FILE [--output FILE]` emits the `m2ts-info` transport/PMT data in an `info` field and
+per-video-PID decoded snapshots in `videoMetadataByPid`. Snapshots may include Blu-ray `videoFormat`, `fourK`,
+`dynamicRangeType`, `colorSpace`, and positive HDR10+ evidence (`hdrPlusFlag`). This is a bounded prefix probe, not a
+full-stream validation: absent HDR evidence is unknown, not proof of absence. A probe failure fails the command;
+files with no video streams return an empty `videoMetadataByPid` map. The backend defaults to `ffprobe` and falls back
+to the bounded FFmpeg library probe if the executable is unavailable; `brts.clpi.probe.engine=ffmpeg` selects the
+library explicitly.
 
 ## `mid` — middle-level disc authoring operations
 

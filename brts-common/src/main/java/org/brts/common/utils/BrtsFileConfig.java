@@ -336,8 +336,15 @@ public class BrtsFileConfig {
 		}
 	}
 
+	// returns a sorted (for predictable order) unmodifiable (for stability) collection of keys
+	private Collection<String> keySet() {
+		List<String> keys = new ArrayList<>(resolvedProperties.keySet());
+		Collections.sort(keys);
+		return keys;// not really R/O, but modif has no impact on the internal map
+	}
+
 	private void resolveEnvironmentVariables() {
-		for (String key : resolvedProperties.keySet()) {
+		for (String key : keySet()) {
 			String envVarName = getEnvVarName(key);
 			String envValue = System.getenv(envVarName);
 			if (envValue != null)
@@ -346,7 +353,7 @@ public class BrtsFileConfig {
 	}
 
 	private void resolveSystemProperties() {
-		for (String key : resolvedProperties.keySet()) {
+		for (String key : keySet()) {
 			String systemValue = System.getProperty(key);
 			if (systemValue != null)
 				addProperty(key, systemValue, "system property");
@@ -354,6 +361,7 @@ public class BrtsFileConfig {
 	}
 
 	private void addProperty(String key, String value, String origin) {
+		log.trace("adding property: key='{}', value='{}', origin='{}'", key, value, origin);
 		resolvedProperties.compute(key, (k, existing) -> {
 			if (existing == null)
 				return new Entry(k, value, origin);
