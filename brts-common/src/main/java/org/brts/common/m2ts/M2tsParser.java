@@ -320,6 +320,8 @@ public class M2tsParser {
 
 	private static final int descriptor_tag_registration = 0x05;
 
+	private static final int descriptor_tag_ATSC_AC_3_AUDIO = 0x81;
+
 	private static final String descriptor_tag_registration_HDMV = "HDMV";
 
 	private static final String descriptor_tag_registration_AC_3 = "AC-3";
@@ -331,19 +333,27 @@ public class M2tsParser {
 	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not contain a recognisable PMT.
 	 */
 	private PmtParseResult parsePmt(byte[] sp) {
+		if (sp.length < 9)
+			return null;
 		int tsOff = 4;
 		int b3 = sp[tsOff + 3] & 0xFF;
 		int adaptCtrl = (b3 >> 4) & 0x03;
 
+		if (adaptCtrl != 1 && adaptCtrl != 3)
+			return null;
 		int payloadStart = tsOff + 4;
 		if (adaptCtrl == 3) {
 			int afLen = sp[payloadStart] & 0xFF;
 			payloadStart += 1 + afLen;
 		}
 
+		if (payloadStart >= sp.length)
+			return null;
 		int pointer = sp[payloadStart] & 0xFF;
 		payloadStart += 1 + pointer;
 
+		if (payloadStart + 12 > sp.length)
+			return null;
 		int tableId = sp[payloadStart] & 0xFF;
 		if (tableId != 0x02)
 			return null; // not a PMT
@@ -355,6 +365,10 @@ public class M2tsParser {
 		// ES loop start
 		int esStart = payloadStart + 12 + programInfoLength;
 		int esEnd = payloadStart + 3 + sectionLength - 4; // exclude CRC
+		if (sectionLength < 13 || esStart > esEnd) {
+			log.warn("Invalid PMT section/program info length: {}/{}", sectionLength, programInfoLength);
+			return null;
+		}
 
 		PmtParseResult result = new PmtParseResult();
 		result.pcrPid = pcrPid;
@@ -363,25 +377,35 @@ public class M2tsParser {
 			int streamType = sp[pos] & 0xFF;
 			int esPid = ((sp[pos + 1] & 0x1F) << 8) | (sp[pos + 2] & 0xFF);
 			int esInfoLen = ((sp[pos + 3] & 0x0F) << 8) | (sp[pos + 4] & 0xFF);
+			int descEnd = pos + 5 + esInfoLen;
+			if (descEnd > esEnd || descEnd > sp.length) {
+				log.warn("Truncated PMT ES info for PID {}: length {} at offset {}", esPid, esInfoLen, pos);
+				break;
+			}
 
 			M2tsStreamInfo streamInfo = new M2tsStreamInfo();
 			streamInfo.setPid(esPid);
 			streamInfo.setStreamTypeByte(streamType);
 			streamInfo.setCodingType(mapStreamType(streamType));
 
-			// Parse descriptors in ES info to find language
+			// Parse each independent descriptor within this ES info region.
 			int descPos = pos + 5;
-			int descEnd = pos + 5 + esInfoLen;
-			log.debug("Stream " + esPid + ". esInfoLen " + esInfoLen);
+			log.debug("Stream {}. esInfoLen {}", esPid, esInfoLen);
 			if (esInfoLen > 0) {
-				log.debug("descriptors hex bytes "
-						+ StringUtils.bytesToHex(sp, descPos, Math.min(esInfoLen, sp.length - descPos)));
+				log.debug("descriptors hex bytes {}", StringUtils.bytesToHex(sp, descPos, esInfoLen));
 			}
-			while (descPos + 1 < descEnd && descPos + 1 < sp.length) {
+			while (descPos < descEnd) {
+				if (descPos + 2 > descEnd) {
+					log.warn("Truncated descriptor header for PID {} at offset {}", esPid, descPos);
+					break;
+				}
 				int descTag = sp[descPos] & 0xFF;
 				int descLen = sp[descPos + 1] & 0xFF;
-				if (descPos + 2 + descLen > sp.length)
-					break; // malformed descriptor
+				if (descPos + 2 + descLen > descEnd) {
+					log.warn("Truncated descriptor 0x{} for PID {} at offset {}: length {}",
+							Integer.toHexString(descTag), esPid, descPos, descLen);
+					break;
+				}
 				switch (descTag) {
 				case descriptor_tag_registration -> {
 					// Registration descriptor (e.g. "HDMV" for Blu-ray)
@@ -403,7 +427,7 @@ public class M2tsParser {
 									int todo = ((sp[descPos + 8] & 0xFF) << 8) | (sp[descPos + 9] & 0xFF);
 									if (streamInfo.getCodingType().isVideo()) {
 										int vfr = sp[descPos + 8] & 0xFF;
-										log.warn("  Video VFR value: {}", vfr);
+										log.trace("  Video VFR value: {}", vfr);
 										streamInfo.setVfr(vfr);
 									} else if (todo == 0x31FF && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
 										// based upon one LPCM example
@@ -430,56 +454,16 @@ public class M2tsParser {
 							// found on one track 04 64 00 29 BF after the 8-byte HDMV
 							// no idea what that means
 						} else if (descriptor_tag_registration_AC_3.equals(reg)) {
-							if (descLen == 4 && esInfoLen >= 12) {
-								int audioType = sp[descPos + 6] & 0xFF;
-								if (audioType != StreamCodingType.DOLBY_AC3.getCodingTypeByte()) {
-									log.warn("  AC-3 registration stream type 0x{} does not match expected AC3",
-											Integer.toHexString(audioType));
-								}
+							// Registration ends here; tag 0x81 is a separate descriptor.
+							if (descLen != 4) {
+								log.warn("Unexpected AC-3 registration descriptor length {} for PID {}", descLen,
+										esPid);
 							}
-							int subLength = sp[descPos + 7] & 0xFF;
-							if (subLength == 4) {
-								@SuppressWarnings("unused")
-								int audioCodingType = sp[descPos + 8] & 0xFF;
-								// IA suggests that:
-								// 0x06 AC‑3 (Dolby Digital) primary audio
-								// 0x0A E‑AC‑3 (Dolby Digital Plus) primary audio
-								// 0x0B AC‑3 secondary audio
-								// 0x0E E‑AC‑3 secondary audio
-								// 0x82 DTS primary audio
-								// 0x83 DTS‑HD primary audio
-								// 0x84 DTS‑HD Master Audio
-								// 0x80 LPCM primary audio
-								// 0x81 LPCM secondary audio
-								// but i've seen E-AC-3 with code 0x06 on some
-								// blu-rays...
-								// 0x08 seems to be AC-3 too. So confidence is low on
-								// that mapping.
-								int rawBitrateCode = sp[descPos + 9] & 0xFF;
-								BitrateCode bitrateCode = BitrateCode.fromCode(rawBitrateCode);
-								if (bitrateCode == null) {
-									log.warn("  Unknown bitrate code 0x{} in AC-3 registration descriptor",
-											Integer.toHexString(rawBitrateCode));
-								} else {
-									streamInfo.setBitrateKbps(bitrateCode.getBitrateKbps());
-									streamInfo.setChannels(bitrateCode.getChannels());
-								}
-								// no idea what that data means
-								// found on some blu-rays:
-								// 06 35 04 00 : AC-3 320 kbps, 2 channels, 48 kHz
-								// 06 40 0E 00 : E-AC-3 896 kbps, 8 channels, 48 kHz
-								// 06 29 04 00 : AC-3 192 kbps, 2 channels, 48 kHz .
-								// 08 29 04 00 too
-								@SuppressWarnings("unused")
-								int todooo = sp[descPos + 10] & 0xFF;
-								// 0x04 seems to be 2, and 0X0E seems to be 8
-								// channels, but that is based on very limited data
-								// and may be wrong.
-							}
-
 						}
 					}
 				}
+				case descriptor_tag_ATSC_AC_3_AUDIO ->
+					parseAtscAc3AudioDescriptor(sp, descPos + 2, descLen, streamInfo);
 				case descriptor_tag_ISO_639_LANGUAGE -> {
 					// ISO 639 language descriptor
 					if (descLen >= 3) {
@@ -503,6 +487,53 @@ public class M2tsParser {
 		}
 
 		return result;
+	}
+
+	/** Decodes the fixed three-byte ATSC A/52 AC-3 audio stream descriptor header. */
+	private void parseAtscAc3AudioDescriptor(byte[] data, int offset, int length, M2tsStreamInfo streamInfo) {
+		if (length < 3) {
+			log.warn("ATSC AC-3 audio descriptor too short for PID {}: {} bytes", streamInfo.getPid(), length);
+			return;
+		}
+		int sampleRateCode = (data[offset] & 0xE0) >> 5;
+		int bsid = data[offset] & 0x1F;
+		int bitRateCode = (data[offset + 1] & 0xFC) >> 2;
+		int surroundMode = data[offset + 1] & 0x03;
+		int bsmod = (data[offset + 2] & 0xE0) >> 5;
+		int numChannels = (data[offset + 2] & 0x1E) >> 1;
+		boolean fullService = (data[offset + 2] & 1) != 0;
+
+		Integer sampleRate = switch (sampleRateCode) {
+		case 0 -> 48000;
+		case 1 -> 44100;
+		case 2 -> 32000;
+		default -> null; // Reserved or a choice of sample rates, not an exact value.
+		};
+		if (sampleRate != null)
+			streamInfo.setSampleRateHz(sampleRate);
+
+		// Bit 5 denotes an upper bound, which must not be reported as an exact bitrate.
+		BitrateCode bitrate = BitrateCode.fromCode(bitRateCode);
+		if (bitrate != null)
+			streamInfo.setBitrateKbps(bitrate.getBitrateKbps());
+
+		// These describe full-bandwidth channels; no LFE presence is signalled here.
+		Integer channels = switch (numChannels) {
+		case 0, 2 -> 2; // Dual mono or stereo.
+		case 1, 8 -> 1;
+		case 3, 4 -> 3;
+		case 5, 6 -> 4;
+		case 7 -> 5;
+		default -> null; // Upper bounds (9..13) or reserved (14..15).
+		};
+		if (channels != null)
+			streamInfo.setChannels(channels);
+
+		log.debug(
+				"ATSC AC-3 PID {}: sample_rate_code={}, bsid={}, bit_rate_code={}, surround_mode={}, "
+						+ "bsmod={}, num_channels={}, full_service={}",
+				streamInfo.getPid(), sampleRateCode, bsid, bitRateCode, surroundMode, bsmod, numChannels, fullService);
+		// Optional trailing fields start with deprecated langcod; they are not audio format fields.
 	}
 
 	// -------------------------------------------------------------------------
