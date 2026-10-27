@@ -14,6 +14,42 @@ Run with no arguments, or `<level>` alone, to print the list of commands for
 that level. Run `<level> <command> --help` for the option list of a specific
 command (options are parsed with args4j).
 
+## M2TS shrinking
+
+`low m2ts-shrink` requires `--disc-root`, a five-digit `--clip-id`, `--config` and positive
+`--target-bytes`. The planner JSON is still printed to stdout or written with `--report`;
+execution details (bitrate, batch, workspace and output paths) follow on stderr.
+Only `VIDEO_CONVERSION_REQUIRED` is executable. Other decisions explicitly remain analysis-only,
+do not filter streams, and need no `--output`.
+
+Video conversion requires `--output`, a separate destination disc root, and writes only
+`BDMV/STREAM/CLIP-ID.m2ts` and `BDMV/CLIPINF/CLIP-ID.clpi`. Existing destination files and
+source-root aliases (including symlinks) are rejected. Source files, playlists and the rest
+of the disc are not copied or modified.
+
+Immediate execution is the default. `--defer` writes only the mux and batch JSON descriptors;
+metadata scans are allowed, but there is no extraction, encoding, sampling or muxing.
+`--work-dir` defaults to `OUTPUT/.brts-shrink/CLIP-ID`. Run the generated descriptor with
+`low batch-run --descriptor ABSOLUTE-BATCH-PATH`; add `--resume` after a failed batch to keep
+its completed prefix. Video conversion uses `--overwrite` for safe step retries; work artifacts
+remain available for diagnosis. Do not change source files between preparation and execution.
+Preparation refuses existing workspace descriptors: execute/resume their batch, or choose a new workspace.
+
+The three batch steps are `m2ts-extract --preserve-timing`, `video-convert`, and `m2ts-create`.
+`--engine` supports FFMPEG, NVENCC, VCEENCC and QSVENCC; the configured/default engine is used
+when omitted. The encoder and tsMuxeR are required only when executing, not while generating
+the batch. No Java-mux fallback is allowed for this preservation workflow.
+
+Supported input is one primary AVC/HEVC video (PID `0x1011`), retained AC3/E-AC3/DTS audio and
+PGS subtitles. Audio transformations and bitrate hints, interactive/unknown streams, secondary
+video and unsupported retained codecs are rejected. No codec, frame rate, geometry or playback
+speed change is requested. PGS is extracted as timed SUP data while retaining its usual `.pgs`
+filename extension. Preservation validation may reject additional incompatible source layouts.
+
+The video rate is rounded down to 1–40000 kbps after planner safety, retained nonvideo packet
+bytes, a further 2% mux reserve and 192/184 transport expansion. This is a conservative budget,
+not a size guarantee: oversize output fails before publication, with no automatic bitrate retry.
+
 ## Startup banner
 
 An ASCII banner with the version, level and arguments is printed on **stderr**
@@ -38,6 +74,7 @@ BRTS_CLI_BANNER=false ./brts_debug_launch.sh low clip-parse --input 00001.clpi
 | `m2ts-probe` | Probe M2TS transport and decoded video metadata |
 | `m2ts-extract` | Demux elementary streams from an M2TS file |
 | `m2ts-create` | Mux elementary streams into a new M2TS file with matching CLPI |
+| `m2ts-shrink` | Analyze stream selection; execute or defer video-required shrinking into a separate disc root |
 | `m2ts-igs-mux` | Mux an IGS stream into a new M2TS file with matching CLPI |
 | `m2ts-dump` | Dump M2TS packet information for debugging |
 | `clip-parse` | Parse a `.clpi` binary file to JSON |

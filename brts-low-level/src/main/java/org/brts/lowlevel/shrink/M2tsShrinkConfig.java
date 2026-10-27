@@ -31,7 +31,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/** Input for a plan-only {@code m2ts-shrink} run. */
+/** Stream selection for {@code m2ts-shrink}; transformations/hints are analysis-only. */
 @Data
 @NoArgsConstructor
 public class M2tsShrinkConfig {

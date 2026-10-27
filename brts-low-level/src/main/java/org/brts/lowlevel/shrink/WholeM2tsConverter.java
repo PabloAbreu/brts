@@ -36,31 +36,28 @@ public interface WholeM2tsConverter {
 
 	Engine engine();
 
-	/** Builds a parameterized conversion preview without launching an encoder. */
+	/** Writes only metadata descriptors; never extracts, encodes or muxes. */
 	M2tsConversionPlan prepare(M2tsConversionRequest request) throws IOException;
 
-	/** Future implementation encodes video, preserves/remuxes selected streams, and writes a complete M2TS. */
-	default M2tsConversionResult convert(M2tsConversionRequest request) throws IOException {
-		throw new UnsupportedOperationException("Whole-M2TS conversion is not implemented for " + engine());
+	/** Prepares and executes the same batch used by deferred runs. */
+	M2tsConversionResult convert(M2tsConversionRequest request) throws IOException;
+
+	@FunctionalInterface
+	interface BatchExecutor {
+		void execute(Path descriptor) throws IOException;
 	}
 
-	record M2tsConversionRequest(Path source, Path destination, long targetBytes, int safetyReservePercent,
-			List<Long> sampleStartPackets, long samplePacketCount, int minimumQualityValue, int maximumQualityValue,
-			int maxSearchIterations) {
-		public M2tsConversionRequest {
-			sampleStartPackets = sampleStartPackets == null ? List.of() : List.copyOf(sampleStartPackets);
-		}
+	record M2tsConversionRequest(M2tsShrinkInventory inventory, M2tsShrinkPlan shrinkPlan, M2tsShrinkConfig config,
+			Path destinationRoot, Path workspace, String clipId) {
 	}
 
-	record M2tsConversionPlan(Engine engine, List<Long> sampleStartPackets, long samplePacketCount,
-			int selectedQualityValue, long estimatedOutputBytes, long targetBytes, int searchIterations,
-			List<String> warnings) {
+	record M2tsConversionPlan(Engine engine, long targetBytes, int videoBitrateKbps, Path batchDescriptor,
+			Path muxDescriptor, Path outputPath, Path outputClpi, Path workspace, List<String> warnings) {
 		public M2tsConversionPlan {
-			sampleStartPackets = List.copyOf(sampleStartPackets);
 			warnings = List.copyOf(warnings);
 		}
 	}
 
-	record M2tsConversionResult(Path outputPath, long outputBytes, M2tsConversionPlan plan) {
+	record M2tsConversionResult(Path outputPath, Path outputClpi, long outputBytes, M2tsConversionPlan plan) {
 	}
 }

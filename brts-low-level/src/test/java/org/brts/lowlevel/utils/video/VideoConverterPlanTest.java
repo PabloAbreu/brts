@@ -159,7 +159,7 @@ class VideoConverterPlanTest {
 		assertTrue(plan.command().indexOf("-r") < plan.command().indexOf("-i"));
 		assertEquals(1, plan.command().stream().filter("-r"::equals).count());
 		assertFalse(value(plan.command(), "-vf").contains("fps="));
-		assertEquals("passthrough", value(plan.command(), "-fps_mode"));
+		assertEquals("0", value(plan.command(), "-vsync"));
 		assertEquals("1001/24000", value(plan.command(), "-enc_time_base"));
 		assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("audio")));
 	}

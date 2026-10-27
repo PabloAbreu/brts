@@ -160,6 +160,18 @@ public class M2tsCli {
 		@Option(name = "--igs-demux", usage = "Also demux IGS streams into sub-folders with bitmaps and metadata")
 		boolean igsDemux;
 
+		@Option(name = "--preserve-timing", usage = "Preserve source timing in timing.json and extract PGS as timed SUP")
+		boolean preserveTiming;
+
+		@Option(name = "--source-sha256", usage = "Expected SHA-256 of the source M2TS; checked before extraction writes")
+		String sourceSha256;
+
+		@Option(name = "--source-clpi", usage = "Original CLPI to verify before extraction (requires --source-clpi-sha256)")
+		File sourceClpi;
+
+		@Option(name = "--source-clpi-sha256", usage = "Expected SHA-256 of --source-clpi")
+		String sourceClpiSha256;
+
 	}
 
 	public static class Extract extends FeatureRunner<ExtractOptions> {
@@ -179,6 +191,13 @@ public class M2tsCli {
 			Path inputPath = opts.input.toPath();
 			Path outputDir = opts.outputDir.toPath();
 
+			if ((opts.sourceClpi == null) != (opts.sourceClpiSha256 == null))
+				throw new IllegalArgumentException("--source-clpi and --source-clpi-sha256 must be supplied together");
+			if (opts.sourceSha256 != null)
+				org.brts.common.m2ts.SourceFingerprint.verify(inputPath, opts.sourceSha256);
+			if (opts.sourceClpi != null)
+				org.brts.common.m2ts.SourceFingerprint.verify(opts.sourceClpi.toPath(), opts.sourceClpiSha256);
+
 			M2tsParser parser = new M2tsParser();
 			M2tsInfo info = parser.parse(inputPath);
 
@@ -190,7 +209,7 @@ public class M2tsCli {
 						.collect(Collectors.toCollection(HashSet::new));
 			}
 
-			new M2tsExtractor().extract(inputPath, info, outputDir, pidFilter);
+			new M2tsExtractor().extract(inputPath, info, outputDir, pidFilter, opts.preserveTiming, opts.sourceSha256);
 			System.out.println("Extraction complete → " + outputDir);
 
 			// Optionally demux IGS streams
@@ -326,7 +345,13 @@ public class M2tsCli {
 			Path clpiPath = clpiDir.resolve(outputName + ".clpi");
 
 			// --- Write M2TS and matching CLPI ---
-			M2tsClipWriterFactory.createWriter().write(descriptor, m2tsPath, clpiPath);
+			boolean preservation = descriptor.getSourceM2ts() != null || descriptor.getSourceClpi() != null
+					|| descriptor.getTimingManifest() != null || descriptor.getMaximumOutputBytes() != null;
+			if (preservation) {
+				new org.brts.lowlevel.m2ts.PreservingM2tsClipWriter().write(descriptor, m2tsPath, clpiPath);
+			} else {
+				M2tsClipWriterFactory.createWriter().write(descriptor, m2tsPath, clpiPath);
+			}
 			System.out.println("M2TS written → " + m2tsPath);
 			System.out.println("CLPI written → " + clpiPath);
 		}

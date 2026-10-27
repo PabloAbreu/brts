@@ -24,6 +24,7 @@
 package org.brts.cli.low;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -31,12 +32,17 @@ import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.validation.ExistingDirectory;
 import org.brts.lowlevel.shrink.M2tsShrinkConfig;
 import org.brts.lowlevel.shrink.M2tsShrinkInputResolver;
+import org.brts.lowlevel.shrink.M2tsShrinkInventory;
 import org.brts.lowlevel.shrink.M2tsShrinkPlan;
 import org.brts.lowlevel.shrink.M2tsShrinkPlanner;
+import org.brts.lowlevel.shrink.BatchWholeM2tsConverter;
+import org.brts.lowlevel.shrink.WholeM2tsConverter.BatchExecutor;
+import org.brts.lowlevel.shrink.WholeM2tsConverter.M2tsConversionRequest;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.kohsuke.args4j.Option;
 
@@ -45,8 +51,12 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 
-/** Plan-only CLI entry point for M2TS stream filtering and video-size assessment. */
+/** Analyze shrink decisions and execute video-required conversion through a resumable batch. */
 public class M2tsShrinkCli {
+	@FunctionalInterface
+	public interface InventoryResolver {
+		M2tsShrinkInventory resolve(Path discRoot, String clipId) throws IOException;
+	}
 
 	public static class Options extends BaseOptions {
 
@@ -71,16 +81,43 @@ public class M2tsShrinkCli {
 
 		@Option(name = "--report", usage = "Write the plan JSON to this path (default: print to stdout)")
 		File report;
+
+		@Option(name = "--output", usage = "Separate destination disc root (required for video conversion)")
+		Path output;
+
+		@Option(name = "--defer", usage = "Write batch/descriptors only; no extraction, encoding or muxing")
+		boolean defer;
+
+		@Option(name = "--work-dir", usage = "Workspace (default: OUTPUT/.brts-shrink/CLIP-ID); retained for resume")
+		Path workDir;
 	}
 
 	@RequiredArgsConstructor
 	public static class Shrink extends FeatureRunner<Options> {
 
-		private final M2tsShrinkInputResolver resolver;
+		private final InventoryResolver resolver;
 		private final M2tsShrinkPlanner planner;
+		private final BatchExecutor executor;
+		private final BatchWholeM2tsConverter.MetadataReader metadataReader;
 
 		public Shrink() {
 			this(new M2tsShrinkInputResolver(), new M2tsShrinkPlanner());
+		}
+
+		public Shrink(M2tsShrinkInputResolver resolver, M2tsShrinkPlanner planner) {
+			this(resolver, planner, descriptor -> {
+				try {
+					new BatchRunCli.Run().run(new String[] { "--descriptor", descriptor.toString() });
+				} catch (IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException("Shrink batch failed: " + descriptor, e);
+				}
+			});
+		}
+
+		public Shrink(M2tsShrinkInputResolver resolver, M2tsShrinkPlanner planner, BatchExecutor executor) {
+			this(resolver::resolve, planner, executor, new M2tsParser()::parse);
 		}
 
 		@Override
@@ -90,7 +127,7 @@ public class M2tsShrinkCli {
 
 		@Override
 		public String getDescription() {
-			return "Analyze stream filtering and video-size requirements (plan only; no media is changed)";
+			return "Shrink video through a preservation batch; --defer prepares only (other decisions: analysis-only)";
 		}
 
 		@Override
@@ -115,7 +152,25 @@ public class M2tsShrinkCli {
 				Files.writeString(reportPath, json);
 				System.out.println("M2TS shrink plan → " + reportPath);
 			}
-			System.err.println("Decision: " + plan.decision() + " (plan only; no files were changed)");
+			if (plan.decision() != M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED) {
+				System.err.println("Decision: " + plan.decision() + " (analysis-only; not executed)");
+				return;
+			}
+			if (opts.output == null) {
+				throw new IllegalArgumentException("--output is required for VIDEO_CONVERSION_REQUIRED");
+			}
+			var converter = new BatchWholeM2tsConverter(opts.engine, executor, metadataReader);
+			var request = new M2tsConversionRequest(inventory, plan, config, opts.output, opts.workDir, opts.clipId);
+			if (opts.defer) {
+				var prepared = converter.prepare(request);
+				System.err.println("Deferred (no media operations): "
+						+ JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(prepared));
+				System.err.println("Run: brts low batch-run --descriptor \"" + prepared.batchDescriptor() + "\"");
+			} else {
+				var result = converter.convert(request);
+				System.err.println("Executed: "
+						+ JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(result));
+			}
 		}
 	}
 }

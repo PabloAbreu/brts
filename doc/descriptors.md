@@ -21,6 +21,43 @@ Examples:
 - [`examples/title-menu-thumbnail-descriptor.json`](../examples/title-menu-thumbnail-descriptor.json) — title menu thumbnail composition
 - [`examples/batch-run-descriptor.json`](../examples/batch-run-descriptor.json) — ordered list of commands for `batch-run`
 
+### Shrink configuration and preservation descriptors
+
+`low m2ts-shrink --config` accepts [the shrink example](../examples/m2ts-shrink-config.json).
+Missing/null `audioPids` and `subtitlePids` retain all tracks in that category; empty arrays
+retain none. `audioDowngrades`, `minimumAudioBitrateKbps` and `fixedAudioBitrateKbps` remain
+analysis inputs, but any nonempty value is rejected when video execution is requested.
+Audio streams selected for execution are copied unchanged.
+
+Preparation writes `m2ts-descriptor.json` and `batch-run.json` to the workspace. All media,
+descriptor and destination paths in the generated batch are absolute. The three ordered
+invocations extract selected PIDs with timing, convert video at the calculated bitrate using
+the same codec, then create the output pair. The manifest path can refer to a file that does
+not yet exist: extraction creates `extracted/timing.json` during execution.
+
+The generated `M2tsDescriptor` enables opt-in preservation using **all four** fields:
+`sourceM2ts` and `sourceClpi` (original pair), `timingManifest` (timed extraction manifest),
+and positive `maximumOutputBytes` (hard final M2TS byte limit). Its stream entries retain
+source PIDs, coding types, languages and video format/frame rate; only the video file points
+to the converted elementary stream. Extracted filenames use `pid_%04x` and the standard codec
+extension, including `.pgs` containing timed SUP for PGS. The preservation writer requires
+tsMuxeR, validates source/timing compatibility and publishes only a validated M2TS/CLPI pair.
+Ordinary descriptors without preservation fields retain the existing writer behavior.
+
+Shrink preparation also records `sourceM2tsSha256` and `sourceClpiSha256` (streamed SHA-256
+of the original pair). These fields are optional for legacy descriptors. The first batch
+step passes `--source-sha256`, `--source-clpi` and `--source-clpi-sha256` to `m2ts-extract`:
+both files are verified before extraction creates or overwrites output, so a changed CLPI
+also stops the batch before video encoding. The CLPI path and its digest must be supplied
+together. Ordinary extraction without these options is unchanged.
+
+Every successful `--preserve-timing` extraction records `sourceSha256` in `timing.json`,
+computed from all source packets during extraction (including unselected PIDs), alongside
+`sourceSize`. This binds the extracted media/timing to the source bytes, not just its path
+or length. Older manifests lacking the digest remain readable. Video conversion receives
+`--source-frame-rate` as an exact rational (for example `24000/1001`), including when source
+metadata contains only the parser's Blu-ray frame-rate code.
+
 ### CLPI regeneration and UHD metadata
 
 `brts low clip-regen` keeps its existing `--input`, `--output`, `--clip-name`, and `--json` arguments. An optional

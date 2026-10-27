@@ -455,10 +455,11 @@ public class M2tsParser {
 								// blu-rays...
 								// 0x08 seems to be AC-3 too. So confidence is low on
 								// that mapping.
-								BitrateCode bitrateCode = BitrateCode.fromCode(sp[descPos + 9] & 0xFF);
+								int rawBitrateCode = sp[descPos + 9] & 0xFF;
+								BitrateCode bitrateCode = BitrateCode.fromCode(rawBitrateCode);
 								if (bitrateCode == null) {
 									log.warn("  Unknown bitrate code 0x{} in AC-3 registration descriptor",
-											Integer.toHexString(sp[descPos + 9] & 0xFF));
+											Integer.toHexString(rawBitrateCode));
 								} else {
 									streamInfo.setBitrateKbps(bitrateCode.getBitrateKbps());
 									streamInfo.setChannels(bitrateCode.getChannels());
@@ -490,6 +491,8 @@ public class M2tsParser {
 				}
 				default -> {
 					// Other descriptors can be handled here if needed
+					log.debug("  Unknown descriptor with tag 0x{} and length {}", Integer.toHexString(descTag),
+							descLen);
 				}
 				}
 				descPos += 2 + descLen;

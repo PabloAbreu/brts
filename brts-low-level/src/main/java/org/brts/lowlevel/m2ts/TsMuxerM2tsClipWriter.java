@@ -81,8 +81,13 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		log.debug("Started tsMuxeR process with PID {}", process.pid());
 		ProcessUtils.StringStreamGobbler outputGobbler = new ProcessUtils.StringStreamGobbler(process.getInputStream());
 		ProcessUtils.StringStreamGobbler errorGobbler = new ProcessUtils.StringStreamGobbler(process.getErrorStream());
+		outputGobbler.start();
+		errorGobbler.start();
+		boolean completed = false;
 		try {
 			int result = process.waitFor();
+			outputGobbler.join();
+			errorGobbler.join();
 			log.debug("tsMuxeR ended with exit code {}", result);
 			String errors = errorGobbler.getOutput();
 			if (!errors.isBlank()) {
@@ -93,13 +98,21 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 				log.info("tsMuxeR output:\n{}", output);
 			Path generatedM2ts = workDir.resolve("BDMV/STREAM/00000.m2ts");
 			Path generatedClpi = workDir.resolve("BDMV/CLIPINF/00000.clpi");
+			if (result != 0 || !Files.isRegularFile(generatedM2ts) || !Files.isRegularFile(generatedClpi)
+					|| Files.size(generatedM2ts) == 0 || Files.size(generatedClpi) == 0) {
+				throw new IOException("tsMuxeR failed (exit " + result + "); artifacts retained at " + workDir);
+			}
 			FileUtils.move(generatedM2ts, m2tsPath);
 			clipPath.getParent().toFile().mkdirs();
 			FileUtils.move(generatedClpi, clipPath);
+			completed = true;
 		} catch (InterruptedException e) {
-			log.error("tsMuxeR process was interrupted", e);
+			process.destroyForcibly();
+			Thread.currentThread().interrupt();
+			throw new IOException("tsMuxeR interrupted; artifacts retained at " + workDir, e);
 		} finally {
-			FileUtils.deleteDir(workDir);
+			if (completed)
+				FileUtils.deleteDir(workDir);
 		}
 	}
 }

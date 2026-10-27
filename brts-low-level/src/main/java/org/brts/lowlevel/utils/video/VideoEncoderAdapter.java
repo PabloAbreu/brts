@@ -180,7 +180,7 @@ final class FfmpegVideoEncoder implements VideoEncoderAdapter {
 				+ (s.source().fullRange() ? "pc" : "tv") + ":out_range=tv:out_h_chr_pos=0:out_v_chr_pos="
 				+ s.chromaPosition() + ",setsar=1,pad=" + g.width() + ":" + g.height() + ":" + g.left() + ":" + g.top()
 				+ ":color=black";
-		args(command, "-vf", filter, "-fps_mode", "passthrough", "-enc_time_base",
+		args(command, "-vf", filter, "-vsync", "0", "-enc_time_base",
 				s.targetRate().denominator() + "/" + s.targetRate().numerator(), "-c:v",
 				s.hevc() ? "libx265" : "libx264");
 		nativeOptions(command, s, "-");

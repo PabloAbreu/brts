@@ -61,6 +61,24 @@ public class M2tsDescriptor {
 	 */
 	private String outputName;
 
+	/** Opt-in preservation contract: all four fields below must be supplied together. No Java mux fallback. */
+	private String sourceM2ts;
+
+	/** Original CLPI, used to validate the retained stream contract. */
+	private String sourceClpi;
+
+	/** Optional SHA-256 of the original M2TS; shrink preparation always supplies it. */
+	private String sourceM2tsSha256;
+
+	/** Optional SHA-256 of the original CLPI; shrink preparation always supplies it. */
+	private String sourceClpiSha256;
+
+	/** Absolute-clock extraction manifest produced by m2ts-extract --preserve-timing. */
+	private String timingManifest;
+
+	/** Hard final M2TS size limit. Oversize staged files are never published. */
+	private Long maximumOutputBytes;
+
 	/** Elementary stream entries to mux. */
 	private List<StreamEntry> streams;
 

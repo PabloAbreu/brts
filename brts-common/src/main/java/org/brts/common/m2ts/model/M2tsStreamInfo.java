@@ -85,6 +85,12 @@ public class M2tsStreamInfo implements IStreamInfo {
 	/** Sample rate in Hz. */
 	private Integer sampleRateHz;
 
+	/** Parser-populated Blu-ray rate codes remain usable when no explicit FPS override was supplied. */
+	@Override
+	public Double getFrameRateFps() {
+		return frameRateFps != null ? frameRateFps : IStreamInfo.super.getFrameRateFps();
+	}
+
 	/**
 	 * Returns a human-readable stream category label.
 	 */

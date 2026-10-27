@@ -40,7 +40,8 @@ import lombok.extern.slf4j.Slf4j;
  * The output files are raw elementary streams (i.e. the MPEG-2 TS packetisation and PES headers are removed).
  * Downstream tools like FFmpeg can consume them directly.
  * <p>
- * This class delegates to {@link M2tsDemuxer} for packet iteration and {@link FilePacketHandler} for file output.
+ * Legacy extraction delegates to {@link M2tsDemuxer} and {@link FilePacketHandler}. The opt-in timing overload uses
+ * strict transport/PES validation and emits timed SUP records for PGS, plus a source-clock timing manifest.
  *
  * <h2>Usage</h2>
  *
@@ -84,6 +85,33 @@ public class M2tsExtractor {
 		try (FilePacketHandler handler = new FilePacketHandler(info, outputDir, pidFilter)) {
 			demuxer.demux(source, info, handler, pidFilter);
 		}
+	}
+
+	/**
+	 * Opt-in source-clock preservation. Raw audio/video filenames remain unchanged; PGS files contain SUP records. A
+	 * successful preserving extraction publishes {@code timing.json} in the output directory. Invalid/truncated PES,
+	 * timestamps or transport cause an IOException and no timing manifest is published. Partial elementary stream files
+	 * may remain for diagnosis. The false branch is exactly the legacy API.
+	 */
+	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter, boolean preserveTiming)
+			throws IOException {
+		extract(source, info, outputDir, pidFilter, preserveTiming, null);
+	}
+
+	/** Checks optional source identity before any extraction writes, including legacy raw extraction. */
+	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter, boolean preserveTiming,
+			String expectedSourceSha256) throws IOException {
+		if (expectedSourceSha256 != null)
+			SourceFingerprint.verify(source, expectedSourceSha256);
+		if (preserveTiming)
+			new TimingPreservingExtractor().extract(source, info, outputDir, pidFilter, expectedSourceSha256);
+		else
+			extract(source, info, outputDir, pidFilter);
+	}
+
+	/** Extracts all streams, optionally preserving source timing. */
+	public void extract(Path source, M2tsInfo info, Path outputDir, boolean preserveTiming) throws IOException {
+		extract(source, info, outputDir, null, preserveTiming);
 	}
 
 }
