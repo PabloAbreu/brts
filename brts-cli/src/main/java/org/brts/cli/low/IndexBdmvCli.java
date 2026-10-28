@@ -23,16 +23,17 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.bdmv.IndexBdmvWriter;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.parser.IndexBdmvParser;
 import org.kohsuke.args4j.Option;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 
 /**
  * CLI for low-level {@code BDMV/index.bdmv} operations.
@@ -49,7 +50,7 @@ public class IndexBdmvCli {
 	// Parse command: binary index.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary index.bdmv file to parse")
 		File input;
@@ -91,7 +92,7 @@ public class IndexBdmvCli {
 	// Write command: JSON → binary index.bdmv
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions extends org.brts.cli.BaseOptions {
+	public static class WriteOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by index-parse)")
 		IndexBdmv input;

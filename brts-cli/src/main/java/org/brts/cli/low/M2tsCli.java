@@ -23,6 +23,16 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
@@ -45,15 +55,6 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
 /**
  * CLI for M2TS (Blu-ray MPEG-2 Transport Stream) operations.
  */
@@ -63,7 +64,7 @@ public class M2tsCli {
 	// m2ts-info
 	// =========================================================================
 
-	public static class InfoOptions extends org.brts.cli.BaseOptions {
+	public static class InfoOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to inspect")
 		File input;
@@ -100,7 +101,7 @@ public class M2tsCli {
 	// m2ts-probe
 	// =========================================================================
 
-	public static class ProbeOptions extends org.brts.cli.BaseOptions {
+	public static class ProbeOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to probe")
 		File input;
@@ -146,7 +147,7 @@ public class M2tsCli {
 	// m2ts-extract
 	// =========================================================================
 
-	public static class ExtractOptions extends org.brts.cli.BaseOptions {
+	public static class ExtractOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts source file")
 		File input;
@@ -235,7 +236,7 @@ public class M2tsCli {
 	// igs-demux
 	// =========================================================================
 
-	public static class IgsDemuxOptions extends org.brts.cli.BaseOptions {
+	public static class IgsDemuxOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a raw .igs elementary stream file")
 		File input;
@@ -269,7 +270,7 @@ public class M2tsCli {
 	// igs-mux
 	// =========================================================================
 
-	public static class IgsMuxOptions extends org.brts.cli.BaseOptions {
+	public static class IgsMuxOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json)")
 		File inputDir;
@@ -303,7 +304,7 @@ public class M2tsCli {
 	// m2ts-create
 	// =========================================================================
 
-	public static class CreateOptions extends org.brts.cli.BaseOptions {
+	public static class CreateOptions extends BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -362,7 +363,7 @@ public class M2tsCli {
 	// m2ts-igs-mux
 	// =========================================================================
 
-	public static class M2tsIgsMuxOptions extends org.brts.cli.BaseOptions {
+	public static class M2tsIgsMuxOptions extends BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -419,7 +420,7 @@ public class M2tsCli {
 	// m2ts-dump
 	// =========================================================================
 
-	public static class DumpOptions extends org.brts.cli.BaseOptions {
+	public static class DumpOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to dump")
 		File input;

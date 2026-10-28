@@ -23,10 +23,15 @@
 
 package org.brts.cli.middle;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Optional;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
-import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.parser.IndexBdmvParser;
 import org.brts.lowlevel.parser.MovieObjectsParser;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
@@ -35,17 +40,12 @@ import org.brts.middle.scan.FirstPlaylistFinderConfig;
 import org.brts.middle.scan.FirstPlaylistResult;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Optional;
-
 /**
  * CLI for the middle-level "find-first-playlist" command.
  */
 public class FindFirstPlaylistCli {
 
-	static class Options extends org.brts.cli.BaseOptions {
+	static class Options extends BaseOptions {
 
 		@Option(name = "--bdmv-dir", required = true, usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
 		File bdmvDir;

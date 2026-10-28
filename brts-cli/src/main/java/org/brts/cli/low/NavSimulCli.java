@@ -23,24 +23,26 @@
 
 package org.brts.cli.low;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.File;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.bdmv.NavigationCommandSimulator;
 import org.brts.lowlevel.bdmv.NavigationCommandSimulator.SimulationResult;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * CLI for the HDMV navigation command simulator.
  */
 public class NavSimulCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "JSON file containing an array of NavigationCommand objects")
 		File input;

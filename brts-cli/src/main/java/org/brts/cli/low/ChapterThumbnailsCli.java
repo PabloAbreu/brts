@@ -25,6 +25,7 @@ package org.brts.cli.low;
 
 import java.io.File;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.thumbnail.ChapterThumbnailExtractor;
 import org.brts.lowlevel.thumbnail.ChapterThumbnailsDescriptor;
@@ -37,7 +38,7 @@ import org.kohsuke.args4j.Option;
  */
 public class ChapterThumbnailsCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Source media file (MKV) holding the chapters")
 		File input;

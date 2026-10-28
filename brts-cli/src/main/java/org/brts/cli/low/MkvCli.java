@@ -23,12 +23,6 @@
 
 package org.brts.cli.low;
 
-import org.brts.cli.FeatureRunner;
-import org.brts.common.mkv.MkvSourceMediaParser;
-import org.brts.common.mkv.SourceMediaInfo;
-import org.brts.lowlevel.mkv.MkvExtractor;
-import org.kohsuke.args4j.Option;
-
 import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -36,6 +30,13 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.brts.cli.BaseOptions;
+import org.brts.cli.FeatureRunner;
+import org.brts.common.mkv.MkvSourceMediaParser;
+import org.brts.common.mkv.SourceMediaInfo;
+import org.brts.lowlevel.mkv.MkvExtractor;
+import org.kohsuke.args4j.Option;
 
 /**
  * CLI for MKV source media inspection.
@@ -48,7 +49,7 @@ import java.util.stream.Collectors;
  */
 public class MkvCli {
 
-	public static class InfoOptions extends org.brts.cli.BaseOptions {
+	public static class InfoOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV file to inspect")
 		File input;
@@ -58,7 +59,7 @@ public class MkvCli {
 
 	}
 
-	public static class ExtractOptions extends org.brts.cli.BaseOptions {
+	public static class ExtractOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MKV source file")
 		File input;

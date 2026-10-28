@@ -26,6 +26,7 @@ package org.brts.cli.low;
 import java.io.File;
 import java.nio.file.Path;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.model.clpi.ClipInfo;
@@ -48,7 +49,7 @@ public class ClipInfoCli {
 	// Parse command
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .clpi file to parse")
 		File input;
@@ -85,7 +86,7 @@ public class ClipInfoCli {
 	// Write command
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions extends org.brts.cli.BaseOptions {
+	public static class WriteOptions extends BaseOptions {
 
 		// @Option(name = "--descriptor", required = true, usage = "Path to the clip JSON
 		// descriptor")

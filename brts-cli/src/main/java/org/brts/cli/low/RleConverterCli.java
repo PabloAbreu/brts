@@ -23,21 +23,22 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+import java.nio.file.Path;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.igs.RleConverter;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.PaletteEntry;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Path;
-
 /**
  * CLI for converting IGS RLE bitmaps to standard image formats (PNG).
  */
 public class RleConverterCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json) or a single .rle file")
 		File input;

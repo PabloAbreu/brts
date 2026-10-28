@@ -23,13 +23,14 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+import java.nio.file.Path;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.mp4.Mp4SourceMediaParser;
 import org.kohsuke.args4j.Option;
-
-import java.io.File;
-import java.nio.file.Path;
 
 /**
  * CLI for MP4/MOV source media inspection.
@@ -41,7 +42,7 @@ import java.nio.file.Path;
  */
 public class Mp4Cli {
 
-	public static class InfoOptions extends org.brts.cli.BaseOptions {
+	public static class InfoOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the MP4/MOV file to inspect")
 		File input;

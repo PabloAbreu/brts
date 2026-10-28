@@ -23,20 +23,21 @@
 
 package org.brts.cli.middle;
 
+import java.io.File;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.middle.menu.SetupMenuGenerator;
 import org.brts.middle.menu.descriptor.SetupMenuDescriptor;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-
 /**
  * CLI for the middle-level "create-setup-menu" command.
  */
 public class SetupMenuCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the setup menu JSON descriptor")
 		SetupMenuDescriptor descriptor;

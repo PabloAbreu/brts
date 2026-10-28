@@ -23,6 +23,7 @@
 
 package org.brts.cli.low;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.model.disc.LowLevelDiscDescriptor;
@@ -44,7 +45,7 @@ public class DiscCli {
 	// Create command: full descriptor -> full Disc
 	// -------------------------------------------------------------------------
 
-	public static class CreateOptions extends org.brts.cli.BaseOptions {
+	public static class CreateOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the disc descriptor")
 		LowLevelDiscDescriptor input;

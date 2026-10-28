@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
@@ -45,7 +46,7 @@ import org.kohsuke.args4j.Option;
  */
 public class PlaylistCli {
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .mpls file to parse")
 		File input;
@@ -78,7 +79,7 @@ public class PlaylistCli {
 
 	}
 
-	public static class WriteOptions extends org.brts.cli.BaseOptions {
+	public static class WriteOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
 		MoviePlaylist descriptor;
@@ -111,7 +112,7 @@ public class PlaylistCli {
 
 	}
 
-	static class FindPlaylistOptions extends org.brts.cli.BaseOptions {
+	static class FindPlaylistOptions extends BaseOptions {
 
 		@Option(name = "--clip", required = true, usage = "M2TS clip name to search for (e.g. 12345)")
 		String clip;

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.utils.BrtsFileConfig;
@@ -47,7 +48,7 @@ public class BrtsInfoCli {
 		JSON, TEXT
 	}
 
-	public static class InfoOptions extends org.brts.cli.BaseOptions {
+	public static class InfoOptions extends BaseOptions {
 		@Option(name = "--all", usage = "Include all system properties and environment variables in the output")
 		boolean includeAll;
 

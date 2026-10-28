@@ -26,6 +26,7 @@ package org.brts.cli.low;
 import java.io.File;
 import java.nio.file.Path;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.titlemenu.TitleMenuGenerator;
@@ -39,7 +40,7 @@ import org.kohsuke.args4j.Option;
  */
 public class TitleMenuCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the title menu JSON descriptor")
 		TitleMenuDescriptor descriptor;

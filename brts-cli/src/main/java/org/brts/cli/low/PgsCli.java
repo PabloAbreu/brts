@@ -23,20 +23,20 @@
 
 package org.brts.cli.low;
 
+import java.io.File;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
-import org.brts.common.utils.BrtsFileConfig;
 import org.brts.lowlevel.pgs.PgsGenerator;
 import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.kohsuke.args4j.Option;
-
-import java.io.File;
 
 /**
  * CLI for PGS (Presentation Graphic Stream) subtitle generation.
  */
 public class PgsCli {
 
-	public static class CreateOptions extends org.brts.cli.BaseOptions {
+	public static class CreateOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the subtitle file (.srt, .ssa, .ass)")
 		File input;

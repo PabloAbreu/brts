@@ -23,6 +23,10 @@
 
 package org.brts.cli.middle;
 
+import java.io.File;
+import java.nio.file.Path;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.middle.scan.DiscContentType;
 import org.brts.middle.scan.PlaylistScanConfig;
@@ -30,15 +34,12 @@ import org.brts.middle.scan.PlaylistScanResult;
 import org.brts.middle.scan.PlaylistScanner;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Path;
-
 /**
  * CLI for the middle-level "scan-playlists" command.
  */
 public class ScanPlaylistsCli {
 
-	static class Options extends org.brts.cli.BaseOptions {
+	static class Options extends BaseOptions {
 
 		@Option(name = "--playlist-dir", required = true, usage = "Path to the BDMV/PLAYLIST directory containing .mpls files")
 		File playlistDir;

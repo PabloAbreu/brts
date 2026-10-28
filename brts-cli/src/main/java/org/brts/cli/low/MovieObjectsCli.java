@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.bdmv.MovieObjectsWriter;
@@ -49,7 +50,7 @@ public class MovieObjectsCli {
 	// Parse command: binary MovieObject.bdmv → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary MovieObject.bdmv file to parse")
 		File input;
@@ -89,7 +90,7 @@ public class MovieObjectsCli {
 	// Write command: JSON → binary MovieObject.bdmv
 	// -------------------------------------------------------------------------
 
-	public static class WriteOptions extends org.brts.cli.BaseOptions {
+	public static class WriteOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--input", required = true, usage = "Path to the JSON model file (as produced by mobj-parse)")
 		MovieObjects input;
