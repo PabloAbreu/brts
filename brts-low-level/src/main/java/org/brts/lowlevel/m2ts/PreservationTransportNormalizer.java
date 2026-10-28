@@ -36,10 +36,18 @@ import java.util.Map;
 import java.util.Set;
 
 import org.brts.common.m2ts.M2tsTiming;
+import org.brts.common.m2ts.PesTimestampParser;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
+import org.brts.common.utils.Crc32Utils;
 
-/** Strict, bounded-memory, simultaneous PID and clock rewrite of a single-program M2TS. */
+/**
+ * Strict, bounded-memory, simultaneous PID and clock rewrite of a single-program M2TS.
+ *
+ * After muxing with tsmuxer, original PID assignments and PCR timing are possibly modified. This class preserves, as
+ * much as possible, the original information.
+ *
+ */
 final class PreservationTransportNormalizer {
 
 	private static final long PCR_WRAP = (1L << 33) * 300;
@@ -405,8 +413,7 @@ final class PreservationTransportNormalizer {
 	}
 
 	static long readTimestamp(byte[] b, int o) {
-		return ((long) (b[o] & 14) << 29) | ((long) u(b[o + 1]) << 22) | ((long) (b[o + 2] & 254) << 14)
-				| ((long) u(b[o + 3]) << 7) | ((b[o + 4] & 254) >>> 1);
+		return PesTimestampParser.decodeTimestamp(b, o);
 	}
 
 	static void writeTimestamp(byte[] b, int o, long value) {
@@ -418,13 +425,7 @@ final class PreservationTransportNormalizer {
 	}
 
 	static int crc(byte[] bytes, int length) {
-		int crc = -1;
-		for (int i = 0; i < length; i++) {
-			crc ^= u(bytes[i]) << 24;
-			for (int bit = 0; bit < 8; bit++)
-				crc = (crc << 1) ^ (crc < 0 ? 0x04c11db7 : 0);
-		}
-		return crc;
+		return (int) Crc32Utils.crc32(bytes, 0, length);
 	}
 
 	private static long readPcr(byte[] b, int o) throws IOException {
