@@ -42,4 +42,38 @@ h2 { margin: 0 0 14px; font-size: 1.35rem; letter-spacing: -.02em; }
 .muted { color: var(--muted); }
 .json { max-height: 70vh; overflow: auto; padding: 22px; border: 1px solid #243b44; border-radius: 16px; background: #102127; color: #e5f1f3; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; }
 footer { margin-top: 42px; color: var(--muted); font-size: .82rem; }
+a:focus-visible, summary:focus-visible { outline: 3px solid #087f8c; outline-offset: 4px; }
+.stream-legend { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 0; list-style: none; }
+.stream-legend li::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 8px; background: var(--stream-color); }
+.legend-video, .stream-video { --stream-color: #2563a6; --stream-bg: #e9f2fc; }
+.legend-audio, .stream-audio { --stream-color: #9c570a; --stream-bg: #fff3da; }
+.legend-subtitle, .stream-subtitle { --stream-color: #7745ac; --stream-bg: #f3edfc; }
+.legend-menu, .stream-menu { --stream-color: #147253; --stream-bg: #e5f6ed; }
+.stream-unknown { --stream-color: #52616b; --stream-bg: #eef1f3; }
+.stream-group { margin: 24px 0; }
+.stream-group h3 { margin-bottom: 12px; }
+.stream-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.stream-tile { min-width: 0; padding: 18px; border: 1px solid var(--line); border-top: 6px solid var(--stream-color); border-radius: 14px; background: linear-gradient(145deg, var(--stream-bg), white); overflow-wrap: anywhere; }
+.stream-tile h4 { margin: 8px 0; font-size: 1.15rem; }
+.stream-tile p { margin: 3px 0; font-size: .88rem; }
+.stream-tile .stream-category { color: var(--stream-color); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
+.stream-pid { font-family: ui-monospace, monospace; }
+.stream-tile details { margin-top: 14px; font-size: .8rem; }
+.stream-tile summary { cursor: pointer; }
+.stream-tile ul { padding-left: 18px; }
+.tone-mpeg2-video { --stream-color: #497da6; --stream-bg: #eaf3f9; }
+.tone-h264-avc { --stream-color: #2865bd; --stream-bg: #e8f0fd; }
+.tone-h265-hevc { --stream-color: #183f83; --stream-bg: #dce8fa; }
+.tone-vc1 { --stream-color: #147689; --stream-bg: #e1f3f6; }
+.tone-lpcm { --stream-color: #806310; --stream-bg: #faf3d8; }
+.tone-dolby-ac3 { --stream-color: #995008; --stream-bg: #fff0dc; }
+.tone-dolby-ac3-plus { --stream-color: #b06613; --stream-bg: #ffebcf; }
+.tone-dolby-truehd { --stream-color: #743b06; --stream-bg: #f4e3cd; }
+.tone-dts { --stream-color: #a56a13; --stream-bg: #fff5d5; }
+.tone-dts-hd { --stream-color: #875916; --stream-bg: #f5e9c7; }
+.tone-dts-hd-master-audio { --stream-color: #68460f; --stream-bg: #eddfb6; }
+.tone-dts-express { --stream-color: #99772a; --stream-bg: #fbf3da; }
+.tone-presentation-graphics { --stream-color: #7242a3; --stream-bg: #f0e7fa; }
+.tone-text-subtitle { --stream-color: #994b9d; --stream-bg: #f8eafa; }
+.tone-interactive-graphics { --stream-color: #147253; --stream-bg: #e5f6ed; }
 @media (max-width: 600px) { main { width: min(100% - 24px, 1120px); padding-top: 12px; } header { padding: 26px 22px; border-radius: 16px; } }
