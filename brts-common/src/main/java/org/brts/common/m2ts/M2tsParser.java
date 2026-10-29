@@ -29,9 +29,11 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -118,6 +120,7 @@ public class M2tsParser {
 		boolean patParsed = false;
 		Set<Integer> pmtPids = new LinkedHashSet<>();
 		Set<Integer> parsedPmtPids = new HashSet<>();
+		Map<Integer, PmtSectionAssembler> pmtSections = new LinkedHashMap<>();
 		int sitPid = -1;
 		boolean sitParsed = false;
 		// Track PCR PID once the first PMT is parsed
@@ -149,6 +152,7 @@ public class M2tsParser {
 			// --- TS packet starts at offset 4 ---
 			if ((sp[4] & 0xFF) != SYNC_BYTE) {
 				log.warn("Lost sync at source packet {}", i);
+				pmtSections.clear();
 				continue;
 			}
 
@@ -163,8 +167,10 @@ public class M2tsParser {
 			int adaptationFieldControl = (b3 >> 4) & 0x03;
 			// 01 = payload only, 10 = adaptation only, 11 = adaptation + payload
 
-			if (transportError)
+			if (transportError) {
+				pmtSections.remove(pid);
 				continue;
+			}
 
 			// ---------------------------------------------------------------
 			// PAT
@@ -193,17 +199,22 @@ public class M2tsParser {
 			// ---------------------------------------------------------------
 			// PMT (any program found in the PAT)
 			// ---------------------------------------------------------------
-			if (pmtPids.contains(pid) && payloadUnitStart && !parsedPmtPids.contains(pid)) {
-				PmtParseResult pmt = parsePmt(sp);
-				if (pmt != null) {
-					parsedPmtPids.add(pid);
-					if (pcrPid < 0) {
-						pcrPid = pmt.pcrPid;
-						info.setPcrPid(pcrPid);
+			if (pmtPids.contains(pid) && !parsedPmtPids.contains(pid)) {
+				PmtSectionAssembler assembler = pmtSections.computeIfAbsent(pid, key -> new PmtSectionAssembler());
+				for (byte[] section : assembler.accept(sp)) {
+					PmtParseResult pmt = parsePmt(section);
+					if (pmt != null) {
+						parsedPmtPids.add(pid);
+						pmtSections.remove(pid);
+						if (pcrPid < 0) {
+							pcrPid = pmt.pcrPid;
+							info.setPcrPid(pcrPid);
+						}
+						streamMap.putAll(pmt.streams);
+						log.debug("PMT 0x{} parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pid),
+								Integer.toHexString(pmt.pcrPid), pmt.streams.size());
+						break;
 					}
-					streamMap.putAll(pmt.streams);
-					log.debug("PMT 0x{} parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pid),
-							Integer.toHexString(pmt.pcrPid), pmt.streams.size());
 				}
 				continue;
 			}
@@ -308,6 +319,104 @@ public class M2tsParser {
 	// PMT parser
 	// -------------------------------------------------------------------------
 
+	/** Reassembles one PID's PSI sections, excluding TS headers, pointer fields and stuffing. */
+	private static class PmtSectionAssembler {
+		// ISO/IEC 13818-1 limits PMT section_length to 1021 bytes, plus its three-byte header.
+		private final byte[] section = new byte[1024];
+		private int size;
+		private int expected = 3;
+		private int continuity = -1;
+		private byte[] previousPacket;
+
+		private void discardSection() {
+			size = 0;
+			expected = 3;
+		}
+
+		private void reset() {
+			discardSection();
+			continuity = -1;
+			previousPacket = null;
+		}
+
+		List<byte[]> accept(byte[] packet) {
+			List<byte[]> completed = new ArrayList<>();
+			int control = (packet[7] >> 4) & 3;
+			if (control == 0 || (packet[7] & 0xC0) != 0) {
+				reset();
+				return completed;
+			}
+			int offset = 8;
+			if (control == 2 || control == 3) {
+				int length = packet[offset] & 0xFF;
+				if (offset + 1 + length > packet.length) {
+					reset();
+					return completed;
+				}
+				if (length > 0 && (packet[offset + 1] & 0x80) != 0)
+					reset(); // discontinuity_indicator also applies to adaptation-only packets
+				offset += 1 + length;
+			}
+			if (control == 2)
+				return completed; // no payload, so do not advance the payload continuity counter
+			if (offset >= packet.length) {
+				reset();
+				return completed;
+			}
+
+			int counter = packet[7] & 0x0F;
+			if (counter == continuity && previousPacket != null
+					&& Arrays.equals(packet, 4, packet.length, previousPacket, 4, previousPacket.length))
+				return completed; // retransmission; ATS may differ
+			if (continuity >= 0 && counter != ((continuity + 1) & 0x0F))
+				discardSection();
+			continuity = counter;
+			previousPacket = packet.clone();
+
+			if ((packet[5] & 0x40) != 0) {
+				int pointer = packet[offset++] & 0xFF;
+				int start = offset + pointer;
+				if (start >= packet.length) {
+					discardSection();
+					return completed;
+				}
+				if (size > 0)
+					append(packet, offset, start, completed);
+				discardSection(); // a new section starts here even if the old one was incomplete
+				offset = start;
+				while (offset < packet.length && (packet[offset] & 0xFF) != 0xFF)
+					offset = append(packet, offset, packet.length, completed);
+			} else if (size > 0) {
+				append(packet, offset, packet.length, completed);
+			}
+			return completed;
+		}
+
+		/** Consumes at most one section; only PUSI establishes where further sections can begin. */
+		private int append(byte[] packet, int offset, int end, List<byte[]> completed) {
+			while (offset < end) {
+				int count = Math.min(end - offset, expected - size);
+				System.arraycopy(packet, offset, section, size, count);
+				size += count;
+				offset += count;
+				if (size == 3 && expected == 3) {
+					int length = ((section[1] & 0x0F) << 8) | (section[2] & 0xFF);
+					if (length < 13 || length > 1021) {
+						discardSection();
+						return end;
+					}
+					expected = 3 + length;
+				}
+				if (size == expected) {
+					completed.add(Arrays.copyOf(section, size));
+					discardSection();
+					return offset;
+				}
+			}
+			return offset;
+		}
+	}
+
 	private static class PmtParseResult {
 
 		int pcrPid;
@@ -330,30 +439,12 @@ public class M2tsParser {
 	private static final int descriptor_tag_registration_HDMV_mystery_byte = 0xFF;
 
 	/**
-	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not contain a recognisable PMT.
+	 * Parses a complete PMT section, starting at table_id. Returns null for malformed sections, never partial streams.
 	 */
 	private PmtParseResult parsePmt(byte[] sp) {
-		if (sp.length < 9)
+		if (sp.length < 16)
 			return null;
-		int tsOff = 4;
-		int b3 = sp[tsOff + 3] & 0xFF;
-		int adaptCtrl = (b3 >> 4) & 0x03;
-
-		if (adaptCtrl != 1 && adaptCtrl != 3)
-			return null;
-		int payloadStart = tsOff + 4;
-		if (adaptCtrl == 3) {
-			int afLen = sp[payloadStart] & 0xFF;
-			payloadStart += 1 + afLen;
-		}
-
-		if (payloadStart >= sp.length)
-			return null;
-		int pointer = sp[payloadStart] & 0xFF;
-		payloadStart += 1 + pointer;
-
-		if (payloadStart + 12 > sp.length)
-			return null;
+		int payloadStart = 0;
 		int tableId = sp[payloadStart] & 0xFF;
 		if (tableId != 0x02)
 			return null; // not a PMT
@@ -365,7 +456,7 @@ public class M2tsParser {
 		// ES loop start
 		int esStart = payloadStart + 12 + programInfoLength;
 		int esEnd = payloadStart + 3 + sectionLength - 4; // exclude CRC
-		if (sectionLength < 13 || esStart > esEnd) {
+		if (sectionLength < 13 || sectionLength > 1021 || 3 + sectionLength != sp.length || esStart > esEnd) {
 			log.warn("Invalid PMT section/program info length: {}/{}", sectionLength, programInfoLength);
 			return null;
 		}
@@ -373,14 +464,18 @@ public class M2tsParser {
 		PmtParseResult result = new PmtParseResult();
 		result.pcrPid = pcrPid;
 
-		for (int pos = esStart; pos + 4 < esEnd && pos + 4 < sp.length;) {
+		for (int pos = esStart; pos < esEnd;) {
+			if (pos + 5 > esEnd) {
+				log.warn("Truncated PMT ES header at offset {}", pos);
+				return null;
+			}
 			int streamType = sp[pos] & 0xFF;
 			int esPid = ((sp[pos + 1] & 0x1F) << 8) | (sp[pos + 2] & 0xFF);
 			int esInfoLen = ((sp[pos + 3] & 0x0F) << 8) | (sp[pos + 4] & 0xFF);
 			int descEnd = pos + 5 + esInfoLen;
 			if (descEnd > esEnd || descEnd > sp.length) {
 				log.warn("Truncated PMT ES info for PID {}: length {} at offset {}", esPid, esInfoLen, pos);
-				break;
+				return null;
 			}
 
 			M2tsStreamInfo streamInfo = new M2tsStreamInfo();
@@ -397,14 +492,14 @@ public class M2tsParser {
 			while (descPos < descEnd) {
 				if (descPos + 2 > descEnd) {
 					log.warn("Truncated descriptor header for PID {} at offset {}", esPid, descPos);
-					break;
+					return null;
 				}
 				int descTag = sp[descPos] & 0xFF;
 				int descLen = sp[descPos + 1] & 0xFF;
 				if (descPos + 2 + descLen > descEnd) {
 					log.warn("Truncated descriptor 0x{} for PID {} at offset {}: length {}",
 							Integer.toHexString(descTag), esPid, descPos, descLen);
-					break;
+					return null;
 				}
 				switch (descTag) {
 				case descriptor_tag_registration -> {
