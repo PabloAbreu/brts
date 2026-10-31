@@ -179,7 +179,14 @@ public final class VideoConverter {
 			warnings.addAll(runner.run(command, plan.timeout()));
 			if (!Files.isRegularFile(temporary, LinkOption.NOFOLLOW_LINKS) || Files.size(temporary) == 0)
 				throw new IOException("Encoder produced no nonempty regular output: " + temporary);
-			validateOutput(plan, probe.probe(temporary));
+			try {
+				validateOutput(plan, probe.probe(temporary), warnings);
+			} catch (IOException e) {
+				List<String> reported = warnings.stream().distinct().toList();
+				if (reported.isEmpty())
+					throw e;
+				throw new IOException(e.getMessage() + "\nEncoder warnings:\n- " + String.join("\n- ", reported), e);
+			}
 			if (Thread.currentThread().isInterrupted())
 				throw new IOException("Video conversion interrupted before publishing output");
 			validatePaths(plan.inputPath(), plan.outputPath(), plan.overwrite());
@@ -257,29 +264,47 @@ public final class VideoConverter {
 		return path.toAbsolutePath().normalize().toString();
 	}
 
-	private static void validateOutput(VideoConversionPlan plan, VideoStreamInfo output) throws IOException {
-		String expected = plan.codec() == StreamCodingType.H264_AVC ? "h264" : "hevc";
+	private static void validateOutput(VideoConversionPlan plan, VideoStreamInfo output, List<String> warnings)
+			throws IOException {
 		boolean hevc = plan.codec() == StreamCodingType.H265_HEVC;
-		int requiredDepth = hevc ? 10 : 8, requiredProfile = hevc ? 2 : 100, requiredLevel = hevc ? 153 : 41;
-		int requiredChromaLocation = BT2020.equals(plan.source().colorPrimaries()) ? 3 : 1;
-		if (output.bitDepth() != requiredDepth || output.chromaWidthShift() != 1 || output.chromaHeightShift() != 1
-				|| output.profile() != requiredProfile || output.level() != requiredLevel || !output.rangeKnown()
-				|| output.chromaLocation() != requiredChromaLocation)
-			throw new IOException(
-					"Encoder output does not match planned bit depth/4:2:0/profile/level/range/chroma location: "
-							+ output);
-		if (!expected.equals(output.inputFormat()) || output.width() != plan.width() || output.height() != plan.height()
-				|| !output.progressive() || !plan.frameRate().equals(output.frameRate())
-				|| output.sarNumerator() != output.sarDenominator() || output.fullRange())
-			throw new IOException(
-					"Encoder output does not match planned codec/dimensions/progressive timing/SAR/range: " + output);
 		VideoStreamInfo source = plan.source();
-		if (!Objects.equals(source.colorPrimaries() == null ? BT709 : source.colorPrimaries(), output.colorPrimaries())
-				|| !Objects.equals(source.transfer() == null ? BT709 : source.transfer(), output.transfer())
-				|| !Objects.equals(source.colorMatrix() == null ? BT709 : source.colorMatrix(), output.colorMatrix())
-				|| source.masterDisplay() != null && !source.masterDisplay().equals(output.masterDisplay())
-				|| source.maxCll() != null && !source.maxCll().equals(output.maxCll()))
-			throw new IOException("Encoder failed to preserve requested colorimetry/static HDR10 metadata");
+		List<String> mismatches = new ArrayList<>();
+		expect(mismatches, "codec", hevc ? "hevc" : "h264", output.inputFormat());
+		expect(mismatches, "width", plan.width(), output.width());
+		expect(mismatches, "height", plan.height(), output.height());
+		expect(mismatches, "progressive", true, output.progressive());
+		expect(mismatches, "frameRate", plan.frameRate(), output.frameRate());
+		if (output.sarNumerator() != output.sarDenominator())
+			mismatches.add("sar expected=1:1 actual=" + output.sarNumerator() + ":" + output.sarDenominator());
+		expect(mismatches, "fullRange", false, output.fullRange());
+		expect(mismatches, "rangeKnown", true, output.rangeKnown());
+		expect(mismatches, "bitDepth", hevc ? 10 : 8, output.bitDepth());
+		expect(mismatches, "chromaWidthShift", 1, output.chromaWidthShift());
+		expect(mismatches, "chromaHeightShift", 1, output.chromaHeightShift());
+		expect(mismatches, "profile", hevc ? 2 : 100, output.profile());
+		expect(mismatches, "level", hevc ? 153 : 41, output.level());
+		int requiredChromaLocation = BT2020.equals(source.colorPrimaries()) ? 3 : 1;
+		// Some encoders (e.g. QSVEncC) omit chroma_loc_info; FFmpeg then infers LEFT (1).
+		if (output.chromaLocation() != requiredChromaLocation)
+			warnings.add("Output chromaLocation expected=" + requiredChromaLocation + " actual="
+					+ output.chromaLocation() + "; chroma siting signaling is missing or differs, verify playback");
+		expect(mismatches, "colorPrimaries", source.colorPrimaries() == null ? BT709 : source.colorPrimaries(),
+				output.colorPrimaries());
+		expect(mismatches, "transfer", source.transfer() == null ? BT709 : source.transfer(), output.transfer());
+		expect(mismatches, "colorMatrix", source.colorMatrix() == null ? BT709 : source.colorMatrix(),
+				output.colorMatrix());
+		if (source.masterDisplay() != null)
+			expect(mismatches, "HDR10 masterDisplay", source.masterDisplay(), output.masterDisplay());
+		if (source.maxCll() != null)
+			expect(mismatches, "HDR10 maxCll", source.maxCll(), output.maxCll());
+		if (!mismatches.isEmpty())
+			throw new IOException(
+					"Encoder output does not match plan: " + String.join(", ", mismatches) + "; probed=" + output);
+	}
+
+	private static void expect(List<String> mismatches, String field, Object expected, Object actual) {
+		if (!Objects.equals(expected, actual))
+			mismatches.add(field + " expected=" + expected + " actual=" + actual);
 	}
 
 	private static void publish(Path temporary, Path output, boolean overwrite) throws IOException {

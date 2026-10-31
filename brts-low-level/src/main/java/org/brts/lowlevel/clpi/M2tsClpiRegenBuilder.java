@@ -122,7 +122,7 @@ public class M2tsClpiRegenBuilder {
 				JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
 		ClipInfo metadata = prepareMetadata(m2tsPath, info, options);
 
-		M2tsStreamInfo videoStream = findFirstVideoStream(info);
+		M2tsStreamInfo videoStream = findFirstVideoStream(info, metadata.getStreams());
 		if (videoStream == null) {
 			log.warn("No video stream found in {}; CLPI will have empty EP map", m2tsPath.getFileName());
 		}
@@ -145,7 +145,11 @@ public class M2tsClpiRegenBuilder {
 		Map<Integer, ClpiRegenOptions.VideoOverrides> overrides = effective.getVideoStreams() != null
 				? effective.getVideoStreams()
 				: Map.of();
+		List<M2tsStreamInfo> selected = selectStreams(info, effective);
 		Map<Integer, StreamCodingType> videos = M2tsVideoMetadataProbeFactory.videoStreamsByPid(info);
+		Set<Integer> selectedPids = new HashSet<>();
+		selected.forEach(stream -> selectedPids.add(stream.getPid()));
+		videos.keySet().retainAll(selectedPids);
 		validateOverrides(overrides, videos);
 		Map<Integer, M2tsVideoMetadataProbe.Metadata> detected = Map.of();
 		if (mode != ClpiRegenOptions.ProbeMode.DISABLED && !videos.isEmpty()) {
@@ -156,7 +160,7 @@ public class M2tsClpiRegenBuilder {
 						videos.keySet(), e.toString());
 			}
 		}
-		List<ClipStream> streams = buildClipStreams(info.getStreams());
+		List<ClipStream> streams = buildClipStreams(selected);
 		boolean uhd = false;
 		for (ClipStream stream : streams) {
 			// first audio overrides
@@ -222,9 +226,19 @@ public class M2tsClpiRegenBuilder {
 
 			// if values are missing, processing will halt here with an exception
 			if (stream.getVideoFormat() == null || stream.getFrameRate() == null || stream.getAspectRatio() == null) {
+				StringBuilder missing = new StringBuilder();
+				if (stream.getVideoFormat() == null) {
+					missing.append("videoFormat, ");
+				}
+				if (stream.getFrameRate() == null) {
+					missing.append("frameRate, ");
+				}
+				if (stream.getAspectRatio() == null) {
+					missing.append("aspectRatio, ");
+				}
+				missing.setLength(missing.length() - 2);
 				throw new IllegalStateException(
-						"Missing required video stream parameters videoFormat/frameRate/aspectRatio for PID: "
-								+ stream.getPid());
+						"Missing required video stream parameter(s) " + missing + " for PID: " + stream.getPid());
 			}
 		}
 		ClipInfo clip = new ClipInfo();
@@ -302,11 +316,29 @@ public class M2tsClpiRegenBuilder {
 	// Phase 1 helpers
 	// =========================================================================
 
-	private static M2tsStreamInfo findFirstVideoStream(M2tsInfo info) {
+	private static List<M2tsStreamInfo> selectStreams(M2tsInfo info, ClpiRegenOptions options) {
+		List<M2tsStreamInfo> streams = info.getStreams() != null ? info.getStreams() : List.of();
+		Set<Integer> excluded = options.getExcludedStreamPids();
+		if (excluded == null || excluded.isEmpty())
+			return streams;
+		for (Integer pid : excluded) {
+			if (pid == null || pid < 0 || pid > 0x1fff || streams.stream().noneMatch(s -> s.getPid() == pid))
+				throw new IllegalArgumentException("CLPI excluded PID " + pid + " is not a known stream PID");
+			if ((options.getVideoStreams() != null && options.getVideoStreams().containsKey(pid))
+					|| (options.getAudioStreams() != null && options.getAudioStreams().containsKey(pid))
+					|| (options.getSubtitleStreams() != null && options.getSubtitleStreams().containsKey(pid)))
+				throw new IllegalArgumentException("CLPI excluded PID " + pid + " also has metadata overrides");
+		}
+		return streams.stream().filter(s -> !excluded.contains(s.getPid())).toList();
+	}
+
+	private static M2tsStreamInfo findFirstVideoStream(M2tsInfo info, List<ClipStream> selected) {
 		if (info.getStreams() == null)
 			return null;
+		Set<Integer> selectedPids = new HashSet<>();
+		selected.forEach(stream -> selectedPids.add(stream.getPid()));
 		return info.getStreams().stream().filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
-				.findFirst().orElse(null);
+				.filter(s -> selectedPids.contains(s.getPid())).findFirst().orElse(null);
 	}
 
 	// =========================================================================
@@ -468,8 +500,6 @@ public class M2tsClpiRegenBuilder {
 		clip.setTsRecordingStartPts(Timestamp.ofTicks(firstPts));
 		clip.setTsRecordingEndPts(Timestamp.ofTicks(lastPts));
 		clip.setDuration(Timestamp.ofTicks(Math.max(0L, lastPts - firstPts)));
-
-		clip.setStreams(buildClipStreams(info.getStreams()));
 
 		clip.setNumSourcePackets(info.getTotalPackets());
 		// TODO find what this should be

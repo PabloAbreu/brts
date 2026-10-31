@@ -80,9 +80,32 @@ final class PreservationVideoGeometry {
 		int zeros = 0;
 		boolean start = false;
 		boolean needHeader = false;
+		int nalHeaderBytesExpected = 0;
+		int nalHeaderBytesRemaining = 0;
 		try (var input = new BufferedInputStream(Files.newInputStream(elementary))) {
 			int value;
 			while ((value = input.read()) >= 0) {
+				if (needHeader) {
+					if (nalHeaderBytesRemaining == nalHeaderBytesExpected) {
+						type = streamType == 0x1b ? value & 31 : (value >>> 1) & 63;
+						require((value & 0x80) == 0 && (streamType != 0x1b || value != 0),
+								"Invalid Annex B NAL header");
+						require(streamType != 0x1b || type != 13 && type != 14 && type != 15 && type != 20,
+								"AVC extension/multiview sequence signaling is unsupported");
+						if (streamType == 0x1b ? type == 7 : type == 32 || type == 33)
+							header = new ByteArrayOutputStream();
+					} else if (streamType != 0x1b) {
+						require((value & 7) != 0, "Invalid Annex B NAL header");
+					}
+					if (header != null) {
+						require(header.size() + 1L <= 1024 * 1024, "Sequence parameter set exceeds validation bound");
+						header.write(value);
+					}
+					nalHeaderBytesRemaining--;
+					needHeader = nalHeaderBytesRemaining > 0;
+					zeros = 0;
+					continue;
+				}
 				if (value == 0) {
 					zeros++;
 					continue;
@@ -94,23 +117,18 @@ final class PreservationVideoGeometry {
 					zeros = 0;
 					start = true;
 					needHeader = true;
+					nalHeaderBytesExpected = streamType == 0x1b ? 1 : 2;
+					nalHeaderBytesRemaining = nalHeaderBytesExpected;
 					continue;
 				}
 				require(start, "Video ES is not Annex B");
-				if (needHeader) {
-					require(zeros == 0, "Invalid Annex B NAL header");
-					type = streamType == 0x1b ? value & 31 : (value >>> 1) & 63;
-					require(streamType != 0x1b || type != 13 && type != 14 && type != 15 && type != 20,
-							"AVC extension/multiview sequence signaling is unsupported");
-					if (streamType == 0x1b ? type == 7 : type == 32 || type == 33)
-						header = new ByteArrayOutputStream();
-					needHeader = false;
-				}
 				if (header != null) {
-					require(header.size() + (long) zeros < 1024 * 1024,
+					require(header.size() + (long) zeros + 1 <= 1024 * 1024,
 							"Sequence parameter set exceeds validation bound");
-					while (zeros-- > 0)
+					while (zeros > 0) {
 						header.write(0);
+						zeros--;
+					}
 					header.write(value);
 				}
 				zeros = 0;

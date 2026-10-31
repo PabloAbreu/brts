@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.brts.common.m2ts.model.M2tsInfo;
@@ -46,6 +47,60 @@ import org.junit.jupiter.api.Test;
 class M2tsClpiRegenBuilderMetadataTest {
 
 	private static final Path INPUT = Path.of("synthetic.m2ts");
+
+	@Test
+	void explicitlyExcludedCompanionIsNotProbedOrValidatedEvenInStrictMode() throws Exception {
+		var companion = stream(0x1015, StreamCodingType.H265_HEVC, 8);
+		companion.setAspectRatio(null);
+		var source = info(companion, stream(0x1011, StreamCodingType.H265_HEVC, 8));
+		var builder = new M2tsClpiRegenBuilder((path, videos) -> {
+			assertThat(videos).containsOnlyKeys(0x1011);
+			return Map.of(0x1011, new M2tsVideoMetadataProbe.Metadata(8, true, 1, 2, false));
+		});
+		var options = options(ClpiRegenOptions.ProbeMode.STRICT);
+		options.setExcludedStreamPids(Set.of(0x1015));
+		var clip = builder.prepareMetadata(INPUT, source, options);
+		assertThat(clip.getVersion()).isEqualTo("0300");
+		assertThat(clip.getStreams()).extracting(ClipStream::getPid).containsExactly(0x1011);
+		assertThat(source.getStreams()).hasSize(2);
+	}
+
+	@Test
+	void requiredMetadataValidationRemainsForEveryIncludedVideo() {
+		var companion = stream(0x1015, StreamCodingType.H265_HEVC, 8);
+		companion.setAspectRatio(null);
+		var primary = stream(0x1011, StreamCodingType.H265_HEVC, 8);
+		var source = info(companion, primary);
+		var builder = new M2tsClpiRegenBuilder((path, videos) -> Map.of());
+		var options = options(ClpiRegenOptions.ProbeMode.DISABLED);
+		assertThatThrownBy(() -> builder.prepareMetadata(INPUT, source, options))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("aspectRatio for PID: 4117");
+		options.setExcludedStreamPids(null);
+		assertThatThrownBy(() -> builder.prepareMetadata(INPUT, source, options))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("aspectRatio for PID: 4117");
+		options.setExcludedStreamPids(Set.of(0x1015));
+		primary.setAspectRatio(null);
+		assertThatThrownBy(() -> builder.prepareMetadata(INPUT, source, options))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("aspectRatio for PID: 4113");
+	}
+
+	@Test
+	void rejectsInvalidExclusionsAndContradictoryOverridesBeforeProbing() {
+		var builder = new M2tsClpiRegenBuilder((path, videos) -> {
+			throw new AssertionError("Invalid options must fail before probing");
+		});
+		var source = info(stream(0x1011, StreamCodingType.H265_HEVC, 8));
+		var options = new ClpiRegenOptions();
+		for (Integer pid : java.util.Arrays.asList(null, -1, 0x2000, 0x1015)) {
+			options.setExcludedStreamPids(java.util.Collections.singleton(pid));
+			assertThatThrownBy(() -> builder.prepareMetadata(INPUT, source, options))
+					.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not a known stream PID");
+		}
+		options.setExcludedStreamPids(Set.of(0x1011));
+		options.getVideoStreams().put(0x1011, new ClpiRegenOptions.VideoOverrides());
+		assertThatThrownBy(() -> builder.prepareMetadata(INPUT, source, options))
+				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("also has metadata overrides");
+	}
 
 	@Test
 	void autoSelects0300ForHevcEvenWhenMetadataProbeFails() throws Exception {

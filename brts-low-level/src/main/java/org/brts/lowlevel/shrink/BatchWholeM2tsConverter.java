@@ -120,11 +120,18 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 		Set<Integer> retained = new LinkedHashSet<>();
 		var videos = inventory.tracks().stream().filter(t -> t.codingType() != null && t.codingType().isVideo())
 				.toList();
-		if (videos.size() != 1 || videos.getFirst().pid() != 0x1011 || !Set
-				.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC).contains(videos.getFirst().codingType())) {
+		var primaryVideo = videos.stream().filter(t -> t.pid() == 0x1011).findFirst().orElse(null);
+		boolean supportedPrimary = primaryVideo != null
+				&& Set.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC).contains(primaryVideo.codingType());
+		// heuristic for ignoring Dolby Vision companion streams
+		// this is simple and does not check actual Dolby Vision metadata
+		boolean ignoredDolbyVisionCompanion = videos.size() == 2 && primaryVideo != null
+				&& primaryVideo.codingType() == StreamCodingType.H265_HEVC
+				&& videos.stream().anyMatch(t -> t.pid() == 0x1015 && t.codingType() == StreamCodingType.H265_HEVC);
+		if (!supportedPrimary || (videos.size() != 1 && !ignoredDolbyVisionCompanion)) {
 			throw new IllegalArgumentException("Exactly one primary AVC/HEVC video (PID 0x1011) is required");
 		}
-		retained.add(videos.getFirst().pid());
+		retained.add(primaryVideo.pid());
 		retained.addAll(plan.retainedAudioPids());
 		retained.addAll(plan.retainedSubtitlePids());
 		for (var track : inventory.tracks()) {
@@ -209,7 +216,7 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 				String.join(",", retained.stream().map(String::valueOf).toList()), "--preserve-timing", null,
 				"--source-sha256", sourceSha256, "--source-clpi", sourceClpi, "--source-clpi-sha256", sourceClpiSha256),
 				step("video-convert", "--input", videoInput, "--output", videoOutput, "--codec",
-						videos.getFirst().codingType().name(), "--engine", engine.name(), "--bitrate-kbps", bitrate,
+						primaryVideo.codingType().name(), "--engine", engine.name(), "--bitrate-kbps", bitrate,
 						"--source-frame-rate", sourceFrameRate, "--overwrite", null),
 				step("m2ts-create", "--descriptor", mux, "--output", output.getParent(), "--clpi", clpi.getParent())));
 		// VideoConverter requires an existing output parent. This creates directories, not media.

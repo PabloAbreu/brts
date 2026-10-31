@@ -32,20 +32,86 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.M2tsTiming;
 import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.m2ts.model.M2tsInfo;
+import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.m2ts.model.M2tsTimingManifest.PesTiming;
 import org.brts.common.m2ts.model.M2tsTimingManifest.SegmentTiming;
 import org.brts.common.m2ts.model.M2tsTimingManifest.StreamTiming;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.model.Timestamp;
+import org.brts.lowlevel.clpi.ClpiRegenOptions;
+import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.model.clpi.ClipStream;
+import org.brts.lowlevel.model.clpi.EpMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class PreservingM2tsClipWriterTest {
 	@TempDir
 	Path temp;
+
+	@Test
+	void acceptsSingleAvcOrHevcSourceVideo() throws Exception {
+		for (var type : List.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC)) {
+			PreservingM2tsClipWriter.validateSourceVideo(sourceInfo(stream(0x1011, type)), video(0x1011, type));
+		}
+	}
+
+	@Test
+	void acceptsIgnoredHevcDolbyVisionCompanion() throws Exception {
+		var source = sourceInfo(stream(0x1015, StreamCodingType.H265_HEVC), stream(0x1100, StreamCodingType.DOLBY_AC3),
+				stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1200, StreamCodingType.PRESENTATION_GRAPHICS));
+		PreservingM2tsClipWriter.validateSourceVideo(source, video(0x1011, StreamCodingType.H265_HEVC));
+	}
+
+	@Test
+	void rejectsOtherSecondaryVideoTopologies() {
+		var hevc = StreamCodingType.H265_HEVC;
+		var avc = StreamCodingType.H264_AVC;
+		for (var source : List.of(sourceInfo(stream(0x1011, hevc), stream(0x1016, hevc)),
+				sourceInfo(stream(0x1011, avc), stream(0x1015, hevc)),
+				sourceInfo(stream(0x1011, hevc), stream(0x1015, avc)),
+				sourceInfo(stream(0x1015, hevc), stream(0x1016, hevc)),
+				sourceInfo(stream(0x1011, hevc), stream(0x1015, hevc), stream(0x1016, hevc)))) {
+			assertThatThrownBy(() -> PreservingM2tsClipWriter.validateSourceVideo(source, video(0x1011, hevc)))
+					.isInstanceOf(IOException.class).hasMessageContaining("Secondary/multiview video is unsupported");
+		}
+	}
+
+	@Test
+	void sourceComparisonExcludesOnlyCompanionWithoutChangingOutputOptions() throws Exception {
+		var source = sourceInfo(stream(0x1015, StreamCodingType.H265_HEVC), stream(0x1100, StreamCodingType.DOLBY_AC3),
+				stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1200, StreamCodingType.PRESENTATION_GRAPHICS));
+		var output = new ClpiRegenOptions();
+		var metadata = new ClpiRegenOptions.VideoOverrides();
+		metadata.setAspectRatio(3);
+		output.getVideoStreams().put(0x1011, metadata);
+		var options = PreservingM2tsClipWriter.sourceRegenOptions(source, video(0x1011, StreamCodingType.H265_HEVC),
+				output);
+		assertThat(options.getExcludedStreamPids()).containsExactly(0x1015);
+		assertThat(output.getExcludedStreamPids()).isEmpty();
+		assertThat(options.getVideoStreams()).containsExactlyEntriesOf(output.getVideoStreams());
+		assertThat(options.getVideoStreams()).isNotSameAs(output.getVideoStreams());
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.sourceRegenOptions(
+				sourceInfo(stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1016, StreamCodingType.H265_HEVC)),
+				video(0x1011, StreamCodingType.H265_HEVC), output)).isInstanceOf(IOException.class);
+		var single = PreservingM2tsClipWriter.sourceRegenOptions(sourceInfo(stream(0x1011, StreamCodingType.H264_AVC)),
+				video(0x1011, StreamCodingType.H264_AVC), output);
+		assertThat(single.getExcludedStreamPids()).isEmpty();
+	}
+
+	@Test
+	void rejectsRetainingDolbyVisionCompanionInsteadOfPrimary() {
+		var source = sourceInfo(stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1015, StreamCodingType.H265_HEVC));
+		assertThatThrownBy(
+				() -> PreservingM2tsClipWriter.validateSourceVideo(source, video(0x1015, StreamCodingType.H265_HEVC)))
+				.isInstanceOf(IOException.class).hasMessageContaining("Secondary/multiview video is unsupported");
+	}
 
 	@Test
 	void descriptorContractRoundTripsAdditiveFields() throws Exception {
@@ -175,6 +241,15 @@ class PreservingM2tsClipWriterTest {
 	}
 
 	@Test
+	void wholeStreamSequenceCheckAcceptsHevcTypeZeroNalHeader() throws Exception {
+		Path elementary = temp.resolve("type-zero.hevc");
+		Files.write(elementary, new byte[] { 0, 0, 1, 0x40, 1, (byte) 0x80, 0, 0, 1, 0x42, 1, (byte) 0x80, 0, 0, 1, 0,
+				1, (byte) 0x80 });
+
+		PreservationVideoGeometry.validateStableSequence(elementary, 0x24);
+	}
+
+	@Test
 	void oversizeIsRejectedWithoutPublishingOrDeletingStage() throws Exception {
 		Path stage = temp.resolve("normalized.m2ts");
 		Files.write(stage, new byte[384]);
@@ -211,6 +286,158 @@ class PreservingM2tsClipWriterTest {
 		} finally {
 			Thread.interrupted();
 		}
+	}
+
+	@Test
+	void clipDiagnosticsReportAllHevcDifferencesAndBothStreamSnapshots() {
+		var source = clip(StreamCodingType.H265_HEVC);
+		var output = clip(StreamCodingType.H265_HEVC);
+		var original = source.getStreams().getFirst();
+		var regenerated = output.getStreams().getFirst();
+		original.setDynamicRangeType(1);
+		original.setColorSpace(2);
+		original.setHdrPlusFlag(false);
+		regenerated.setDynamicRangeType(0);
+		regenerated.setColorSpace(null);
+		regenerated.setHdrPlusFlag(true);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class).hasMessageContaining("dynamicRangeType: source=1, output=0 (changed)")
+				.hasMessageContaining("colorSpace: source=2, output=null (changed)")
+				.hasMessageContaining("hdrPlusFlag: source=false, output=true (changed)")
+				.hasMessageContaining("sourceStream={pid=4113 (0x1011), codingType=H265_HEVC")
+				.hasMessageContaining("outputStream={pid=4113 (0x1011), codingType=H265_HEVC")
+				.hasMessageContaining("videoFormat=6, frameRate=3, aspectRatio=3");
+	}
+
+	@Test
+	void clipValidationTreatsUnprovenHdrPlusAsEncodedFalse() throws Exception {
+		var source = clip(StreamCodingType.H265_HEVC);
+		var output = clip(StreamCodingType.H265_HEVC);
+		source.getStreams().getFirst().setHdrPlusFlag(false);
+		output.getStreams().getFirst().setHdrPlusFlag(null);
+		PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011));
+		source.getStreams().getFirst().setHdrPlusFlag(true);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class)
+				.hasMessageContaining("hdrPlusFlag: source=true, output=null (changed)");
+	}
+
+	@Test
+	void clipDiagnosticsDistinguishMissingRequiredValuesFromUnsupportedFlags() {
+		var source = clip(StreamCodingType.H264_AVC);
+		var output = clip(StreamCodingType.H264_AVC);
+		source.getStreams().getFirst().setVideoFormat(null);
+		output.getStreams().getFirst().setVideoFormat(null);
+		source.getStreams().getFirst().setOcFlag(true);
+		source.getStreams().getFirst().setCrFlag(true);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class)
+				.hasMessageContaining("videoFormat: source=null, output=null (required source value is missing)")
+				.hasMessageContaining("ocFlag: source=true is unsupported by this pipeline; output=null")
+				.hasMessageContaining("crFlag: source=true is unsupported by this pipeline; output=null");
+	}
+
+	@Test
+	void clipDiagnosticsReportAudioAndLanguageDifferences() {
+		var source = clip(StreamCodingType.DOLBY_AC3);
+		var output = clip(StreamCodingType.DOLBY_AC3);
+		source.getStreams().getFirst().setLanguage("eng");
+		source.getStreams().getFirst().setAudioChannelLayout(6);
+		source.getStreams().getFirst().setSampleRate(1);
+		output.getStreams().getFirst().setLanguage("fra");
+		output.getStreams().getFirst().setAudioChannelLayout(3);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class).hasMessageContaining("language: source=eng, output=fra")
+				.hasMessageContaining("audioChannelLayout: source=6, output=3")
+				.hasMessageContaining("sampleRate: source=1, output=null");
+	}
+
+	@Test
+	void clipDiagnosticsReportStreamCountUnknownPidAndCodec() {
+		var source = clip(StreamCodingType.H264_AVC);
+		var output = clip(StreamCodingType.H265_HEVC);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011, 0x1100)))
+				.isInstanceOf(IOException.class).hasMessageContaining("expected=2, output=1")
+				.hasMessageContaining("sourceStreams=[{pid=4113").hasMessageContaining("outputStreams=[{pid=4113");
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class).hasMessageContaining("CLPI codec/PID changed: retained=true")
+				.hasMessageContaining("codingType=H264_AVC").hasMessageContaining("codingType=H265_HEVC");
+		output.getStreams().getFirst().setPid(0x1015);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class).hasMessageContaining("unknown PID 4117")
+				.hasMessageContaining("outputStream={pid=4117 (0x1015)").hasMessageContaining("sourceStreams=");
+	}
+
+	@Test
+	void clipDiagnosticsReportEntryPointStateAndExactPresentationTicks() throws Exception {
+		var source = clip(StreamCodingType.H264_AVC);
+		var output = clip(StreamCodingType.H264_AVC);
+		PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011));
+		var epMap = output.getEpMap();
+		output.setEpMap(null);
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class).hasMessageContaining("output.epMap=null")
+				.hasMessageContaining("output.epMap.streamEntryCounts=null");
+		output.setEpMap(epMap);
+		output.setTsRecordingStartPts(null);
+		output.setTsRecordingEndPts(Timestamp.ofTicks(300));
+		output.setDuration(Timestamp.ofTicks(200));
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateClip(source, output, Set.of(0x1011)))
+				.isInstanceOf(IOException.class)
+				.hasMessageContaining("tsRecordingStartPts (90 kHz ticks): source=100, output=null")
+				.hasMessageContaining("tsRecordingEndPts (90 kHz ticks): source=200, output=300")
+				.hasMessageContaining("duration (90 kHz ticks, expected from source end-start): source=100, output=200")
+				.hasMessageContaining("source={tsRecordingStartPts=100, tsRecordingEndPts=200, duration=100}")
+				.hasMessageContaining("output={tsRecordingStartPts=null, tsRecordingEndPts=300, duration=200}");
+	}
+
+	@Test
+	void clipValidationStillAcceptsMatchingOptionalNullMetadata() throws Exception {
+		for (var type : List.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC, StreamCodingType.DOLBY_AC3,
+				StreamCodingType.PRESENTATION_GRAPHICS))
+			PreservingM2tsClipWriter.validateClip(clip(type), clip(type), Set.of(0x1011));
+	}
+
+	private static ClipInfo clip(StreamCodingType type) {
+		var stream = new ClipStream();
+		stream.setPid(0x1011);
+		stream.setCodingType(type);
+		stream.setVideoFormat(6);
+		stream.setFrameRate(3);
+		stream.setAspectRatio(3);
+		var clip = new ClipInfo();
+		clip.setStreams(List.of(stream));
+		clip.setTsRecordingStartPts(Timestamp.ofTicks(100));
+		clip.setTsRecordingEndPts(Timestamp.ofTicks(200));
+		clip.setDuration(Timestamp.ofTicks(100));
+		var epStream = new EpMap.EpMapStream();
+		epStream.setPid(0x1011);
+		epStream.setEntries(List.of(new EpMap.EpMapEntry()));
+		var epMap = new EpMap();
+		epMap.setStreams(List.of(epStream));
+		clip.setEpMap(epMap);
+		return clip;
+	}
+
+	private static M2tsInfo sourceInfo(M2tsStreamInfo... streams) {
+		var info = new M2tsInfo();
+		info.setStreams(List.of(streams));
+		return info;
+	}
+
+	private static M2tsStreamInfo stream(int pid, StreamCodingType type) {
+		var stream = new M2tsStreamInfo();
+		stream.setPid(pid);
+		stream.setCodingType(type);
+		stream.setStreamTypeByte(type.getCodingTypeByte());
+		return stream;
+	}
+
+	private static M2tsDescriptor.StreamEntry video(int pid, StreamCodingType type) {
+		var video = new M2tsDescriptor.StreamEntry();
+		video.setPid(pid);
+		video.setStreamTypeByte(type.getCodingTypeByte());
+		return video;
 	}
 
 	private static StreamTiming timing(StreamCodingType type, List<Long> pts) {

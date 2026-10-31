@@ -111,9 +111,16 @@ final class M2tsEpFixtures {
 	}
 
 	static byte[] tables(int streamType) {
+		return tables(streamType, VIDEO_PID);
+	}
+
+	static byte[] tables(int streamType, int... videoPids) {
 		byte[] pat = bytes(0, 0xB0, 13, 0, 1, 0xC1, 0, 0, 0, 1, 0xE1, 0);
-		byte[] pmt = bytes(2, 0xB0, 18, 0, 1, 0xC1, 0, 0, 0xE0 | (PCR_PID >> 8), PCR_PID, 0xF0, 0, streamType,
-				0xE0 | (VIDEO_PID >> 8), VIDEO_PID, 0xF0, 0);
+		int sectionLength = 13 + 5 * videoPids.length;
+		byte[] pmt = bytes(2, 0xB0 | (sectionLength >> 8), sectionLength, 0, 1, 0xC1, 0, 0, 0xE0 | (PCR_PID >> 8),
+				PCR_PID, 0xF0, 0);
+		for (int pid : videoPids)
+			pmt = join(pmt, bytes(streamType, 0xE0 | (pid >> 8), pid, 0xF0, 0));
 		return join(packet(0, true, 0, join(bytes(0), crc(pat))), packet(0x100, true, 0, join(bytes(0), crc(pmt))));
 	}
 

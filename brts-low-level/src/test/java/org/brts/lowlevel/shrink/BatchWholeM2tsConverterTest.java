@@ -207,6 +207,55 @@ class BatchWholeM2tsConverterTest {
 		assertThatThrownBy(() -> converter.prepare(request)).isInstanceOf(IllegalArgumentException.class);
 	}
 
+	@Test
+	void ignoresHevcDolbyVisionCompanionPidDuringPreparation() throws Exception {
+		var original = request();
+		var tracks = new java.util.ArrayList<>(original.inventory().tracks());
+		tracks.removeIf(track -> track.pid() == 0x1011);
+		tracks.add(new M2tsShrinkInventory.Track(0x1011, StreamCodingType.H265_HEVC, null, null, 1000));
+		tracks.add(new M2tsShrinkInventory.Track(0x1015, StreamCodingType.H265_HEVC, null, null, 100));
+		var inventory = new M2tsShrinkInventory(original.inventory().m2tsPath(), original.inventory().clpiPath(),
+				original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
+		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
+		var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(), null,
+				"00001");
+		var info = metadata();
+		info.setStreams(List.of(stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1015, StreamCodingType.H265_HEVC),
+				stream(0x1102, StreamCodingType.DTS), stream(0x1200, StreamCodingType.PRESENTATION_GRAPHICS)));
+		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
+		}, path -> info);
+
+		var prepared = converter.prepare(request);
+		var batch = JsonMapperFactory.get().readValue(prepared.batchDescriptor().toFile(), BatchRunDescriptor.class);
+		var mux = JsonMapperFactory.get().readValue(prepared.muxDescriptor().toFile(), M2tsDescriptor.class);
+		assertThat(batch.getSteps().get(0).toCommandTokens()).containsSubsequence("--pids", "4113,4354,4608");
+		assertThat(mux.getStreams()).extracting(s -> s.getPid()).containsExactly(0x1011, 0x1102, 0x1200);
+		assertThat(batch.getSteps().get(1).toCommandTokens()).containsSubsequence("--codec", "H265_HEVC");
+	}
+
+	@Test
+	void rejectsOtherMultiVideoCombinations() throws Exception {
+		var original = request();
+		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
+		}, path -> metadata());
+		for (var extraVideo : List.of(new M2tsShrinkInventory.Track(0x1015, StreamCodingType.H264_AVC, null, null, 1),
+				new M2tsShrinkInventory.Track(0x1016, StreamCodingType.H265_HEVC, null, null, 1),
+				new M2tsShrinkInventory.Track(0x1015, StreamCodingType.H265_HEVC, null, null, 1))) {
+			var tracks = new java.util.ArrayList<>(original.inventory().tracks());
+			tracks.add(extraVideo);
+			if (extraVideo.pid() == 0x1015 && extraVideo.codingType() == StreamCodingType.H265_HEVC) {
+				tracks.add(new M2tsShrinkInventory.Track(0x1016, StreamCodingType.H265_HEVC, null, null, 1));
+			}
+			var inventory = new M2tsShrinkInventory(original.inventory().m2tsPath(), original.inventory().clpiPath(),
+					original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
+			var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
+			var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(),
+					null, "00001");
+			assertThatThrownBy(() -> converter.prepare(request)).isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("Exactly one primary");
+		}
+	}
+
 	@ParameterizedTest
 	@EnumSource(value = StreamCodingType.class, names = { "LPCM", "DTS_HD", "TEXT_SUBTITLE", "INTERACTIVE_GRAPHICS",
 			"VC1" })

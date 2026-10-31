@@ -48,10 +48,16 @@ class M2tsClpiRegenBuilderEpScanTest {
 	Path directory;
 
 	private ClipInfo build(byte[] input) throws Exception {
+		return build(input, new int[0]);
+	}
+
+	private ClipInfo build(byte[] input, int... excludedPids) throws Exception {
 		Path path = directory.resolve("00001.m2ts");
 		Files.write(path, input);
 		ClpiRegenOptions options = new ClpiRegenOptions();
 		options.setProbeMode(ClpiRegenOptions.ProbeMode.DISABLED);
+		for (int pid : excludedPids)
+			options.getExcludedStreamPids().add(pid);
 		// Synthetic EP fixtures omit video metadata; supply it explicitly instead of probing.
 		ClpiRegenOptions.VideoOverrides video = new ClpiRegenOptions.VideoOverrides();
 		video.setVideoFormat(6); // 1080p
@@ -65,6 +71,22 @@ class M2tsClpiRegenBuilderEpScanTest {
 
 	private List<EpMapEntry> entries(ClipInfo clip) {
 		return clip.getEpMap() == null ? List.of() : clip.getEpMap().getStreams().getFirst().getEntries();
+	}
+
+	@Test
+	void excludedCompanionFirstInPmtCannotSupplyVideoBoundsOrEntryPoints() throws Exception {
+		byte[] input = join(tables(0x24, 0x1015, VIDEO_PID), pcr(80_000 * 300L),
+				packet(0x1015, true, 0, pes(1_000, hevc(19))), packet(VIDEO_PID, true, 0, pes(90_000, hevc(21))),
+				packet(0x1015, true, 1, pes(900_000, hevc(19))), pcr(190_000 * 300L),
+				packet(VIDEO_PID, true, 1, pes(180_000, hevc(19))));
+		ClipInfo clip = build(input, 0x1015);
+		assertThat(clip.getStreams()).extracting(s -> s.getPid()).containsExactly(VIDEO_PID);
+		assertThat(clip.getEpMap().getStreams().getFirst().getPid()).isEqualTo(VIDEO_PID);
+		assertThat(entries(clip)).extracting(EpMapEntry::getPtsTicks).containsExactly(90_000L, 180_000L);
+		assertThat(entries(clip)).extracting(EpMapEntry::getSpn).containsExactly(4L, 7L);
+		assertThat(clip.getTsRecordingStartPts().getTicks()).isEqualTo(90_000);
+		assertThat(clip.getTsRecordingEndPts().getTicks()).isEqualTo(180_000);
+		assertThat(clip.getNumSourcePackets()).isEqualTo(input.length / 192);
 	}
 
 	@Test

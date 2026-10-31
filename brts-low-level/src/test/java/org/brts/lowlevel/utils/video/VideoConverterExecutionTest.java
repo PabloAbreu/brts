@@ -48,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -251,8 +252,7 @@ class VideoConverterExecutionTest {
 				.flatMap(format -> Stream
 						.of("legacy", "missing-depth", "wrong-depth", "missing-chroma-width", "wrong-chroma-width",
 								"missing-chroma-height", "wrong-chroma-height", "missing-profile", "wrong-profile",
-								"missing-level", "lower-level", "higher-level", "unknown-range", "full-range",
-								"missing-chroma-location", "unspecified-chroma-location", "wrong-chroma-location")
+								"missing-level", "lower-level", "higher-level", "unknown-range", "full-range")
 						.map(mismatch -> Arguments.of(format, mismatch)));
 	}
 
@@ -275,7 +275,14 @@ class VideoConverterExecutionTest {
 			Files.writeString(Path.of(command.getLast()), "invalid metadata");
 			return process;
 		}));
-		assertThrows(IOException.class, () -> converter.convert(params));
+		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
+		String field = mismatch.equals("legacy") || mismatch.endsWith("depth") ? "bitDepth"
+				: mismatch.endsWith("chroma-width") ? "chromaWidthShift"
+						: mismatch.endsWith("chroma-height") ? "chromaHeightShift"
+								: mismatch.endsWith("profile") ? "profile"
+										: mismatch.endsWith("level") ? "level"
+												: mismatch.equals("unknown-range") ? "rangeKnown" : "fullRange";
+		assertTrue(failure.getMessage().contains(field + " expected="), failure.getMessage());
 		assertEquals(2, probes.get(), "Rejection must come from post-encode output validation");
 		assertEquals("original", Files.readString(params.getOutputPath()));
 		assertEquals("not real video", Files.readString(params.getInputPath()));
@@ -301,6 +308,50 @@ class VideoConverterExecutionTest {
 		var result = converter.convert(params);
 		assertEquals(params.getCodec(), result.plan().codec());
 		assertEquals("valid encoding", Files.readString(params.getOutputPath()));
+		assertNoTemporaryFiles();
+	}
+
+	@Test
+	void validationFailureReportsEncoderWarnings() throws Exception {
+		var params = request(directory);
+		executable(params);
+		params.setCodec(StreamCodingType.H265_HEVC);
+		var source = encodedMetadata("hdr10", "valid");
+		var output = encodedMetadata("hdr10", "wrong-profile");
+		Process process = completed(0, "", "chromaloc disabled by encoder\n");
+		var converter = new VideoConverter((key, fallback) -> fallback,
+				path -> path.equals(params.getInputPath()) ? source : output, new EncoderProcessRunner(command -> {
+					Files.writeString(Path.of(command.getLast()), "encoded");
+					return process;
+				}));
+		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
+		assertTrue(failure.getMessage().contains("profile expected=2 actual=1"), failure.getMessage());
+		assertTrue(failure.getMessage().contains("Encoder warnings:"), failure.getMessage());
+		assertTrue(failure.getMessage().contains("chromaloc disabled"), failure.getMessage());
+		assertFalse(Files.exists(params.getOutputPath()));
+		assertNoTemporaryFiles();
+	}
+
+	@ParameterizedTest
+	@CsvSource({ "valid,missing-chroma-location", "valid,unspecified-chroma-location", "valid,wrong-chroma-location",
+			"missing-chroma-location,wrong-chroma-location" })
+	void chromaLocationMismatchIsBestEffortWarning(String sourceState, String mismatch) throws Exception {
+		var params = request(directory);
+		executable(params);
+		params.setCodec(StreamCodingType.H265_HEVC);
+		var source = encodedMetadata("hdr10", sourceState);
+		var output = encodedMetadata("hdr10", mismatch);
+		Process process = completed(0, "", "");
+		var converter = new VideoConverter((key, fallback) -> fallback,
+				path -> path.equals(params.getInputPath()) ? source : output, new EncoderProcessRunner(command -> {
+					Files.writeString(Path.of(command.getLast()), "encoded");
+					return process;
+				}));
+		var result = converter.convert(params);
+		assertEquals(Compliance.BEST_EFFORT, result.compliance());
+		assertTrue(result.warnings().stream().anyMatch(warning -> warning.contains("chromaLocation expected=3")),
+				result.warnings().toString());
+		assertEquals("encoded", Files.readString(params.getOutputPath()));
 		assertNoTemporaryFiles();
 	}
 

@@ -150,8 +150,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			}
 		}
 		require(video != null, "One AVC/HEVC video is required");
-		require(sourceInfo.getStreams().stream().filter(s -> s.getCodingType() != null && s.getCodingType().isVideo())
-				.count() == 1, "Secondary/multiview video is unsupported");
+		validateSourceVideo(sourceInfo, video);
 		Path originalExtraction = stage.resolve("source-check");
 		M2tsTimingManifest actualSource = extract(source, sourceInfo, originalExtraction, retained);
 		Map<Integer, StreamTiming> actualTimings = index(actualSource);
@@ -248,7 +247,8 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		// PMT registration need not repeat display aspect. Geometry and frame-grid checks above
 		// establish that these original CLPI values still describe the normalized video.
 		var regenOptions = new ClpiRegenOptions();
-		var originalVideo = originalClpi.getStreams().stream().filter(s -> s.getCodingType().isVideo()).findFirst()
+		int videoPid = video.getPid();
+		var originalVideo = originalClpi.getStreams().stream().filter(s -> s.getPid() == videoPid).findFirst()
 				.orElseThrow(() -> new IOException("Source CLPI has no video metadata"));
 		var videoMetadata = new ClpiRegenOptions.VideoOverrides();
 		videoMetadata.setVideoFormat(originalVideo.getVideoFormat());
@@ -275,7 +275,8 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		// Independently regenerate the SOURCE too: comparing a native CLPI directly with
 		// BRTS's last-picture-PTS convention incorrectly rejects an exclusive native end.
 		// Never copy source packet counts or entry points into the new transport.
-		ClipInfo sourceScan = new M2tsClpiRegenBuilder().build(source, descriptor.getOutputName(), regenOptions);
+		ClipInfo sourceScan = new M2tsClpiRegenBuilder().build(source, descriptor.getOutputName(),
+				sourceRegenOptions(sourceInfo, video, regenOptions));
 		validateSourceBounds(originalClpi, sourceScan, timings.get(video.getPid()));
 		ClipInfo clip = new M2tsClpiRegenBuilder().build(normalized, descriptor.getOutputName(), regenOptions);
 		require(Objects.equals(sourceScan.getTsRecordingStartPts(), clip.getTsRecordingStartPts())
@@ -301,6 +302,36 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		SourceFingerprint.verify(source, descriptor.getSourceM2tsSha256());
 		SourceFingerprint.verify(sourceClpi, descriptor.getSourceClpiSha256());
 		PreservationPublication.publish(root, normalized, normalizedClpi, target, targetClpi);
+	}
+
+	/** Source-only comparison options; the accepted companion is not retained or published. */
+	static ClpiRegenOptions sourceRegenOptions(M2tsInfo sourceInfo, M2tsDescriptor.StreamEntry video,
+			ClpiRegenOptions outputOptions) throws IOException {
+		validateSourceVideo(sourceInfo, video);
+		var options = new ClpiRegenOptions();
+		options.setProbeMode(outputOptions.getProbeMode());
+		options.setVideoStreams(new HashMap<>(outputOptions.getVideoStreams()));
+		options.setAudioStreams(new HashMap<>(outputOptions.getAudioStreams()));
+		options.setSubtitleStreams(new HashMap<>(outputOptions.getSubtitleStreams()));
+		for (var stream : sourceInfo.getStreams()) {
+			if (stream.getCodingType() != null && stream.getCodingType().isVideo() && stream.getPid() != video.getPid())
+				options.getExcludedStreamPids().add(stream.getPid());
+		}
+		return options;
+	}
+
+	static void validateSourceVideo(M2tsInfo sourceInfo, M2tsDescriptor.StreamEntry video) throws IOException {
+		var videos = sourceInfo.getStreams().stream()
+				.filter(s -> s.getCodingType() != null && s.getCodingType().isVideo()).toList();
+		// Match batch preparation's PID/codec heuristic; actual Dolby Vision metadata is not checked.
+		// Only retain the primary video, never the companion.
+		boolean ignoredDolbyVisionCompanion = videos.size() == 2 && video.getPid() == 0x1011
+				&& video.getStreamTypeByte() == StreamCodingType.H265_HEVC.getCodingTypeByte()
+				&& videos.stream()
+						.anyMatch(s -> s.getPid() == 0x1011 && s.getCodingType() == StreamCodingType.H265_HEVC)
+				&& videos.stream()
+						.anyMatch(s -> s.getPid() == 0x1015 && s.getCodingType() == StreamCodingType.H265_HEVC);
+		require(videos.size() == 1 || ignoredDolbyVisionCompanion, "Secondary/multiview video is unsupported");
 	}
 
 	private static void validateFields(M2tsDescriptor descriptor) throws IOException {
@@ -520,47 +551,109 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 						+ "unproven presentation padding is unsupported (end=" + end + ", last PTS=" + last + ")");
 	}
 
-	private static void validateClip(ClipInfo original, ClipInfo output, Set<Integer> retained) throws IOException {
+	static void validateClip(ClipInfo original, ClipInfo output, Set<Integer> retained) throws IOException {
 		require(output.getStreams() != null && output.getStreams().size() == retained.size(),
-				"CLPI stream count differs");
+				"CLPI stream count differs: expected=" + retained.size() + ", output="
+						+ (output.getStreams() == null ? "null" : output.getStreams().size()) + ", retainedPids="
+						+ retained + ", sourceStreams=" + clipStreamsDiagnostic(original) + ", outputStreams="
+						+ clipStreamsDiagnostic(output));
 		for (ClipStream stream : output.getStreams()) {
 			ClipStream source = original.getStreams().stream().filter(s -> s.getPid() == stream.getPid()).findFirst()
-					.orElseThrow(() -> new IOException("Regenerated CLPI has unknown PID"));
+					.orElseThrow(() -> new IOException("M2TS preservation: Regenerated CLPI has unknown PID "
+							+ stream.getPid() + ": outputStream=" + clipStreamDiagnostic(stream) + ", sourceStreams="
+							+ clipStreamsDiagnostic(original) + ", retainedPids=" + retained));
 			require(retained.contains(stream.getPid()) && source.getCodingType() == stream.getCodingType(),
-					"CLPI codec/PID changed");
+					"CLPI codec/PID changed: retained=" + retained.contains(stream.getPid()) + ", retainedPids="
+							+ retained + ", sourceStream=" + clipStreamDiagnostic(source) + ", outputStream="
+							+ clipStreamDiagnostic(stream));
+			List<String> differences = new ArrayList<>();
 			if (stream.getCodingType().isVideo()) {
-				require(source.getVideoFormat() != null && source.getFrameRate() != null
-						&& Objects.equals(source.getVideoFormat(), stream.getVideoFormat())
-						&& Objects.equals(source.getFrameRate(), stream.getFrameRate())
-						&& Objects.equals(source.getAspectRatio(), stream.getAspectRatio()),
-						"Video format/frame rate/aspect changed or unknown");
-				if (stream.getCodingType() == StreamCodingType.H265_HEVC)
-					require(Objects.equals(source.getDynamicRangeType(), stream.getDynamicRangeType())
-							&& Objects.equals(source.getColorSpace(), stream.getColorSpace())
-							&& Objects.equals(source.getHdrPlusFlag(), stream.getHdrPlusFlag()),
-							"HEVC HDR/color contract changed or unproven");
-				require(!Boolean.TRUE.equals(source.getOcFlag()) && !Boolean.TRUE.equals(source.getCrFlag()),
-						"Video OC/CR signaling cannot be preserved by this pipeline");
+				clipFieldDifference(differences, "videoFormat", source.getVideoFormat(), stream.getVideoFormat(), true);
+				clipFieldDifference(differences, "frameRate", source.getFrameRate(), stream.getFrameRate(), true);
+				clipFieldDifference(differences, "aspectRatio", source.getAspectRatio(), stream.getAspectRatio(),
+						false);
+				if (stream.getCodingType() == StreamCodingType.H265_HEVC) {
+					clipFieldDifference(differences, "dynamicRangeType", source.getDynamicRangeType(),
+							stream.getDynamicRangeType(), false);
+					clipFieldDifference(differences, "colorSpace", source.getColorSpace(), stream.getColorSpace(),
+							false);
+					// The probe leaves unproven HDR10+ absence null, which ClipInfoWriter encodes as false.
+					if (Boolean.TRUE.equals(source.getHdrPlusFlag()) != Boolean.TRUE.equals(stream.getHdrPlusFlag()))
+						differences.add("hdrPlusFlag: source=" + source.getHdrPlusFlag() + ", output="
+								+ stream.getHdrPlusFlag() + " (changed)");
+				}
+				if (Boolean.TRUE.equals(source.getOcFlag()))
+					differences
+							.add("ocFlag: source=true is unsupported by this pipeline; output=" + stream.getOcFlag());
+				if (Boolean.TRUE.equals(source.getCrFlag()))
+					differences
+							.add("crFlag: source=true is unsupported by this pipeline; output=" + stream.getCrFlag());
 			} else {
-				require(Objects.equals(source.getLanguage(), stream.getLanguage()), "Retained stream language changed");
-				if (stream.getCodingType().isAudio())
-					require(Objects.equals(source.getAudioChannelLayout(), stream.getAudioChannelLayout())
-							&& Objects.equals(source.getSampleRate(), stream.getSampleRate()),
-							"Retained audio metadata changed");
+				clipFieldDifference(differences, "language", source.getLanguage(), stream.getLanguage(), false);
+				if (stream.getCodingType().isAudio()) {
+					clipFieldDifference(differences, "audioChannelLayout", source.getAudioChannelLayout(),
+							stream.getAudioChannelLayout(), false);
+					clipFieldDifference(differences, "sampleRate", source.getSampleRate(), stream.getSampleRate(),
+							false);
+				}
 			}
+			require(differences.isEmpty(),
+					"CLPI stream metadata validation failed: " + String.join("; ", differences) + "; sourceStream="
+							+ clipStreamDiagnostic(source) + "; outputStream=" + clipStreamDiagnostic(stream));
 		}
 		require(output.getEpMap() != null && output.getEpMap().getStreams() != null
 				&& output.getEpMap().getStreams().stream()
 						.anyMatch(s -> s.getEntries() != null && !s.getEntries().isEmpty()),
-				"Regenerated CLPI lacks random-access entry points");
-		require(original.getTsRecordingStartPts() != null && original.getTsRecordingEndPts() != null
-				&& output.getTsRecordingStartPts() != null && output.getTsRecordingEndPts() != null
-				&& original.getTsRecordingStartPts().equals(output.getTsRecordingStartPts())
-				&& original.getTsRecordingEndPts().equals(output.getTsRecordingEndPts())
-				&& Timestamp.ofTicks(
-						original.getTsRecordingEndPts().getTicks() - original.getTsRecordingStartPts().getTicks())
-						.equals(output.getDuration()),
-				"Regenerated CLPI presentation bounds differ from source");
+				"Regenerated CLPI lacks random-access entry points: output.epMap="
+						+ (output.getEpMap() == null ? "null" : "present") + ", output.epMap.streamEntryCounts="
+						+ (output.getEpMap() == null || output.getEpMap().getStreams() == null ? "null"
+								: output.getEpMap().getStreams().stream().map(
+										s -> s.getEntries() == null ? "null" : String.valueOf(s.getEntries().size()))
+										.toList()));
+		List<String> differences = new ArrayList<>();
+		clipFieldDifference(differences, "tsRecordingStartPts (90 kHz ticks)", ticks(original.getTsRecordingStartPts()),
+				ticks(output.getTsRecordingStartPts()), true);
+		clipFieldDifference(differences, "tsRecordingEndPts (90 kHz ticks)", ticks(original.getTsRecordingEndPts()),
+				ticks(output.getTsRecordingEndPts()), true);
+		Long expectedDuration = original.getTsRecordingStartPts() == null || original.getTsRecordingEndPts() == null
+				? null
+				: original.getTsRecordingEndPts().getTicks() - original.getTsRecordingStartPts().getTicks();
+		clipFieldDifference(differences, "duration (90 kHz ticks, expected from source end-start)", expectedDuration,
+				ticks(output.getDuration()), true);
+		require(differences.isEmpty(),
+				"Regenerated CLPI presentation bounds differ from source: " + String.join("; ", differences)
+						+ "; source=" + clipBoundsDiagnostic(original) + "; output=" + clipBoundsDiagnostic(output));
+	}
+
+	private static void clipFieldDifference(List<String> differences, String field, Object source, Object output,
+			boolean required) {
+		if (required && source == null || !Objects.equals(source, output))
+			differences.add(field + ": source=" + source + ", output=" + output
+					+ (required && source == null ? " (required source value is missing)" : " (changed)"));
+	}
+
+	private static String clipStreamsDiagnostic(ClipInfo clip) {
+		return clip.getStreams() == null ? "null"
+				: clip.getStreams().stream().map(PreservingM2tsClipWriter::clipStreamDiagnostic).toList().toString();
+	}
+
+	private static String clipStreamDiagnostic(ClipStream stream) {
+		return "{pid=" + stream.getPid() + " (0x" + Integer.toHexString(stream.getPid()) + "), codingType="
+				+ stream.getCodingType() + ", videoFormat=" + stream.getVideoFormat() + ", frameRate="
+				+ stream.getFrameRate() + ", aspectRatio=" + stream.getAspectRatio() + ", dynamicRangeType="
+				+ stream.getDynamicRangeType() + ", colorSpace=" + stream.getColorSpace() + ", hdrPlusFlag="
+				+ stream.getHdrPlusFlag() + ", ocFlag=" + stream.getOcFlag() + ", crFlag=" + stream.getCrFlag()
+				+ ", language=" + stream.getLanguage() + ", audioChannelLayout=" + stream.getAudioChannelLayout()
+				+ ", sampleRate=" + stream.getSampleRate() + "}";
+	}
+
+	private static Long ticks(Timestamp timestamp) {
+		return timestamp == null ? null : timestamp.getTicks();
+	}
+
+	private static String clipBoundsDiagnostic(ClipInfo clip) {
+		return "{tsRecordingStartPts=" + ticks(clip.getTsRecordingStartPts()) + ", tsRecordingEndPts="
+				+ ticks(clip.getTsRecordingEndPts()) + ", duration=" + ticks(clip.getDuration()) + "} (90 kHz ticks)";
 	}
 
 	private static void force(Path path) throws IOException {

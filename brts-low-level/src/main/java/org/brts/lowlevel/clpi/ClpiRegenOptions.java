@@ -24,7 +24,9 @@
 package org.brts.lowlevel.clpi;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -41,6 +43,12 @@ public class ClpiRegenOptions {
 	}
 
 	private ProbeMode probeMode = ProbeMode.BEST_EFFORT;
+
+	/**
+	 * Source transport PIDs omitted from CLPI metadata, probing and primary-video selection. This does not rewrite the
+	 * transport or change packet numbering/PCR information. Empty or null includes every stream.
+	 */
+	private Set<Integer> excludedStreamPids = new LinkedHashSet<>();
 
 	/**
 	 * Keys are transport PIDs (decimal JSON object keys), not FFmpeg stream indexes.
