@@ -40,7 +40,7 @@ import org.brts.cli.LowLevelDispatcher;
 import org.brts.cli.low.VideoConvertCli.Convert;
 import org.brts.cli.low.VideoConvertCli.ConvertOptions;
 import org.brts.common.model.StreamCodingType;
-import org.brts.lowlevel.utils.video.FrameRate;
+import org.brts.common.video.FrameRate;
 import org.brts.lowlevel.utils.video.VideoConversionParams;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.brts.lowlevel.utils.video.VideoConversionParams.RateControl;

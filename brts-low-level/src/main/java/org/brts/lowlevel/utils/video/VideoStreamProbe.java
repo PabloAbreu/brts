@@ -22,6 +22,8 @@
  */
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import static org.bytedeco.ffmpeg.global.avcodec.*;
 import static org.bytedeco.ffmpeg.global.avformat.*;
 import static org.bytedeco.ffmpeg.global.avutil.*;

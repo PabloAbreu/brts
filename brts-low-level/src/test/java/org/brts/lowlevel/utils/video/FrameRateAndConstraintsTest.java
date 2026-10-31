@@ -22,6 +22,8 @@
  */
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import static org.brts.common.model.StreamCodingType.H264_AVC;
 import static org.brts.common.model.StreamCodingType.H265_HEVC;
 import static org.junit.jupiter.api.Assertions.assertEquals;

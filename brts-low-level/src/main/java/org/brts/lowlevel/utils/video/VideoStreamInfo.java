@@ -23,6 +23,8 @@
 
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 /**
  * Immutable probe snapshot. Null timing/color/HDR values mean absent metadata; inputFormat is an ES demuxer name.
  * Mastering-display and light-level strings use native x265/HWEnc units and syntax. Unknown numeric metadata is -1.

@@ -1,7 +1,7 @@
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- * This file 'brts-low-level/src/main/java/org/brts/lowlevel/utils/video/FrameRate.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/video/FrameRate.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,30 +12,33 @@
  * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Lesser Public License for more details.
  * 
  * You should have received a copy of the GNU General Lesser Public
- * License along with this program.  If not, see
+ * License along with this program. If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
-package org.brts.lowlevel.utils.video;
+package org.brts.common.video;
 
 import java.util.List;
 
 /** Exact frames per second; fractional broadcast rates must not be rounded to integers. */
-public record FrameRate(int numerator, int denominator) {
+public record FrameRate(int numerator, int denominator, int frameRateCode) {
 
-	public static final FrameRate FPS_23976 = new FrameRate(24000, 1001);
-	public static final FrameRate FPS_24 = new FrameRate(24, 1);
-	public static final FrameRate FPS_25 = new FrameRate(25, 1);
-	public static final FrameRate FPS_2997 = new FrameRate(30000, 1001);
-	public static final FrameRate FPS_30 = new FrameRate(30, 1);
-	public static final FrameRate FPS_50 = new FrameRate(50, 1);
-	public static final FrameRate FPS_5994 = new FrameRate(60000, 1001);
-	public static final FrameRate FPS_60 = new FrameRate(60, 1);
+	public static final FrameRate FPS_23976 = new FrameRate(24000, 1001, 1);
+	public static final FrameRate FPS_24 = new FrameRate(24, 1, 2);
+	public static final FrameRate FPS_25 = new FrameRate(25, 1, 3);
+	public static final FrameRate FPS_2997 = new FrameRate(30000, 1001, 4);
+	public static final FrameRate FPS_30 = new FrameRate(30, 1, -1);
+	public static final FrameRate FPS_50 = new FrameRate(50, 1, 6);
+	public static final FrameRate FPS_5994 = new FrameRate(60000, 1001, 7);
+	public static final FrameRate FPS_60 = new FrameRate(60, 1, -1);
+
+	private static final List<FrameRate> supportedRates = List.of(FPS_23976, FPS_24, FPS_25, FPS_2997, FPS_30, FPS_50,
+			FPS_5994, FPS_60);
 
 	public FrameRate {
 		if (numerator <= 0 || denominator <= 0)
@@ -50,8 +53,23 @@ public record FrameRate(int numerator, int denominator) {
 		denominator /= a;
 	}
 
+	public FrameRate(int numerator, int denominator) {
+		this(numerator, denominator, of(numerator, denominator).frameRateCode());
+	}
+
 	public static FrameRate of(int numerator, int denominator) {
-		return new FrameRate(numerator, denominator);
+		FrameRate normalized = new FrameRate(numerator, denominator, -1);
+		for (FrameRate rate : supportedRates())
+			if (rate.numerator == normalized.numerator && rate.denominator == normalized.denominator)
+				return rate;
+		return normalized;
+	}
+
+	public static FrameRate fromCode(int frameRateCode) {
+		for (FrameRate rate : supportedRates())
+			if (frameRateCode >= 0 && rate.frameRateCode == frameRateCode)
+				return rate;
+		throw new IllegalArgumentException("Unsupported frame rate code: " + frameRateCode);
 	}
 
 	/** Accepts exact fractions and customary decimal aliases such as 23.976. */
@@ -69,7 +87,7 @@ public record FrameRate(int numerator, int denominator) {
 	}
 
 	public static List<FrameRate> supportedRates() {
-		return List.of(FPS_23976, FPS_24, FPS_25, FPS_2997, FPS_30, FPS_50, FPS_5994, FPS_60);
+		return supportedRates;
 	}
 
 	public double asDouble() {

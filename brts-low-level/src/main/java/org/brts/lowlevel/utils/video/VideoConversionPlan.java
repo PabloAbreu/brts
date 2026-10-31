@@ -23,6 +23,8 @@
 
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;

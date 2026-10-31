@@ -44,7 +44,7 @@ import org.brts.lowlevel.batch.BatchArgument;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.batch.BatchStep;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
-import org.brts.lowlevel.utils.video.FrameRate;
+import org.brts.common.video.FrameRate;
 
 /** Engine-independent, metadata-only batch preparation. Execution belongs to the calling layer. */
 public final class BatchWholeM2tsConverter implements WholeM2tsConverter {

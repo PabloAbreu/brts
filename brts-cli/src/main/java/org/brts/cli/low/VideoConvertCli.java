@@ -36,7 +36,7 @@ import java.util.Objects;
 import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.model.StreamCodingType;
-import org.brts.lowlevel.utils.video.FrameRate;
+import org.brts.common.video.FrameRate;
 import org.brts.lowlevel.utils.video.VideoConversionParams;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.brts.lowlevel.utils.video.VideoConversionParams.RateControl;

@@ -58,7 +58,7 @@ import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.parser.ClipInfoParser;
-import org.brts.lowlevel.utils.video.FrameRate;
+import org.brts.common.video.FrameRate;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 
 import lombok.extern.slf4j.Slf4j;
@@ -526,15 +526,8 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		var metadata = original.getStreams().stream().filter(s -> s.getPid() == video.pid()).findFirst()
 				.orElseThrow(() -> new IOException("Source CLPI lacks video frame rate"));
 		require(metadata.getFrameRate() != null, "Source CLPI lacks video frame rate");
-		FrameRate rate = switch (metadata.getFrameRate()) {
-		case 1 -> FrameRate.FPS_23976;
-		case 2 -> FrameRate.FPS_24;
-		case 3 -> FrameRate.FPS_25;
-		case 4 -> FrameRate.FPS_2997;
-		case 6 -> FrameRate.FPS_50;
-		case 7 -> FrameRate.FPS_5994;
-		default -> throw new IOException("Unsupported source CLPI frame rate: " + metadata.getFrameRate());
-		};
+		FrameRate rate = FrameRate.fromCode(metadata.getFrameRate());
+		// case block removed as FrameRate.fromCode handles it
 		long periodNumerator = 90_000L * rate.denominator();
 		long floorFrame = periodNumerator / rate.numerator();
 		long ceilFrame = (periodNumerator + rate.numerator() - 1) / rate.numerator();

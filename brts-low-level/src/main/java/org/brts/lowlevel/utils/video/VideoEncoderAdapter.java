@@ -23,6 +23,8 @@
 
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import static org.brts.lowlevel.utils.video.VideoEncoderAdapter.args;
 import static org.brts.lowlevel.utils.video.VideoEncoderAdapter.nativeOptions;
 

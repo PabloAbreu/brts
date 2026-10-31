@@ -23,6 +23,8 @@
 
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;

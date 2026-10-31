@@ -23,6 +23,8 @@
 
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import java.util.List;
 
 import org.brts.common.model.StreamCodingType;

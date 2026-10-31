@@ -22,6 +22,8 @@
  */
 package org.brts.lowlevel.utils.video;
 
+import org.brts.common.video.FrameRate;
+
 import static org.brts.lowlevel.utils.video.VideoTestSupport.completed;
 import static org.brts.lowlevel.utils.video.VideoTestSupport.preview;
 import static org.brts.lowlevel.utils.video.VideoTestSupport.request;
