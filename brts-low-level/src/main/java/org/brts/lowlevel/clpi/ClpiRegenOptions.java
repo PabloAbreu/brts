@@ -42,6 +42,9 @@ public class ClpiRegenOptions {
 		BEST_EFFORT, STRICT, DISABLED
 	}
 
+	/**
+	 * Probe mode for CLPI regeneration. Determines how strictly the source transport is analyzed.
+	 */
 	private ProbeMode probeMode = ProbeMode.BEST_EFFORT;
 
 	/**
@@ -51,26 +54,46 @@ public class ClpiRegenOptions {
 	private Set<Integer> excludedStreamPids = new LinkedHashSet<>();
 
 	/**
+	 * Video stream overrides for CLPI regeneration.
+	 *
 	 * Keys are transport PIDs (decimal JSON object keys), not FFmpeg stream indexes.
 	 */
 	private Map<Integer, VideoOverrides> videoStreams = new LinkedHashMap<>();
+	/**
+	 * Audio stream overrides for CLPI regeneration.
+	 */
 	private Map<Integer, AudioOverrides> audioStreams = new LinkedHashMap<>();
+	/**
+	 * Subtitle stream overrides for CLPI regeneration.
+	 */
 	private Map<Integer, SubtitleOverrides> subtitleStreams = new LinkedHashMap<>();
 
 	/** Nullable overrides; explicit zero and false are authoritative. */
 	@Getter
 	@Setter
 	public static class VideoOverrides {
+		/** Video format code, or {@code null} to retain the detected value. */
 		private Integer videoFormat;
+		/** Frame-rate code, or {@code null} to retain the detected value. */
 		private Integer frameRate;
+		/** Aspect-ratio code, or {@code null} to retain the detected value. */
 		private Integer aspectRatio;
+		/** Original-content flag value, or {@code null} to retain the detected value. */
 		private Boolean ocFlag;
+		/** Constant-rate flag value, or {@code null} to retain the detected value. */
 		private Boolean crFlag;
+		/** Dynamic-range type code, or {@code null} to retain the detected value. */
 		private Integer dynamicRangeType;
+		/** Color-space code, or {@code null} to retain the detected value. */
 		private Integer colorSpace;
+		/** HDR10+ flag value, or {@code null} to retain the detected value. */
 		private Boolean hdrPlusFlag;
 	}
 
+	/**
+	 * Nullable overrides for audio metadata associated with a transport PID. A null field retains its detected value;
+	 * explicit zero and false values are applied as supplied.
+	 */
 	@Getter
 	@Setter
 	public static class AudioOverrides {
@@ -86,6 +109,10 @@ public class ClpiRegenOptions {
 		private String language;
 	}
 
+	/**
+	 * Nullable overrides for subtitle metadata associated with a transport PID. A null field retains its detected
+	 * value; explicit zero and false values are applied as supplied.
+	 */
 	@Getter
 	@Setter
 	public static class SubtitleOverrides {

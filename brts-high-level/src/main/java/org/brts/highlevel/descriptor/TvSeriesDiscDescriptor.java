@@ -53,8 +53,14 @@ import java.util.List;
 @Setter
 public class TvSeriesDiscDescriptor extends HighLevelDiscDescriptor {
 
+	/**
+	 * Name of the TV series.
+	 */
 	private String seriesName;
 
+	/**
+	 * Season number of the TV series on this disc.
+	 */
 	private int seasonNumber;
 
 	/**

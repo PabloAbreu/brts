@@ -53,22 +53,33 @@ import java.util.List;
 @Setter
 public class MovieDiscDescriptor extends HighLevelDiscDescriptor {
 
+	/** The movie's main feature. */
 	private MovieFeature mainFeature;
 
+	/** Optional bonus tracks included on the disc. */
 	private List<MovieFeature> bonusTracks;
 
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Represents a single movie feature on the disc, including the source MKV file, optional display label, and the
+	 * audio and subtitle languages to include.
+	 *
+	 */
 	@Getter
 	@Setter
 	public static class MovieFeature {
 
+		/** Path to the source MKV file. */
 		private String sourceMkv;
 
+		/** Optional display label for this feature. */
 		private String label;
 
+		/** Audio languages to include, expressed as language codes. */
 		private List<String> audioLanguages;
 
+		/** Subtitle languages to include, expressed as language codes. */
 		private List<String> subtitleLanguages;
 
 	}
