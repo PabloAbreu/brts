@@ -60,7 +60,7 @@ public class MoviePlaylistWriter implements BlurayFileWriter<MoviePlaylist> {
 		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);
 		w.writeAscii(MAGIC);
-		w.writeAscii(VERSION);
+		w.writeAscii(model.getVersion() != null ? model.getVersion() : VERSION);
 		w.writeInt(playlistOffset);
 		w.writeInt(playlistMarkOffset);
 		w.writeInt(extensionOffset);

@@ -24,6 +24,8 @@
 package org.brts.lowlevel.model.mpls;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -45,7 +47,12 @@ import java.util.List;
 @Setter
 public class MoviePlaylist {
 
+	/** Version of the MPLS file format (default 0200). */
+	private String version;
+
 	/** Playlist number (5-digit, e.g. "00001"). */
+	@NotNull(message = "playlistName must contain exactly five digits")
+	@Pattern(regexp = "[0-9]{5}", message = "playlistName must contain exactly five digits")
 	private String playlistName;
 
 	/** If true, the playlist represents a menu (IG stream drives navigation). */

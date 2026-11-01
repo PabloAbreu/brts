@@ -24,13 +24,18 @@
 package org.brts.lowlevel.roundtrip;
 
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
 import org.brts.lowlevel.model.mpls.*;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -168,6 +173,20 @@ class MoviePlaylistRoundTripTest {
 		assertThat(spi.getOutTimeTicks()).isEqualTo(900_000L);
 		assertThat(spi.getSyncPlayItemId()).isEqualTo(0);
 		assertThat(spi.getSyncStartPtsTicks()).isEqualTo(0L);
+	}
+
+	@Test
+	@RequiresSamples("PB/BDMV/PLAYLIST/00600.mpls")
+	void roundTrip_realPlaylistFile_fieldsPreserved(@TempDir Path tempDir) throws IOException {
+		Path inputFile = Samples.sample("PB/BDMV/PLAYLIST/00600.mpls");
+		Path roundTripFile = tempDir.resolve("00600-roundtrip.mpls");
+
+		MoviePlaylist original = parser.parse(inputFile);
+		writer.write(original, roundTripFile);
+		MoviePlaylist reparsed = parser.parse(roundTripFile);
+
+		assertThat(roundTripFile).exists().isRegularFile();
+		assertThat(reparsed).usingRecursiveComparison().isEqualTo(original);
 	}
 
 	// ─── Menu detection tests ───────────────────────────────────────────────

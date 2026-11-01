@@ -78,6 +78,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		r.skip(playlistOffset - r.getPosition());
 
 		MoviePlaylist playlist = new MoviePlaylist();
+		playlist.setVersion(version);
 
 		long plLength = r.readUnsignedInt();
 		r.skip(2); // reserved (2 bytes, no playbackType byte in this position)

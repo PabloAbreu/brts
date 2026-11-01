@@ -41,6 +41,8 @@ import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.kohsuke.args4j.Option;
 
+import jakarta.validation.Valid;
+
 /**
  * CLI for low-level MPLS (Movie Playlist) operations.
  */
@@ -71,6 +73,8 @@ public class PlaylistCli {
 		@Override
 		protected void execute(ParseOptions opts) throws Exception {
 			MoviePlaylist playlist = new MoviePlaylistParser().parse(opts.input.toPath());
+			// add the playlist name to the output.
+			playlist.setPlaylistName(opts.input.getName().replaceFirst("\\.mpls$", ""));
 			writeJson(opts.output, playlist);
 			if (opts.output != null) {
 				System.out.println("Parsed MPLS → " + opts.output);
@@ -81,6 +85,7 @@ public class PlaylistCli {
 
 	public static class WriteOptions extends BaseOptions {
 
+		@Valid
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
 		MoviePlaylist descriptor;
 
