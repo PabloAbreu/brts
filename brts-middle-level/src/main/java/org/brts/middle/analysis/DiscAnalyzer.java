@@ -100,6 +100,7 @@ public class DiscAnalyzer {
 		Path outputBdmv = normalizedOutput.resolve("BDMV");
 		List<ParsedFile> files = new ArrayList<>();
 		List<Diagnostic> diagnostics = new ArrayList<>();
+		compareBackupFiles(bdmv, diagnostics);
 		List<BatchStep> steps = new ArrayList<>();
 		addRequired(bdmv.resolve("index.bdmv"), outputBdmv.resolve("index.json"), "index-parse", "index", files, steps,
 				diagnostics);
@@ -149,6 +150,7 @@ public class DiscAnalyzer {
 				diagnostics.add(new Diagnostic(file.json().toString(), "Cannot read parsed data: " + e.getMessage()));
 			}
 		}
+		validateStreamConsistency(byKindAndName, parsed, diagnostics);
 		Map<String, Set<ParsedFile>> playlists = new LinkedHashMap<>();
 		parsed.forEach((file, data) -> {
 			if ("playlist".equals(file.kind())) {
@@ -176,6 +178,171 @@ public class DiscAnalyzer {
 		}
 		Files.writeString(plan.outputRoot().resolve("index.html"),
 				renderOverview(plan, rendered, diagnostics, deferred));
+	}
+
+	private static void validateStreamConsistency(Map<String, ParsedFile> known, Map<ParsedFile, JsonNode> parsed,
+			List<Diagnostic> diagnostics) {
+		Set<String> checkedInventories = new LinkedHashSet<>();
+		Map<String, Set<Integer>> clipPidsByClip = new HashMap<>();
+		Map<String, Set<Integer>> m2tsPidsByClip = new HashMap<>();
+		for (var playlistEntry : parsed.entrySet()) {
+			ParsedFile playlist = playlistEntry.getKey();
+			if (!"playlist".equals(playlist.kind())) {
+				continue;
+			}
+			JsonNode playItems = playlistEntry.getValue().path("playItems");
+			for (int itemIndex = 0; itemIndex < playItems.size(); itemIndex++) {
+				JsonNode item = playItems.get(itemIndex);
+				String clip = item.path("clipName").asText("");
+				if (clip.isBlank()) {
+					continue;
+				}
+				ParsedFile clipInfoFile = known.get("clipinfo:" + clip);
+				ParsedFile m2tsFile = known.get("m2ts:" + clip);
+				if (clipInfoFile == null) {
+					diagnostics.add(new Diagnostic(playlist.input().toString(),
+							"PlayItem " + (itemIndex + 1) + " references clip " + clip + " with no CLIPINF file."));
+				}
+				if (m2tsFile == null) {
+					diagnostics.add(new Diagnostic(playlist.input().toString(),
+							"PlayItem " + (itemIndex + 1) + " references clip " + clip + " with no STREAM file."));
+				}
+
+				if (checkedInventories.add(clip)) {
+					JsonNode clipInfo = clipInfoFile == null ? null : parsed.get(clipInfoFile);
+					JsonNode m2ts = m2tsFile == null ? null : parsed.get(m2tsFile);
+					Set<Integer> clipPids = clipInfo == null ? null
+							: streamPids(clipInfo, "CLPI", clipInfoFile, diagnostics);
+					Set<Integer> m2tsPids = m2ts == null ? null : streamPids(m2ts, "M2TS", m2tsFile, diagnostics);
+					if (clipPids != null) {
+						clipPidsByClip.put(clip, clipPids);
+					}
+					if (m2tsPids != null) {
+						m2tsPidsByClip.put(clip, m2tsPids);
+					}
+					if (clipInfo != null && m2ts != null) {
+						compareStreamInventories(clip, clipInfoFile, clipInfo, m2ts, clipPids, m2tsPids, diagnostics);
+					}
+				}
+
+				JsonNode playlistStreams = item.path("streams");
+				if (!playlistStreams.isArray()) {
+					continue;
+				}
+				for (int streamIndex = 0; streamIndex < playlistStreams.size(); streamIndex++) {
+					JsonNode stream = playlistStreams.get(streamIndex);
+					int streamType = stream.path("streamType").asInt(0);
+					if (streamType == 2 || streamType == 3) {
+						continue;
+					}
+					if (!stream.path("pid").canConvertToInt()) {
+						diagnostics.add(new Diagnostic(playlist.input().toString(),
+								"PlayItem " + (itemIndex + 1) + " for clip " + clip
+										+ " has a stream without a valid PID at entry " + (streamIndex + 1) + "."));
+						continue;
+					}
+					int pid = stream.path("pid").intValue();
+					Set<Integer> clipPids = clipPidsByClip.get(clip);
+					Set<Integer> m2tsPids = m2tsPidsByClip.get(clip);
+					if (clipPids != null && !clipPids.contains(pid)) {
+						diagnostics.add(new Diagnostic(playlist.input().toString(), "PlayItem " + (itemIndex + 1)
+								+ " for clip " + clip + " references PID " + pid + " absent from CLPI."));
+					}
+					if (m2tsPids != null && !m2tsPids.contains(pid)) {
+						diagnostics.add(new Diagnostic(playlist.input().toString(), "PlayItem " + (itemIndex + 1)
+								+ " for clip " + clip + " references PID " + pid + " absent from M2TS."));
+					}
+				}
+			}
+		}
+	}
+
+	private static Set<Integer> streamPids(JsonNode data, String format, ParsedFile file,
+			List<Diagnostic> diagnostics) {
+		JsonNode streams = data.path("streams");
+		if (!streams.isArray()) {
+			diagnostics.add(new Diagnostic(file.input().toString(), format + " stream inventory is missing."));
+			return null;
+		}
+		Set<Integer> pids = new LinkedHashSet<>();
+		for (int index = 0; index < streams.size(); index++) {
+			JsonNode pid = streams.get(index).path("pid");
+			if (!pid.canConvertToInt()) {
+				diagnostics.add(new Diagnostic(file.input().toString(),
+						format + " stream entry " + (index + 1) + " has no valid PID."));
+			} else {
+				pids.add(pid.intValue());
+			}
+		}
+		return pids;
+	}
+
+	private static void compareStreamInventories(String clip, ParsedFile clipInfoFile, JsonNode clipInfo, JsonNode m2ts,
+			Set<Integer> clipPids, Set<Integer> m2tsPids, List<Diagnostic> diagnostics) {
+		JsonNode clipStreams = clipInfo.path("streams");
+		JsonNode m2tsStreams = m2ts.path("streams");
+		if (!clipStreams.isArray() || !m2tsStreams.isArray()) {
+			return;
+		}
+		if (clipStreams.size() != m2tsStreams.size()) {
+			diagnostics.add(new Diagnostic(clipInfoFile.input().toString(),
+					"Clip " + clip + " stream count differs between CLPI (" + clipStreams.size() + ") and M2TS ("
+							+ m2tsStreams.size() + ")."));
+		}
+		if (clipPids != null && m2tsPids != null && !clipPids.equals(m2tsPids)) {
+			Set<Integer> onlyClip = new LinkedHashSet<>(clipPids);
+			onlyClip.removeAll(m2tsPids);
+			Set<Integer> onlyM2ts = new LinkedHashSet<>(m2tsPids);
+			onlyM2ts.removeAll(clipPids);
+			diagnostics.add(new Diagnostic(clipInfoFile.input().toString(),
+					"Clip " + clip + " stream PIDs differ between CLPI and M2TS (only CLPI: " + onlyClip
+							+ "; only M2TS: " + onlyM2ts + ")."));
+		}
+		Map<Integer, Long> clipPidCounts = pidCounts(clipStreams);
+		Map<Integer, Long> m2tsPidCounts = pidCounts(m2tsStreams);
+		if (!clipPidCounts.equals(m2tsPidCounts) && (clipPids == null || clipPids.equals(m2tsPids))) {
+			diagnostics.add(new Diagnostic(clipInfoFile.input().toString(),
+					"Clip " + clip + " PID multiplicities differ between CLPI (" + clipPidCounts + ") and M2TS ("
+							+ m2tsPidCounts + ")."));
+		}
+	}
+
+	private static Map<Integer, Long> pidCounts(JsonNode streams) {
+		Map<Integer, Long> counts = new LinkedHashMap<>();
+		for (JsonNode stream : streams) {
+			JsonNode pid = stream.path("pid");
+			if (pid.canConvertToInt()) {
+				counts.merge(pid.intValue(), 1L, Long::sum);
+			}
+		}
+		return counts;
+	}
+
+	private static void compareBackupFiles(Path bdmv, List<Diagnostic> diagnostics) throws IOException {
+		Path backup = bdmv.resolve("BACKUP");
+		if (!Files.isDirectory(backup)) {
+			return;
+		}
+		try (Stream<Path> paths = Files.walk(backup)) {
+			for (Path copy : paths.filter(Files::isRegularFile).toList()) {
+				Path counterpart = bdmv.resolve(backup.relativize(copy));
+				if (!Files.isRegularFile(counterpart)) {
+					diagnostics.add(
+							new Diagnostic(copy.toString(), "BACKUP file has no normal counterpart: " + counterpart));
+					continue;
+				}
+				try {
+					long mismatch = Files.mismatch(copy, counterpart);
+					if (mismatch >= 0) {
+						diagnostics.add(new Diagnostic(copy.toString(),
+								"BACKUP differs from " + counterpart + " at byte offset " + mismatch + "."));
+					}
+				} catch (IOException e) {
+					diagnostics.add(new Diagnostic(copy.toString(),
+							"Cannot compare BACKUP file with " + counterpart + ": " + e.getMessage()));
+				}
+			}
+		}
 	}
 
 	private static void addRequired(Path input, Path output, String command, String kind, List<ParsedFile> files,

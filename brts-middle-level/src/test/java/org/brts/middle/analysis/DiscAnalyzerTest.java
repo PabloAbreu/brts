@@ -78,6 +78,73 @@ class DiscAnalyzerTest {
 	}
 
 	@Test
+	void prepareReportsBackupDifferencesAndMissingCounterparts() throws Exception {
+		Path disc = createDisc();
+		Path bdmv = disc.resolve("BDMV");
+		Path backup = Files.createDirectories(bdmv.resolve("BACKUP/PLAYLIST")).getParent();
+		Files.write(bdmv.resolve("index.bdmv"), new byte[] { 1, 2, 3 });
+		Files.write(backup.resolve("index.bdmv"), new byte[] { 1, 2, 3 });
+		Files.write(bdmv.resolve("MovieObject.bdmv"), new byte[] { 4, 5, 6 });
+		Files.write(backup.resolve("MovieObject.bdmv"), new byte[] { 4, 0, 6 });
+		Files.write(backup.resolve("PLAYLIST/99999.mpls"), new byte[] { 7 });
+
+		Path output = tempDir.resolve("backup-report");
+		DiscAnalyzer.Plan plan = analyzer.prepare(disc, output);
+		assertThat(plan.diagnostics()).hasSize(2).extracting(DiscAnalyzer.Diagnostic::message)
+				.anyMatch(message -> message.contains("differs") && message.contains("byte offset 1"))
+				.anyMatch(message -> message.contains("no normal counterpart"));
+
+		analyzer.render(plan, List.of(), false);
+		assertThat(Files.readString(output.resolve("index.html"))).contains("BACKUP differs",
+				"BACKUP file has no normal counterpart");
+	}
+
+	@Test
+	void streamConsistencyAcceptsPlaylistSelectionSubsetWithMatchingInventories() throws Exception {
+		Path disc = createDisc();
+		Path output = tempDir.resolve("consistent-streams");
+		DiscAnalyzer.Plan plan = analyzer.prepare(disc, output);
+		Files.writeString(output.resolve("BDMV/PLAYLIST/00001.json"), """
+				{"playItems":[{"clipName":"00002","streams":[{"pid":4113}]}]}
+				""");
+		Files.writeString(output.resolve("BDMV/CLIPINF/00002.json"), """
+				{"streams":[{"pid":4113},{"pid":4352}]}
+				""");
+		Files.writeString(output.resolve("BDMV/STREAM/00002.json"), """
+				{"streams":[{"pid":4113},{"pid":4352}]}
+				""");
+
+		analyzer.render(plan, List.of(), false);
+
+		assertThat(Files.readString(output.resolve("index.html"))).contains("No missing files or execution errors.")
+				.doesNotContain("stream count differs", "stream PIDs differ", "absent from CLPI", "absent from M2TS");
+	}
+
+	@Test
+	void streamConsistencyReportsPlaylistAndInventoryPidMismatches() throws Exception {
+		Path disc = createDisc();
+		Path output = tempDir.resolve("inconsistent-streams");
+		DiscAnalyzer.Plan plan = analyzer.prepare(disc, output);
+		Files.writeString(output.resolve("BDMV/PLAYLIST/00001.json"), """
+				{"playItems":[{"clipName":"00002","streams":[
+				{"pid":4113},{"pid":4352},{"pid":4608}]}]}
+				""");
+		Files.writeString(output.resolve("BDMV/CLIPINF/00002.json"), """
+				{"streams":[{"pid":4113},{"pid":4352}]}
+				""");
+		Files.writeString(output.resolve("BDMV/STREAM/00002.json"), """
+				{"streams":[{"pid":4113},{"pid":4354},{"pid":4355}]}
+				""");
+
+		analyzer.render(plan, List.of(), false);
+
+		String report = Files.readString(output.resolve("index.html"));
+		assertThat(report).contains("stream count differs between CLPI (2) and M2TS (3)",
+				"stream PIDs differ between CLPI and M2TS", "PID 4352 absent from M2TS", "PID 4608 absent from CLPI",
+				"PID 4608 absent from M2TS");
+	}
+
+	@Test
 	void htmlPagesContainCrossLinksAndEscapeParsedValues() throws Exception {
 		Path disc = createDisc();
 		Path output = tempDir.resolve("report");
