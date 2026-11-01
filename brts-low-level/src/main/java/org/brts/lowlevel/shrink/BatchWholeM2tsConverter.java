@@ -44,10 +44,19 @@ import org.brts.lowlevel.batch.BatchArgument;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.batch.BatchStep;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.brts.common.video.FrameRate;
 
 /** Engine-independent, metadata-only batch preparation. Execution belongs to the calling layer. */
+@Slf4j
 public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
+	private static final Set<StreamCodingType> SUPPORTED_RETAINED_TYPES = Set.of(StreamCodingType.H264_AVC,
+			StreamCodingType.H265_HEVC, StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS,
+			StreamCodingType.DOLBY_TRUEHD, StreamCodingType.DTS, StreamCodingType.DTS_HD,
+			StreamCodingType.DTS_HD_MASTER_AUDIO, StreamCodingType.DTS_EXPRESS, StreamCodingType.PRESENTATION_GRAPHICS);
+
 	@FunctionalInterface
 	public interface MetadataReader {
 		M2tsInfo read(Path source) throws IOException;
@@ -90,7 +99,9 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 		if (request.clipId() == null || !request.clipId().matches("[0-9]{5}")) {
 			throw new IllegalArgumentException("clipId must contain exactly five digits");
 		}
+		log.debug("Validating request for clip ID {}", request.clipId());
 		config.validate(inventory);
+		log.debug("Preparing conversion for clip ID {}", request.clipId());
 		if (nonempty(config.getAudioDowngrades()) || nonempty(config.getMinimumAudioBitrateKbps())
 				|| nonempty(config.getFixedAudioBitrateKbps()) || !plan.plannedAudioDowngrades().isEmpty()) {
 			throw new IllegalArgumentException("Audio transformations and bitrate hints are unsupported for execution");
@@ -134,17 +145,17 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 		retained.add(primaryVideo.pid());
 		retained.addAll(plan.retainedAudioPids());
 		retained.addAll(plan.retainedSubtitlePids());
+		log.debug("Retained PIDs for clip ID {}: {}", request.clipId(), retained);
 		for (var track : inventory.tracks()) {
 			if (track.codingType() == null || track.codingType().isMenu()) {
 				throw new IllegalArgumentException("Unknown/interactive streams are unsupported");
 			}
-			if (retained.contains(track.pid()) && !Set.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC,
-					StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS, StreamCodingType.DTS,
-					StreamCodingType.PRESENTATION_GRAPHICS).contains(track.codingType())) {
+			if (retained.contains(track.pid()) && !SUPPORTED_RETAINED_TYPES.contains(track.codingType())) {
 				throw new IllegalArgumentException("Unsupported retained codec: " + track.codingType());
 			}
 		}
 		int bitrate = ShrinkBitrateBudget.calculate(inventory, plan, retained);
+		log.debug("Calculated bitrate for clip ID {}: {}", request.clipId(), bitrate);
 		M2tsInfo info = metadataReader.read(source);
 		if (info.getStreams() == null || info.getStreams().size() != inventory.tracks().size()) {
 			throw new IOException("Source metadata changed or contains unsupported streams");

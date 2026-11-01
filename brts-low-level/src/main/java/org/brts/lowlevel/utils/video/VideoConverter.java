@@ -177,6 +177,7 @@ public final class VideoConverter {
 			command.set(command.size() - 1, temporary.toString());
 			log.info("Converting {} to {} using {} ({}x{}, {} fps)", plan.inputPath(), plan.outputPath(), plan.engine(),
 					plan.width(), plan.height(), plan.frameRate());
+			log.debug("Command: {}", String.join(" ", command));
 			List<String> warnings = new ArrayList<>(plan.warnings());
 			warnings.addAll(runner.run(command, plan.timeout()));
 			if (!Files.isRegularFile(temporary, LinkOption.NOFOLLOW_LINKS) || Files.size(temporary) == 0)

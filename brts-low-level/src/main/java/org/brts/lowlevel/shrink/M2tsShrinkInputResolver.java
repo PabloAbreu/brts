@@ -40,9 +40,11 @@ import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.parser.ClipInfoParser;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** Resolves and cross-checks the M2TS/CLPI pair for a disc root and five-digit clip ID. */
 @RequiredArgsConstructor
+@Slf4j
 public final class M2tsShrinkInputResolver {
 
 	@FunctionalInterface
@@ -77,8 +79,11 @@ public final class M2tsShrinkInputResolver {
 		requireReadableFile(m2ts, "M2TS");
 		requireReadableFile(clpi, "CLPI");
 		long bytes = Files.size(m2ts);
+		log.debug("Resolved M2TS file {} with size {}", m2ts, bytes);
 		M2tsInfo streamInfo = m2tsReader.parse(m2ts);
+		log.debug("Parsed M2TS stream info for file {}", m2ts);
 		ClipInfo clipInfo = clpiReader.parse(clpi);
+		log.debug("Parsed CLPI info for file {}", clpi);
 		if (clipInfo.getDuration() == null || clipInfo.getDuration().getTicks() <= 0) {
 			throw new IOException("CLPI has no positive duration: " + clpi);
 		}
@@ -105,6 +110,7 @@ public final class M2tsShrinkInputResolver {
 						+ pmtStream.getCodingType() + " vs " + clpiType);
 			}
 		}
+		log.debug("Counting packets for M2TS file {}", m2ts);
 		Map<Integer, Long> packetCounts = packetCounter.count(m2ts);
 		var tracks = pmtStreams.values().stream().filter(stream -> stream.getCodingType() != null).map(stream -> {
 			ClipStream clipStream = clpiStreams.get(stream.getPid());

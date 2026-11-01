@@ -35,12 +35,12 @@ import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.validation.ExistingDirectory;
+import org.brts.lowlevel.shrink.BatchWholeM2tsConverter;
 import org.brts.lowlevel.shrink.M2tsShrinkConfig;
 import org.brts.lowlevel.shrink.M2tsShrinkInputResolver;
 import org.brts.lowlevel.shrink.M2tsShrinkInventory;
 import org.brts.lowlevel.shrink.M2tsShrinkPlan;
 import org.brts.lowlevel.shrink.M2tsShrinkPlanner;
-import org.brts.lowlevel.shrink.BatchWholeM2tsConverter;
 import org.brts.lowlevel.shrink.WholeM2tsConverter.BatchExecutor;
 import org.brts.lowlevel.shrink.WholeM2tsConverter.M2tsConversionRequest;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
@@ -50,6 +50,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** Analyze shrink decisions and execute video-required conversion through a resumable batch. */
 public class M2tsShrinkCli {
@@ -69,7 +70,7 @@ public class M2tsShrinkCli {
 		@Option(name = "--clip-id", required = true, usage = "Five-digit clip identifier, e.g. 00001")
 		String clipId;
 
-		@JsonInputOption(name = "--config", required = true, usage = "Versioned m2ts-shrink JSON filtering config")
+		@JsonInputOption(name = "--config", usage = "m2ts-shrink JSON filtering config")
 		M2tsShrinkConfig config;
 
 		@Positive(message = "--target-bytes must be positive")
@@ -93,6 +94,7 @@ public class M2tsShrinkCli {
 	}
 
 	@RequiredArgsConstructor
+	@Slf4j
 	public static class Shrink extends FeatureRunner<Options> {
 
 		private final InventoryResolver resolver;
@@ -132,14 +134,16 @@ public class M2tsShrinkCli {
 
 		@Override
 		protected void execute(Options opts) throws Exception {
-			M2tsShrinkConfig config = opts.config;
+			M2tsShrinkConfig config = opts.config != null ? opts.config : new M2tsShrinkConfig();
 
 			if (opts.engine == null) {
 				opts.engine = Engine
 						.parse(BrtsFileConfig.getInstance().propertyOrDefault("brts.video.converter.engine", "ffmpeg"));
 			}
 			var inventory = resolver.resolve(opts.discRoot, opts.clipId);
+			log.debug("Resolved inventory for clip ID {}: {}", opts.clipId, inventory);
 			M2tsShrinkPlan plan = planner.plan(inventory, opts.clipId, config, opts.targetBytes, opts.engine);
+			log.debug("Planned shrink for clip ID {}: {}", opts.clipId, plan);
 			String json = JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(plan);
 			if (opts.report == null) {
 				System.out.println(json);

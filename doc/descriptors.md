@@ -42,6 +42,9 @@ source PIDs, coding types, languages and video format/frame rate; only the video
 to the converted elementary stream. Extracted filenames use `pid_%04x` and the standard codec
 extension, including `.pgs` containing timed SUP for PGS. The preservation writer requires
 tsMuxeR, validates source/timing compatibility and publishes only a validated M2TS/CLPI pair.
+The shrink preservation path supports retained AC3/E-AC3, Dolby TrueHD, DTS/DTS-HD HRA/DTS-HD
+MA/DTS Express audio and PGS; audio elementary streams are copied unchanged. Strict timing and
+layout validation may still reject incompatible source streams.
 Ordinary descriptors without preservation fields retain the existing writer behavior.
 
 Shrink preparation also records `sourceM2tsSha256` and `sourceClpiSha256` (streamed SHA-256

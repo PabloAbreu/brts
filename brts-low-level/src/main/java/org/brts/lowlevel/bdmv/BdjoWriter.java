@@ -43,7 +43,7 @@ import java.util.List;
  * <pre>
  * Header (48 bytes):
  *   magic                              : 4 bytes  ("BDJO")
- *   version                            : 4 bytes  (from model, e.g. "0200")
+	 *   version                            : 4 bytes  (from model: "0200" or "0300")
  *   TerminalInfoStartAddress           : 4 bytes
  *   AppCacheInfoStartAddress           : 4 bytes
  *   AccessiblePlaylistsStartAddress    : 4 bytes
@@ -61,10 +61,19 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 
 	private static final String DEFAULT_VERSION = "0200";
 
+	private static final String VERSION_300 = "0300";
+
 	private static final int HEADER_SIZE = 48;
 
 	@Override
 	public void write(Bdjo model, OutputStream output) throws IOException {
+		String version = model.getVersion() != null && !model.getVersion().isBlank() ? model.getVersion()
+				: DEFAULT_VERSION;
+		if (!DEFAULT_VERSION.equals(version) && !VERSION_300.equals(version)) {
+			throw new IllegalArgumentException(
+					"Unsupported BDJO write version: '" + version + "'; expected 0200 or 0300");
+		}
+
 		// Build each section
 		byte[] terminalInfo = buildTerminalInfoSection(model.getTerminalInfo());
 		byte[] appCacheInfo = buildAppCacheInfoSection(model.getAppCacheInfo());
@@ -80,9 +89,6 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 		int appMgmtTableAddr = accessiblePlaylistsAddr + accessiblePlaylists.length;
 		int keyInterestTableAddr = appMgmtTableAddr + appMgmtTable.length;
 		int fileAccessInfoAddr = keyInterestTableAddr + keyInterestTable.length;
-
-		String version = model.getVersion() != null && !model.getVersion().isBlank() ? model.getVersion()
-				: DEFAULT_VERSION;
 
 		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);

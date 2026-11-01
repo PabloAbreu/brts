@@ -35,7 +35,7 @@ public class Extensions {
 		case DOLBY_AC3 -> "ac3";
 		case DOLBY_AC3_PLUS -> "eac3";
 		case DOLBY_TRUEHD -> "thd";
-		case DTS -> "dts";
+		case DTS, DTS_EXPRESS -> "dts";
 		case DTS_HD -> "dtshd";
 		case DTS_HD_MASTER_AUDIO -> "dtsma";
 		case H264_AVC -> "h264";

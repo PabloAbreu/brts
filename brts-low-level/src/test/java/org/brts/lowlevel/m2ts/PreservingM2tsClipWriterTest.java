@@ -223,6 +223,36 @@ class PreservingM2tsClipWriterTest {
 	}
 
 	@Test
+	void acceptsDolbyAndDtsVariantCodecsAndMapsThemForTsMuxer() throws Exception {
+		Map<StreamCodingType, String> expectedCodecs = Map.of(StreamCodingType.DOLBY_TRUEHD, "A_TRUEHD",
+				StreamCodingType.DTS_HD, "A_DTS", StreamCodingType.DTS_HD_MASTER_AUDIO, "A_DTS",
+				StreamCodingType.DTS_EXPRESS, "A_DTS");
+		for (var entry : expectedCodecs.entrySet()) {
+			assertThat(PreservingM2tsClipWriter.isSupportedPreservationCodec(entry.getKey())).isTrue();
+			var descriptor = new M2tsDescriptor();
+			var video = video(0x1011, StreamCodingType.H265_HEVC);
+			video.setFrameRateFps(25.0);
+			var audio = new M2tsDescriptor.StreamEntry();
+			audio.setPid(0x1102);
+			audio.setStreamTypeByte(entry.getKey().getCodingTypeByte());
+			descriptor.setStreams(List.of(video, audio));
+			var audioTiming = timing(entry.getKey(), List.of(81_001L));
+			String meta = PreservingM2tsClipWriter.meta(descriptor,
+					List.of(temp.resolve("video.hevc"), temp.resolve("audio.bin")), Map.of(0x1102, audioTiming), 90_000,
+					true);
+			assertThat(meta).contains(entry.getValue() + ", ", "timeshift=-99ms");
+		}
+	}
+
+	@Test
+	void writerStillRejectsAudioCodecsOutsidePreservationSupport() {
+		for (var type : List.of(StreamCodingType.LPCM, StreamCodingType.TEXT_SUBTITLE,
+				StreamCodingType.INTERACTIVE_GRAPHICS)) {
+			assertThat(PreservingM2tsClipWriter.isSupportedPreservationCodec(type)).isFalse();
+		}
+	}
+
+	@Test
 	void wholeStreamSequenceCheckRejectsLaterSpsChanges() throws Exception {
 		Path stable = temp.resolve("stable.h264");
 		Files.write(stable, new byte[] { 0, 0, 0, 1, 0x67, 0x42, 0x23, (byte) 0x80, 0, 0, 1, 0x65, 7, 8, 0, 0, 1, 0x67,

@@ -23,6 +23,7 @@
 
 package org.brts.lowlevel.roundtrip;
 
+import org.brts.common.exception.ParseException;
 import org.brts.lowlevel.bdmv.BdjoWriter;
 import org.brts.lowlevel.model.bdmv.Bdjo;
 import org.brts.lowlevel.parser.BdjoParser;
@@ -30,10 +31,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Round-trip tests for {@code .bdjo}: write via {@link BdjoWriter}, re-parse via {@link BdjoParser}, and verify the
@@ -59,6 +62,40 @@ class BdjoRoundTripTest {
 	void version_written() throws Exception {
 		byte[] bytes = writeToBytes(buildMinimalBdjo());
 		assertThat(new String(bytes, 4, 4)).isEqualTo("0200");
+	}
+
+	@Test
+	void version_0300_writtenAndParsed() throws Exception {
+		Bdjo original = buildBdjoWithOneApp();
+		original.setVersion("0300");
+
+		byte[] bytes = writeToBytes(original);
+		assertThat(new String(bytes, 0, 8, StandardCharsets.US_ASCII)).isEqualTo("BDJO0300");
+
+		Bdjo reparsed = parser.parse(new ByteArrayInputStream(bytes));
+		assertThat(reparsed.getVersion()).isEqualTo("0300");
+		assertThat(reparsed.getApplications()).hasSize(1);
+		assertThat(reparsed.getApplications().get(0).getInitialClass()).isEqualTo("com.example.MyXlet");
+	}
+
+	@Test
+	void unsupportedParserVersion_isRejected() throws Exception {
+		byte[] bytes = writeToBytes(buildMinimalBdjo());
+		System.arraycopy("0400".getBytes(StandardCharsets.US_ASCII), 0, bytes, 4, 4);
+
+		assertThatThrownBy(() -> parser.parse(new ByteArrayInputStream(bytes))).isInstanceOf(ParseException.class)
+				.hasMessageContaining("Unsupported BDJO version: '0400'");
+	}
+
+	@Test
+	void unsupportedWriterVersion_isRejectedBeforeOutput() {
+		Bdjo bdjo = buildMinimalBdjo();
+		bdjo.setVersion("0400");
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+		assertThatThrownBy(() -> writer.write(bdjo, output)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Unsupported BDJO write version").hasMessageContaining("0200 or 0300");
+		assertThat(output.size()).isZero();
 	}
 
 	@Test

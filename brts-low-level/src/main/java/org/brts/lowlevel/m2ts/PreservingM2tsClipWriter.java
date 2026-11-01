@@ -66,13 +66,18 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Opt-in, fail-closed tsMuxeR preservation path. Source ES is re-extracted to validate the manifest and copied tracks.
  * Every attempt is retained; only a validated normalized M2TS and regenerated CLPI are published. Supports one AVC/HEVC
- * video and AC3/EAC3/DTS/PGS. AC3 uses syncframe/sample clocks independently of PES boundaries. EAC3/DTS retain strict
- * PES-grid checks (repacketization is unsupported). Video requires one AUD-delimited single-slice picture per
- * timestamped PES; unproven layouts fail closed. This writer checks source video before mux, not before encoding in an
- * upstream batch. Clock discontinuities, changed presentation grids and copied-track timing changes are rejected.
+ * video, AC3/EAC3, Dolby TrueHD, DTS-family audio and PGS. AC3 uses syncframe/sample clocks independently of PES
+ * boundaries. Other retained audio codecs require strict PES-grid checks (repacketization is unsupported). Video
+ * requires one AUD-delimited single-slice picture per timestamped PES; unproven layouts fail closed. This writer checks
+ * source video before mux, not before encoding in an upstream batch. Clock discontinuities, changed presentation grids
+ * and copied-track timing changes are rejected.
  */
 @Slf4j
 public final class PreservingM2tsClipWriter implements M2tsClipWriter {
+	private static final Set<StreamCodingType> SUPPORTED_PRESERVATION_CODECS = Set.of(StreamCodingType.H264_AVC,
+			StreamCodingType.H265_HEVC, StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS,
+			StreamCodingType.DOLBY_TRUEHD, StreamCodingType.DTS, StreamCodingType.DTS_HD,
+			StreamCodingType.DTS_HD_MASTER_AUDIO, StreamCodingType.DTS_EXPRESS, StreamCodingType.PRESENTATION_GRAPHICS);
 
 	@Override
 	public void write(M2tsDescriptor descriptor, Path m2tsPath, Path clipPath) throws IOException {
@@ -128,10 +133,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		for (var stream : descriptor.getStreams()) {
 			require(retained.add(stream.getPid()), "Duplicate descriptor PID " + stream.getPid());
 			StreamCodingType type = StreamCodingType.fromByte(stream.getStreamTypeByte(), false);
-			require(type != null && Set.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC,
-					StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS, StreamCodingType.DTS,
-					StreamCodingType.PRESENTATION_GRAPHICS).contains(type),
-					"Unsupported retained stream codec " + type);
+			require(type != null && isSupportedPreservationCodec(type), "Unsupported retained stream codec " + type);
 			var original = sourceInfo.getStreams().stream().filter(s -> s.getPid() == stream.getPid()).findFirst()
 					.orElseThrow(() -> new IOException("Requested PID absent from source: " + stream.getPid()));
 			require(original.getStreamTypeByte() == stream.getStreamTypeByte(), "Source codec must not change");
@@ -387,6 +389,10 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		}
 	}
 
+	static boolean isSupportedPreservationCodec(StreamCodingType type) {
+		return type != null && SUPPORTED_PRESERVATION_CODECS.contains(type);
+	}
+
 	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, Path sourceEs,
 			Path generatedEs) throws IOException {
 		require(source.codingType() == generated.codingType(), "Presentation codec changed");
@@ -474,7 +480,8 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			case 0x1b -> "V_MPEG4/ISO/AVC";
 			case 0x24 -> "V_MPEGH/ISO/HEVC";
 			case 0x81, 0x84 -> "A_AC3";
-			case 0x82 -> "A_DTS";
+			case 0x82, 0x85, 0x86, 0x87 -> "A_DTS";
+			case 0x83 -> "A_TRUEHD";
 			case 0x90 -> "S_HDMV/PGS";
 			default -> throw new IOException("Unsupported preservation codec");
 			};

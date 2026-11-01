@@ -233,6 +233,35 @@ class BatchWholeM2tsConverterTest {
 		assertThat(batch.getSteps().get(1).toCommandTokens()).containsSubsequence("--codec", "H265_HEVC");
 	}
 
+	@ParameterizedTest
+	@EnumSource(value = StreamCodingType.class, names = { "DOLBY_TRUEHD", "DTS_HD", "DTS_HD_MASTER_AUDIO",
+			"DTS_EXPRESS" })
+	void preparesBluRayDolbyAndDtsVariants(StreamCodingType type) throws Exception {
+		var original = request();
+		var tracks = new java.util.ArrayList<>(original.inventory().tracks());
+		tracks.add(new M2tsShrinkInventory.Track(0x1300, type, "eng", null, 50));
+		var inventory = new M2tsShrinkInventory(original.inventory().m2tsPath(), original.inventory().clpiPath(),
+				original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
+		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
+		var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(), null,
+				"00001");
+		var info = metadata();
+		var streams = new java.util.ArrayList<>(info.getStreams());
+		streams.add(stream(0x1300, type));
+		info.setStreams(streams);
+		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
+		}, path -> info);
+
+		var prepared = converter.prepare(request);
+		var batch = JsonMapperFactory.get().readValue(prepared.batchDescriptor().toFile(), BatchRunDescriptor.class);
+		var mux = JsonMapperFactory.get().readValue(prepared.muxDescriptor().toFile(), M2tsDescriptor.class);
+		assertThat(batch.getSteps().getFirst().toCommandTokens()).containsSubsequence("--pids", "4113,4354,4864,4608");
+		assertThat(mux.getStreams()).anySatisfy(entry -> {
+			assertThat(entry.getPid()).isEqualTo(0x1300);
+			assertThat(entry.getStreamTypeByte()).isEqualTo(type.getCodingTypeByte());
+		});
+	}
+
 	@Test
 	void rejectsOtherMultiVideoCombinations() throws Exception {
 		var original = request();
@@ -257,8 +286,7 @@ class BatchWholeM2tsConverterTest {
 	}
 
 	@ParameterizedTest
-	@EnumSource(value = StreamCodingType.class, names = { "LPCM", "DTS_HD", "TEXT_SUBTITLE", "INTERACTIVE_GRAPHICS",
-			"VC1" })
+	@EnumSource(value = StreamCodingType.class, names = { "LPCM", "TEXT_SUBTITLE", "INTERACTIVE_GRAPHICS", "VC1" })
 	void rejectsUnsupportedStreams(StreamCodingType type) throws Exception {
 		var original = request();
 		var tracks = new java.util.ArrayList<>(original.inventory().tracks());

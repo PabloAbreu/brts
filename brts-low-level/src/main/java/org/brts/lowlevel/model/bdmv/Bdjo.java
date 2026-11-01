@@ -47,7 +47,7 @@ import java.util.List;
 @Setter
 public class Bdjo {
 
-	/** BDJO version string (e.g. "0200"). */
+	/** BDJO version string ("0200" or "0300"). */
 	private String version = "0200";
 
 	/** Terminal information section. */

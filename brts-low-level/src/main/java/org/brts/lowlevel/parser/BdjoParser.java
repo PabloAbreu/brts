@@ -42,7 +42,7 @@ import java.util.List;
  * <pre>
  * File header (48 bytes):
  *   magic                              : 4 bytes  ("BDJO")
- *   version                            : 4 bytes  ("0200")
+ *   version                            : 4 bytes  ("0200" or "0300")
  *   TerminalInfoStartAddress           : 4 bytes
  *   AppCacheInfoStartAddress           : 4 bytes
  *   AccessiblePlaylistsStartAddress    : 4 bytes
@@ -63,6 +63,8 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 
 	private static final String VERSION_200 = "0200";
 
+	private static final String VERSION_300 = "0300";
+
 	@Override
 	public Bdjo parse(InputStream input) throws IOException {
 		try (BinaryReader r = new BinaryReader(input)) {
@@ -77,7 +79,7 @@ public class BdjoParser implements BinaryParser<Bdjo> {
 			throw new ParseException("Not a BDJO file: expected '" + MAGIC + "', got '" + magic + "'");
 		}
 		String version = r.readAscii(4);
-		if (!VERSION_200.equals(version)) {
+		if (!VERSION_200.equals(version) && !VERSION_300.equals(version)) {
 			throw new ParseException("Unsupported BDJO version: '" + version + "'");
 		}
 

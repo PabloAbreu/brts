@@ -40,11 +40,12 @@ The three batch steps are `m2ts-extract --preserve-timing`, `video-convert`, and
 when omitted. The encoder and tsMuxeR are required only when executing, not while generating
 the batch. No Java-mux fallback is allowed for this preservation workflow.
 
-Supported input is one primary AVC/HEVC video (PID `0x1011`), retained AC3/E-AC3/DTS audio and
-PGS subtitles. Audio transformations and bitrate hints, interactive/unknown streams, secondary
-video and unsupported retained codecs are rejected. No codec, frame rate, geometry or playback
-speed change is requested. PGS is extracted as timed SUP data while retaining its usual `.pgs`
-filename extension. Preservation validation may reject additional incompatible source layouts.
+Supported input is one primary AVC/HEVC video (PID `0x1011`), retained AC3/E-AC3, Dolby TrueHD,
+DTS (including DTS-HD HRA, DTS-HD MA and DTS Express) audio, and PGS subtitles. Retained audio is
+copied unchanged. Audio transformations and bitrate hints, interactive/unknown streams,
+secondary video and unsupported retained codecs are rejected. No codec, frame rate, geometry or
+playback speed change is requested. PGS is extracted as timed SUP data while retaining its usual
+`.pgs` filename extension. Preservation validation may reject additional incompatible source layouts.
 
 The video rate is rounded down to 1–40000 kbps after planner safety, retained nonvideo packet
 bytes, a further 2% mux reserve and 192/184 transport expansion. This is a conservative budget,
