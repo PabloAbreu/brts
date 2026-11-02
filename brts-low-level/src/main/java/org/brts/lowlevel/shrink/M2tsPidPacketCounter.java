@@ -33,6 +33,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Counts source packets by PID without decoding payloads; useful for exact source-byte accounting.
  *
@@ -40,6 +42,7 @@ import java.util.Map;
  * be slow for large files. The probable next processing step for most users being to re-read the whole file for actual
  * processing, this means that huge files may be read twice.
  */
+@Slf4j
 public class M2tsPidPacketCounter {
 
 	private static final int SOURCE_PACKET_SIZE = 192;
@@ -54,6 +57,7 @@ public class M2tsPidPacketCounter {
 		Map<Integer, Long> counts = new LinkedHashMap<>();
 		ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 		long packetIndex = 0;
+		log.debug("Starting packet count for M2TS file {}", path);
 		try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
 			while (channel.read(buffer) >= 0) {
 				buffer.flip();
@@ -73,6 +77,7 @@ public class M2tsPidPacketCounter {
 		if (buffer.position() != 0 || packetIndex * SOURCE_PACKET_SIZE != size) {
 			throw new IOException("Incomplete source packet while scanning " + path);
 		}
+		log.debug("Completed packet count for M2TS file {}: {}", path, counts);
 		return Collections.unmodifiableMap(counts);
 	}
 }

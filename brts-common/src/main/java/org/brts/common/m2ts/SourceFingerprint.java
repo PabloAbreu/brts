@@ -31,7 +31,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** Streaming source identity shared by preparation, extraction and publication. */
+@Slf4j
 public final class SourceFingerprint {
 
 	private SourceFingerprint() {
@@ -47,6 +50,7 @@ public final class SourceFingerprint {
 
 	/** Computes a lowercase SHA-256 without loading the media into memory. */
 	public static String sha256(Path source) throws IOException {
+		log.debug("Computing SHA-256 for source file {}", source);
 		MessageDigest digest = newDigest();
 		try (InputStream in = Files.newInputStream(source)) {
 			byte[] buffer = new byte[1024 * 1024];
@@ -54,7 +58,9 @@ public final class SourceFingerprint {
 			while ((count = in.read(buffer)) != -1)
 				digest.update(buffer, 0, count);
 		}
-		return HexFormat.of().formatHex(digest.digest());
+		String result = HexFormat.of().formatHex(digest.digest());
+		log.debug("Completed SHA-256 computation for source file {} : {}", source, result);
+		return result;
 	}
 
 	/** Verifies an optional expected digest and returns the actual digest. Null is the legacy opt-out. */
