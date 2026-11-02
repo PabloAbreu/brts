@@ -481,7 +481,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			case 0x24 -> "V_MPEGH/ISO/HEVC";
 			case 0x81, 0x84 -> "A_AC3";
 			case 0x82, 0x85, 0x86, 0x87 -> "A_DTS";
-			case 0x83 -> "A_TRUEHD";
+			case 0x83 -> "A_AC3";
 			case 0x90 -> "S_HDMV/PGS";
 			default -> throw new IOException("Unsupported preservation codec");
 			};

@@ -224,7 +224,7 @@ class PreservingM2tsClipWriterTest {
 
 	@Test
 	void acceptsDolbyAndDtsVariantCodecsAndMapsThemForTsMuxer() throws Exception {
-		Map<StreamCodingType, String> expectedCodecs = Map.of(StreamCodingType.DOLBY_TRUEHD, "A_TRUEHD",
+		Map<StreamCodingType, String> expectedCodecs = Map.of(StreamCodingType.DOLBY_TRUEHD, "A_AC3",
 				StreamCodingType.DTS_HD, "A_DTS", StreamCodingType.DTS_HD_MASTER_AUDIO, "A_DTS",
 				StreamCodingType.DTS_EXPRESS, "A_DTS");
 		for (var entry : expectedCodecs.entrySet()) {

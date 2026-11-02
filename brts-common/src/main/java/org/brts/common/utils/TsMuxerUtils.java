@@ -88,7 +88,7 @@ public class TsMuxerUtils {
 		case VC1 -> "V_MS/VFW/WVC1";
 		case DOLBY_AC3 -> "A_AC3";
 		case DOLBY_AC3_PLUS -> "A_AC3";
-		case DOLBY_TRUEHD -> "A_TRUEHD";
+		case DOLBY_TRUEHD -> "A_AC3";
 		case DTS, DTS_HD, DTS_HD_MASTER_AUDIO, DTS_EXPRESS -> "A_DTS";
 		case LPCM -> "A_LPCM";
 		case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";
