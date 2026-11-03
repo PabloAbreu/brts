@@ -49,7 +49,10 @@ import org.brts.common.m2ts.model.M2tsTimingManifest.StreamTiming;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.utils.Extensions;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** Strict extraction path. Deliberately separate from the permissive, legacy raw demuxer. */
+@Slf4j
 final class TimingPreservingExtractor {
 	private final Map<Integer, Stream> streams = new LinkedHashMap<>();
 	private Long clockReference;
@@ -58,6 +61,7 @@ final class TimingPreservingExtractor {
 
 	void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> filter, String expectedSourceSha256)
 			throws IOException {
+		log.info("Starting extraction for source: {} into {}", source, outputDir);
 		Files.createDirectories(outputDir);
 		Path manifestPath = outputDir.resolve(M2tsTimingManifest.FILE_NAME);
 		if (Files.exists(manifestPath) && Files.isSameFile(source, manifestPath))
@@ -83,7 +87,7 @@ final class TimingPreservingExtractor {
 			}
 			if (streams.isEmpty() || (filter != null && !filter.isEmpty() && !streams.keySet().containsAll(filter)))
 				throw new IOException("No streams selected or requested PID is absent from source metadata");
-			String sourceSha256 = readTransport(source, info.getPcrPid());
+			String sourceSha256 = readTransport(source, info.getPcrPid(), expectedSourceSha256 != null);
 			if (Files.size(source) != sourceSize
 					|| (expectedSourceSha256 != null && !sourceSha256.equalsIgnoreCase(expectedSourceSha256)))
 				throw new IOException("Source changed during extraction: " + source);
@@ -116,6 +120,7 @@ final class TimingPreservingExtractor {
 					Files.deleteIfExists(temporaryManifest);
 			}
 		}
+		log.info("Extraction completed for source: {} into {}", source, outputDir);
 	}
 
 	private void closeStreams() throws IOException {
@@ -137,14 +142,15 @@ final class TimingPreservingExtractor {
 			throw failure;
 	}
 
-	private String readTransport(Path source, int pcrPid) throws IOException {
-		MessageDigest digest = SourceFingerprint.newDigest();
+	private String readTransport(Path source, int pcrPid, boolean computeSha256) throws IOException {
+		MessageDigest digest = computeSha256 ? SourceFingerprint.newDigest() : null;
 		try (InputStream in = new BufferedInputStream(Files.newInputStream(source))) {
 			byte[] packet = new byte[192];
 			long index = 0;
 			int count;
 			while ((count = in.readNBytes(packet, 0, packet.length)) != 0) {
-				digest.update(packet, 0, count);
+				if (computeSha256)
+					digest.update(packet, 0, count);
 				if (count != 192 || packet[4] != 0x47)
 					throw new IOException("Truncated packet or lost sync at source packet " + index);
 				int pid = ((packet[5] & 0x1F) << 8) | (packet[6] & 0xFF);
@@ -194,7 +200,7 @@ final class TimingPreservingExtractor {
 				index++;
 			}
 		}
-		return HexFormat.of().formatHex(digest.digest());
+		return computeSha256 ? HexFormat.of().formatHex(digest.digest()) : null;
 	}
 
 	private long unwrap(long raw) {

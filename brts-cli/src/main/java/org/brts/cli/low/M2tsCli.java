@@ -36,6 +36,7 @@ import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
+import org.brts.common.m2ts.SourceFingerprint;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
@@ -195,9 +196,9 @@ public class M2tsCli {
 			if ((opts.sourceClpi == null) != (opts.sourceClpiSha256 == null))
 				throw new IllegalArgumentException("--source-clpi and --source-clpi-sha256 must be supplied together");
 			if (opts.sourceSha256 != null)
-				org.brts.common.m2ts.SourceFingerprint.verify(inputPath, opts.sourceSha256);
+				SourceFingerprint.verify(inputPath, opts.sourceSha256);
 			if (opts.sourceClpi != null)
-				org.brts.common.m2ts.SourceFingerprint.verify(opts.sourceClpi.toPath(), opts.sourceClpiSha256);
+				SourceFingerprint.verify(opts.sourceClpi.toPath(), opts.sourceClpiSha256);
 
 			M2tsParser parser = new M2tsParser();
 			M2tsInfo info = parser.parse(inputPath);

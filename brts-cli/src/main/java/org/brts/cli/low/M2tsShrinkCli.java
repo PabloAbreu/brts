@@ -91,6 +91,9 @@ public class M2tsShrinkCli {
 
 		@Option(name = "--work-dir", usage = "Workspace (default: OUTPUT/.brts-shrink/CLIP-ID); retained for resume")
 		Path workDir;
+
+		@Option(name = "--compute-sha256", usage = "Compute SHA-256 for verification")
+		boolean computeSha256;
 	}
 
 	@RequiredArgsConstructor
@@ -164,7 +167,8 @@ public class M2tsShrinkCli {
 				throw new IllegalArgumentException("--output is required for VIDEO_CONVERSION_REQUIRED");
 			}
 			var converter = new BatchWholeM2tsConverter(opts.engine, executor, metadataReader);
-			var request = new M2tsConversionRequest(inventory, plan, config, opts.output, opts.workDir, opts.clipId);
+			var request = new M2tsConversionRequest(inventory, plan, config, opts.output, opts.workDir, opts.clipId,
+					opts.computeSha256);
 			if (opts.defer) {
 				var prepared = converter.prepare(request);
 				System.err.println("Deferred (no media operations): "

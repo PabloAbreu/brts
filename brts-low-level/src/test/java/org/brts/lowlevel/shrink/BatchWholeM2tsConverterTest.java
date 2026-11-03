@@ -218,7 +218,7 @@ class BatchWholeM2tsConverterTest {
 				original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
 		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
 		var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(), null,
-				"00001");
+				"00001", true);
 		var info = metadata();
 		info.setStreams(List.of(stream(0x1011, StreamCodingType.H265_HEVC), stream(0x1015, StreamCodingType.H265_HEVC),
 				stream(0x1102, StreamCodingType.DTS), stream(0x1200, StreamCodingType.PRESENTATION_GRAPHICS)));
@@ -244,7 +244,7 @@ class BatchWholeM2tsConverterTest {
 				original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
 		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
 		var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(), null,
-				"00001");
+				"00001", true);
 		var info = metadata();
 		var streams = new java.util.ArrayList<>(info.getStreams());
 		streams.add(stream(0x1300, type));
@@ -279,7 +279,7 @@ class BatchWholeM2tsConverterTest {
 					original.inventory().sourceBytes(), original.inventory().duration90k(), tracks);
 			var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
 			var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(),
-					null, "00001");
+					null, "00001", true);
 			assertThatThrownBy(() -> converter.prepare(request)).isInstanceOf(IllegalArgumentException.class)
 					.hasMessageContaining("Exactly one primary");
 		}
@@ -295,7 +295,7 @@ class BatchWholeM2tsConverterTest {
 				2_000_000, 900_000, tracks);
 		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 1_000_000, Engine.FFMPEG);
 		var request = new M2tsConversionRequest(inventory, plan, original.config(), original.destinationRoot(), null,
-				"00001");
+				"00001", true);
 		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
 		}, path -> metadata());
 		assertThatThrownBy(() -> converter.prepare(request)).isInstanceOf(IllegalArgumentException.class);
@@ -348,12 +348,12 @@ class BatchWholeM2tsConverterTest {
 				new M2tsShrinkInventory.Track(0x1200, StreamCodingType.PRESENTATION_GRAPHICS, "fra", null, 10)));
 		var config = new M2tsShrinkConfig();
 		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", config, 1_000_000, Engine.FFMPEG);
-		return new M2tsConversionRequest(inventory, plan, config, temp.resolve("output disc"), null, "00001");
+		return new M2tsConversionRequest(inventory, plan, config, temp.resolve("output disc"), null, "00001", true);
 	}
 
 	private M2tsConversionRequest withRoot(M2tsConversionRequest request, Path root) {
 		return new M2tsConversionRequest(request.inventory(), request.shrinkPlan(), request.config(), root, null,
-				"00001");
+				"00001", true);
 	}
 
 	private M2tsInfo metadata() {

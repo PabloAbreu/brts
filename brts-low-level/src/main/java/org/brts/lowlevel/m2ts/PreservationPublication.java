@@ -26,6 +26,7 @@ package org.brts.lowlevel.m2ts;
 import static org.brts.lowlevel.m2ts.PreservationTransportNormalizer.require;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -69,7 +70,7 @@ final class PreservationPublication {
 				clpi.toAbsolutePath().normalize().toString());
 		byte[] json = JsonMapperFactory.get().writeValueAsBytes(pending);
 		try (FileChannel channel = FileChannel.open(journal, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-			java.nio.ByteBuffer buffer = java.nio.ByteBuffer.wrap(json);
+			ByteBuffer buffer = ByteBuffer.wrap(json);
 			while (buffer.hasRemaining())
 				channel.write(buffer);
 			channel.force(true);

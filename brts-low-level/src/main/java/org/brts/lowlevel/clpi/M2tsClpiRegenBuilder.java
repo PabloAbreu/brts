@@ -118,8 +118,10 @@ public class M2tsClpiRegenBuilder {
 
 		// Phase 1 – stream metadata from PAT/PMT
 		M2tsInfo info = new M2tsParser().parse(m2tsPath);
-		log.debug("M2TS stream info: {}",
-				JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
+		if (log.isDebugEnabled()) {
+			log.debug("M2TS stream info: {}",
+					JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
+		}
 		ClipInfo metadata = prepareMetadata(m2tsPath, info, options);
 
 		M2tsStreamInfo videoStream = findFirstVideoStream(info, metadata.getStreams());
@@ -134,6 +136,11 @@ public class M2tsClpiRegenBuilder {
 		ClipInfo clip = assemble(clipName, info, videoStream, scan);
 		clip.setVersion(metadata.getVersion());
 		clip.setStreams(metadata.getStreams());
+		log.info("Assembled ClipInfo for clip '{}'", clipName);
+		if (log.isDebugEnabled()) {
+			log.debug("ClipInfo JSON: {}",
+					JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(clip));
+		}
 		return clip;
 	}
 

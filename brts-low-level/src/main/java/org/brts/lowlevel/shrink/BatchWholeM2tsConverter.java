@@ -163,8 +163,9 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 		if (info.getProgramPidMap() != null && info.getProgramPidMap().size() > 1) {
 			throw new IOException("Multiple transport programs are unsupported");
 		}
-		String sourceSha256 = SourceFingerprint.sha256(source);
-		String sourceClpiSha256 = SourceFingerprint.sha256(sourceClpi);
+		boolean computeSha256 = request.computeSha256();
+		String sourceSha256 = computeSha256 ? SourceFingerprint.sha256(source) : null;
+		String sourceClpiSha256 = computeSha256 ? SourceFingerprint.sha256(sourceClpi) : null;
 		Path extracted = work.resolve("extracted");
 		Path converted = work.resolve("converted");
 		if (!canonical(extracted).equals(extracted) || !canonical(converted).equals(converted)) {
@@ -223,9 +224,11 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 					"Preparation descriptors already exist; execute/resume the existing batch or use a new workspace");
 		}
 		BatchRunDescriptor job = new BatchRunDescriptor();
-		job.setSteps(List.of(step("m2ts-extract", "--input", source, "--output", extracted, "--pids",
+		job.setSteps(List.of(computeSha256 ? step("m2ts-extract", "--input", source, "--output", extracted, "--pids",
 				String.join(",", retained.stream().map(String::valueOf).toList()), "--preserve-timing", null,
-				"--source-sha256", sourceSha256, "--source-clpi", sourceClpi, "--source-clpi-sha256", sourceClpiSha256),
+				"--source-sha256", sourceSha256, "--source-clpi", sourceClpi, "--source-clpi-sha256", sourceClpiSha256)
+				: step("m2ts-extract", "--input", source, "--output", extracted, "--pids",
+						String.join(",", retained.stream().map(String::valueOf).toList()), "--preserve-timing", null),
 				step("video-convert", "--input", videoInput, "--output", videoOutput, "--codec",
 						primaryVideo.codingType().name(), "--engine", engine.name(), "--bitrate-kbps", bitrate,
 						"--source-frame-rate", sourceFrameRate, "--overwrite", null),

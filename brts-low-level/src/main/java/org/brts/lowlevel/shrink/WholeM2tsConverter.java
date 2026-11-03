@@ -48,7 +48,7 @@ public interface WholeM2tsConverter {
 	}
 
 	record M2tsConversionRequest(M2tsShrinkInventory inventory, M2tsShrinkPlan shrinkPlan, M2tsShrinkConfig config,
-			Path destinationRoot, Path workspace, String clipId) {
+			Path destinationRoot, Path workspace, String clipId, boolean computeSha256) {
 	}
 
 	record M2tsConversionPlan(Engine engine, long targetBytes, int videoBitrateKbps, Path batchDescriptor,

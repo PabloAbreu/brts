@@ -72,9 +72,11 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 	@Override
 	public ClipInfo parse(Path path) throws IOException {
+		log.info("Parsing CLPI file: {}", path);
 		ClipInfo parsed = BinaryParser.super.parse(path);
 		// get "00001" from "path/to/00001.clpi"
 		parsed.setClipName(path.getFileName().toString().replaceFirst("\\.clpi$", ""));
+		log.info("Parsed CLPI file successfully: {}", path);
 		return parsed;
 	}
 
@@ -189,7 +191,6 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 	// ProgramInfo
 	// -------------------------------------------------------------------------
 
-	@SuppressWarnings("unused")
 	private List<ClipStream> readProgramInfo(BinaryReader r, String version) throws IOException {
 		long sectionLength = r.readUnsignedInt();
 		log.debug("readProgramInfo.sectionLength {}. position is {}", hex(sectionLength), hex(r.getPosition()));

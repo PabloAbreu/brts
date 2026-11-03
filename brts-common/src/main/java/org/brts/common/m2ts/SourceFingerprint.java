@@ -65,6 +65,8 @@ public final class SourceFingerprint {
 
 	/** Verifies an optional expected digest and returns the actual digest. Null is the legacy opt-out. */
 	public static String verify(Path source, String expectedSha256) throws IOException {
+		if (expectedSha256 == null)
+			return null;
 		if (expectedSha256 != null && !expectedSha256.matches("[0-9a-fA-F]{64}"))
 			throw new IllegalArgumentException(
 					"Expected SHA-256 must contain exactly 64 hexadecimal characters: " + source);

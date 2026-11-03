@@ -95,7 +95,7 @@ public class M2tsDemuxer {
 
 		Set<Integer> activePids = resolveActivePids(info, pidFilter, keepTables);
 
-		log.info("Demuxing M2TS: {} ({} active PIDs)", source.getFileName(), activePids.size());
+		log.info("Demuxing M2TS: {} (active PIDs : {})", source, activePids);
 
 		try (InputStream in = new BufferedInputStream(Files.newInputStream(source))) {
 			byte[] sp = new byte[SOURCE_PACKET_SIZE];
