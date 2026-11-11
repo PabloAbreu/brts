@@ -39,7 +39,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 
 	private static final String MAGIC = "MOBJ";
 
-	private static final String VERSION = "0200";
+	private static final String VERSION = "0200";// default when unset
 
 	@Override
 	public void write(MovieObjects model, OutputStream output) throws IOException {
@@ -51,7 +51,7 @@ public class MovieObjectsWriter implements BlurayFileWriter<MovieObjects> {
 		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);
 		w.writeAscii(MAGIC);
-		w.writeAscii(VERSION);
+		w.writeAscii(model.getVersion() != null ? model.getVersion() : VERSION);
 		w.writeInt(extensionOffset);
 		w.writePadding(28); // reserved
 

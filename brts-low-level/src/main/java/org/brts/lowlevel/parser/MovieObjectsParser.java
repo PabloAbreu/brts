@@ -103,6 +103,7 @@ public class MovieObjectsParser implements BinaryParser<MovieObjects> {
 		}
 
 		MovieObjects mo = new MovieObjects();
+		mo.setVersion(version);
 		mo.setMovieObjects(objs);
 		return mo;
 	}
