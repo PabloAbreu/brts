@@ -50,8 +50,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * CLI meta-feature running an ordered list of BRTS commands read from a JSON descriptor.
  * <p>
- * Execution stops at the first failing step. Progress is persisted before each step so that, once the problem is fixed,
- * {@code --resume} restarts from the failed step.
+ * Preflight steps run on every invocation before ordinary steps. Execution stops at the first failing step. Progress is
+ * persisted before each ordinary step so that, once the problem is fixed, {@code --resume} restarts from the failed
+ * step after rerunning preflight. Preflight failures leave saved progress unchanged.
  */
 public class BatchRunCli {
 
@@ -66,8 +67,9 @@ public class BatchRunCli {
 
 	}
 
-	/** Persisted state of an interrupted run; {@code completedSteps} guards against edits of already-run steps. */
-	record Progress(String descriptorPath, int nextStep, List<BatchStep> completedSteps) {
+	/** Persisted state guarding completed steps and preflight definitions; legacy states omit preflight. */
+	record Progress(String descriptorPath, int nextStep, List<BatchStep> completedSteps,
+			List<BatchStep> preflightSteps) {
 	}
 
 	@Slf4j
@@ -105,19 +107,34 @@ public class BatchRunCli {
 			checkCommandsExist(descriptor, dispatchers, descriptorPath);
 
 			List<BatchStep> steps = descriptor.getSteps();
+			List<BatchStep> preflightSteps = descriptor.getPreflightSteps() == null ? List.of()
+					: descriptor.getPreflightSteps();
 			Path stateFile = stateFile(descriptorPath);
 			int start = 0;
 			if (opts.resume) {
-				start = resumePoint(stateFile, descriptorPath, steps);
+				start = resumePoint(stateFile, descriptorPath, steps, preflightSteps);
 				log.info("Resuming {} from step {}/{}", descriptorPath, start + 1, steps.size());
-			} else if (Files.deleteIfExists(stateFile)) {
+			}
+
+			// Do not modify existing progress until every preflight step has succeeded.
+			for (int i = 0; i < preflightSteps.size(); i++) {
+				BatchStep step = preflightSteps.get(i);
+				try {
+					runStep(step, i, preflightSteps.size(), dispatchers);
+				} catch (Exception e) {
+					throw new IllegalStateException(String.format("Preflight step %d/%d (%s) of %s failed: %s", i + 1,
+							preflightSteps.size(), step.describe(), descriptorPath, e.getMessage()), e);
+				}
+			}
+			if (!opts.resume && Files.deleteIfExists(stateFile)) {
 				log.info("Discarded previous progress of {}", descriptorPath);
 			}
 
 			for (int i = start; i < steps.size(); i++) {
 				BatchStep step = steps.get(i);
 				// saved before running: some commands System.exit() on failure
-				saveProgress(stateFile, new Progress(descriptorPath.toString(), i, steps.subList(0, i)));
+				saveProgress(stateFile,
+						new Progress(descriptorPath.toString(), i, steps.subList(0, i), preflightSteps));
 				try {
 					runStep(step, i, steps.size(), dispatchers);
 				} catch (Exception e) {
@@ -132,7 +149,14 @@ public class BatchRunCli {
 
 		private static void checkCommandsExist(BatchRunDescriptor descriptor, Map<String, LevelDispatcher> dispatchers,
 				Path descriptorPath) {
-			List<BatchStep> steps = descriptor.getSteps();
+			if (descriptor.getPreflightSteps() != null) {
+				checkCommandsExist(descriptor.getPreflightSteps(), dispatchers, descriptorPath, "Preflight step");
+			}
+			checkCommandsExist(descriptor.getSteps(), dispatchers, descriptorPath, "Step");
+		}
+
+		private static void checkCommandsExist(List<BatchStep> steps, Map<String, LevelDispatcher> dispatchers,
+				Path descriptorPath, String label) {
 			for (int i = 0; i < steps.size(); i++) {
 				BatchStep step = steps.get(i);
 				if (!step.isInvocation()) {
@@ -141,14 +165,14 @@ public class BatchRunCli {
 				LevelDispatcher dispatcher = dispatchers.get(step.getLevel().toLowerCase());
 				if (dispatcher == null) {
 					throw new IllegalArgumentException(
-							String.format("Step %d of %s: unknown level '%s' (expected one of %s)", i + 1,
+							String.format("%s %d of %s: unknown level '%s' (expected one of %s)", label, i + 1,
 									descriptorPath, step.getLevel(), dispatchers.keySet()));
 				}
 				boolean known = dispatcher.getRunners().stream()
 						.anyMatch(r -> r.getCommandName().equalsIgnoreCase(step.getCommand()));
 				if (!known) {
-					throw new IllegalArgumentException(String.format("Step %d of %s: unknown %s command '%s'", i + 1,
-							descriptorPath, step.getLevel(), step.getCommand()));
+					throw new IllegalArgumentException(String.format("%s %d of %s: unknown %s command '%s'", label,
+							i + 1, descriptorPath, step.getLevel(), step.getCommand()));
 				}
 			}
 		}
@@ -167,7 +191,8 @@ public class BatchRunCli {
 			}
 		}
 
-		private static int resumePoint(Path stateFile, Path descriptorPath, List<BatchStep> steps) throws IOException {
+		private static int resumePoint(Path stateFile, Path descriptorPath, List<BatchStep> steps,
+				List<BatchStep> preflightSteps) throws IOException {
 			if (!Files.isRegularFile(stateFile)) {
 				throw new IllegalArgumentException("No saved progress for " + descriptorPath
 						+ "; run it without --resume (state file: " + stateFile + ")");
@@ -175,8 +200,14 @@ public class BatchRunCli {
 			Progress progress = JsonMapperFactory.get().readValue(stateFile.toFile(), Progress.class);
 			int next = progress.nextStep();
 			List<BatchStep> completed = progress.completedSteps() == null ? List.of() : progress.completedSteps();
-			if (next != completed.size() || next > steps.size() || !steps.subList(0, next).equals(completed)) {
+			if (next < 0 || next != completed.size() || next > steps.size()
+					|| !steps.subList(0, next).equals(completed)) {
 				throw new IllegalArgumentException("Already completed steps of " + descriptorPath
+						+ " were modified since the failed run; run it again without --resume");
+			}
+			List<BatchStep> savedPreflight = progress.preflightSteps() == null ? List.of() : progress.preflightSteps();
+			if (!preflightSteps.equals(savedPreflight)) {
+				throw new IllegalArgumentException("Preflight steps of " + descriptorPath
 						+ " were modified since the failed run; run it again without --resume");
 			}
 			return next;

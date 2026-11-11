@@ -28,6 +28,8 @@ import lombok.Setter;
 
 import java.util.List;
 
+import org.brts.common.m2ts.ExtractionCache;
+
 /**
  * JSON descriptor used to drive the M2TS muxer.
  * <p>
@@ -67,14 +69,17 @@ public class M2tsDescriptor {
 	/** Original CLPI, used to validate the retained stream contract. */
 	private String sourceClpi;
 
-	/** Optional SHA-256 of the original M2TS; shrink preparation always supplies it. */
+	/** Optional SHA-256 of the original M2TS for explicit content verification. */
 	private String sourceM2tsSha256;
 
-	/** Optional SHA-256 of the original CLPI; shrink preparation always supplies it. */
+	/** Optional SHA-256 of the original CLPI for explicit content verification. */
 	private String sourceClpiSha256;
 
 	/** Absolute-clock extraction manifest produced by m2ts-extract --preserve-timing. */
 	private String timingManifest;
+
+	/** Optional pinned, immutable extraction cache; legacy descriptors re-extract the original source. */
+	private ExtractionCache.Reference extractionCacheReference;
 
 	/** Hard final M2TS size limit. Oversize staged files are never published. */
 	private Long maximumOutputBytes;

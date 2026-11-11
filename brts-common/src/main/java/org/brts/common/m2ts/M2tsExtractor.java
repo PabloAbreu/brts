@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
+import org.brts.common.m2ts.model.M2tsTimingManifest;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -101,12 +102,25 @@ public class M2tsExtractor {
 	/** Checks optional source identity before any extraction writes, including legacy raw extraction. */
 	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter, boolean preserveTiming,
 			String expectedSourceSha256) throws IOException {
+		if (preserveTiming)
+			extractTiming(source, info, outputDir, pidFilter, expectedSourceSha256);
+		else {
+			if (expectedSourceSha256 != null)
+				SourceFingerprint.verify(source, expectedSourceSha256);
+			extract(source, info, outputDir, pidFilter);
+		}
+	}
+
+	/**
+	 * Extracts with strict source-clock preservation and returns the published timing contract, including counts for
+	 * every source PID. Null or empty {@code pids} selects all streams, as in the existing extraction APIs. An optional
+	 * expected SHA-256 is verified before writes and checked again during extraction; null avoids hashing the source.
+	 */
+	public M2tsTimingManifest extractTiming(Path source, M2tsInfo info, Path outputDir, Set<Integer> pids,
+			String expectedSourceSha256) throws IOException {
 		if (expectedSourceSha256 != null)
 			SourceFingerprint.verify(source, expectedSourceSha256);
-		if (preserveTiming)
-			new TimingPreservingExtractor().extract(source, info, outputDir, pidFilter, expectedSourceSha256);
-		else
-			extract(source, info, outputDir, pidFilter);
+		return new TimingPreservingExtractor().extract(source, info, outputDir, pids, expectedSourceSha256);
 	}
 
 	/** Extracts all streams, optionally preserving source timing. */

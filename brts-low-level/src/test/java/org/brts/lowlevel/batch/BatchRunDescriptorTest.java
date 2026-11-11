@@ -46,8 +46,46 @@ class BatchRunDescriptorTest {
 		BatchRunDescriptor descriptor = JsonMapperFactory.get().readValue(json, BatchRunDescriptor.class);
 
 		DescriptorValidator.validateOrThrow(descriptor, "batch");
+		assertThat(descriptor.getPreflightSteps()).isEmpty();
 		assertThat(descriptor.getSteps().get(1).toCommandTokens()).containsExactly("index-write", "--input", "i.json",
 				"--error-details");
+	}
+
+	@Test
+	void parsesAndRoundTripsPreflightSteps() throws Exception {
+		String json = """
+				{ "preflightSteps": [
+				  { "comment": "check inputs" },
+				  { "level": "low", "command": "index-write", "arguments": [ { "flag": "--error-details" } ] }
+				], "steps": [ { "message": "done" } ] }""";
+		BatchRunDescriptor descriptor = JsonMapperFactory.get().readValue(json, BatchRunDescriptor.class);
+
+		DescriptorValidator.validateOrThrow(descriptor, "batch");
+		assertThat(descriptor.getPreflightSteps()).hasSize(2);
+		assertThat(descriptor.getPreflightSteps().get(1).toCommandTokens()).containsExactly("index-write",
+				"--error-details");
+		assertThat(JsonMapperFactory.get().readValue(JsonMapperFactory.get().writeValueAsString(descriptor),
+				BatchRunDescriptor.class)).isEqualTo(descriptor);
+		descriptor.setPreflightSteps(List.of());
+		assertThat(descriptor.getPreflightSteps()).isEmpty();
+	}
+
+	@Test
+	void rejectsMalformedPreflightStepsAndStillRequiresOrdinarySteps() {
+		BatchRunDescriptor descriptor = new BatchRunDescriptor();
+		descriptor.setPreflightSteps(List.of(BatchStep.message("check")));
+		assertThatThrownBy(() -> DescriptorValidator.validateOrThrow(descriptor, "batch"))
+				.isInstanceOf(DescriptorValidationException.class).hasMessageContaining("steps");
+
+		descriptor.getSteps().add(BatchStep.message("done"));
+		BatchStep missingLevel = new BatchStep();
+		missingLevel.setCommand("index-write");
+		BatchStep blankFlag = BatchStep.invocation("low", "index-write", List.of(new BatchArgument(" ", "v")));
+		for (BatchStep step : List.of(new BatchStep(), missingLevel, blankFlag)) {
+			descriptor.setPreflightSteps(List.of(step));
+			assertThatThrownBy(() -> DescriptorValidator.validateOrThrow(descriptor, "batch"))
+					.isInstanceOf(DescriptorValidationException.class).hasMessageContaining("preflightSteps");
+		}
 	}
 
 	@Test

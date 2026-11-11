@@ -55,12 +55,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 final class TimingPreservingExtractor {
 	private final Map<Integer, Stream> streams = new LinkedHashMap<>();
+	private final Map<Integer, Long> sourcePacketCounts = new LinkedHashMap<>();
 	private Long clockReference;
 	private Long firstPcr;
 	private Long lastPcr;
 
-	void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> filter, String expectedSourceSha256)
-			throws IOException {
+	M2tsTimingManifest extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> filter,
+			String expectedSourceSha256) throws IOException {
 		log.info("Starting extraction for source: {} into {}", source, outputDir);
 		Files.createDirectories(outputDir);
 		Path manifestPath = outputDir.resolve(M2tsTimingManifest.FILE_NAME);
@@ -101,7 +102,7 @@ final class TimingPreservingExtractor {
 			closeStreams();
 			M2tsTimingManifest manifest = new M2tsTimingManifest(M2tsTimingManifest.CURRENT_VERSION,
 					source.toAbsolutePath().normalize().toString(), sourceSize, firstPcr, List.copyOf(timings),
-					sourceSha256);
+					sourceSha256, sourcePacketCounts);
 			temporaryManifest = Files.createTempFile(outputDir, ".timing-", ".json");
 			M2tsTiming.write(temporaryManifest, manifest);
 			try {
@@ -110,6 +111,8 @@ final class TimingPreservingExtractor {
 			} catch (AtomicMoveNotSupportedException e) {
 				Files.move(temporaryManifest, manifestPath, StandardCopyOption.REPLACE_EXISTING);
 			}
+			log.info("Extraction completed for source: {} into {}", source, outputDir);
+			return manifest;
 		} catch (IllegalArgumentException | ArithmeticException e) {
 			throw new IOException("Invalid source timing in " + source + ": " + e.getMessage(), e);
 		} finally {
@@ -120,7 +123,6 @@ final class TimingPreservingExtractor {
 					Files.deleteIfExists(temporaryManifest);
 			}
 		}
-		log.info("Extraction completed for source: {} into {}", source, outputDir);
 	}
 
 	private void closeStreams() throws IOException {
@@ -154,6 +156,8 @@ final class TimingPreservingExtractor {
 				if (count != 192 || packet[4] != 0x47)
 					throw new IOException("Truncated packet or lost sync at source packet " + index);
 				int pid = ((packet[5] & 0x1F) << 8) | (packet[6] & 0xFF);
+				// Account for every sync-valid packet before selected-stream/PCR filtering.
+				sourcePacketCounts.merge(pid, 1L, Math::addExact);
 				Stream stream = streams.get(pid);
 				if (stream == null && pid != pcrPid) {
 					index++;
@@ -195,7 +199,10 @@ final class TimingPreservingExtractor {
 					if (stream.continuity >= 0 && cc != ((stream.continuity + 1) & 0x0F))
 						throw stream.error("Lost/duplicate transport packet at source packet " + index);
 					stream.continuity = cc;
-					stream.accept(packet, offset, 192 - offset, (packet[5] & 0x40) != 0, index);
+					boolean start = (packet[5] & 0x40) != 0;
+					stream.accept(packet, offset, 192 - offset, start, index);
+					if (stream.videoScan != null)
+						stream.videoScan.accept(packet, offset, 192 - offset, start, index);
 				}
 				index++;
 			}
@@ -212,6 +219,7 @@ final class TimingPreservingExtractor {
 		private final String fileName;
 		private final OutputStream out;
 		private final boolean pgs;
+		private final M2tsVideoEpScan videoScan;
 		private final byte[] header = new byte[264];
 		private final byte[] segment;
 		private final List<PesTiming> pesTimings = new ArrayList<>();
@@ -240,6 +248,8 @@ final class TimingPreservingExtractor {
 			this.fileName = fileName;
 			this.out = out;
 			pgs = metadata.getCodingType() == StreamCodingType.PRESENTATION_GRAPHICS;
+			StreamCodingType type = metadata.getCodingType();
+			videoScan = type != null && type.isVideo() ? new M2tsVideoEpScan(type) : null;
 			segment = pgs ? new byte[65538] : null;
 		}
 
@@ -368,7 +378,7 @@ final class TimingPreservingExtractor {
 
 		StreamTiming timing() {
 			return new StreamTiming(metadata.getPid(), fileName, metadata.getCodingType(), firstPts, firstDts,
-					List.copyOf(pesTimings), List.copyOf(segments));
+					List.copyOf(pesTimings), List.copyOf(segments), videoScan == null ? null : videoScan.result());
 		}
 
 		IOException error(String message) {

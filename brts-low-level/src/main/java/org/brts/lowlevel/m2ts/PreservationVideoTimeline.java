@@ -47,8 +47,8 @@ final class PreservationVideoTimeline {
 	private PreservationVideoTimeline() {
 	}
 
+	/** Requires timing already checked by {@link PreservingM2tsClipWriter#validateTiming(StreamTiming)}. */
 	static void validate(Path es, StreamTiming timing) throws IOException {
-		PreservingM2tsClipWriter.validateTiming(timing);
 		boolean avc = timing.codingType() == StreamCodingType.H264_AVC;
 		require(avc || timing.codingType() == StreamCodingType.H265_HEVC, "Unsupported video timeline codec");
 		State state = new State(timing, avc);

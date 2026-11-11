@@ -24,6 +24,7 @@
 package org.brts.lowlevel.m2ts;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
@@ -41,6 +42,8 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.utils.Crc32Utils;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Strict, bounded-memory, simultaneous PID and clock rewrite of a single-program M2TS.
  *
@@ -48,6 +51,7 @@ import org.brts.common.utils.Crc32Utils;
  * much as possible, the original information.
  *
  */
+@Slf4j
 final class PreservationTransportNormalizer {
 
 	private static final long PCR_WRAP = (1L << 33) * 300;
@@ -112,6 +116,7 @@ final class PreservationTransportNormalizer {
 	}
 
 	void normalize(Path input, Path output) throws IOException {
+		log.info("Normalizing transport stream from {} to {}", input, output);
 		require(!Files.exists(output), "Normalized stage already exists: " + output);
 		require(Files.size(input) > 0 && Files.size(input) % 192 == 0, "Truncated M2TS stage");
 		Map<Integer, Section> sections = new HashMap<>();
@@ -120,11 +125,12 @@ final class PreservationTransportNormalizer {
 		long previousAts = -1;
 		long previousPcr = -1;
 		long currentPcr = Long.MIN_VALUE;
-		try (RandomAccessFile in = new RandomAccessFile(input.toFile(), "r");
+		long packetCount = Files.size(input) / 192;
+		try (BufferedInputStream in = new BufferedInputStream(Files.newInputStream(input));
 				RandomAccessFile out = new RandomAccessFile(output.toFile(), "rw")) {
 			byte[] packet = new byte[192];
-			for (long index = 0; index < in.length() / 192; index++) {
-				in.readFully(packet);
+			for (long index = 0; index < packetCount; index++) {
+				require(in.readNBytes(packet, 0, packet.length) == packet.length, "Truncated M2TS stage");
 				require(u(packet[4]) == 0x47 && (packet[5] & 0x80) == 0 && (packet[7] & 0xc0) == 0,
 						"Invalid, errored or scrambled TS packet " + index);
 				int pid = ((packet[5] & 0x1f) << 8) | u(packet[6]);
@@ -197,6 +203,7 @@ final class PreservationTransportNormalizer {
 				require(header.done, "Truncated PES header at EOF");
 			require(previousPcr >= 0, "No PCR available to protect decode clocks");
 		}
+		log.info("Finished normalizing transport stream from {} to {}", input, output);
 	}
 
 	private final class Section {
@@ -448,9 +455,15 @@ final class PreservationTransportNormalizer {
 	}
 
 	private static void patch(RandomAccessFile out, List<Long> positions, byte[] b) throws IOException {
-		for (int i = 0; i < b.length; i++) {
-			out.seek(positions.get(i));
-			out.write(b[i]);
+		int start = 0;
+		while (start < b.length) {
+			long position = positions.get(start);
+			int end = start + 1;
+			while (end < b.length && positions.get(end) == position + (end - start))
+				end++;
+			out.seek(position);
+			out.write(b, start, end - start);
+			start = end;
 		}
 	}
 

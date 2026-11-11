@@ -78,7 +78,7 @@ public final class M2tsShrinkPlanner {
 				: M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED;
 		List<String> warnings = new ArrayList<>();
 		warnings.add(
-				"Plan only: no stream filtering, audio downgrade, video conversion, or output writing was performed");
+				"Planning may extract selected streams into the persistent cache; no audio downgrade, video conversion or final mux is performed by the planner");
 		warnings.add(
 				"Source packet counts precisely measure input PID bytes, not future remux overhead or encoder output");
 		if (config.getAudioDowngrades() != null && !config.getAudioDowngrades().isEmpty()) {

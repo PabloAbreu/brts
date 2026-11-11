@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 
 import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
+import org.brts.common.m2ts.ExtractionCache;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.SourceFingerprint;
@@ -165,6 +166,12 @@ public class M2tsCli {
 		@Option(name = "--preserve-timing", usage = "Preserve source timing in timing.json and extract PGS as timed SUP")
 		boolean preserveTiming;
 
+		@Option(name = "--cache-reference", usage = "JSON file holding a pinned extraction cache reference (requires --validate-cache-only and --preserve-timing)")
+		Path cacheReference;
+
+		@Option(name = "--validate-cache-only", usage = "Validate the referenced cache and input/output identities without parsing, extracting or writing")
+		boolean validateCacheOnly;
+
 		@Option(name = "--source-sha256", usage = "Expected SHA-256 of the source M2TS; checked before extraction writes")
 		String sourceSha256;
 
@@ -192,6 +199,24 @@ public class M2tsCli {
 		protected void execute(ExtractOptions opts) throws Exception {
 			Path inputPath = opts.input.toPath();
 			Path outputDir = opts.outputDir.toPath();
+
+			if (opts.validateCacheOnly || opts.cacheReference != null) {
+				if (!opts.validateCacheOnly || opts.cacheReference == null || !opts.preserveTiming)
+					throw new IllegalArgumentException(
+							"--cache-reference, --validate-cache-only and --preserve-timing are required together");
+				if (opts.pids != null || opts.igsDemux || opts.sourceSha256 != null || opts.sourceClpi != null
+						|| opts.sourceClpiSha256 != null)
+					throw new IllegalArgumentException(
+							"Cache validation does not permit --pids, --igs-demux or source fingerprint options");
+				var reference = loadJson(opts.cacheReference.toFile(), ExtractionCache.Reference.class);
+				var cache = ExtractionCache.validate(reference);
+				if (!inputPath.toRealPath().equals(Path.of(cache.manifest().source().path()))
+						|| !outputDir.toRealPath().equals(cache.directory()))
+					throw new IllegalArgumentException(
+							"Cache validation --input/--output must match the cached source/directory");
+				System.out.println("Extraction cache validated → " + cache.directory());
+				return;
+			}
 
 			if ((opts.sourceClpi == null) != (opts.sourceClpiSha256 == null))
 				throw new IllegalArgumentException("--source-clpi and --source-clpi-sha256 must be supplied together");
@@ -348,7 +373,8 @@ public class M2tsCli {
 
 			// --- Write M2TS and matching CLPI ---
 			boolean preservation = descriptor.getSourceM2ts() != null || descriptor.getSourceClpi() != null
-					|| descriptor.getTimingManifest() != null || descriptor.getMaximumOutputBytes() != null;
+					|| descriptor.getTimingManifest() != null || descriptor.getMaximumOutputBytes() != null
+					|| descriptor.getExtractionCacheReference() != null;
 			if (preservation) {
 				new org.brts.lowlevel.m2ts.PreservingM2tsClipWriter().write(descriptor, m2tsPath, clpiPath);
 			} else {

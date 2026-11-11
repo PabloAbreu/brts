@@ -70,6 +70,7 @@ class PreservationAc3TimelineTest {
 				.hasMessageContaining("no commencing syncframe");
 		var dts = new StreamTiming(0x1100, "audio.ac3", StreamCodingType.DOLBY_AC3, 90_000L, 89_000L,
 				List.of(new PesTiming(0, 0, 90_000L, 89_000L)), List.of());
+		PreservingM2tsClipWriter.validateTiming(dts);
 		assertThatThrownBy(() -> PreservationAc3Timeline.validate(es, dts)).isInstanceOf(IOException.class)
 				.hasMessageContaining("distinct AC3 decode");
 	}
@@ -130,10 +131,13 @@ class PreservationAc3TimelineTest {
 		return es;
 	}
 
-	private static StreamTiming timing(List<Long> offsets, List<Long> pts) {
+	private static StreamTiming timing(List<Long> offsets, List<Long> pts) throws IOException {
 		List<PesTiming> pes = new ArrayList<>();
 		for (int i = 0; i < offsets.size(); i++)
 			pes.add(new PesTiming(i, offsets.get(i), pts.get(i), null));
-		return new StreamTiming(0x1100, "audio.ac3", StreamCodingType.DOLBY_AC3, pts.getFirst(), null, pes, List.of());
+		var timing = new StreamTiming(0x1100, "audio.ac3", StreamCodingType.DOLBY_AC3, pts.getFirst(), null, pes,
+				List.of());
+		PreservingM2tsClipWriter.validateTiming(timing);
+		return timing;
 	}
 }

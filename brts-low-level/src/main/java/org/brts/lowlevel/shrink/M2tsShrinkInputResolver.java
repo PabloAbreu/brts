@@ -66,6 +66,20 @@ public final class M2tsShrinkInputResolver {
 	}
 
 	public M2tsShrinkInventory resolve(Path discRoot, String clipId) throws IOException {
+		Metadata metadata = discover(discRoot, clipId);
+		Map<Integer, Long> counts = packetCounter.count(metadata.inventory().m2tsPath());
+		var original = metadata.inventory();
+		return new M2tsShrinkInventory(original.m2tsPath(), original.clpiPath(), original.sourceBytes(),
+				original.duration90k(),
+				original.tracks().stream().map(t -> new M2tsShrinkInventory.Track(t.pid(), t.codingType(), t.language(),
+						t.declaredBitrateKbps(), counts.getOrDefault(t.pid(), 0L))).toList());
+	}
+
+	/** Bounded metadata discovery only; full transport counts are supplied by extraction during shrink planning. */
+	public record Metadata(M2tsShrinkInventory inventory, M2tsInfo info) {
+	}
+
+	public Metadata discover(Path discRoot, String clipId) throws IOException {
 		if (discRoot == null) {
 			throw new IllegalArgumentException("discRoot is required");
 		}
@@ -110,18 +124,18 @@ public final class M2tsShrinkInputResolver {
 						+ pmtStream.getCodingType() + " vs " + clpiType);
 			}
 		}
-		log.debug("Counting packets for M2TS file {}", m2ts);
-		Map<Integer, Long> packetCounts = packetCounter.count(m2ts);
 		var tracks = pmtStreams.values().stream().filter(stream -> stream.getCodingType() != null).map(stream -> {
 			ClipStream clipStream = clpiStreams.get(stream.getPid());
 			if (clipStream == null) {
 				throw new IllegalArgumentException("M2TS PID " + stream.getPid() + " is absent from CLPI " + clpi);
 			}
-			return new M2tsShrinkInventory.Track(stream.getPid(), stream.getCodingType(),
-					stream.getLanguage() != null ? stream.getLanguage() : clipStream.getLanguage(),
-					stream.getBitrateKbps(), packetCounts.getOrDefault(stream.getPid(), 0L));
+			if (stream.getLanguage() == null)
+				stream.setLanguage(clipStream.getLanguage());
+			return new M2tsShrinkInventory.Track(stream.getPid(), stream.getCodingType(), stream.getLanguage(),
+					stream.getBitrateKbps(), 0L);
 		}).toList();
-		return new M2tsShrinkInventory(m2ts, clpi, bytes, clipInfo.getDuration().getTicks(), tracks);
+		return new Metadata(new M2tsShrinkInventory(m2ts, clpi, bytes, clipInfo.getDuration().getTicks(), tracks),
+				streamInfo);
 	}
 
 	private static void requireReadableFile(Path path, String kind) throws IOException {

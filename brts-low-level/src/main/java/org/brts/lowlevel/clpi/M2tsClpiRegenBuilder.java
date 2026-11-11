@@ -38,6 +38,8 @@ import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
 import org.brts.common.m2ts.M2tsParser;
+import org.brts.common.m2ts.M2tsVideoEpScan;
+import org.brts.common.m2ts.model.M2tsTimingManifest;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
@@ -114,12 +116,18 @@ public class M2tsClpiRegenBuilder {
 	 * effort; strict mode requires known HEVC dynamic range and color space before scanning the full file.
 	 */
 	public ClipInfo build(Path m2tsPath, String clipName, ClpiRegenOptions options) throws IOException {
+		return build(m2tsPath, clipName, options, null);
+	}
+
+	/** Regenerates CLPI, reusing a matching timing-manifest EP scan when one is available. */
+	public ClipInfo build(Path m2tsPath, String clipName, ClpiRegenOptions options,
+			M2tsTimingManifest precomputedTiming) throws IOException {
 		log.info("Regenerating CLPI for clip '{}' from {}", clipName, m2tsPath);
 
 		// Phase 1 – stream metadata from PAT/PMT
 		M2tsInfo info = new M2tsParser().parse(m2tsPath);
-		if (log.isDebugEnabled()) {
-			log.debug("M2TS stream info: {}",
+		if (log.isTraceEnabled()) {
+			log.trace("M2TS stream info: {}",
 					JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(info));
 		}
 		ClipInfo metadata = prepareMetadata(m2tsPath, info, options);
@@ -129,19 +137,47 @@ public class M2tsClpiRegenBuilder {
 			log.warn("No video stream found in {}; CLPI will have empty EP map", m2tsPath.getFileName());
 		}
 
-		// Phase 2 – full-file scan for PTS range and random-access entry points
-		EpScanResult scan = doEpScan(m2tsPath, info, videoStream);
+		// Phase 2 – reuse an extraction scan where identity/PID match; standalone callers still full-scan.
+		EpScanResult scan = cachedScan(m2tsPath, videoStream, precomputedTiming);
+		if (scan == null)
+			scan = doEpScan(m2tsPath, info, videoStream);
 
 		// Phase 3 – assemble ClipInfo
 		ClipInfo clip = assemble(clipName, info, videoStream, scan);
 		clip.setVersion(metadata.getVersion());
 		clip.setStreams(metadata.getStreams());
 		log.info("Assembled ClipInfo for clip '{}'", clipName);
-		if (log.isDebugEnabled()) {
-			log.debug("ClipInfo JSON: {}",
+		if (log.isTraceEnabled()) {
+			log.trace("ClipInfo JSON: {}",
 					JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(clip));
 		}
 		return clip;
+	}
+
+	private static EpScanResult cachedScan(Path path, M2tsStreamInfo videoStream, M2tsTimingManifest timing)
+			throws IOException {
+		if (videoStream == null || timing == null)
+			return null;
+		Path source = Path.of(timing.sourcePath()).toRealPath();
+		if (!path.toRealPath().equals(source) || timing.sourceSize() != java.nio.file.Files.size(source))
+			throw new IOException("Precomputed EP scan does not identify CLPI input: " + path);
+		var stream = timing.streams().stream().filter(candidate -> candidate.pid() == videoStream.getPid()).findFirst()
+				.orElse(null);
+		if (stream == null || stream.codingType() != videoStream.getCodingType() || stream.videoScan() == null)
+			return null;
+		var video = stream.videoScan();
+		if (video.firstPts90k() == null || video.lastPts90k() == null)
+			return null; // Preserve standalone PCR fallback semantics when no timestamped PES was scanned.
+		EpScanResult result = new EpScanResult();
+		result.firstPts = video.firstPts90k();
+		result.lastPts = video.lastPts90k();
+		for (var sourceEntry : video.entries()) {
+			EpMap.EpMapEntry entry = new EpMap.EpMapEntry();
+			entry.setPtsTicks(sourceEntry.pts90k());
+			entry.setSpn(sourceEntry.spn());
+			result.entries.add(entry);
+		}
+		return result;
 	}
 
 	/** Metadata-only phase, separated for deterministic testing and validation before the full EP scan. */
@@ -369,7 +405,6 @@ public class M2tsClpiRegenBuilder {
 			return result;
 
 		MonotonicTimestampUnwrapper pcrUnwrapper = new MonotonicTimestampUnwrapper(PCR_27MHZ_MODULO);
-		MonotonicTimestampUnwrapper ptsUnwrapper = new MonotonicTimestampUnwrapper(PTS_MODULO);
 
 		int videoPid = videoStream.getPid();
 		StreamCodingType videoType = videoStream.getCodingType();
@@ -382,28 +417,7 @@ public class M2tsClpiRegenBuilder {
 		info.setFirstPcr27MHz(-1);
 		info.setLastPcr27MHz(-1);
 
-		VideoEntryPointScanner scanner = new VideoEntryPointScanner(videoType, raw -> {
-			long pts = ptsUnwrapper.unwrap(raw);
-			if (result.firstPts < 0 || pts < result.firstPts)
-				result.firstPts = pts;
-			if (pts > result.lastPts)
-				result.lastPts = pts;
-			return pts;
-		}, (pts, spn) -> {
-			if (!result.entries.isEmpty()) {
-				EpMap.EpMapEntry previous = result.entries.getLast();
-				if (previous.getPtsTicks() == pts && previous.getSpn() == spn)
-					return;
-				if (pts < previous.getPtsTicks())
-					log.warn("Non-monotonic video entry PTS in {}: PID={} SPN={} PTS={} previous={}", path, videoPid,
-							spn, pts, previous.getPtsTicks());
-			}
-			EpMap.EpMapEntry entry = new EpMap.EpMapEntry();
-			entry.setPtsTicks(pts);
-			entry.setSpn(spn);
-			result.entries.add(entry);
-			log.trace("EP entry: PTS={} SPN={}", pts, spn);
-		});
+		M2tsVideoEpScan scan = new M2tsVideoEpScan(videoType);
 
 		try (M2tsPacketHandler handler = new M2tsPacketHandler() {
 
@@ -431,7 +445,7 @@ public class M2tsClpiRegenBuilder {
 				int control = (sp[7] >> 4) & 3;
 				boolean discontinuity = (control == 2 || control == 3) && (sp[8] & 0xFF) > 0 && (sp[9] & 0x80) != 0;
 				if (discontinuity) {
-					scanner.reset();
+					scan.reset();
 					lastCounter = -1;
 				}
 				if (control == 2 || control == 0)
@@ -443,7 +457,7 @@ public class M2tsClpiRegenBuilder {
 				boolean lost = lastCounter >= 0 && counter != ((lastCounter + 1) & 15);
 				boolean scrambled = (sp[7] & 0xC0) != 0;
 				if (lost || scrambled) {
-					scanner.reset();
+					scan.reset();
 					if (transportResets++ < 5)
 						log.warn("Resetting EP scanner in {}: PID={} SPN={} continuityLoss={} scrambled={}", path,
 								videoPid, packetIndex, lost, scrambled);
@@ -453,12 +467,12 @@ public class M2tsClpiRegenBuilder {
 					previousPacket = new byte[sp.length];
 				System.arraycopy(sp, 0, previousPacket, 0, sp.length);
 				if (!scrambled)
-					scanner.accept(sp, offset, length, payloadUnitStart, packetIndex);
+					scan.accept(sp, offset, length, payloadUnitStart, packetIndex);
 			}
 
 			@Override
 			public void close() {
-				scanner.reset();
+				scan.reset();
 			}
 
 		}) {
@@ -466,11 +480,29 @@ public class M2tsClpiRegenBuilder {
 			// limits callbacks to video and PCR. No global PID-filter semantics need to change.
 			new M2tsDemuxer().demux(path, info, handler, filter, 0, -1, true);
 		}
-		if (scanner.malformedHeaders() > 0 || scanner.untimestampedPictures() > 0)
+		M2tsTimingManifest.VideoScan videoScan = scan.result();
+		if (videoScan.malformedHeaders() > 0 || videoScan.untimestampedPictures() > 0)
 			log.warn(
 					"EP scan in {} (PID={}): rejected {} malformed PES headers; skipped {} random-access pictures "
 							+ "without a dedicated PTS",
-					path, videoPid, scanner.malformedHeaders(), scanner.untimestampedPictures());
+					path, videoPid, videoScan.malformedHeaders(), videoScan.untimestampedPictures());
+		result.firstPts = videoScan.firstPts90k() == null ? -1 : videoScan.firstPts90k();
+		result.lastPts = videoScan.lastPts90k() == null ? -1 : videoScan.lastPts90k();
+		for (var source : videoScan.entries()) {
+			if (!result.entries.isEmpty()) {
+				EpMap.EpMapEntry previous = result.entries.getLast();
+				if (previous.getPtsTicks() == source.pts90k() && previous.getSpn() == source.spn())
+					continue;
+				if (source.pts90k() < previous.getPtsTicks())
+					log.warn("Non-monotonic video entry PTS in {}: PID={} SPN={} PTS={} previous={}", path, videoPid,
+							source.spn(), source.pts90k(), previous.getPtsTicks());
+			}
+			EpMap.EpMapEntry entry = new EpMap.EpMapEntry();
+			entry.setPtsTicks(source.pts90k());
+			entry.setSpn(source.spn());
+			result.entries.add(entry);
+			log.trace("EP entry: PTS={} SPN={}", source.pts90k(), source.spn());
+		}
 
 		log.info("EP scan complete: {} random-access entries, PTS range [{} .. {}]", result.entries.size(),
 				result.firstPts, result.lastPts);

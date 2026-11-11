@@ -32,6 +32,8 @@ import java.nio.file.Path;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 /** Shared timing/SUP helpers, independent of authoring layers. */
 public final class M2tsTiming {
 	public static final long TIMESTAMP_WRAP = 1L << 33;
@@ -56,17 +58,55 @@ public final class M2tsTiming {
 	/** Reads a manifest file (not a directory); rejects unsupported contract versions. */
 	public static M2tsTimingManifest read(Path path) throws IOException {
 		M2tsTimingManifest manifest = JsonMapperFactory.get().readValue(path.toFile(), M2tsTimingManifest.class);
-		if (manifest == null || manifest.version() != M2tsTimingManifest.CURRENT_VERSION
+		validate(path, manifest);
+		return manifest;
+	}
+
+	private static void validate(Path path, M2tsTimingManifest manifest) throws IOException {
+		if (manifest == null || (manifest.version() < 1 || manifest.version() > M2tsTimingManifest.CURRENT_VERSION)
 				|| manifest.sourcePath() == null || manifest.sourceSize() < 0 || manifest.streams() == null
 				|| manifest.streams().isEmpty())
 			throw new IOException("Invalid or unsupported timing manifest: " + path);
-		return manifest;
+		if (manifest.version() >= 2) {
+			try {
+				long packets = 0;
+				for (var entry : manifest.sourcePacketCounts().entrySet()) {
+					if (entry.getKey() < 0 || entry.getKey() > 0x1FFF || entry.getValue() < 0)
+						throw new IOException("Invalid source packet PID/count in timing manifest: " + path);
+					packets = Math.addExact(packets, entry.getValue());
+				}
+				if (Math.multiplyExact(packets, 192L) != manifest.sourceSize())
+					throw new IOException("Source packet counts do not match source size in timing manifest: " + path);
+			} catch (ArithmeticException e) {
+				throw new IOException("Source packet counts overflow in timing manifest: " + path, e);
+			}
+		}
+		if (manifest.version() >= 3) {
+			long packetCount = manifest.sourceSize() / 192;
+			for (var stream : manifest.streams()) {
+				var scan = stream.videoScan();
+				if (scan == null)
+					continue;
+				if (stream.codingType() == null || !stream.codingType().isVideo() || scan.malformedHeaders() < 0
+						|| scan.untimestampedPictures() < 0
+						|| (scan.firstPts90k() == null) != (scan.lastPts90k() == null)
+						|| scan.firstPts90k() != null && scan.lastPts90k() < scan.firstPts90k())
+					throw new IOException("Invalid video EP scan metadata in timing manifest: " + path);
+				for (var entry : scan.entries()) {
+					if (entry == null || entry.spn() < 0 || entry.spn() >= packetCount || entry.pts90k() < 0
+							|| scan.firstPts90k() == null || entry.pts90k() < scan.firstPts90k()
+							|| entry.pts90k() > scan.lastPts90k())
+						throw new IOException("Invalid video EP entry in timing manifest: " + path);
+				}
+			}
+		}
 	}
 
 	/** Writes to a manifest file path. Extraction publishes this only after all streams validate and close. */
 	public static void write(Path path, M2tsTimingManifest manifest) throws IOException {
+		validate(path, manifest);
 		try (OutputStream out = Files.newOutputStream(path)) {
-			JsonMapperFactory.get().writeValue(out, manifest);
+			JsonMapperFactory.get().writer().without(SerializationFeature.INDENT_OUTPUT).writeValue(out, manifest);
 		}
 	}
 

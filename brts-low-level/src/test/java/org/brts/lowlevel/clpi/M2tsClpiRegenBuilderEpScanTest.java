@@ -33,6 +33,8 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
+import org.brts.common.m2ts.M2tsExtractor;
+import org.brts.common.m2ts.M2tsParser;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.EpMap.EpMapEntry;
 import org.brts.lowlevel.parser.ClipInfoParser;
@@ -137,6 +139,31 @@ class M2tsClpiRegenBuilderEpScanTest {
 		assertThat(entries(clip)).isEmpty();
 		assertThat(clip.getTsRecordingStartPts().getTicks()).isEqualTo(90_000);
 		assertThat(clip.getTsRecordingEndPts().getTicks()).isEqualTo(180_000);
+	}
+
+	@Test
+	void precomputedExtractionScanProducesTheSameClpiAsStandaloneScan() throws Exception {
+		byte[] input = join(tables(0x24), pcr(80_000 * 300L), packet(VIDEO_PID, true, 0, pes(90_000, hevc(21))),
+				packet(VIDEO_PID, true, 1, pes(180_000, hevc(19))));
+		ClipInfo standalone = build(input);
+		Path path = directory.resolve("00001.m2ts");
+		var info = new M2tsParser().parse(path);
+		var timing = new M2tsExtractor().extractTiming(path, info, directory.resolve("extracted"),
+				java.util.Set.of(VIDEO_PID), null);
+		ClpiRegenOptions options = new ClpiRegenOptions();
+		options.setProbeMode(ClpiRegenOptions.ProbeMode.DISABLED);
+		ClpiRegenOptions.VideoOverrides video = new ClpiRegenOptions.VideoOverrides();
+		video.setVideoFormat(6);
+		video.setFrameRate(1);
+		video.setAspectRatio(3);
+		options.getVideoStreams().put(VIDEO_PID, video);
+		ClipInfo cached = new M2tsClpiRegenBuilder((p, videos) -> {
+			throw new AssertionError("Native probing must not be used in EP scan tests");
+		}).build(path, "00001", options, timing);
+		assertThat(cached.getTsRecordingStartPts()).isEqualTo(standalone.getTsRecordingStartPts());
+		assertThat(cached.getTsRecordingEndPts()).isEqualTo(standalone.getTsRecordingEndPts());
+		assertThat(entries(cached)).usingRecursiveFieldByFieldElementComparator()
+				.containsExactlyElementsOf(entries(standalone));
 	}
 
 	@Test

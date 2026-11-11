@@ -45,6 +45,7 @@ final class PreservationAc3Timeline {
 	private PreservationAc3Timeline() {
 	}
 
+	/** Requires timing already checked by {@link PreservingM2tsClipWriter#validateTiming(StreamTiming)}. */
 	static void validate(Path es, StreamTiming timing) throws IOException {
 		try (Cursor cursor = new Cursor(es, timing)) {
 			while (cursor.next() != null) {
@@ -53,6 +54,7 @@ final class PreservationAc3Timeline {
 		}
 	}
 
+	/** Both stream timings must have passed {@link PreservingM2tsClipWriter#validateTiming(StreamTiming)}. */
 	static void compare(Path sourceEs, StreamTiming source, Path generatedEs, StreamTiming generated, long shift)
 			throws IOException {
 		require(Files.mismatch(sourceEs, generatedEs) == -1, "Copied AC3 elementary bytes changed");
@@ -82,7 +84,6 @@ final class PreservationAc3Timeline {
 
 		Cursor(Path es, StreamTiming timing) throws IOException {
 			this.timing = timing;
-			PreservingM2tsClipWriter.validateTiming(timing);
 			require(timing.codingType() == StreamCodingType.DOLBY_AC3, "AC3 timeline requires AC3, not EAC3/DTS");
 			require(timing.pesTimings().getFirst().outputOffset() == 0
 					&& timing.firstPts90k().equals(timing.pesTimings().getFirst().pts90k()),

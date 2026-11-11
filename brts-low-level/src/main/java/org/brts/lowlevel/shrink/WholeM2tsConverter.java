@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.brts.common.m2ts.ExtractionCache;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 
 /**
@@ -48,7 +49,13 @@ public interface WholeM2tsConverter {
 	}
 
 	record M2tsConversionRequest(M2tsShrinkInventory inventory, M2tsShrinkPlan shrinkPlan, M2tsShrinkConfig config,
-			Path destinationRoot, Path workspace, String clipId, boolean computeSha256) {
+			Path destinationRoot, Path workspace, String clipId, boolean computeSha256,
+			ExtractionCache.Reference extractionCache) {
+		/** Legacy standalone callers retain extraction as the first ordinary batch step. */
+		public M2tsConversionRequest(M2tsShrinkInventory inventory, M2tsShrinkPlan shrinkPlan, M2tsShrinkConfig config,
+				Path destinationRoot, Path workspace, String clipId, boolean computeSha256) {
+			this(inventory, shrinkPlan, config, destinationRoot, workspace, clipId, computeSha256, null);
+		}
 	}
 
 	record M2tsConversionPlan(Engine engine, long targetBytes, int videoBitrateKbps, Path batchDescriptor,

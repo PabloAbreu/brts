@@ -33,12 +33,13 @@ import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.m2ts.M2tsParser;
+import org.brts.common.m2ts.TargetRootWorkspace;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.validation.ExistingDirectory;
 import org.brts.lowlevel.shrink.BatchWholeM2tsConverter;
+import org.brts.lowlevel.shrink.M2tsShrinkCache;
 import org.brts.lowlevel.shrink.M2tsShrinkConfig;
 import org.brts.lowlevel.shrink.M2tsShrinkInputResolver;
-import org.brts.lowlevel.shrink.M2tsShrinkInventory;
 import org.brts.lowlevel.shrink.M2tsShrinkPlan;
 import org.brts.lowlevel.shrink.M2tsShrinkPlanner;
 import org.brts.lowlevel.shrink.WholeM2tsConverter.BatchExecutor;
@@ -55,8 +56,9 @@ import lombok.extern.slf4j.Slf4j;
 /** Analyze shrink decisions and execute video-required conversion through a resumable batch. */
 public class M2tsShrinkCli {
 	@FunctionalInterface
-	public interface InventoryResolver {
-		M2tsShrinkInventory resolve(Path discRoot, String clipId) throws IOException;
+	public interface CacheResolver {
+		M2tsShrinkCache.Prepared prepare(Path root, String clip, M2tsShrinkConfig config, Path output, Path workDir)
+				throws IOException;
 	}
 
 	public static class Options extends BaseOptions {
@@ -83,13 +85,13 @@ public class M2tsShrinkCli {
 		@Option(name = "--report", usage = "Write the plan JSON to this path (default: print to stdout)")
 		File report;
 
-		@Option(name = "--output", usage = "Separate destination disc root (required for video conversion)")
+		@Option(name = "--output", required = true, usage = "Separate destination disc root for persistent cache and output (always required)")
 		Path output;
 
-		@Option(name = "--defer", usage = "Write batch/descriptors only; no extraction, encoding or muxing")
+		@Option(name = "--defer", usage = "Prepare extraction cache and batch/descriptors now; defer encoding and muxing")
 		boolean defer;
 
-		@Option(name = "--work-dir", usage = "Workspace (default: OUTPUT/.brts-shrink/CLIP-ID); retained for resume")
+		@Option(name = "--work-dir", usage = "Job workspace inside OUTPUT (default: OUTPUT/.brts-shrink/CLIP-ID/jobs/<key>); retained for resume")
 		Path workDir;
 
 		@Option(name = "--compute-sha256", usage = "Compute SHA-256 for verification")
@@ -100,7 +102,7 @@ public class M2tsShrinkCli {
 	@Slf4j
 	public static class Shrink extends FeatureRunner<Options> {
 
-		private final InventoryResolver resolver;
+		private final CacheResolver resolver;
 		private final M2tsShrinkPlanner planner;
 		private final BatchExecutor executor;
 		private final BatchWholeM2tsConverter.MetadataReader metadataReader;
@@ -122,7 +124,11 @@ public class M2tsShrinkCli {
 		}
 
 		public Shrink(M2tsShrinkInputResolver resolver, M2tsShrinkPlanner planner, BatchExecutor executor) {
-			this(resolver::resolve, planner, executor, new M2tsParser()::parse);
+			this(new M2tsShrinkCache(resolver)::prepare, planner, executor);
+		}
+
+		public Shrink(CacheResolver resolver, M2tsShrinkPlanner planner, BatchExecutor executor) {
+			this(resolver, planner, executor, new M2tsParser()::parse);
 		}
 
 		@Override
@@ -132,18 +138,24 @@ public class M2tsShrinkCli {
 
 		@Override
 		public String getDescription() {
-			return "Shrink video through a preservation batch; --defer prepares only (other decisions: analysis-only)";
+			return "Cache selected streams and plan shrink; --defer postpones encoding/muxing (other decisions: plan only)";
 		}
 
 		@Override
 		protected void execute(Options opts) throws Exception {
+			if (opts.output == null) {
+				throw new IllegalArgumentException(
+						"--output is required for all shrink planning, including non-video decisions");
+			}
+			TargetRootWorkspace.prepare(opts.discRoot, opts.output, opts.workDir);
 			M2tsShrinkConfig config = opts.config != null ? opts.config : new M2tsShrinkConfig();
 
 			if (opts.engine == null) {
 				opts.engine = Engine
 						.parse(BrtsFileConfig.getInstance().propertyOrDefault("brts.video.converter.engine", "ffmpeg"));
 			}
-			var inventory = resolver.resolve(opts.discRoot, opts.clipId);
+			var cache = resolver.prepare(opts.discRoot, opts.clipId, config, opts.output, opts.workDir);
+			var inventory = cache.inventory();
 			log.debug("Resolved inventory for clip ID {}: {}", opts.clipId, inventory);
 			M2tsShrinkPlan plan = planner.plan(inventory, opts.clipId, config, opts.targetBytes, opts.engine);
 			log.debug("Planned shrink for clip ID {}: {}", opts.clipId, plan);
@@ -160,18 +172,16 @@ public class M2tsShrinkCli {
 				System.out.println("M2TS shrink plan → " + reportPath);
 			}
 			if (plan.decision() != M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED) {
-				System.err.println("Decision: " + plan.decision() + " (analysis-only; not executed)");
+				System.err.println("Decision: " + plan.decision()
+						+ " (no conversion/muxing; extraction cache retained at " + cache.cache().directory() + ")");
 				return;
-			}
-			if (opts.output == null) {
-				throw new IllegalArgumentException("--output is required for VIDEO_CONVERSION_REQUIRED");
 			}
 			var converter = new BatchWholeM2tsConverter(opts.engine, executor, metadataReader);
 			var request = new M2tsConversionRequest(inventory, plan, config, opts.output, opts.workDir, opts.clipId,
-					opts.computeSha256);
+					opts.computeSha256, cache.cache().reference());
 			if (opts.defer) {
 				var prepared = converter.prepare(request);
-				System.err.println("Deferred (no media operations): "
+				System.err.println("Deferred (extraction cache ready; no encoding or muxing): "
 						+ JsonMapperFactory.get().writerWithDefaultPrettyPrinter().writeValueAsString(prepared));
 				System.err.println("Run: brts low batch-run --descriptor \"" + prepared.batchDescriptor() + "\"");
 			} else {

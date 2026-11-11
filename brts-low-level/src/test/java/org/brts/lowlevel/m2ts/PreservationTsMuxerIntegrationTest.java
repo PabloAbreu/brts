@@ -69,6 +69,8 @@ class PreservationTsMuxerIntegrationTest {
 		Path extracted = temp.resolve("source-es");
 		new M2tsExtractor().extract(source, sourceInfo, extracted, null, true);
 		M2tsTimingManifest sourceTiming = M2tsTiming.read(extracted.resolve(M2tsTimingManifest.FILE_NAME));
+		for (var stream : sourceTiming.streams())
+			PreservingM2tsClipWriter.validateTiming(stream);
 		List<M2tsDescriptor.StreamEntry> entries = sourceInfo.getStreams().stream().map(s -> {
 			var entry = new M2tsDescriptor.StreamEntry();
 			entry.setPid(s.getPid());
@@ -93,6 +95,8 @@ class PreservationTsMuxerIntegrationTest {
 		Path muxEs = temp.resolve("mux-es");
 		new M2tsExtractor().extract(generated, info, muxEs, null, true);
 		var muxTiming = M2tsTiming.read(muxEs.resolve(M2tsTimingManifest.FILE_NAME));
+		for (var stream : muxTiming.streams())
+			PreservingM2tsClipWriter.validateTiming(stream);
 		var muxAudio = muxTiming.streams().stream().filter(s -> s.codingType() == StreamCodingType.DOLBY_AC3)
 				.findFirst().orElseThrow();
 		PreservationVideoTimeline.validate(extracted.resolve(video.fileName()), video);
@@ -123,6 +127,7 @@ class PreservationTsMuxerIntegrationTest {
 		new M2tsExtractor().extract(normalized, new M2tsParser().parse(normalized), finalEs, null, true);
 		var result = M2tsTiming.read(finalEs.resolve(M2tsTimingManifest.FILE_NAME)).streams().stream()
 				.filter(s -> s.codingType() == StreamCodingType.DOLBY_AC3).findFirst().orElseThrow();
+		PreservingM2tsClipWriter.validateTiming(result);
 		PreservationAc3Timeline.compare(muxEs.resolve(muxAudio.fileName()), muxAudio,
 				finalEs.resolve(result.fileName()), result, -1);
 	}

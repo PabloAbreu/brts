@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.ExtractionCache;
 import org.brts.common.m2ts.M2tsTiming;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
@@ -120,12 +121,18 @@ class PreservingM2tsClipWriterTest {
 		descriptor.setSourceClpi("/source/00001.clpi");
 		descriptor.setTimingManifest("/work/timing.json");
 		descriptor.setMaximumOutputBytes(123_456L);
+		descriptor.setExtractionCacheReference(new ExtractionCache.Reference("/work/cache.json",
+				new ExtractionCache.Identity("/work/cache.json", 123, "2026-01-01T00:00:00Z", null)));
 		byte[] json = JsonMapperFactory.get().writeValueAsBytes(descriptor);
 		var result = JsonMapperFactory.get().readValue(json, M2tsDescriptor.class);
 		assertThat(result.getSourceM2ts()).isEqualTo(descriptor.getSourceM2ts());
 		assertThat(result.getSourceClpi()).isEqualTo(descriptor.getSourceClpi());
 		assertThat(result.getTimingManifest()).isEqualTo(descriptor.getTimingManifest());
 		assertThat(result.getMaximumOutputBytes()).isEqualTo(123_456L);
+		assertThat(result.getExtractionCacheReference()).isEqualTo(descriptor.getExtractionCacheReference());
+		assertThat(JsonMapperFactory.get().readTree(json).get("extractionCacheReference").isObject()).isTrue();
+		assertThat(JsonMapperFactory.get().readValue("{\"outputName\":\"00001\"}", M2tsDescriptor.class)
+				.getExtractionCacheReference()).isNull();
 	}
 
 	@Test
@@ -184,6 +191,8 @@ class PreservingM2tsClipWriterTest {
 
 	@Test
 	void rejectsDiscontinuousOrMissingOriginalTiming() {
+		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateTiming(null)).isInstanceOf(IOException.class)
+				.hasMessageContaining("Incomplete");
 		var backwards = timing(StreamCodingType.DOLBY_AC3, List.of(100L, 90L));
 		assertThatThrownBy(() -> PreservingM2tsClipWriter.validateTiming(backwards)).isInstanceOf(IOException.class)
 				.hasMessageContaining("Discontinuous");

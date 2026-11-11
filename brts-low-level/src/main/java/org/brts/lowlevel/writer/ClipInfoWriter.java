@@ -35,6 +35,8 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.clpi.EpMap;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Writer for CLPI (Clip Information) binary files.
  * <p>
@@ -52,6 +54,7 @@ import org.brts.lowlevel.model.clpi.EpMap;
  *
  * The ClipInfo section always starts immediately at byte 40.
  */
+@Slf4j
 public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 	private static final String MAGIC = "HDMV";
@@ -65,6 +68,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 	@Override
 	public void write(ClipInfo model, OutputStream output) throws IOException {
+		log.info("Writing CLPI file for clip: {}", model.getClipName());
 		String version = model.getVersion() != null ? model.getVersion() : DEFAULT_VERSION;
 		if (!DEFAULT_VERSION.equals(version) && !VERSION_300.equals(version)) {
 			throw new IllegalArgumentException(
@@ -104,6 +108,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		w.writeBytes(cpiSection);
 		w.writeBytes(clipMarkSection);
 		w.writeBytes(extensionSection);
+		log.info("Finished writing CLPI file for clip: {}", model.getClipName());
 	}
 
 	private byte[] buildExtensionSection() {

@@ -83,10 +83,12 @@ class PreservationVideoTimelineTest {
 		return file;
 	}
 
-	private static StreamTiming timing(StreamCodingType type, long... offsets) {
+	private static StreamTiming timing(StreamCodingType type, long... offsets) throws IOException {
 		var pes = new java.util.ArrayList<PesTiming>();
 		for (int i = 0; i < offsets.length; i++)
 			pes.add(new PesTiming(i, offsets[i], 90_000L + 3600 * i, null));
-		return new StreamTiming(0x1011, "video.es", type, 90_000L, null, pes, List.of());
+		var timing = new StreamTiming(0x1011, "video.es", type, 90_000L, null, pes, List.of());
+		PreservingM2tsClipWriter.validateTiming(timing);
+		return timing;
 	}
 }

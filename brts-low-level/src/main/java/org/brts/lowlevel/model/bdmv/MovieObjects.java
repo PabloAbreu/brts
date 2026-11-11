@@ -40,6 +40,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class MovieObjects {
+	/** Version : 0200 for blu-rays, 0300 for ultra HD blu-rays */
+	private String version;
 
 	/** The list of movie objects contained in this BDMV file. */
 	private List<MovieObject> movieObjects;

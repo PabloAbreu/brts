@@ -42,10 +42,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.brts.common.m2ts.ExtractionCache;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsTiming;
 import org.brts.common.m2ts.SourceFingerprint;
+import org.brts.common.m2ts.TargetRootWorkspace;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
@@ -64,13 +66,14 @@ import org.brts.lowlevel.writer.ClipInfoWriter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Opt-in, fail-closed tsMuxeR preservation path. Source ES is re-extracted to validate the manifest and copied tracks.
- * Every attempt is retained; only a validated normalized M2TS and regenerated CLPI are published. Supports one AVC/HEVC
- * video, AC3/EAC3, Dolby TrueHD, DTS-family audio and PGS. AC3 uses syncframe/sample clocks independently of PES
- * boundaries. Other retained audio codecs require strict PES-grid checks (repacketization is unsupported). Video
- * requires one AUD-delimited single-slice picture per timestamped PES; unproven layouts fail closed. This writer checks
- * source video before mux, not before encoding in an upstream batch. Clock discontinuities, changed presentation grids
- * and copied-track timing changes are rejected.
+ * Opt-in, fail-closed tsMuxeR preservation path. Source ES is re-extracted for legacy descriptors, or reused from a
+ * validated pinned extraction cache, to validate the manifest and copied tracks. Every attempt is retained; only a
+ * validated normalized M2TS and regenerated CLPI are published. Supports one AVC/HEVC video, AC3/EAC3, Dolby TrueHD,
+ * DTS-family audio and PGS. AC3 uses syncframe/sample clocks independently of PES boundaries. Other retained audio
+ * codecs require strict PES-grid checks (repacketization is unsupported). Video requires one AUD-delimited single-slice
+ * picture per timestamped PES; unproven layouts fail closed. This writer checks source video before mux, not before
+ * encoding in an upstream batch. Clock discontinuities, changed presentation grids and copied-track timing changes are
+ * rejected.
  */
 @Slf4j
 public final class PreservingM2tsClipWriter implements M2tsClipWriter {
@@ -92,9 +95,17 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		require(source.getFileName().toString().equals(descriptor.getOutputName() + ".m2ts")
 				&& sourceClpi.getFileName().toString().equals(descriptor.getOutputName() + ".clpi"),
 				"Output clip ID must match the source pair");
-		Files.createDirectories(target.getParent());
 		Path root = target.getParent().resolve(".brts-preserve-" + descriptor.getOutputName());
-		Files.createDirectories(root);
+		ExtractionCache.Validated cache = descriptor.getExtractionCacheReference() == null ? null
+				: validateCache(descriptor, source, sourceClpi, manifestPath, target, targetClpi, root, null);
+		if (cache == null) {
+			Files.createDirectories(target.getParent());
+			Files.createDirectories(root);
+		} else {
+			Path targetRoot = Path.of(cache.manifest().targetRoot());
+			TargetRootWorkspace.directory(targetRoot, target.getParent());
+			TargetRootWorkspace.directory(targetRoot, root);
+		}
 		try (FileChannel channel = FileChannel.open(root.resolve("writer.lock"), StandardOpenOption.CREATE,
 				StandardOpenOption.WRITE); FileLock lock = channel.tryLock()) {
 			require(lock != null, "Another preservation writer owns " + root);
@@ -103,7 +114,9 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			PreservationPublication.absent(targetClpi);
 			Path stage = Files.createTempDirectory(root, "attempt-");
 			try {
-				preserve(descriptor, source, sourceClpi, manifestPath, target, targetClpi, root, stage);
+				if (cache != null)
+					TargetRootWorkspace.requireInside(Path.of(cache.manifest().targetRoot()), stage);
+				preserve(descriptor, source, sourceClpi, manifestPath, target, targetClpi, root, stage, cache);
 			} catch (IOException | RuntimeException e) {
 				throw new IOException(
 						"M2TS preservation failed; artifacts retained at " + stage + ": " + e.getMessage(), e);
@@ -112,17 +125,19 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 	}
 
 	private void preserve(M2tsDescriptor descriptor, Path source, Path sourceClpi, Path manifestPath, Path target,
-			Path targetClpi, Path root, Path stage) throws IOException {
+			Path targetClpi, Path root, Path stage, ExtractionCache.Validated cache) throws IOException {
 		// Resolve the required backend before expensive validation. Never invoke the fallback factory.
 		String binary = TsMuxerUtils.resolveTsMuxeRBinary();
-		M2tsInfo sourceInfo = new M2tsParser().parse(source);
+		M2tsInfo sourceInfo = cache == null ? new M2tsParser().parse(source) : cache.manifest().info();
 		ClipInfo originalClpi = new ClipInfoParser().parse(sourceClpi);
 		require(originalClpi.getApplicationType() == ClipInfo.APPLICATION_TYPE_MOVIE && !originalClpi.isAtcDelta(),
 				"Only movie clips without ATC deltas are supported");
-		M2tsTimingManifest manifest = M2tsTiming.read(manifestPath);
+		M2tsTimingManifest manifest = cache == null ? M2tsTiming.read(manifestPath) : cache.timing();
 		SourceFingerprint.verify(source, descriptor.getSourceM2tsSha256());
 		SourceFingerprint.verify(sourceClpi, descriptor.getSourceClpiSha256());
-		if (descriptor.getSourceM2tsSha256() != null)
+		// Cache-backed extraction is attribute-pinned; optional source hashes are verified above.
+		// A cache created without hashing intentionally has no digest in its timing manifest.
+		if (descriptor.getSourceM2tsSha256() != null && (cache == null || manifest.sourceSha256() != null))
 			require(descriptor.getSourceM2tsSha256().equalsIgnoreCase(manifest.sourceSha256()),
 					"Timing manifest does not match the prepared source fingerprint");
 		require(Path.of(manifest.sourcePath()).toRealPath().equals(source)
@@ -153,8 +168,9 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		}
 		require(video != null, "One AVC/HEVC video is required");
 		validateSourceVideo(sourceInfo, video);
-		Path originalExtraction = stage.resolve("source-check");
-		M2tsTimingManifest actualSource = extract(source, sourceInfo, originalExtraction, retained);
+		Path originalExtraction = cache == null ? stage.resolve("source-check") : cache.directory();
+		M2tsTimingManifest actualSource = cache == null ? extract(source, sourceInfo, originalExtraction, retained)
+				: cache.timing();
 		Map<Integer, StreamTiming> actualTimings = index(actualSource);
 		for (int pid : retained)
 			require(timings.get(pid).equals(actualTimings.get(pid)),
@@ -192,8 +208,10 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		Path generated = muxDirectory.resolve("BDMV/STREAM/00000.m2ts");
 		require(Files.isRegularFile(generated) && Files.size(generated) > 0, "tsMuxeR did not produce M2TS");
 		M2tsInfo generatedInfo = new M2tsParser().parse(generated);
+		log.info("Generated M2TS info: {}", generatedInfo);
 		Map<Integer, Integer> mapping = PreservationTransportNormalizer.mapping(generatedInfo, sourceInfo,
 				descriptor.getStreams());
+		log.info("PID mapping: {}", mapping);
 		M2tsTimingManifest generatedTiming = extract(generated, generatedInfo, stage.resolve("mux-check"), null);
 		Map<Integer, StreamTiming> generatedTimings = index(generatedTiming);
 		Map<Integer, Long> shifts = new HashMap<>();
@@ -201,6 +219,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		Set<Integer> generatedPids = new HashSet<>();
 		for (int i = 0; i < descriptor.getStreams().size(); i++) {
 			var entry = descriptor.getStreams().get(i);
+			log.debug("Processing stream entry for PID {}", entry.getPid());
 			int generatedPid = generatedInfo.getStreams().get(i).getPid();
 			generatedPids.add(generatedPid);
 			StreamTiming original = timings.get(entry.getPid());
@@ -238,6 +257,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		for (var entry : descriptor.getStreams()) {
 			StreamTiming original = timings.get(entry.getPid());
 			StreamTiming result = finalTimings.get(entry.getPid());
+			validateTiming(result);
 			require(Objects.equals(original.firstPts90k(), result.firstPts90k()), "Final presentation origin changed");
 			validatePresentation(original, result, 0, originalExtraction.resolve(original.fileName()),
 					stage.resolve("final-check").resolve(result.fileName()));
@@ -278,9 +298,10 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		// BRTS's last-picture-PTS convention incorrectly rejects an exclusive native end.
 		// Never copy source packet counts or entry points into the new transport.
 		ClipInfo sourceScan = new M2tsClpiRegenBuilder().build(source, descriptor.getOutputName(),
-				sourceRegenOptions(sourceInfo, video, regenOptions));
+				sourceRegenOptions(sourceInfo, video, regenOptions), actualSource);
 		validateSourceBounds(originalClpi, sourceScan, timings.get(video.getPid()));
-		ClipInfo clip = new M2tsClpiRegenBuilder().build(normalized, descriptor.getOutputName(), regenOptions);
+		ClipInfo clip = new M2tsClpiRegenBuilder().build(normalized, descriptor.getOutputName(), regenOptions,
+				finalTiming);
 		require(Objects.equals(sourceScan.getTsRecordingStartPts(), clip.getTsRecordingStartPts())
 				&& Objects.equals(sourceScan.getTsRecordingEndPts(), clip.getTsRecordingEndPts()),
 				"Regenerated output/source media presentation bounds differ");
@@ -303,7 +324,36 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		force(normalizedClpi);
 		SourceFingerprint.verify(source, descriptor.getSourceM2tsSha256());
 		SourceFingerprint.verify(sourceClpi, descriptor.getSourceClpiSha256());
+		if (cache != null)
+			validateCache(descriptor, source, sourceClpi, manifestPath, target, targetClpi, root, stage);
 		PreservationPublication.publish(root, normalized, normalizedClpi, target, targetClpi);
+	}
+
+	/** Validates cache identity, exact retained coverage and target placement before any costly media work. */
+	static ExtractionCache.Validated validateCache(M2tsDescriptor descriptor, Path source, Path sourceClpi,
+			Path manifestPath, Path target, Path targetClpi, Path root, Path stage) throws IOException {
+		var cache = ExtractionCache.validate(descriptor.getExtractionCacheReference());
+		require(source.equals(Path.of(cache.manifest().source().path()))
+				&& sourceClpi.equals(Path.of(cache.manifest().clpi().path())),
+				"Descriptor source M2TS/CLPI does not match extraction cache");
+		Path cachedTiming = cache.directory().resolve(M2tsTimingManifest.FILE_NAME);
+		require(Path.of(descriptor.getTimingManifest()).equals(cachedTiming) && manifestPath.equals(cachedTiming),
+				"Descriptor timing manifest must be the extraction cache directory/timing.json");
+		require(M2tsTiming.read(manifestPath).equals(cache.timing()),
+				"Descriptor timing differs from extraction cache");
+		Set<Integer> selected = new HashSet<>();
+		for (var stream : descriptor.getStreams())
+			require(selected.add(stream.getPid()), "Duplicate descriptor PID " + stream.getPid());
+		require(selected.equals(new HashSet<>(cache.manifest().pids())),
+				"Descriptor retained PIDs must match the complete extraction cache selection");
+		require(index(cache.timing()).keySet().equals(selected), "Timing stream coverage must equal retained PIDs");
+		Path targetRoot = Path.of(cache.manifest().targetRoot());
+		TargetRootWorkspace.requireInside(targetRoot, target);
+		TargetRootWorkspace.requireInside(targetRoot, targetClpi);
+		TargetRootWorkspace.requireInside(targetRoot, root);
+		if (stage != null)
+			TargetRootWorkspace.requireInside(targetRoot, stage);
+		return cache;
 	}
 
 	/** Source-only comparison options; the accepted companion is not retained or published. */
@@ -367,6 +417,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 
 	private static M2tsTimingManifest extract(Path input, M2tsInfo info, Path dir, Set<Integer> pids)
 			throws IOException {
+		log.info("Extracting M2TS timing from input: {}", input);
 		new M2tsExtractor().extract(input, info, dir, pids, true);
 		return M2tsTiming.read(dir.resolve(M2tsTimingManifest.FILE_NAME));
 	}
@@ -375,6 +426,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		require(timing != null && timing.firstPts90k() != null && timing.pesTimings() != null
 				&& !timing.pesTimings().isEmpty() && timing.segments() != null,
 				"Incomplete original/generated stream timing");
+		log.debug("Validating timing for PID: {}", timing.pid());
 		Long previous = null;
 		for (var pes : timing.pesTimings()) {
 			require(pes.pts90k() != null, "Timestamp-less PES cannot establish preservation");
@@ -393,8 +445,10 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		return type != null && SUPPORTED_PRESERVATION_CODECS.contains(type);
 	}
 
+	/** Both stream timings must have passed {@link #validateTiming(StreamTiming)} before comparison. */
 	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, Path sourceEs,
 			Path generatedEs) throws IOException {
+		log.debug("Validating presentation for PID: {}", source.pid());
 		require(source.codingType() == generated.codingType(), "Presentation codec changed");
 		if (source.codingType() == StreamCodingType.DOLBY_AC3) {
 			PreservationAc3Timeline.compare(sourceEs, source, generatedEs, generated, shift);

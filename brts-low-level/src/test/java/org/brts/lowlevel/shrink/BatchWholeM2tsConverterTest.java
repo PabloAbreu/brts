@@ -29,16 +29,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.ExtractionCache;
+import org.brts.common.m2ts.M2tsTiming;
 import org.brts.common.m2ts.SourceFingerprint;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.m2ts.model.M2tsTimingManifest;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.shrink.WholeM2tsConverter.M2tsConversionRequest;
@@ -47,6 +53,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class BatchWholeM2tsConverterTest {
 	@TempDir
@@ -56,6 +63,7 @@ class BatchWholeM2tsConverterTest {
 	@EnumSource(Engine.class)
 	void deferredBatchIsAbsoluteThreeStepPipelineWithoutCallingExecutor(Engine engine) throws Exception {
 		var request = request();
+		assertThat(request.extractionCache()).isNull();
 		AtomicInteger calls = new AtomicInteger();
 		var converter = new BatchWholeM2tsConverter(engine, path -> calls.incrementAndGet(), path -> metadata());
 		var prepared = converter.prepare(request);
@@ -65,6 +73,7 @@ class BatchWholeM2tsConverterTest {
 		assertThat(Files.exists(prepared.workspace().resolve("extracted"))).isFalse();
 		assertThat(Files.exists(prepared.outputPath())).isFalse();
 		var batch = JsonMapperFactory.get().readValue(prepared.batchDescriptor().toFile(), BatchRunDescriptor.class);
+		assertThat(batch.getPreflightSteps()).isEmpty();
 		assertThat(batch.getSteps()).extracting(s -> s.getCommand()).containsExactly("m2ts-extract", "video-convert",
 				"m2ts-create");
 		assertThat(batch.getSteps().get(0).toCommandTokens()).containsExactly("m2ts-extract", "--input",
@@ -333,6 +342,388 @@ class BatchWholeM2tsConverterTest {
 		var inventory = budgetInventory(0, 0);
 		assertThatThrownBy(() -> ShrinkBitrateBudget.calculate(inventory, budgetPlan(inventory, 1000), Set.of()))
 				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("duration");
+	}
+
+	@ParameterizedTest
+	@EnumSource(Engine.class)
+	void cachedPreparationReusesPinnedMetadataAndArtifactsWithValidationPreflight(Engine engine) throws Exception {
+		var request = cachedRequest(false);
+		AtomicInteger executions = new AtomicInteger();
+		var converter = cachedConverter(engine, executions);
+		var cache = ExtractionCache.validate(request.extractionCache());
+		var sourceIdentity = ExtractionCache.identity(request.inventory().m2tsPath());
+		var timingIdentity = ExtractionCache.identity(cache.directory().resolve("timing.json"));
+		var prepared = converter.prepare(request);
+		assertThat(executions).hasValue(0);
+		assertThat(prepared.workspace().getParent())
+				.isEqualTo(request.destinationRoot().resolve(".brts-shrink/00001/jobs"));
+		assertThat(prepared.workspace().getFileName().toString()).matches("[0-9a-f]{64}");
+		assertThat(prepared.workspace().resolve("extracted")).doesNotExist();
+		assertThat(prepared.workspace().resolve("converted")).isDirectory();
+		assertThat(prepared.outputPath()).doesNotExist();
+		assertThat(prepared.outputClpi()).doesNotExist();
+		Path referenceFile = prepared.workspace().resolve("cache-reference.json");
+		assertThat(JsonMapperFactory.get().readValue(referenceFile.toFile(), ExtractionCache.Reference.class))
+				.isEqualTo(request.extractionCache());
+		var batch = JsonMapperFactory.get().readValue(prepared.batchDescriptor().toFile(), BatchRunDescriptor.class);
+		assertThat(batch.getPreflightSteps()).hasSize(1);
+		assertThat(batch.getPreflightSteps().getFirst().toCommandTokens()).containsExactly("m2ts-extract", "--input",
+				request.inventory().m2tsPath().toString(), "--output", cache.directory().toString(),
+				"--preserve-timing", "--cache-reference", referenceFile.toString(), "--validate-cache-only");
+		assertThat(batch.getSteps()).extracting(s -> s.getCommand()).containsExactly("video-convert", "m2ts-create");
+		assertThat(batch.getSteps().getFirst().toCommandTokens()).containsSubsequence("--input",
+				cache.directory().resolve("cached_1011.264").toString(), "--output",
+				prepared.workspace().resolve("converted/cached_1011.264").toString(), "--codec", "H264_AVC", "--engine",
+				engine.name(), "--bitrate-kbps", Integer.toString(prepared.videoBitrateKbps()), "--source-frame-rate",
+				"24/1");
+		assertThat(batch.getSteps().getLast().toCommandTokens()).containsExactly("m2ts-create", "--descriptor",
+				prepared.muxDescriptor().toString(), "--output", prepared.outputPath().getParent().toString(), "--clpi",
+				prepared.outputClpi().getParent().toString());
+		var mux = JsonMapperFactory.get().readValue(prepared.muxDescriptor().toFile(), M2tsDescriptor.class);
+		assertThat(mux.getExtractionCacheReference()).isEqualTo(request.extractionCache());
+		assertThat(mux.getTimingManifest()).isEqualTo(cache.directory().resolve("timing.json").toString());
+		assertThat(mux.getSourceM2tsSha256()).isNull();
+		assertThat(mux.getSourceClpiSha256()).isNull();
+		assertThat(mux.getMaximumOutputBytes()).isEqualTo(request.shrinkPlan().targetBytes());
+		assertThat(mux.getStreams()).extracting(s -> s.getPid()).containsExactly(0x1011, 0x1102, 0x1200);
+		assertThat(mux.getStreams().get(1).getFile())
+				.isEqualTo(cache.directory().resolve("cached_1102.dts").toString());
+		assertThat(mux.getStreams().get(2).getFile())
+				.isEqualTo(cache.directory().resolve("cached_1200.pgs").toString());
+		assertThat(ExtractionCache.identity(request.inventory().m2tsPath())).isEqualTo(sourceIdentity);
+		assertThat(ExtractionCache.identity(cache.directory().resolve("timing.json"))).isEqualTo(timingIdentity);
+		assertThat(ExtractionCache.validate(request.extractionCache()).reference())
+				.isEqualTo(request.extractionCache());
+	}
+
+	@Test
+	void cachedShaOptInPinsHashesInDescriptorWithoutMutatingUnhashedTiming() throws Exception {
+		var request = cachedRequest(true);
+		var cache = ExtractionCache.validate(request.extractionCache());
+		assertThat(cache.timing().sourceSha256()).isNull();
+		byte[] timing = Files.readAllBytes(cache.directory().resolve("timing.json"));
+		var prepared = cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(request);
+		var mux = JsonMapperFactory.get().readValue(prepared.muxDescriptor().toFile(), M2tsDescriptor.class);
+		assertThat(mux.getSourceM2tsSha256()).isEqualTo(SourceFingerprint.sha256(request.inventory().m2tsPath()));
+		assertThat(mux.getSourceClpiSha256()).isEqualTo(SourceFingerprint.sha256(request.inventory().clpiPath()));
+		assertThat(Files.readAllBytes(cache.directory().resolve("timing.json"))).containsExactly(timing);
+		ExtractionCache.validate(request.extractionCache());
+	}
+
+	@Test
+	void cachedJobKeyIsStableAndSeparatesTargetsEnginesAndHashPolicy() throws Exception {
+		var request = cachedRequest(false);
+		var converter = cachedConverter(Engine.FFMPEG, new AtomicInteger());
+		var prepared = converter.prepare(request);
+		Files.delete(prepared.batchDescriptor());
+		Files.delete(prepared.muxDescriptor());
+		Files.delete(prepared.workspace().resolve("cache-reference.json"));
+		assertThat(converter.prepare(request).workspace()).isEqualTo(prepared.workspace());
+		var otherPlan = new M2tsShrinkPlanner().plan(request.inventory(), "00001", request.config(), 90_000,
+				Engine.FFMPEG);
+		var otherTarget = new M2tsConversionRequest(request.inventory(), otherPlan, request.config(),
+				request.destinationRoot(), null, "00001", false, request.extractionCache());
+		var targetJob = converter.prepare(otherTarget);
+		assertThat(targetJob.workspace()).isNotEqualTo(prepared.workspace());
+		for (Engine engine : Engine.values()) {
+			if (engine != Engine.FFMPEG) {
+				assertThat(cachedConverter(engine, new AtomicInteger()).prepare(request).workspace())
+						.isNotEqualTo(prepared.workspace()).isNotEqualTo(targetJob.workspace());
+			}
+		}
+		var hashed = new M2tsConversionRequest(request.inventory(), request.shrinkPlan(), request.config(),
+				request.destinationRoot(), null, "00001", true, request.extractionCache());
+		assertThat(converter.prepare(hashed).workspace()).isNotEqualTo(prepared.workspace());
+		var explicitSelection = new M2tsShrinkConfig();
+		explicitSelection.setAudioPids(List.of(0x1102));
+		explicitSelection.setSubtitlePids(List.of(0x1200));
+		var configured = new M2tsConversionRequest(request.inventory(), request.shrinkPlan(), explicitSelection,
+				request.destinationRoot(), null, "00001", false, request.extractionCache());
+		assertThat(converter.prepare(configured).workspace()).isNotEqualTo(prepared.workspace());
+	}
+
+	@Test
+	void cachedExplicitWorkspaceIsUsedAndDescriptorsCannotBeOverwritten() throws Exception {
+		var request = cachedRequest(false);
+		Path work = request.destinationRoot().resolve("explicit job");
+		var explicit = withWorkspace(request, work);
+		var converter = cachedConverter(Engine.FFMPEG, new AtomicInteger());
+		var prepared = converter.prepare(explicit);
+		assertThat(prepared.workspace()).isEqualTo(work);
+		byte[] mux = Files.readAllBytes(prepared.muxDescriptor());
+		byte[] batch = Files.readAllBytes(prepared.batchDescriptor());
+		byte[] pin = Files.readAllBytes(work.resolve("cache-reference.json"));
+		assertThatThrownBy(() -> converter.prepare(explicit)).isInstanceOf(IOException.class)
+				.hasMessageContaining("already exist");
+		assertThat(Files.readAllBytes(prepared.muxDescriptor())).containsExactly(mux);
+		assertThat(Files.readAllBytes(prepared.batchDescriptor())).containsExactly(batch);
+		assertThat(Files.readAllBytes(work.resolve("cache-reference.json"))).containsExactly(pin);
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "cache-reference.json", "m2ts-descriptor.json", "batch-run.json" })
+	void cachedPreparationRejectsAnyExistingDescriptorIncludingDanglingSymlinks(String file) throws Exception {
+		var request = cachedRequest(false);
+		Path work = request.destinationRoot().resolve("explicit");
+		Files.createDirectories(work);
+		Files.createSymbolicLink(work.resolve(file), temp.resolve("missing"));
+		assertThatThrownBy(
+				() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(withWorkspace(request, work)))
+				.isInstanceOf(IOException.class).hasMessageContaining("already exist");
+		assertThat(work.resolve("converted")).doesNotExist();
+		assertThat(Files.isSymbolicLink(work.resolve(file))).isTrue();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "source", "clpi", "timing.json", "cached_1102.dts", "cache.json" })
+	void staleCacheFailsBeforeJobDirectoryCreationOrExecutor(String artifact) throws Exception {
+		var request = cachedRequest(false);
+		Path directory = Path.of(request.extractionCache().manifest()).getParent();
+		Path path = switch (artifact) {
+		case "source" -> request.inventory().m2tsPath();
+		case "clpi" -> request.inventory().clpiPath();
+		default -> directory.resolve(artifact);
+		};
+		Files.setLastModifiedTime(path, FileTime.fromMillis(Files.getLastModifiedTime(path).toMillis() + 10_000));
+		AtomicInteger executions = new AtomicInteger();
+		assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, executions).convert(request))
+				.isInstanceOf(IOException.class).hasMessageContaining("Invalid extraction cache");
+		assertThat(executions).hasValue(0);
+		assertThat(request.destinationRoot().resolve(".brts-shrink/00001")).doesNotExist();
+		assertThat(request.destinationRoot().resolve("BDMV")).doesNotExist();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "bytes", "duration", "count", "language", "bitrate", "codec", "duplicate", "missing" })
+	void cachedPreparationRejectsInconsistentInventoryBeforeWriting(String mismatch) throws Exception {
+		var request = cachedRequest(false);
+		var inventory = request.inventory();
+		var tracks = new ArrayList<>(inventory.tracks());
+		var audio = tracks.get(1);
+		switch (mismatch) {
+		case "count" -> tracks.set(1, new M2tsShrinkInventory.Track(audio.pid(), audio.codingType(), audio.language(),
+				audio.declaredBitrateKbps(), audio.sourcePacketCount() + 1));
+		case "language" -> tracks.set(1, new M2tsShrinkInventory.Track(audio.pid(), audio.codingType(), "deu",
+				audio.declaredBitrateKbps(), audio.sourcePacketCount()));
+		case "bitrate" -> tracks.set(1, new M2tsShrinkInventory.Track(audio.pid(), audio.codingType(), audio.language(),
+				768, audio.sourcePacketCount()));
+		case "codec" -> tracks.set(1, new M2tsShrinkInventory.Track(audio.pid(), StreamCodingType.DOLBY_AC3,
+				audio.language(), audio.declaredBitrateKbps(), audio.sourcePacketCount()));
+		case "duplicate" -> tracks.add(audio);
+		case "missing" -> tracks.remove(1);
+		default -> {
+		}
+		}
+		var changed = new M2tsShrinkInventory(inventory.m2tsPath(), inventory.clpiPath(),
+				inventory.sourceBytes() + (mismatch.equals("bytes") ? 192 : 0),
+				inventory.duration90k() + (mismatch.equals("duration") ? 1 : 0), tracks);
+		var changedRequest = new M2tsConversionRequest(changed, request.shrinkPlan(), request.config(),
+				request.destinationRoot(), null, "00001", false, request.extractionCache());
+		assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(changedRequest))
+				.isInstanceOf(IOException.class).hasMessageContaining("cache");
+		assertThat(request.destinationRoot().resolve(".brts-shrink/00001")).doesNotExist();
+		assertThat(request.destinationRoot().resolve("BDMV")).doesNotExist();
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "source", "clpi", "target" })
+	void cachedPreparationRequiresExactSourcePairAndTargetRoot(String mismatch) throws Exception {
+		var request = cachedRequest(false);
+		var inventory = request.inventory();
+		Path source = inventory.m2tsPath();
+		Path clpi = inventory.clpiPath();
+		Path root = request.destinationRoot();
+		if (mismatch.equals("target")) {
+			root = temp.resolve("different output");
+		} else {
+			Path other = temp.resolve("other disc/BDMV")
+					.resolve(mismatch.equals("source") ? "STREAM/00001.m2ts" : "CLIPINF/00001.clpi");
+			Files.createDirectories(other.getParent());
+			Files.copy(mismatch.equals("source") ? source : clpi, other);
+			if (mismatch.equals("source"))
+				source = other;
+			else
+				clpi = other;
+		}
+		var changed = new M2tsShrinkInventory(source, clpi, inventory.sourceBytes(), inventory.duration90k(),
+				inventory.tracks());
+		var changedRequest = new M2tsConversionRequest(changed, request.shrinkPlan(), request.config(), root, null,
+				"00001", false, request.extractionCache());
+		assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(changedRequest))
+				.isInstanceOf(IOException.class).hasMessageContaining("identity mismatch");
+		assertThat(temp.resolve("different output")).doesNotExist();
+		assertThat(request.destinationRoot().resolve(".brts-shrink/00001")).doesNotExist();
+	}
+
+	@Test
+	void cachedPreparationRequiresExactCoverageForBothPlanAndConfig() throws Exception {
+		var request = cachedRequest(false);
+		var config = new M2tsShrinkConfig();
+		config.setAudioPids(List.of());
+		var plan = new M2tsShrinkPlanner().plan(request.inventory(), "00001", config, 100_000, Engine.FFMPEG);
+		var extraCoverage = new M2tsConversionRequest(request.inventory(), plan, config, request.destinationRoot(),
+				null, "00001", false, request.extractionCache());
+		var stalePlan = new M2tsConversionRequest(request.inventory(), request.shrinkPlan(), config,
+				request.destinationRoot(), null, "00001", false, request.extractionCache());
+		for (var invalid : List.of(extraCoverage, stalePlan)) {
+			assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(invalid))
+					.isInstanceOf(IOException.class).hasMessageContaining("PID coverage");
+		}
+		assertThat(request.destinationRoot().resolve(".brts-shrink/00001")).doesNotExist();
+	}
+
+	@Test
+	void cachedPreparationRejectsMissingSelectedPidEvenForOtherwiseValidCache() throws Exception {
+		var request = cachedRequest(false, List.of(0x1011, 0x1200));
+		ExtractionCache.validate(request.extractionCache());
+		assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(request))
+				.isInstanceOf(IOException.class).hasMessageContaining("PID coverage");
+		assertThat(request.destinationRoot().resolve(".brts-shrink/00001")).doesNotExist();
+	}
+
+	@Test
+	void cachedPreparationHonorsEmptySelectionAndStillChecksRemovedTrackCounts() throws Exception {
+		var original = cachedRequest(false, List.of(0x1011));
+		var config = new M2tsShrinkConfig();
+		config.setAudioPids(List.of());
+		config.setSubtitlePids(List.of());
+		var plan = new M2tsShrinkPlanner().plan(original.inventory(), "00001", config, 100_000, Engine.FFMPEG);
+		var request = new M2tsConversionRequest(original.inventory(), plan, config, original.destinationRoot(), null,
+				"00001", false, original.extractionCache());
+		var prepared = cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(request);
+		var descriptor = JsonMapperFactory.get().readValue(prepared.muxDescriptor().toFile(), M2tsDescriptor.class);
+		assertThat(descriptor.getStreams()).extracting(s -> s.getPid()).containsExactly(0x1011);
+		var tracks = new ArrayList<>(request.inventory().tracks());
+		var audio = tracks.get(1);
+		tracks.set(1, new M2tsShrinkInventory.Track(audio.pid(), audio.codingType(), audio.language(),
+				audio.declaredBitrateKbps(), audio.sourcePacketCount() + 1));
+		var inventory = new M2tsShrinkInventory(request.inventory().m2tsPath(), request.inventory().clpiPath(),
+				request.inventory().sourceBytes(), request.inventory().duration90k(), tracks);
+		Path otherWork = request.destinationRoot().resolve("bad counts");
+		var invalid = new M2tsConversionRequest(inventory, plan, config, request.destinationRoot(), otherWork, "00001",
+				false, request.extractionCache());
+		assertThatThrownBy(() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(invalid))
+				.isInstanceOf(IOException.class).hasMessageContaining("metadata/counts");
+		assertThat(otherWork).doesNotExist();
+	}
+
+	@Test
+	void legacyAndCachedWorkspacesMustStayInsideTargetIncludingSymlinkAncestors() throws Exception {
+		var legacy = request();
+		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
+		}, path -> metadata());
+		Path outside = temp.resolve("outside work");
+		assertThatThrownBy(() -> converter.prepare(withWorkspace(legacy, outside))).isInstanceOf(IOException.class)
+				.hasMessageContaining("inside target root");
+		assertThat(legacy.destinationRoot()).doesNotExist();
+		assertThat(outside).doesNotExist();
+		var cached = cachedRequest(false);
+		assertThatThrownBy(
+				() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(withWorkspace(cached, outside)))
+				.isInstanceOf(IOException.class).hasMessageContaining("inside target root");
+		Files.createDirectories(outside);
+		Path link = Files.createSymbolicLink(cached.destinationRoot().resolve("escape"), outside);
+		for (var request : List.of(legacy, cached)) {
+			assertThatThrownBy(() -> converter.prepare(withWorkspace(request, link.resolve("job"))))
+					.isInstanceOf(IOException.class).hasMessageContaining("inside target root");
+		}
+		assertThat(outside.resolve("job")).doesNotExist();
+	}
+
+	@Test
+	void cachedWorkspaceCannotOverlapImmutableCache() throws Exception {
+		var request = cachedRequest(false);
+		Path directory = Path.of(request.extractionCache().manifest()).getParent();
+		for (Path work : List.of(directory, directory.resolve("job"), directory.getParent())) {
+			assertThatThrownBy(
+					() -> cachedConverter(Engine.FFMPEG, new AtomicInteger()).prepare(withWorkspace(request, work)))
+					.isInstanceOf(IOException.class).hasMessageContaining("separate from the immutable");
+		}
+		assertThat(directory.resolve("job")).doesNotExist();
+	}
+
+	@Test
+	void cachedImmediateExecutionUsesSameTwoStepBatch() throws Exception {
+		var request = cachedRequest(false);
+		AtomicInteger executions = new AtomicInteger();
+		var converter = new BatchWholeM2tsConverter(Engine.FFMPEG, path -> {
+			executions.incrementAndGet();
+			var batch = JsonMapperFactory.get().readValue(path.toFile(), BatchRunDescriptor.class);
+			assertThat(batch.getPreflightSteps()).hasSize(1);
+			assertThat(batch.getSteps()).extracting(s -> s.getCommand()).containsExactly("video-convert",
+					"m2ts-create");
+			Files.write(request.destinationRoot().resolve("BDMV/STREAM/00001.m2ts"), new byte[192]);
+			Files.write(request.destinationRoot().resolve("BDMV/CLIPINF/00001.clpi"), new byte[1]);
+		}, path -> {
+			throw new AssertionError("Cached preparation must not parse source metadata");
+		});
+		assertThat(converter.convert(request).outputBytes()).isEqualTo(192);
+		assertThat(executions).hasValue(1);
+		ExtractionCache.validate(request.extractionCache());
+	}
+
+	private BatchWholeM2tsConverter cachedConverter(Engine engine, AtomicInteger executions) {
+		return new BatchWholeM2tsConverter(engine, path -> executions.incrementAndGet(), path -> {
+			throw new AssertionError("Cached preparation must not parse source metadata");
+		});
+	}
+
+	private M2tsConversionRequest withWorkspace(M2tsConversionRequest request, Path workspace) {
+		return new M2tsConversionRequest(request.inventory(), request.shrinkPlan(), request.config(),
+				request.destinationRoot(), workspace, request.clipId(), request.computeSha256(),
+				request.extractionCache());
+	}
+
+	/** Deliberately invalid transport bytes: preparation must use the persisted metadata, never a transport probe. */
+	private M2tsConversionRequest cachedRequest(boolean hashes) throws IOException {
+		return cachedRequest(hashes, List.of(0x1011, 0x1102, 0x1200));
+	}
+
+	private M2tsConversionRequest cachedRequest(boolean hashes, List<Integer> selected) throws IOException {
+		var original = request();
+		Files.write(original.inventory().m2tsPath(), new byte[1112 * 192]);
+		var inventory = new M2tsShrinkInventory(original.inventory().m2tsPath().toRealPath(),
+				original.inventory().clpiPath().toRealPath(), 1112 * 192L, original.inventory().duration90k(),
+				original.inventory().tracks());
+		var info = metadata();
+		info.setSourcePath(inventory.m2tsPath().toString());
+		info.setTotalPackets(1112);
+		for (var stream : info.getStreams()) {
+			stream.setLanguage(inventory.track(stream.getPid()).language());
+		}
+		Path root = original.destinationRoot();
+		Path directory = root.resolve(".brts-shrink/cache/00001/fixture");
+		Files.createDirectories(directory);
+		List<M2tsTimingManifest.StreamTiming> streams = new ArrayList<>();
+		Map<String, ExtractionCache.Identity> artifacts = new LinkedHashMap<>();
+		for (var stream : info.getStreams()) {
+			if (!selected.contains(stream.getPid())) {
+				continue;
+			}
+			String extension = stream.getCodingType().isVideo() ? "264"
+					: stream.getCodingType().isAudio() ? "dts" : "pgs";
+			String name = String.format("cached_%04x.%s", stream.getPid(), extension);
+			Files.write(directory.resolve(name), new byte[] { 1, 2, 3 });
+			streams.add(new M2tsTimingManifest.StreamTiming(stream.getPid(), name, stream.getCodingType(), 90_000L,
+					null, List.of(new M2tsTimingManifest.PesTiming(0, 0, 90_000L, null)), List.of()));
+			var identity = ExtractionCache.identity(directory.resolve(name));
+			artifacts.put(name,
+					new ExtractionCache.Identity(name, identity.size(), identity.modified(), identity.fileKey()));
+		}
+		var timing = new M2tsTimingManifest(2, inventory.m2tsPath().toString(), inventory.sourceBytes(), 90_000L,
+				streams, null, Map.of(0x1011, 1000L, 0x1102, 100L, 0x1200, 10L, 0, 2L));
+		M2tsTiming.write(directory.resolve("timing.json"), timing);
+		var timingIdentity = ExtractionCache.identity(directory.resolve("timing.json"));
+		artifacts.put("timing.json", new ExtractionCache.Identity("timing.json", timingIdentity.size(),
+				timingIdentity.modified(), timingIdentity.fileKey()));
+		var manifest = new ExtractionCache.Manifest(ExtractionCache.VERSION, root.toRealPath().toString(),
+				ExtractionCache.identity(inventory.m2tsPath()), ExtractionCache.identity(inventory.clpiPath()), info,
+				selected, artifacts, inventory.duration90k());
+		ExtractionCache.write(directory.resolve(ExtractionCache.FILE_NAME), manifest);
+		var reference = ExtractionCache.reference(directory.resolve(ExtractionCache.FILE_NAME));
+		ExtractionCache.validate(reference);
+		var plan = new M2tsShrinkPlanner().plan(inventory, "00001", original.config(), 100_000, Engine.FFMPEG);
+		return new M2tsConversionRequest(inventory, plan, original.config(), root, null, "00001", hashes, reference);
 	}
 
 	private M2tsConversionRequest request() throws IOException {

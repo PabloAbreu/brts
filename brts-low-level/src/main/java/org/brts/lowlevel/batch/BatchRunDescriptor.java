@@ -36,6 +36,9 @@ import lombok.Data;
 @Data
 public class BatchRunDescriptor {
 
+	/** Steps executed before ordinary steps on every invocation, including resume. */
+	private List<@Valid BatchStep> preflightSteps = new ArrayList<>();
+
 	/** Steps executed in order; execution stops at the first failing step. */
 	@NotEmpty
 	private List<@Valid BatchStep> steps = new ArrayList<>();

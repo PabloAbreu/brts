@@ -109,6 +109,138 @@ class BatchRunCliTest {
 		runner.run(args.toArray(new String[0]));
 	}
 
+	private void setPreflight(Path path, BatchStep... steps) throws Exception {
+		BatchRunDescriptor descriptor = JsonMapperFactory.get().readValue(path.toFile(), BatchRunDescriptor.class);
+		descriptor.setPreflightSteps(List.of(steps));
+		JsonMapperFactory.get().writeValue(path.toFile(), descriptor);
+	}
+
+	@Test
+	void preflightRunsBeforeOrdinaryStepsOnEveryFreshInvocation() throws Exception {
+		Path descriptor = writeDescriptor(record("ordinary"));
+		setPreflight(descriptor, BatchStep.comment("checking"), record("preflight"), BatchStep.message("checked"));
+
+		run(descriptor);
+		run(descriptor);
+
+		assertThat(calls).containsExactly("preflight", "ordinary", "preflight", "ordinary");
+		assertThat(runner.stateFile(descriptor)).doesNotExist();
+	}
+
+	@Test
+	void preflightRunsOnEveryResumeWithoutRepeatingCompletedOrdinarySteps() throws Exception {
+		Path descriptor = writeDescriptor(record("a"), record("boom"));
+		setPreflight(descriptor, record("preflight"));
+		failOnBoom = true;
+
+		assertThatThrownBy(() -> run(descriptor)).hasMessageContaining("Step 2/2");
+		BatchRunCli.Progress progress = JsonMapperFactory.get().readValue(runner.stateFile(descriptor).toFile(),
+				BatchRunCli.Progress.class);
+		assertThat(progress.nextStep()).isEqualTo(1);
+		assertThat(progress.completedSteps()).containsExactly(record("a"));
+		assertThat(progress.preflightSteps()).containsExactly(record("preflight"));
+		assertThatThrownBy(() -> run(descriptor, "--resume")).hasMessageContaining("Step 2/2");
+		failOnBoom = false;
+		run(descriptor, "--resume");
+
+		assertThat(calls).containsExactly("preflight", "a", "preflight", "preflight", "boom");
+		assertThat(runner.stateFile(descriptor)).doesNotExist();
+	}
+
+	@Test
+	void failedInitialPreflightDoesNotCreateProgressOrRunOrdinarySteps() throws Exception {
+		Path descriptor = writeDescriptor(record("ordinary"));
+		setPreflight(descriptor, record("boom"), record("later"));
+		failOnBoom = true;
+
+		assertThatThrownBy(() -> run(descriptor)).hasMessageContaining("Preflight step 1/2");
+
+		assertThat(calls).isEmpty();
+		assertThat(runner.stateFile(descriptor)).doesNotExist();
+	}
+
+	@Test
+	void failedPreflightPreservesExistingProgressOnResumeAndFreshRun() throws Exception {
+		Path descriptor = writeDescriptor(record("a"), record("boom"));
+		setPreflight(descriptor, record("boom"));
+		Path stateFile = runner.stateFile(descriptor);
+		Files.createDirectories(stateFile.getParent());
+		JsonMapperFactory.get().writeValue(stateFile.toFile(),
+				new BatchRunCli.Progress(descriptor.toString(), 1, List.of(record("a")), List.of(record("boom"))));
+		String saved = Files.readString(stateFile);
+		failOnBoom = true;
+
+		assertThatThrownBy(() -> run(descriptor, "--resume")).hasMessageContaining("Preflight step 1/1");
+		assertThat(Files.readString(stateFile)).isEqualTo(saved);
+		assertThatThrownBy(() -> run(descriptor)).hasMessageContaining("Preflight step 1/1");
+		assertThat(Files.readString(stateFile)).isEqualTo(saved);
+		assertThat(calls).isEmpty();
+
+		failOnBoom = false;
+		run(descriptor, "--resume");
+		assertThat(calls).containsExactly("boom", "boom");
+	}
+
+	@Test
+	void resumeRejectsChangedRemovedOrAddedPreflightBeforeExecutingAnything() throws Exception {
+		Path descriptor = writeDescriptor(record("a"), record("boom"));
+		setPreflight(descriptor, record("original"));
+		failOnBoom = true;
+		assertThatThrownBy(() -> run(descriptor));
+		calls.clear();
+		Path stateFile = runner.stateFile(descriptor);
+		String saved = Files.readString(stateFile);
+
+		for (List<BatchStep> preflight : List.of(List.of(record("changed")), List.<BatchStep>of(),
+				List.of(record("original"), record("added")))) {
+			setPreflight(descriptor, preflight.toArray(new BatchStep[0]));
+			assertThatThrownBy(() -> run(descriptor, "--resume")).hasMessageContaining("Preflight steps")
+					.hasMessageContaining("were modified");
+			assertThat(Files.readString(stateFile)).isEqualTo(saved);
+		}
+		assertThat(calls).isEmpty();
+	}
+
+	@Test
+	void legacyDescriptorAndProgressWithoutPreflightCanResume() throws Exception {
+		Path descriptor = writeDescriptor(record("a"), record("b"));
+		JsonMapperFactory.get().writeValue(descriptor.toFile(), Map.of("steps", List.of(record("a"), record("b"))));
+		Path stateFile = runner.stateFile(descriptor);
+		Files.createDirectories(stateFile.getParent());
+		JsonMapperFactory.get().writeValue(stateFile.toFile(),
+				Map.of("descriptorPath", descriptor.toString(), "nextStep", 1, "completedSteps", List.of(record("a"))));
+
+		setPreflight(descriptor, record("added"));
+		assertThatThrownBy(() -> run(descriptor, "--resume")).hasMessageContaining("Preflight steps");
+		assertThat(calls).isEmpty();
+		JsonMapperFactory.get().writeValue(descriptor.toFile(), Map.of("steps", List.of(record("a"), record("b"))));
+		run(descriptor, "--resume");
+
+		assertThat(calls).containsExactly("b");
+		assertThat(stateFile).doesNotExist();
+	}
+
+	@Test
+	void unknownPreflightLevelAndCommandAreRejectedBeforeExecution() throws Exception {
+		Path descriptor = writeDescriptor(record("ordinary"));
+		for (BatchStep invalid : List.of(BatchStep.invocation("unknown", "record", List.of()),
+				BatchStep.invocation("low", "nope", List.of()))) {
+			setPreflight(descriptor, record("preflight"), invalid);
+			assertThatThrownBy(() -> run(descriptor)).hasMessageContaining("Preflight step 2")
+					.hasMessageContaining("unknown");
+		}
+		assertThat(calls).isEmpty();
+	}
+
+	@Test
+	void unknownOrdinaryCommandIsRejectedBeforePreflightRuns() throws Exception {
+		Path descriptor = writeDescriptor(BatchStep.invocation("low", "nope", List.of()));
+		setPreflight(descriptor, record("preflight"));
+
+		assertThatThrownBy(() -> run(descriptor)).hasMessageContaining("unknown low command 'nope'");
+		assertThat(calls).isEmpty();
+	}
+
 	@Test
 	void commandIsRegistered() {
 		assertThat(LowLevelDispatcher.getLevelDispatcher().getRunners())

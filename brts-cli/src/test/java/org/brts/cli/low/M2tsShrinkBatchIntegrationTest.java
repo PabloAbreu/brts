@@ -29,13 +29,17 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.brts.cli.BrtsMain;
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.m2ts.ExtractionCache;
 import org.brts.common.m2ts.M2tsExtractor;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.M2tsTiming;
@@ -124,23 +128,47 @@ class M2tsShrinkBatchIntegrationTest {
 		Files.writeString(selection, "{\"audioPids\":[4353],\"subtitlePids\":" + (subtitles ? "[4608]" : "[]")
 				+ ",\"audioDowngrades\":{}," + "\"minimumAudioBitrateKbps\":{},\"fixedAudioBitrateKbps\":{}}");
 		Path destination = temp.resolve("destination");
-		Path work = temp.resolve("work");
 		Path report = temp.resolve("report.json");
 		// ABR needs several GOPs to converge; tiny two-second encodes can legitimately exceed the estimate.
 		long target = 6_000_000;
-		new M2tsShrinkCli.Shrink().run(new String[] { "--disc-root", sourceRoot.toString(), "--clip-id", "00000",
-				"--config", selection.toString(), "--target-bytes", Long.toString(target), "--engine", "FFMPEG",
-				"--output", destination.toString(), "--work-dir", work.toString(), "--report", report.toString() });
+		var arguments = new ArrayList<>(List.of("--disc-root", sourceRoot.toString(), "--clip-id", "00000", "--config",
+				selection.toString(), "--target-bytes", Long.toString(target), "--engine", "FFMPEG", "--output",
+				destination.toString(), "--report", report.toString()));
+		if (subtitles)
+			arguments.add("--defer");
+		// Use the real default resolver/cache, including source metadata discovery and extraction.
+		new M2tsShrinkCli.Shrink().run(arguments.toArray(String[]::new));
 		assertThat(JsonMapperFactory.get().readValue(report.toFile(), M2tsShrinkPlan.class).decision())
 				.isEqualTo(M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED);
-		var batch = JsonMapperFactory.get().readValue(work.resolve("batch-run.json").toFile(),
-				BatchRunDescriptor.class);
-		assertThat(batch.getSteps()).extracting(s -> s.getCommand()).containsExactly("m2ts-extract", "video-convert",
-				"m2ts-create");
+		Path batchPath = findBatch(destination);
+		Path work = batchPath.getParent();
+		assertThat(work.getParent()).isEqualTo(destination.resolve(".brts-shrink/00000/jobs"));
+		var batch = JsonMapperFactory.get().readValue(batchPath.toFile(), BatchRunDescriptor.class);
+		assertThat(batch.getSteps()).extracting(s -> s.getCommand()).containsExactly("video-convert", "m2ts-create");
+		assertThat(batch.getPreflightSteps()).singleElement().satisfies(step -> {
+			assertThat(step.getCommand()).isEqualTo("m2ts-extract");
+			assertThat(step.toCommandTokens()).contains("--validate-cache-only", "--cache-reference");
+		});
+		var muxDescriptor = JsonMapperFactory.get().readValue(work.resolve("m2ts-descriptor.json").toFile(),
+				M2tsDescriptor.class);
+		var cached = ExtractionCache.validate(muxDescriptor.getExtractionCacheReference());
+		Path extracted = cached.directory();
+		assertThat(cached.manifest().pids())
+				.containsExactlyElementsOf(subtitles ? List.of(0x1011, 0x1101, 0x1200) : List.of(0x1011, 0x1101));
+		assertThat(cached.timing().sourcePacketCounts()).containsKey(0x1100);
+		if (subtitles) {
+			assertThat(destination.resolve("BDMV/STREAM/00000.m2ts")).doesNotExist();
+			assertNoConvertedMedia(work);
+			assertDeferredStaleCacheRejected(batchPath, batch, cached, work);
+			// A fresh JVM reloads persisted references; no planning-time RAM is reused.
+			runDeferredBatch(batchPath, work);
+		}
 		Path published = destination.resolve("BDMV/STREAM/00000.m2ts");
 		Path publishedClpi = destination.resolve("BDMV/CLIPINF/00000.clpi");
 		assertThat(published).isNotEmptyFile();
 		assertThat(publishedClpi).isNotEmptyFile();
+		// Check only cache-backed attempts, before the independent legacy bounds tests.
+		assertNoSourceExtraction(destination);
 		assertThat(Files.size(published)).isLessThanOrEqualTo(target).isLessThan(Files.size(source));
 		var info = new M2tsParser().parse(published);
 		var retained = new ArrayList<>(List.of(0x1011, 0x1101));
@@ -165,18 +193,18 @@ class M2tsShrinkBatchIntegrationTest {
 				originalClip.getEpMap().getStreams().getFirst().getEntries().stream().map(e -> e.getSpn()).toList());
 		Path check = temp.resolve("published-es");
 		new M2tsExtractor().extract(published, info, check, null, true);
-		var original = M2tsTiming.read(work.resolve("extracted/" + M2tsTimingManifest.FILE_NAME));
+		var original = M2tsTiming.read(extracted.resolve(M2tsTimingManifest.FILE_NAME));
 		var result = M2tsTiming.read(check.resolve(M2tsTimingManifest.FILE_NAME));
 		for (var timing : original.streams()) {
 			var actual = result.streams().stream().filter(s -> s.pid() == timing.pid()).findFirst().orElseThrow();
 			assertThat(actual.firstPts90k()).isEqualTo(timing.firstPts90k());
 			if (!timing.codingType().isVideo()) {
-				assertThat(Files.mismatch(work.resolve("extracted").resolve(timing.fileName()),
-						check.resolve(actual.fileName()))).isEqualTo(-1);
+				assertThat(Files.mismatch(extracted.resolve(timing.fileName()), check.resolve(actual.fileName())))
+						.isEqualTo(-1);
 				assertThat(actual.segments()).isEqualTo(timing.segments());
 			} else {
-				assertThat(Files.mismatch(work.resolve("extracted").resolve(timing.fileName()),
-						check.resolve(actual.fileName()))).isNotEqualTo(-1);
+				assertThat(Files.mismatch(extracted.resolve(timing.fileName()), check.resolve(actual.fileName())))
+						.isNotEqualTo(-1);
 				assertThat(actual.pesTimings().stream().map(p -> p.pts90k()).sorted().toList())
 						.isEqualTo(timing.pesTimings().stream().map(p -> p.pts90k()).sorted().toList());
 			}
@@ -186,6 +214,7 @@ class M2tsShrinkBatchIntegrationTest {
 		assertInvalidBoundsRejected(work, sourceClpi, "start", 18, 2, "presentation start/range is incompatible");
 		assertInvalidBoundsRejected(work, sourceClpi, "end", 22, 90_000 / 24,
 				"unproven presentation padding is unsupported");
+		assertThat(ExtractionCache.validate(cached.reference()).directory()).isEqualTo(extracted);
 		assertThat(SourceFingerprint.sha256(source)).isEqualTo(sourceHash);
 		assertThat(SourceFingerprint.sha256(sourceClpi)).isEqualTo(clpiHash);
 		assertThat(SourceFingerprint.sha256(playlist)).isEqualTo(playlistHash);
@@ -200,6 +229,96 @@ class M2tsShrinkBatchIntegrationTest {
 				subtitles, muxClip.getTsRecordingStartPts().getTicks(), muxClip.getTsRecordingEndPts().getTicks(),
 				sourceScan.getTsRecordingEndPts().getTicks(), sourceInfo.getLastPcr27MHz() / 300,
 				info.getLastPcr27MHz() / 300);
+	}
+
+	private void runDeferredBatch(Path batchPath, Path work) throws Exception {
+		var command = new ArrayList<String>();
+		command.add(Path.of(System.getProperty("java.home"), "bin", "java").toString());
+		// BrtsFileConfig reloads normal files and environment in the inherited working
+		// directory. Forward only its explicit config-file override and tool override,
+		// never arbitrary parent JVM arguments/properties that might contain secrets.
+		for (String key : List.of("brts.conf", TsMuxerUtils.TSMUXER_BINARY)) {
+			String value = System.getProperty(key);
+			if (value != null)
+				command.add("-D" + key + "=" + value);
+		}
+		command.addAll(
+				List.of("-cp", System.getProperty("surefire.test.class.path", System.getProperty("java.class.path")),
+						BrtsMain.class.getName(), "low", "batch-run", "--descriptor", batchPath.toString()));
+		Path log = work.resolve("deferred-batch.log");
+		Process process = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log.toFile()).start();
+		try {
+			assertThat(process.waitFor(5, TimeUnit.MINUTES))
+					.as("Deferred batch JVM timed out; log: %s%n%s", log, logTail(log)).isTrue();
+			assertThat(process.exitValue()).as("Deferred batch JVM failed; log: %s%n%s", log, logTail(log)).isZero();
+		} finally {
+			process.destroyForcibly();
+		}
+	}
+
+	private String logTail(Path log) throws IOException {
+		try (var channel = Files.newByteChannel(log)) {
+			channel.position(Math.max(0, channel.size() - 16_384));
+			ByteBuffer bytes = ByteBuffer.allocate(16_384);
+			while (bytes.hasRemaining() && channel.read(bytes) != -1) {
+				// Read at most the last 16 KiB, even if a failed process produced a huge log.
+			}
+			return StandardCharsets.UTF_8.decode(bytes.flip()).toString();
+		}
+	}
+
+	private void assertNoSourceExtraction(Path destination) throws IOException {
+		Path root = destination.resolve("BDMV/STREAM/.brts-preserve-00000");
+		assertThat(root).isDirectory();
+		try (var paths = Files.list(root)) {
+			assertThat(paths.filter(Files::isDirectory)
+					.filter(path -> path.getFileName().toString().startsWith("attempt-")).toList()).isNotEmpty()
+					.allSatisfy(attempt -> assertThat(attempt.resolve("source-check")).doesNotExist());
+		}
+	}
+
+	private Path findBatch(Path output) throws IOException {
+		try (var paths = Files.walk(output)) {
+			var batches = paths.filter(path -> path.getFileName().toString().equals("batch-run.json")).toList();
+			assertThat(batches).hasSize(1);
+			return batches.getFirst();
+		}
+	}
+
+	private void assertNoConvertedMedia(Path work) throws IOException {
+		try (var paths = Files.walk(work.resolve("converted"))) {
+			assertThat(paths.filter(Files::isRegularFile).toList()).isEmpty();
+		}
+	}
+
+	private void assertDeferredStaleCacheRejected(Path batchPath, BatchRunDescriptor batch,
+			ExtractionCache.Validated cached, Path work) throws Exception {
+		Path elementary = cached.directory().resolve(cached.timing().streams().getFirst().fileName());
+		FileTime original = Files.getLastModifiedTime(elementary);
+		var runner = new BatchRunCli.Run(BrtsMain::getLevels, temp.resolve("stale-progress"));
+		try {
+			Files.setLastModifiedTime(elementary, FileTime.from(original.toInstant().plusSeconds(10)));
+			assertThatThrownBy(() -> runner.run(new String[] { "--descriptor", batchPath.toString() }))
+					.isInstanceOf(IllegalStateException.class).hasMessageContaining("Preflight")
+					.hasMessageContaining("Invalid extraction cache");
+			assertNoConvertedMedia(work);
+			// Even when encoding was recorded as completed, resume must validate before muxing.
+			Path state = runner.stateFile(batchPath);
+			Files.createDirectories(state.getParent());
+			JsonMapperFactory.get().writeValue(state.toFile(), new BatchRunCli.Progress(batchPath.toString(), 1,
+					batch.getSteps().subList(0, 1), batch.getPreflightSteps()));
+			byte[] progress = Files.readAllBytes(state);
+			assertThatThrownBy(() -> runner.run(new String[] { "--descriptor", batchPath.toString(), "--resume" }))
+					.isInstanceOf(IllegalStateException.class).hasMessageContaining("Preflight")
+					.hasMessageContaining("Invalid extraction cache");
+			assertThat(Files.readAllBytes(state)).isEqualTo(progress);
+			assertNoConvertedMedia(work);
+			assertThat(Path.of(cached.manifest().targetRoot()).resolve("BDMV/STREAM/00000.m2ts")).doesNotExist();
+			assertThat(Path.of(cached.manifest().targetRoot()).resolve("BDMV/CLIPINF/00000.clpi")).doesNotExist();
+		} finally {
+			Files.setLastModifiedTime(elementary, original);
+		}
+		assertThat(ExtractionCache.validate(cached.reference())).isNotNull();
 	}
 
 	private void assertInvalidBoundsRejected(Path work, Path sourceClpi, String name, int fieldOffset, int delta90k,
@@ -217,6 +336,9 @@ class M2tsShrinkBatchIntegrationTest {
 		Files.write(badClpi, bytes);
 		var descriptor = JsonMapperFactory.get().readValue(work.resolve("m2ts-descriptor.json").toFile(),
 				M2tsDescriptor.class);
+		// These independent range checks intentionally use legacy source validation;
+		// cache-backed jobs must reject any substituted CLPI before reaching range checks.
+		descriptor.setExtractionCacheReference(null);
 		descriptor.setSourceClpi(badClpi.toString());
 		descriptor.setSourceClpiSha256(SourceFingerprint.sha256(badClpi));
 		Path rejected = temp.resolve("invalid-" + name + "-output");

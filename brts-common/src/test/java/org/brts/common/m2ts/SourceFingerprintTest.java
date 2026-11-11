@@ -44,7 +44,9 @@ class SourceFingerprintTest {
 		String expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 		assertThat(SourceFingerprint.sha256(source)).isEqualTo(expected);
 		assertThat(SourceFingerprint.verify(source, expected.toUpperCase(Locale.ROOT))).isEqualTo(expected);
-		assertThat(SourceFingerprint.verify(source, null)).isEqualTo(expected);
+		assertThat(SourceFingerprint.verify(source, null)).isNull();
+		// Opting out must not even open the source (large media hashes are explicitly requested).
+		assertThat(SourceFingerprint.verify(temp.resolve("absent.m2ts"), null)).isNull();
 	}
 
 	@Test
