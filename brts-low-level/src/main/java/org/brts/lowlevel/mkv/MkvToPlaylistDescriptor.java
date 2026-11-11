@@ -44,7 +44,10 @@ public class MkvToPlaylistDescriptor {
 	/** Path to the source MKV file. */
 	private String input;
 
-	/** 5-digit clip name for the generated M2TS/CLPI/MPLS. */
+	/** 5-digit playlist name for the generated MPLS. */
+	private String playlistName = "00001";
+
+	/** 5-digit clip name for the generated M2TS/CLPI. */
 	private String clipName = "00001";
 
 	/** MKV track numbers for audio to include. Null or empty means all audio tracks. */

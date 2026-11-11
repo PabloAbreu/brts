@@ -108,6 +108,8 @@ public class MkvToPlaylistConverter {
 
 		private final String clipName;
 
+		private final String playlistName;
+
 		private Set<Integer> audioTrackFilter;
 
 		private Set<Integer> subtitleTrackFilter;
@@ -126,9 +128,9 @@ public class MkvToPlaylistConverter {
 		/** Complete popup presentation template from a descriptor. */
 		private PopupMenuConfig popupMenuConfig;
 
-		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null, null, null, PopupMenuConfig.Layout.VERTICAL_LIST,
-					null);
+		public Config(Path mkvFile, Path outputDir, String clipName, String playlistName) {
+			this(mkvFile, outputDir, clipName, playlistName, null, null, null, null, null,
+					PopupMenuConfig.Layout.VERTICAL_LIST, null);
 		}
 
 	}
@@ -151,6 +153,7 @@ public class MkvToPlaylistConverter {
 		Path mkvFile = config.getMkvFile();
 		Path outputDir = config.getOutputDir();
 		String clipName = config.getClipName();
+		String playlistName = config.getPlaylistName();
 
 		// 1. Parse MKV metadata
 		log.info("Parsing MKV: {}", mkvFile);
@@ -238,7 +241,7 @@ public class MkvToPlaylistConverter {
 
 		// 10. Write MPLS
 		Path playlistDir = outputDir.resolve("PLAYLIST");
-		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
+		Path mplsPath = playlistDir.resolve(playlistName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
 		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs(), popupResult,
 				popupMenuClipName);

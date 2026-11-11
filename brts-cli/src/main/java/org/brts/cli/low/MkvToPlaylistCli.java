@@ -66,7 +66,7 @@ public class MkvToPlaylistCli {
 		protected void execute(ConvertOptions opts) throws Exception {
 			MkvToPlaylistDescriptor descriptor = opts.descriptor;
 			MkvToPlaylistConverter.Config config = new MkvToPlaylistConverter.Config(Paths.get(descriptor.getInput()),
-					opts.outputDir.toPath(), descriptor.getClipName());
+					opts.outputDir.toPath(), descriptor.getClipName(), descriptor.getPlaylistName());
 
 			config.setAudioTrackFilter(descriptor.getAudioTracks());
 			config.setSubtitleTrackFilter(descriptor.getSubtitleTracks());
