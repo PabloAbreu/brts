@@ -16,26 +16,54 @@ command (options are parsed with args4j).
 
 ## M2TS shrinking
 
-`low m2ts-shrink` requires `--disc-root`, a five-digit `--clip-id`, `--config` and positive
-`--target-bytes`. The planner JSON is still printed to stdout or written with `--report`;
+`low m2ts-shrink` requires `--disc-root`, a five-digit `--clip-id`, positive `--target-bytes`
+and `--output`, a separate destination disc root, for **all planning**. Filtering is supplied
+with `--config`. The planner JSON is printed to stdout or written with `--report`;
 execution details (bitrate, batch, workspace and output paths) follow on stderr.
-Only `VIDEO_CONVERSION_REQUIRED` is executable. Other decisions explicitly remain analysis-only,
-do not filter streams, and need no `--output`.
+Only `VIDEO_CONVERSION_REQUIRED` executes video conversion. Other decisions remain
+analysis-only and do not publish filtered media, but still require output storage for planning.
 
-Video conversion requires `--output`, a separate destination disc root, and writes only
-`BDMV/STREAM/CLIP-ID.m2ts` and `BDMV/CLIPINF/CLIP-ID.clpi`. Existing destination files and
-source-root aliases (including symlinks) are rejected. Source files, playlists and the rest
-of the disc are not copied or modified.
+Before deciding whether video conversion is needed, planning extracts the primary video and
+selected retained audio/subtitles with timing, counting **every transport PID in that same
+full source pass**. This includes removed tracks, PSI, null packets and any Dolby Vision
+companion PID, even though those streams are not necessarily extracted. A bounded metadata
+probe may precede extraction; “one pass” does not mean a single source open. A valid cache hit
+reuses persisted metadata, timing, elementary streams and counts without another source probe
+or extraction. Strict extraction errors can therefore fail planning.
 
-Immediate execution is the default. `--defer` writes only the mux and batch JSON descriptors;
-metadata scans are allowed, but there is no extraction, encoding, sampling or muxing.
-`--work-dir` defaults to `OUTPUT/.brts-shrink/CLIP-ID`. Run the generated descriptor with
+Complete immutable extraction caches live at
+`OUTPUT/.brts-shrink/cache/CLIP-ID/<cache-key>/`. Default job workspaces live separately at
+`OUTPUT/.brts-shrink/CLIP-ID/jobs/<job-key>/`. Keys are deterministic: cache reuse depends on
+source/CLPI metadata identity, selected streams and cache/extractor versions, not target bitrate
+or engine; job workspaces distinguish encoding plans. `--work-dir` overrides the job workspace
+only and must remain inside the canonical output root and on its filesystem. Symlink escapes,
+source aliases and cross-filesystem mounts are rejected. All large media, caches, job outputs
+and publication staging stay under that root on the same filesystem, not in the source tree
+or OS temporary directory. A small `--report` may be written elsewhere.
+
+Immediate execution is the default. `--defer` prepares the cache and mux/batch descriptors,
+including the selected extraction/count pass on a cache miss, but performs no video encoding,
+sampling or muxing. Run the generated descriptor with
 `low batch-run --descriptor ABSOLUTE-BATCH-PATH`; add `--resume` after a failed batch to keep
-its completed prefix. Video conversion uses `--overwrite` for safe step retries; work artifacts
-remain available for diagnosis. Do not change source files between preparation and execution.
-Preparation refuses existing workspace descriptors: execute/resume their batch, or choose a new workspace.
+its completed ordinary-step prefix. Every initial run and resume first validates the pinned
+cache in preflight, then runs the remaining ordinary steps: `video-convert`, followed by
+`m2ts-create`. Preflight is never skipped as already completed. Video conversion uses
+`--overwrite` for safe step retries. Preparation refuses existing workspace descriptors:
+execute/resume their batch, or choose a new workspace.
 
-The three batch steps are `m2ts-extract --preserve-timing`, `video-convert`, and `m2ts-create`.
+Cache validation trusts canonical paths, exact sizes, full-precision modification times and
+file keys where available, plus metadata/timing consistency; it is **not cryptographic**.
+Same-size changes that preserve those attributes may go undetected. `--compute-sha256` opts
+into content fingerprinting; it is not the default cache-validation mode. A stale deferred or
+resumed job fails before encoding rather than silently re-extracting or changing its plan;
+replan against valid inputs. Complete caches remain after success and after decisions requiring
+no video conversion. Cleanup is manual: do not delete caches or workspaces needed by pending
+or active jobs, and do not modify cached elementary streams.
+
+Video conversion publishes only `BDMV/STREAM/CLIP-ID.m2ts` and
+`BDMV/CLIPINF/CLIP-ID.clpi`. Existing destination files and source-root aliases (including
+symlinks) are rejected. Source files, playlists and the rest of the disc are not copied or modified.
+
 `--engine` supports FFMPEG, NVENCC, VCEENCC and QSVENCC; the configured/default engine is used
 when omitted. The encoder and tsMuxeR are required only when executing, not while generating
 the batch. No Java-mux fallback is allowed for this preservation workflow.
@@ -50,6 +78,18 @@ playback speed change is requested. PGS is extracted as timed SUP data while ret
 The video rate is rounded down to 1–40000 kbps after planner safety, retained nonvideo packet
 bytes, a further 2% mux reserve and 192/184 transport expansion. This is a conservative budget,
 not a size guarantee: oversize output fails before publication, with no automatic bitrate retry.
+
+### Read-only extraction cache preflight
+
+The generated preflight invokes `low m2ts-extract --cache-reference JOB/cache-reference.json
+--validate-cache-only --preserve-timing --input ORIGINAL-M2TS --output CACHE-DIRECTORY`
+(with absolute paths in generated descriptors). All three cache-mode flags are required
+together. `--input` must identify the cached original source and `--output` the existing cache
+directory. This mode reads cache metadata/timing and checks source, CLPI and artifact attributes
+and workspace placement; it performs **no filesystem writes, source transport parsing or
+extraction**. It rejects `--pids`, `--igs-demux` and source fingerprint options. Ordinary
+`m2ts-extract` behavior is unchanged. See [cache reference schema](descriptors.md#extraction-cache-reference)
+and [batch preflight semantics](descriptors.md#batch-run-descriptor).
 
 ## Startup banner
 
