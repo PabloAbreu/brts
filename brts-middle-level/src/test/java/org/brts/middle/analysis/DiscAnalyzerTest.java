@@ -174,6 +174,53 @@ class DiscAnalyzerTest {
 	}
 
 	@Test
+	void durationSummariesFormatPlaylistAndClipDurationsWithoutChangingParsedValues() throws Exception {
+		Path disc = createDisc();
+		Path output = tempDir.resolve("duration-report");
+		DiscAnalyzer.Plan plan = analyzer.prepare(disc, output);
+		Files.writeString(output.resolve("BDMV/PLAYLIST/00001.json"), """
+				{"playItems":[
+				 {"clipName":"00002","inTimeTicks":45000,"outTimeTicks":162045000},
+				 {"clipName":"00003","inTimeTicks":0,"outTimeTicks":2745000}]}
+				""");
+		Files.writeString(output.resolve("BDMV/CLIPINF/00002.json"), """
+				{"duration":329490000,"tsRecordingStartPts":90000,"tsRecordingEndPts":329580000}
+				""");
+		Files.writeString(output.resolve("BDMV/STREAM/00002.json"), "{}");
+		analyzer.render(plan, List.of(), false);
+
+		String playlist = Files.readString(output.resolve("BDMV/PLAYLIST/00001.html"));
+		assertThat(playlist).contains("Playlist total", "01:01:01", "PlayItem 1 · clip 00002", "01:00:00",
+				"PlayItem 2 · clip 00003", "00:01:01", "162045000");
+		assertThat(Files.readString(output.resolve("BDMV/PLAYLIST/index.html")))
+				.contains("Playlist duration: 01:01:01");
+		String clipInfo = Files.readString(output.resolve("BDMV/CLIPINF/00002.html"));
+		assertThat(clipInfo).contains("Clip duration", "01:01:01", "329490000");
+		assertThat(Files.readString(output.resolve("BDMV/CLIPINF/index.html"))).contains("Clip duration: 01:01:01");
+		assertThat(Files.readString(output.resolve("BDMV/STREAM/00002.html"))).doesNotContain("duration-summary");
+		assertThat(Files.readString(output.resolve("BDMV/STREAM/index.html"))).doesNotContain("duration");
+	}
+
+	@Test
+	void durationSummariesOmitInvalidValuesAndDoNotInferM2tsDuration() throws Exception {
+		Path disc = createDisc();
+		Path output = tempDir.resolve("invalid-duration-report");
+		DiscAnalyzer.Plan plan = analyzer.prepare(disc, output);
+		Files.writeString(output.resolve("BDMV/PLAYLIST/00001.json"), """
+				{"playItems":[{"clipName":"00002","inTimeTicks":90000,"outTimeTicks":45000}]}
+				""");
+		Files.writeString(output.resolve("BDMV/CLIPINF/00002.json"), "{\"duration\":-1}");
+		Files.writeString(output.resolve("BDMV/STREAM/00002.json"), """
+				{"firstPcr27MHz":1000,"lastPcr27MHz":90000000}
+				""");
+		analyzer.render(plan, List.of(), false);
+
+		assertThat(Files.readString(output.resolve("BDMV/PLAYLIST/00001.html"))).doesNotContain("duration-summary");
+		assertThat(Files.readString(output.resolve("BDMV/CLIPINF/00002.html"))).doesNotContain("duration-summary");
+		assertThat(Files.readString(output.resolve("BDMV/STREAM/00002.html"))).doesNotContain("duration-summary");
+	}
+
+	@Test
 	void categorizedReportIncludesBacklinksSubpathsAndOnlyValidLinks() throws Exception {
 		Path disc = createDisc();
 		Files.write(disc.resolve("BDMV/PLAYLIST/00003.mpls"), new byte[0]);

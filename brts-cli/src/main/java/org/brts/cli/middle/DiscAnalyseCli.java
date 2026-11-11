@@ -42,6 +42,8 @@ import org.brts.middle.analysis.DiscAnalyzer;
 import org.brts.middle.analysis.DiscAnalyzer.Diagnostic;
 import org.kohsuke.args4j.Option;
 
+import lombok.RequiredArgsConstructor;
+
 /** CLI for parsing and browsing supported structures of a Blu-ray disc. */
 public class DiscAnalyseCli {
 
@@ -57,16 +59,13 @@ public class DiscAnalyseCli {
 		boolean defer;
 	}
 
+	@RequiredArgsConstructor
 	public static class Run extends FeatureRunner<Options> {
 
 		private final DiscAnalyzer analyzer;
 
 		public Run() {
 			this(new DiscAnalyzer());
-		}
-
-		Run(DiscAnalyzer analyzer) {
-			this.analyzer = analyzer;
 		}
 
 		@Override

@@ -35,8 +35,16 @@ h2 { margin: 0 0 14px; font-size: 1.35rem; letter-spacing: -.02em; }
 .card { min-width: 0; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: 0 5px 16px #173a4108; }
 .card h3 { margin: 13px 0 3px; overflow-wrap: anywhere; }
 .card p { margin: 0; color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
+.card .card-duration { margin-top: 9px; color: #075c65; font-weight: 750; font-variant-numeric: tabular-nums; }
 .notice, .diagnostics { padding: 20px 22px; border: 1px solid #f0d7a8; border-radius: 16px; background: var(--warning-bg); color: var(--warning); overflow-wrap: anywhere; }
 .notice code { white-space: pre-wrap; }
+.duration-summary { padding: 18px 22px; border: 1px solid #b9e2df; border-radius: 16px; background: linear-gradient(120deg, #e2f5f4, white); }
+.duration-summary h2 { margin-bottom: 8px; }
+.duration-summary p { margin: 0; }
+.duration-summary dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 0; }
+.duration-summary dl div { display: flex; flex-direction: column; }
+.duration-summary dt { color: var(--muted); font-size: .82rem; }
+.duration-summary dd { margin: 0; font-size: 1.15rem; font-weight: 750; font-variant-numeric: tabular-nums; }
 .relations { padding-left: 22px; }
 .relations li { margin: 7px 0; }
 .muted { color: var(--muted); }
