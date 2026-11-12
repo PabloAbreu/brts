@@ -66,11 +66,20 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 	 * {@link BaseOptions#isNoBanner()}). Used before args4j parsing has taken place, e.g. by {@code BrtsMain}.
 	 */
 	public static boolean isBannerSuppressed(String[] args) {
+		return hasArgument(args, BaseOptions.OPTION_NO_BANNER);
+	}
+
+	/** Detects the failure policy before parsing, including when parsing fails before reaching the flag. */
+	public static boolean isExitOnFailureSuppressed(String[] args) {
+		return hasArgument(args, BaseOptions.OPTION_NO_EXIT_ON_FAILURE);
+	}
+
+	private static boolean hasArgument(String[] args, String flag) {
 		if (args == null) {
 			return false;
 		}
 		for (String arg : args) {
-			if (BaseOptions.OPTION_NO_BANNER.equals(arg)) {
+			if (flag.equals(arg)) {
 				return true;
 			}
 		}
@@ -137,11 +146,13 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 
 	/**
 	 * Parses command-line arguments into the options bean and invokes {@link #execute}. On parse errors, prints usage
-	 * to {@code stderr} and exits.
+	 * to {@code stderr} and exits, unless {@code --no-exit-on-failure} requests exception propagation.
 	 */
 	public void run(String[] args) throws Exception {
 
-		if (args.length == 1 && "--help".equals(args[0])) {
+		boolean noExitOnFailure = isExitOnFailureSuppressed(args);
+		if (hasArgument(args, "--help") && java.util.Arrays.stream(args).allMatch(arg -> "--help".equals(arg)
+				|| BaseOptions.OPTION_NO_BANNER.equals(arg) || BaseOptions.OPTION_NO_EXIT_ON_FAILURE.equals(arg))) {
 			printUsage(System.err);
 			return;
 		}
@@ -158,6 +169,9 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 				System.err.println(getCommandName() + " failed. Details:\n");
 				e.printStackTrace();
 			}
+			if (noExitOnFailure) {
+				throw e;
+			}
 			System.exit(1);
 		}
 
@@ -167,6 +181,9 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 			System.err.println(getCommandName() + ": " + e.getMessage());
 			if (opts.isErrorDetails()) {
 				e.printStackTrace();
+			}
+			if (noExitOnFailure) {
+				throw e;
 			}
 			System.exit(1);
 		}

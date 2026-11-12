@@ -29,6 +29,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.brts.common.json.JsonMapperFactory;
+import org.brts.lowlevel.bdmv.IndexBdmvWriter;
+import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -64,5 +67,25 @@ class DiscAnalyseCliTest {
 		assertThat(Files.readString(output.resolve("index.html"))).contains("Step 1/5 failed");
 		assertThat(output.resolve("batch-run.json")).exists();
 		assertThat(output.resolve("BDMV/PLAYLIST/00001.json")).doesNotExist();
+	}
+
+	@Test
+	void successfulParserInvocationProducesJsonAndLinkedReport() throws Exception {
+		Path disc = tempDir.resolve("disc with spaces");
+		Path bdmv = Files.createDirectories(disc.resolve("BDMV"));
+		IndexBdmv index = new IndexBdmv();
+		index.setVersion("0200");
+		try (var stream = Files.newOutputStream(bdmv.resolve("index.bdmv"))) {
+			new IndexBdmvWriter().write(index, stream);
+		}
+		Path output = tempDir.resolve("report with spaces");
+
+		new DiscAnalyseCli.Run().run(new String[] { "--disc-root", disc.toString(), "--output", output.toString() });
+
+		assertThat(
+				JsonMapperFactory.get().readTree(output.resolve("BDMV/index.json").toFile()).path("version").asText())
+				.isEqualTo("0200");
+		assertThat(output.resolve("BDMV/index.html")).exists();
+		assertThat(Files.readString(output.resolve("index.html"))).contains("BDMV/index.html");
 	}
 }

@@ -32,11 +32,16 @@ import lombok.Setter;
 @Setter
 public class BaseOptions {
 	public static final String OPTION_NO_BANNER = "--no-banner";
+	public static final String OPTION_NO_EXIT_ON_FAILURE = "--no-exit-on-failure";
 
 	@Option(name = "--error-details", required = false, hidden = true, usage = "Shows more detailed errors. This option should be put first.")
 	boolean errorDetails;
 
 	@Option(name = OPTION_NO_BANNER, required = false, hidden = true, usage = "Suppresses the startup banner. This option should be put first.")
 	boolean noBanner;
+
+	/** Requests catchable failures for in-process invocation; command-specific exits must also honor this option. */
+	@Option(name = OPTION_NO_EXIT_ON_FAILURE, required = false, hidden = true, usage = "Throws failures instead of terminating the JVM during in-process invocation.")
+	boolean noExitOnFailure;
 
 }

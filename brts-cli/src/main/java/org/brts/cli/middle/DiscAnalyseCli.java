@@ -29,17 +29,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.brts.cli.BaseOptions;
+import org.brts.cli.BrtsMain;
 import org.brts.cli.FeatureRunner;
 import org.brts.common.json.JsonMapperFactory;
-import org.brts.common.m2ts.M2tsParser;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.batch.BatchStep;
-import org.brts.lowlevel.parser.ClipInfoParser;
-import org.brts.lowlevel.parser.IndexBdmvParser;
-import org.brts.lowlevel.parser.MovieObjectsParser;
-import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.middle.analysis.DiscAnalyzer;
 import org.brts.middle.analysis.DiscAnalyzer.Diagnostic;
+import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
 import org.kohsuke.args4j.Option;
 
 import lombok.RequiredArgsConstructor;
@@ -110,7 +107,7 @@ public class DiscAnalyseCli {
 			System.out.println("Disc analysis complete: " + plan.outputRoot().resolve("index.html"));
 		}
 
-		private static List<Diagnostic> executeBatch(DiscAnalyzer.Plan plan) throws Exception {
+		private List<Diagnostic> executeBatch(DiscAnalyzer.Plan plan) throws Exception {
 			BatchRunDescriptor batch = JsonMapperFactory.get().readValue(plan.descriptor().toFile(),
 					BatchRunDescriptor.class);
 			List<Diagnostic> failures = new ArrayList<>();
@@ -133,36 +130,20 @@ public class DiscAnalyseCli {
 			return failures;
 		}
 
-		private static void executeParserStep(BatchStep step) throws Exception {
+		private void executeParserStep(BatchStep step) {
 			if (!"low".equalsIgnoreCase(step.getLevel())) {
 				throw new IllegalArgumentException("Unsupported batch level: " + step.getLevel());
 			}
-			Path input = argumentPath(step, "--input");
-			Path output = argumentPath(step, "--output");
-			Object parsed = switch (step.getCommand()) {
-			case "index-parse" -> new IndexBdmvParser().parse(input);
-			case "mobj-parse" -> new MovieObjectsParser().parse(input);
-			case "playlist-parse" -> new MoviePlaylistParser().parse(input);
-			case "clip-parse" -> new ClipInfoParser().parse(input);
-			case "m2ts-info" -> new M2tsParser().parse(input);
-			default -> throw new IllegalArgumentException("Unsupported parser command: " + step.getCommand());
-			};
-			if (output.getParent() != null) {
-				Files.createDirectories(output.getParent());
-			}
-			JsonMapperFactory.get().writeValue(output.toFile(), parsed);
-			System.out.println("Parsed " + input.getFileName() + " → " + output);
-		}
-
-		private static Path argumentPath(BatchStep step, String flag) {
-			if (step.getArguments() != null) {
-				for (var argument : step.getArguments()) {
-					if (flag.equals(argument.getFlag()) && argument.getValue() != null) {
-						return Path.of(argument.getValue());
-					}
-				}
-			}
-			throw new IllegalArgumentException("Batch step " + step.describe() + " is missing " + flag);
+			List<String> args = new ArrayList<>();
+			args.add(step.getLevel());
+			List<String> commandTokens = step.toCommandTokens();
+			args.add(commandTokens.getFirst());
+			args.add(BaseOptions.OPTION_NO_EXIT_ON_FAILURE);
+			args.add(BaseOptions.OPTION_NO_BANNER);
+			args.addAll(commandTokens.subList(1, commandTokens.size()));
+			// Directly constructed runners have not passed through LevelDispatcher's injection.
+			BrtsImmediateInvocator invocator = getInvocator() == null ? BrtsMain::main : getInvocator();
+			invocator.invoke(args.toArray(String[]::new));
 		}
 	}
 }

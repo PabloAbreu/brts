@@ -56,9 +56,9 @@ class CliMetadataParserTest {
 		CommandMetadata convertVideo = metadata.levels().stream().flatMap(level -> level.commands().stream())
 				.filter(command -> command.path().equals("low video-convert")).findFirst().orElseThrow();
 		assertThat(convertVideo.options()).extracting("name").containsExactly("--error-details", "--no-banner",
-				"--input", "--output", "--codec", "--engine", "--executable", "--width", "--height", "--frame-rate",
-				"--source-frame-rate", "--bitrate-kbps", "--rate-control", "--engine-option", "--overwrite",
-				"--timeout-seconds");
+				"--no-exit-on-failure", "--input", "--output", "--codec", "--engine", "--executable", "--width",
+				"--height", "--frame-rate", "--source-frame-rate", "--bitrate-kbps", "--rate-control",
+				"--engine-option", "--overwrite", "--timeout-seconds");
 		assertThat(convertVideo.options()).filteredOn(option -> option.name().equals("--engine-option")).singleElement()
 				.satisfies(option -> {
 					assertThat(option.javaType()).isEqualTo("java.util.List<java.lang.String>");

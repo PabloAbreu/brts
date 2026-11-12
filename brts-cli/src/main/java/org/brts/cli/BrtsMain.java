@@ -68,6 +68,7 @@ public class BrtsMain {
 	}
 
 	public static void main(String[] args) {
+		boolean noExitOnFailure = FeatureRunner.isExitOnFailureSuppressed(args);
 		String level = args.length > 0 ? args[0].toLowerCase() : null;
 		String[] rest = args.length > 0 ? java.util.Arrays.copyOfRange(args, 1, args.length) : new String[0];
 
@@ -87,9 +88,18 @@ public class BrtsMain {
 			} else {
 				System.err.println("Unknown level: " + level);
 				printUsage();
+				if (noExitOnFailure) {
+					throw new IllegalArgumentException("Unknown level: " + level);
+				}
 				System.exit(1);
 			}
 		} catch (Exception e) {
+			if (noExitOnFailure) {
+				if (e instanceof RuntimeException runtimeException) {
+					throw runtimeException;
+				}
+				throw new IllegalStateException(e.getMessage(), e);
+			}
 			log.error("Fatal error: {}", e.getMessage(), e);
 			System.exit(2);
 		}

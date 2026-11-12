@@ -70,6 +70,9 @@ public class LevelDispatcher {
 		if (runner == null) {
 			System.err.println("Unknown " + levelName + " command: " + command);
 			printHelp(System.err);
+			if (FeatureRunner.isExitOnFailureSuppressed(args)) {
+				throw new IllegalArgumentException("Unknown " + levelName + " command: " + command);
+			}
 			System.exit(1);
 		}
 
