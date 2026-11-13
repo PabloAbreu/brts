@@ -60,9 +60,6 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 
 	@Override
 	public void generate(CliMetadata metadata, Path outputDirectory) throws IOException {
-		if (!List.of("1.0", "1.1").contains(metadata.schemaVersion())) {
-			throw new IllegalArgumentException("Unsupported CLI metadata schema version: " + metadata.schemaVersion());
-		}
 		Files.createDirectories(outputDirectory);
 		Files.createDirectories(outputDirectory.resolve("commands"));
 		Files.createDirectories(outputDirectory.resolve("types"));
@@ -83,8 +80,8 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 
 	private String rootIndex(CliMetadata metadata) {
 		StringBuilder page = new StringBuilder("# BRTS CLI Reference\n\n");
-		page.append("Application version: `").append(metadata.applicationVersion()).append("`  \n");
-		page.append("Metadata schema: `").append(metadata.schemaVersion()).append("`\n\n## Command levels\n\n");
+		page.append("Application version: `").append(metadata.applicationVersion())
+				.append("`\n\n## Command levels\n\n");
 		for (LevelMetadata level : metadata.levels()) {
 			page.append("- [").append(level.name()).append("](commands/").append(slug(level.name()))
 					.append("/index.md) (").append(level.commands().size()).append(" commands)\n");

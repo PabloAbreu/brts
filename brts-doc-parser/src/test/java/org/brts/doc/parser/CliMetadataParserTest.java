@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.doc.metadata.CliMetadata;
 import org.brts.doc.metadata.CommandMetadata;
 import org.brts.doc.metadata.OptionMetadata;
@@ -46,7 +47,7 @@ class CliMetadataParserTest {
 				root.resolve("brts-low-level/src/main/java"), root.resolve("brts-middle-level/src/main/java"),
 				root.resolve("brts-high-level/src/main/java"), root.resolve("brts-cli/src/main/java"))).parse("test");
 
-		assertThat(metadata.schemaVersion()).isEqualTo("1.1");
+		assertThat(JsonMapperFactory.get().valueToTree(metadata).has("schemaVersion")).isFalse();
 		assertThat(metadata.levels()).extracting("name").containsExactly("low", "mid", "high");
 
 		assertThat(metadata.levels()).flatExtracting(level -> level.commands()).hasSize(TOTAL_NUMBER_OF_FEATURES);

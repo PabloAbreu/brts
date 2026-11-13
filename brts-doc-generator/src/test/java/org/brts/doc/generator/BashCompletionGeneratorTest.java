@@ -24,8 +24,6 @@
 package org.brts.doc.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
@@ -54,7 +52,7 @@ class BashCompletionGeneratorTest {
 				List.of(mode, input, verbose, hidden));
 		CommandMetadata other = new CommandMetadata("high", "build", "high build", "Build", "Runner", "Options",
 				List.of(option("--mode", List.of(), "java.lang.String", List.of("OTHER"), false)));
-		CliMetadata metadata = new CliMetadata("1.1", "1.0",
+		CliMetadata metadata = new CliMetadata("1.0",
 				List.of(new LevelMetadata("low", List.of(scan)), new LevelMetadata("high", List.of(other))), Map.of(),
 				List.of());
 		Path completion = tempDir.resolve("subdir/brts.bash");
@@ -84,32 +82,24 @@ class BashCompletionGeneratorTest {
 	}
 
 	@Test
-	void acceptsLegacyMetadataWithoutEnumChoices() throws Exception {
-		OptionMetadata legacyOption = new OptionMetadata("--path", List.of(), "Path", "java.io.File", false, false,
-				false, List.of(), List.of(), false, List.of(), null);
-		CliMetadata legacy = new CliMetadata("1.0", "1.0",
+	void generatesCompletionWithoutEnumChoices() throws Exception {
+		OptionMetadata pathOption = new OptionMetadata("--path", List.of(), "Path", "java.io.File", false, false, false,
+				List.of(), List.of(), false, List.of(), null);
+		CliMetadata metadata = new CliMetadata("1.0",
 				List.of(new LevelMetadata("low", List.of(new CommandMetadata("low", "inspect", "low inspect", "Inspect",
-						"Runner", "Options", List.of(legacyOption))))),
+						"Runner", "Options", List.of(pathOption))))),
 				Map.of(), List.of());
 
-		new BashCompletionGenerator().generate(legacy, tempDir.resolve("legacy.bash"));
-		assertThat(Files.readString(tempDir.resolve("legacy.bash"))).contains("'--path'");
-	}
-
-	@Test
-	void rejectsUnsupportedSchemaVersion() {
-		CliMetadata unsupported = new CliMetadata("2.0", "1.0", List.of(), Map.of(), List.of());
-
-		assertThatThrownBy(() -> new BashCompletionGenerator().generate(unsupported, tempDir.resolve("bad.bash")))
-				.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("2.0");
+		new BashCompletionGenerator().generate(metadata, tempDir.resolve("completion.bash"));
+		assertThat(Files.readString(tempDir.resolve("completion.bash"))).contains("'--path'");
 	}
 
 	@Test
 	void quotesMetadataValuesForShellSafety() throws Exception {
 		CommandMetadata command = new CommandMetadata("low", "odd'command", "low odd", "Odd", "Runner", "Options",
 				List.of(option("--say'hi", List.of(), "boolean", List.of(), false)));
-		CliMetadata metadata = new CliMetadata("1.1", "1.0", List.of(new LevelMetadata("low", List.of(command))),
-				Map.of(), List.of());
+		CliMetadata metadata = new CliMetadata("1.0", List.of(new LevelMetadata("low", List.of(command))), Map.of(),
+				List.of());
 		Path completion = tempDir.resolve("escaped.bash");
 
 		new BashCompletionGenerator().generate(metadata, completion);

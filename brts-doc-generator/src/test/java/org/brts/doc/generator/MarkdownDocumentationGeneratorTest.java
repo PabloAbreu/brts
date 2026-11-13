@@ -74,13 +74,13 @@ class MarkdownDocumentationGeneratorTest {
 				List.of(), List.of(), null, Map.of(), List.of()));
 		types.put("org.brts.other.Shared", new TypeMetadata("org.brts.other.Shared", "object", null, null, List.of(),
 				List.of(), null, Map.of(), List.of()));
-		CliMetadata metadata = new CliMetadata("1.0", "1.2.3", List.of(new LevelMetadata("mid", List.of(command))),
-				types, List.of());
+		CliMetadata metadata = new CliMetadata("1.2.3", List.of(new LevelMetadata("mid", List.of(command))), types,
+				List.of());
 
 		new MarkdownDocumentationGenerator().generate(metadata, output);
 
-		assertThat(output.resolve("index.md")).content().contains("BRTS CLI Reference", "1.2.3",
-				"commands/mid/index.md");
+		assertThat(output.resolve("index.md")).content()
+				.contains("BRTS CLI Reference", "1.2.3", "commands/mid/index.md").doesNotContain("Metadata schema");
 		assertThat(output.resolve("commands/mid/build.md")).content().contains("# `mid build`", "--descriptor",
 				"../../types/org-brts-example-builddescriptor.md", "  - `@Valid`");
 		assertThat(output.resolve("commands/mid/build.md")).content().doesNotContain("org.kohsuke.args4j");

@@ -60,8 +60,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 public final class CliMetadataParser {
 
-	public static final String SCHEMA_VERSION = "1.1";
-
 	private final SourceDocumentationIndex documentation;
 	private final AnnotationMetadataExtractor annotations = new AnnotationMetadataExtractor();
 	private final Map<String, TypeMetadata> types = new LinkedHashMap<>();
@@ -82,8 +80,7 @@ public final class CliMetadataParser {
 		while (!pendingTypes.isEmpty()) {
 			inspectType(pendingTypes.removeFirst());
 		}
-		return new CliMetadata(SCHEMA_VERSION, applicationVersion, levels, Collections.unmodifiableMap(types),
-				List.copyOf(warnings));
+		return new CliMetadata(applicationVersion, levels, Collections.unmodifiableMap(types), List.copyOf(warnings));
 	}
 
 	private CommandMetadata command(String level, FeatureRunner<?> runner) {

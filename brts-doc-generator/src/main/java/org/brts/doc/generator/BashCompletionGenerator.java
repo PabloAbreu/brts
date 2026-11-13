@@ -38,12 +38,7 @@ import org.brts.doc.metadata.OptionMetadata;
 /** Generates Bash programmable completion for the metadata-described {@code brts} CLI. */
 public final class BashCompletionGenerator {
 
-	private static final List<String> SUPPORTED_SCHEMA_VERSIONS = List.of("1.0", "1.1");
-
 	public void generate(CliMetadata metadata, Path outputFile) throws IOException {
-		if (!SUPPORTED_SCHEMA_VERSIONS.contains(metadata.schemaVersion())) {
-			throw new IllegalArgumentException("Unsupported CLI metadata schema version: " + metadata.schemaVersion());
-		}
 		Path parent = outputFile.toAbsolutePath().getParent();
 		if (parent != null) {
 			Files.createDirectories(parent);

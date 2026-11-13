@@ -33,9 +33,9 @@ mvn -pl brts-doc-generator -am package
 
 ## Metadata contents
 
-The JSON document contains a schema version, application version, ordered CLI levels and commands, complete command
-paths, inherited and hidden options, args4j attributes, validation annotations, warnings, and a qualified-name type
-registry for typed JSON inputs.
+The JSON document contains the application version, ordered CLI levels and commands, complete command paths, inherited
+and hidden options, args4j attributes, validation annotations, warnings, and a qualified-name type registry for typed
+JSON inputs.
 
 Jackson annotations determine effective JSON property names, ignored fields, and polymorphic subtype relationships.
 They are not copied into the exported annotation list. Missing source Javadocs produce warnings and null descriptions;
@@ -69,6 +69,3 @@ To enable completion for the current shell, source `brts.bash`, or add a source 
 `~/.bashrc`. The generated function completes command levels, commands, visible options and aliases, enum choices, and
 filesystem paths for `File`/`Path` options. Hidden options are intentionally omitted. Other option values are left to
 normal shell completion.
-
-Metadata schema `1.1` adds enum values to CLI option metadata. The generators also accept schema `1.0`; enum-value
-completion is unavailable for metadata produced with that version. Consumers must reject unsupported schema versions.
