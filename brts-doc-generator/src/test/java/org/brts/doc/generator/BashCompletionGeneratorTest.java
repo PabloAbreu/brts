@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
+import org.brts.doc.metadata.AnnotationMetadata;
 import org.brts.doc.metadata.CliMetadata;
 import org.brts.doc.metadata.CommandMetadata;
 import org.brts.doc.metadata.LevelMetadata;
@@ -79,6 +80,96 @@ class BashCompletionGeneratorTest {
 				"COMP_WORDS=(brts low scan --input s); COMP_CWORD=4; COMP_LINE='brts low scan --input s'; "
 						+ "COMP_POINT=${#COMP_LINE}; _brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
 				.contains("sample.mkv");
+		Files.createDirectory(tempDir.resolve("samples"));
+		assertThat(runCompletion(completion,
+				"compopt() { printf 'compopt %s\\n' \"$*\"; }; "
+						+ "COMP_WORDS=(brts low scan --input samples); COMP_CWORD=4; "
+						+ "COMP_LINE='brts low scan --input samples'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.containsExactly("compopt -o filenames", "samples");
+		assertThat(runCompletion(completion,
+				"compopt() { printf 'compopt %s\\n' \"$*\"; }; "
+						+ "COMP_WORDS=(brts low scan --input = samples); COMP_CWORD=5; "
+						+ "COMP_LINE='brts low scan --input=samples'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.containsExactly("compopt -o filenames", "samples");
+	}
+
+	@Test
+	void completesJsonInputAnnotationsWithOnlyJsonFilesAndDirectories() throws Exception {
+		OptionMetadata descriptor = new OptionMetadata("--descriptor", List.of("-d"), "Descriptor", "Descriptor", false,
+				false, false, List.of(), List.of(), false,
+				List.of(new AnnotationMetadata("org.brts.cli.JsonInputOption", Map.of())), null);
+		CommandMetadata command = new CommandMetadata("low", "write", "low write", "Write", "Runner", "Options",
+				List.of(descriptor));
+		CliMetadata metadata = new CliMetadata("1.0", List.of(new LevelMetadata("low", List.of(command))), Map.of(),
+				List.of());
+		Path completion = tempDir.resolve("completion.bash");
+		new BashCompletionGenerator().generate(metadata, completion);
+		Files.createFile(tempDir.resolve("sample.json"));
+		Files.createFile(tempDir.resolve("sample file.json"));
+		Files.createFile(tempDir.resolve("sample.txt"));
+		Files.createFile(tempDir.resolve("sample.JSON"));
+		Files.createDirectory(tempDir.resolve("sample folder"));
+		Files.createDirectory(tempDir.resolve("sample.json.dir"));
+		Files.createDirectory(tempDir.resolve("directory.json"));
+		Files.createFile(tempDir.resolve("sample folder/nested.json"));
+		Files.createFile(tempDir.resolve("sample folder/nested.txt"));
+
+		for (String optionName : List.of("--descriptor", "-d")) {
+			assertThat(runCompletion(completion,
+					"COMP_WORDS=(brts low write " + optionName + " ''); COMP_CWORD=4; " + "COMP_LINE='brts low write "
+							+ optionName + " '; COMP_POINT=${#COMP_LINE}; "
+							+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+					.containsExactlyInAnyOrder("sample.json", "sample file.json", "sample folder", "sample.json.dir",
+							"directory.json");
+		}
+		assertThat(runCompletion(completion,
+				"compopt() { printf 'compopt %s\\n' \"$*\"; }; "
+						+ "COMP_WORDS=(brts low write --descriptor=sample); COMP_CWORD=3; "
+						+ "COMP_LINE='brts low write --descriptor=sample'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.containsExactlyInAnyOrder("compopt -o filenames", "--descriptor=sample.json",
+						"--descriptor=sample file.json", "--descriptor=sample folder", "--descriptor=sample.json.dir");
+		assertThat(runCompletion(completion,
+				"COMP_WORDS=(brts low write --descriptor = sample); COMP_CWORD=5; "
+						+ "COMP_LINE='brts low write --descriptor=sample'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.containsExactlyInAnyOrder("sample.json", "sample file.json", "sample folder", "sample.json.dir");
+		assertThat(runCompletion(completion,
+				"COMP_WORDS=(brts low write --descriptor 'sample folder/n'); COMP_CWORD=4; "
+						+ "COMP_LINE='brts low write --descriptor sample\\ folder/n'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.containsExactly("sample folder/nested.json");
+		assertThat(runCompletion(completion,
+				"COMP_WORDS=(brts low write --descriptor missing); COMP_CWORD=4; "
+						+ "COMP_LINE='brts low write --descriptor missing'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.isEmpty();
+	}
+
+	@Test
+	void ignoresHiddenAndUnannotatedJsonInputs() throws Exception {
+		OptionMetadata hidden = new OptionMetadata("--hidden-json", List.of("-j"), "Hidden", "Descriptor", false, false,
+				true, List.of(), List.of(), false,
+				List.of(new AnnotationMetadata("org.brts.cli.JsonInputOption", Map.of())), null);
+		OptionMetadata unannotated = new OptionMetadata("--unannotated", List.of(), "Descriptor", "Descriptor", false,
+				false, false, List.of(), List.of(), false,
+				List.of(new AnnotationMetadata("example.JsonInputOption", Map.of())), "Descriptor");
+		CommandMetadata command = new CommandMetadata("low", "write", "low write", "Write", "Runner", "Options",
+				List.of(hidden, unannotated));
+		CliMetadata metadata = new CliMetadata("1.0", List.of(new LevelMetadata("low", List.of(command))), Map.of(),
+				List.of());
+		Path completion = tempDir.resolve("completion.bash");
+		new BashCompletionGenerator().generate(metadata, completion);
+		Files.createFile(tempDir.resolve("sample.json"));
+
+		assertThat(Files.readString(completion)).doesNotContain("--hidden-json", "'-j'");
+		assertThat(runCompletion(completion,
+				"COMP_WORDS=(brts low write --unannotated s); COMP_CWORD=4; "
+						+ "COMP_LINE='brts low write --unannotated s'; COMP_POINT=${#COMP_LINE}; "
+						+ "_brts_complete; printf '%s\\n' \"${COMPREPLY[@]}\""))
+				.isEmpty();
 	}
 
 	@Test

@@ -52,7 +52,7 @@ public final class BashCompletionGenerator {
 				.append("  for candidate in \"$@\"; do\n    [[ $candidate == \"$needle\" ]] && return 0\n  done\n")
 				.append("  return 1\n}\n\n").append("_brts_complete() {\n")
 				.append("  local cur level command token waiting='' value_prefix='' attached=0 i candidate\n")
-				.append("  local -a levels=() commands=() options=() value_options=() path_options=() enum_options=() enum_values=() matches=()\n")
+				.append("  local -a levels=() commands=() options=() value_options=() path_options=() json_options=() enum_options=() enum_values=() matches=()\n")
 				.append("  COMPREPLY=()\n").append("  cur=${COMP_WORDS[COMP_CWORD]:-}\n")
 				.append("  # Bash treats '=' as a word break by default; recover an attached --option=value token.\n")
 				.append("  if [[ ${COMP_LINE:0:COMP_POINT} == *[[:space:]]* ]]; then\n")
@@ -88,9 +88,16 @@ public final class BashCompletionGenerator {
 				.append("  done\n").append("  value_prefix=$cur\n").append("  if [[ $cur == *=* ]]; then\n")
 				.append("    candidate=${cur%%=*}\n")
 				.append("    if _brts_contains \"$candidate\" \"${value_options[@]}\"; then\n")
-				.append("      waiting=$candidate; value_prefix=${cur#*=}; attached=1\n    fi\n  fi\n")
+				.append("      waiting=$candidate; value_prefix=${cur#*=}\n")
+				.append("      [[ ${COMP_WORDS[COMP_CWORD]:-} == *=* ]] && attached=1\n    fi\n  fi\n")
 				.append("  if [[ -n $waiting ]]; then\n")
-				.append("    if _brts_contains \"$waiting\" \"${enum_options[@]}\"; then\n")
+				.append("    if _brts_contains \"$waiting\" \"${json_options[@]}\"; then\n")
+				.append("      compopt -o filenames 2>/dev/null || :\n")
+				.append("      while IFS= read -r candidate; do\n")
+				.append("        if [[ -d $candidate || ( -f $candidate && $candidate == *.json ) ]]; then\n")
+				.append("          matches+=(\"$candidate\")\n        fi\n")
+				.append("      done < <(compgen -f -- \"$value_prefix\")\n")
+				.append("    elif _brts_contains \"$waiting\" \"${enum_options[@]}\"; then\n")
 				.append("      case $level:$command:$waiting in\n");
 		for (LevelMetadata level : metadata.levels()) {
 			for (CommandMetadata command : level.commands()) {
@@ -109,6 +116,7 @@ public final class BashCompletionGenerator {
 		script.append("      esac\n")
 				.append("      mapfile -t matches < <(compgen -W \"${enum_values[*]}\" -- \"$value_prefix\")\n")
 				.append("    elif _brts_contains \"$waiting\" \"${path_options[@]}\"; then\n")
+				.append("      compopt -o filenames 2>/dev/null || :\n")
 				.append("      mapfile -t matches < <(compgen -f -- \"$value_prefix\")\n").append("    fi\n")
 				.append("    if (( attached )); then\n      for candidate in \"${matches[@]}\"; do COMPREPLY+=(\"$waiting=$candidate\"); done\n")
 				.append("    else COMPREPLY=(\"${matches[@]}\"); fi\n    return\n  fi\n")
@@ -134,6 +142,13 @@ public final class BashCompletionGenerator {
 		script.append(" )\n      path_options=(");
 		for (OptionMetadata option : command.options()) {
 			if (!option.hidden() && isPath(option.javaType())) {
+				appendOptionNames(script, option);
+			}
+		}
+		script.append(" )\n      json_options=(");
+		for (OptionMetadata option : command.options()) {
+			if (!option.hidden() && option.annotations().stream()
+					.anyMatch(annotation -> "org.brts.cli.JsonInputOption".equals(annotation.type()))) {
 				appendOptionNames(script, option);
 			}
 		}
