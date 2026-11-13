@@ -67,5 +67,7 @@ java -cp <generator-and-dependencies> org.brts.doc.generator.BashCompletionGener
 
 To enable completion for the current shell, source `brts.bash`, or add a source command for its installed location to
 `~/.bashrc`. The generated function completes command levels, commands, visible options and aliases, enum choices, and
-filesystem paths for `File`/`Path` options. Hidden options are intentionally omitted. Other option values are left to
-normal shell completion.
+filesystem paths for `File`/`Path` options. Options annotated with `org.brts.cli.JsonInputOption` complete only existing
+regular files ending in `.json` (case-sensitive) and directories for navigation, including aliases and attached
+`--option=value` arguments. This uses the filename extension, not MIME detection or JSON content validation.
+Hidden options are intentionally omitted. Other option values are left to normal shell completion.
