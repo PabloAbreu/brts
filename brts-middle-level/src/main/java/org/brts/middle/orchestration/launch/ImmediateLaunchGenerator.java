@@ -26,6 +26,8 @@ package org.brts.middle.orchestration.launch;
 import java.io.IOException;
 import java.nio.file.Path;
 
+import org.brts.common.orchestration.BrtsInvocation;
+
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -34,10 +36,10 @@ import lombok.RequiredArgsConstructor;
  */
 @RequiredArgsConstructor
 public class ImmediateLaunchGenerator extends AbstractDeferredLaunchGenerator {
-	private final BrtsImmediateInvocator invocator;
+	private final org.brts.common.orchestration.BrtsImmediateInvocator invocator;
 
 	@Override
-	protected void invoke(BrtsCliInvocation invocation) {
+	protected void invoke(BrtsInvocation invocation) {
 		// run in process with BrtsMain
 		// so we don't worry about paths
 		// and we don't have to wait for JVM startup for each invocation

@@ -36,9 +36,14 @@ import java.util.function.Supplier;
 
 import org.brts.cli.BaseOptions;
 import org.brts.cli.BrtsMain;
+import org.brts.cli.CliBatchRunner;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.LevelDispatcher;
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.common.orchestration.BrtsBatch;
+import org.brts.common.orchestration.BrtsBatchHooks;
+import org.brts.common.orchestration.BrtsBatchHooks.StepContext;
+import org.brts.common.orchestration.BrtsBatchResult;
 import org.brts.common.validation.DescriptorValidator;
 import org.brts.common.validation.ExistingFile;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
@@ -104,7 +109,6 @@ public class BatchRunCli {
 					BatchRunDescriptor.class);
 			DescriptorValidator.validateOrThrow(descriptor, "batch-run descriptor " + descriptorPath);
 			Map<String, LevelDispatcher> dispatchers = levels.get();
-			checkCommandsExist(descriptor, dispatchers, descriptorPath);
 
 			List<BatchStep> steps = descriptor.getSteps();
 			List<BatchStep> preflightSteps = descriptor.getPreflightSteps() == null ? List.of()
@@ -116,79 +120,47 @@ public class BatchRunCli {
 				log.info("Resuming {} from step {}/{}", descriptorPath, start + 1, steps.size());
 			}
 
-			// Do not modify existing progress until every preflight step has succeeded.
-			for (int i = 0; i < preflightSteps.size(); i++) {
-				BatchStep step = preflightSteps.get(i);
-				try {
-					runStep(step, i, preflightSteps.size(), dispatchers);
-				} catch (Exception e) {
-					throw new IllegalStateException(String.format("Preflight step %d/%d (%s) of %s failed: %s", i + 1,
-							preflightSteps.size(), step.describe(), descriptorPath, e.getMessage()), e);
+			BrtsBatch batch = CliBatchRunner.fromDescriptor(descriptor);
+			BrtsBatchHooks hooks = new BrtsBatchHooks() {
+				@Override
+				public void beforeStep(StepContext context) {
+					if (context.preflight()) {
+						return;
+					}
+					if (!opts.resume && context.index() == 0 && Files.exists(stateFile)) {
+						try {
+							Files.delete(stateFile);
+							log.info("Discarded previous progress of {}", descriptorPath);
+						} catch (IOException e) {
+							throw new IllegalStateException("Cannot discard previous progress " + stateFile, e);
+						}
+					}
+					try {
+						saveProgress(stateFile, new Progress(descriptorPath.toString(), context.index(),
+								steps.subList(0, context.index()), preflightSteps));
+					} catch (IOException e) {
+						throw new IllegalStateException("Cannot save batch progress " + stateFile, e);
+					}
 				}
-			}
-			if (!opts.resume && Files.deleteIfExists(stateFile)) {
-				log.info("Discarded previous progress of {}", descriptorPath);
-			}
-
-			for (int i = start; i < steps.size(); i++) {
-				BatchStep step = steps.get(i);
-				// saved before running: some commands System.exit() on failure
-				saveProgress(stateFile,
-						new Progress(descriptorPath.toString(), i, steps.subList(0, i), preflightSteps));
-				try {
-					runStep(step, i, steps.size(), dispatchers);
-				} catch (Exception e) {
-					throw new IllegalStateException(String.format(
-							"Step %d/%d (%s) of %s failed: %s%nFix the problem and re-run with --resume to continue from this step.",
-							i + 1, steps.size(), step.describe(), descriptorPath, e.getMessage()), e);
+			};
+			BrtsBatchResult result = new CliBatchRunner(() -> dispatchers).run(batch, hooks, start, opts.resume);
+			if (!result.failures().isEmpty()) {
+				BrtsBatchResult.Failure failure = result.failures().getFirst();
+				StepContext context = failure.context();
+				BatchStep step = context.preflight() ? preflightSteps.get(context.index()) : steps.get(context.index());
+				if (context.preflight()) {
+					throw new IllegalStateException(
+							String.format("Preflight step %d/%d (%s) of %s failed: %s", context.index() + 1,
+									context.total(), step.describe(), descriptorPath, failure.cause().getMessage()),
+							failure.cause());
 				}
+				throw new IllegalStateException(String.format(
+						"Step %d/%d (%s) of %s failed: %s%nFix the problem and re-run with --resume to continue from this step.",
+						context.index() + 1, context.total(), step.describe(), descriptorPath,
+						failure.cause().getMessage()), failure.cause());
 			}
 			Files.deleteIfExists(stateFile);
 			System.out.println("Batch run complete: " + steps.size() + " step(s) from " + descriptorPath);
-		}
-
-		private static void checkCommandsExist(BatchRunDescriptor descriptor, Map<String, LevelDispatcher> dispatchers,
-				Path descriptorPath) {
-			if (descriptor.getPreflightSteps() != null) {
-				checkCommandsExist(descriptor.getPreflightSteps(), dispatchers, descriptorPath, "Preflight step");
-			}
-			checkCommandsExist(descriptor.getSteps(), dispatchers, descriptorPath, "Step");
-		}
-
-		private static void checkCommandsExist(List<BatchStep> steps, Map<String, LevelDispatcher> dispatchers,
-				Path descriptorPath, String label) {
-			for (int i = 0; i < steps.size(); i++) {
-				BatchStep step = steps.get(i);
-				if (!step.isInvocation()) {
-					continue;
-				}
-				LevelDispatcher dispatcher = dispatchers.get(step.getLevel().toLowerCase());
-				if (dispatcher == null) {
-					throw new IllegalArgumentException(
-							String.format("%s %d of %s: unknown level '%s' (expected one of %s)", label, i + 1,
-									descriptorPath, step.getLevel(), dispatchers.keySet()));
-				}
-				boolean known = dispatcher.getRunners().stream()
-						.anyMatch(r -> r.getCommandName().equalsIgnoreCase(step.getCommand()));
-				if (!known) {
-					throw new IllegalArgumentException(String.format("%s %d of %s: unknown %s command '%s'", label,
-							i + 1, descriptorPath, step.getLevel(), step.getCommand()));
-				}
-			}
-		}
-
-		private static void runStep(BatchStep step, int index, int total, Map<String, LevelDispatcher> dispatchers)
-				throws Exception {
-			if (step.getComment() != null) {
-				log.info("# {}", step.getComment());
-			}
-			if (step.getMessage() != null) {
-				System.out.println(step.getMessage());
-			}
-			if (step.isInvocation()) {
-				log.info("Step {}/{}: {}", index + 1, total, step.describe());
-				dispatchers.get(step.getLevel().toLowerCase()).dispatch(step.toCommandTokens().toArray(new String[0]));
-			}
 		}
 
 		private static int resumePoint(Path stateFile, Path descriptorPath, List<BatchStep> steps,

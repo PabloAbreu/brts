@@ -25,27 +25,21 @@ package org.brts.cli;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.validation.DescriptorValidationException;
 import org.brts.common.validation.DescriptorValidator;
-import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
+import org.brts.common.orchestration.BrtsImmediateInvocator;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
-import org.kohsuke.args4j.spi.MethodSetter;
-import org.kohsuke.args4j.spi.Setters;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -205,96 +199,6 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 	 */
 	protected void validateOptions(O opts) {
 		DescriptorValidator.validateOrThrow(opts, "arguments for '" + getCommandName() + "'");
-	}
-
-	private static class FeatureRunnerCmdLineParser extends CmdLineParser {
-
-		public FeatureRunnerCmdLineParser(Object bean) {
-			super(bean);
-			// no manage custom annotations
-			// support for @JsonInputOption
-			parseJsonInputOption(bean);
-		}
-
-		@RequiredArgsConstructor
-		private static class JsonInputOptionAsOption implements Option {
-
-			private final JsonInputOption o;
-
-			@Override
-			public String name() {
-				return o.name();
-			}
-
-			@Override
-			public String usage() {
-				return o.usage();
-			}
-
-			@Override
-			public boolean required() {
-				return o.required();
-			}
-
-			@Override
-			public String[] aliases() {
-				return o.aliases();
-			}
-
-			@Override
-			public String metaVar() {
-				return o.metaVar();
-			}
-
-			@Override
-			public boolean help() {
-				return o.help();
-			}
-
-			@Override
-			public boolean hidden() {
-				return o.hidden();
-			}
-
-			@Override
-			public String[] depends() {
-				return o.depends();
-			}
-
-			@Override
-			public String[] forbids() {
-				return o.forbids();
-			}
-
-			@Override
-			public Class<JsonInputOptionHandler> handler() {
-				return JsonInputOptionHandler.class;
-			}
-
-			@Override
-			public Class<? extends java.lang.annotation.Annotation> annotationType() {
-				return Option.class;
-			}
-
-		}
-
-		protected void parseJsonInputOption(Object bean) {
-			// recursively process all the methods/fields.
-			for (Class<?> c = bean.getClass(); c != null; c = c.getSuperclass()) {
-				for (Method m : c.getDeclaredMethods()) {
-					JsonInputOption o = m.getAnnotation(JsonInputOption.class);
-					if (o != null)
-						addOption(new MethodSetter(this, bean, m), new JsonInputOptionAsOption(o));
-				}
-
-				for (Field f : c.getDeclaredFields()) {
-					JsonInputOption o = f.getAnnotation(JsonInputOption.class);
-					if (o != null)
-						addOption(Setters.create(f, bean), new JsonInputOptionAsOption(o));
-				}
-			}
-		}
-
 	}
 
 	/**

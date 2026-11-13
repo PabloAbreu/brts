@@ -23,6 +23,7 @@
 
 package org.brts.middle.orchestration.launch;
 
-public interface BrtsImmediateInvocator {
-	void invoke(String[] args);
+/** @deprecated Use the layer-independent callback in {@code brts-common}. */
+@Deprecated
+public interface BrtsImmediateInvocator extends org.brts.common.orchestration.BrtsImmediateInvocator {
 }

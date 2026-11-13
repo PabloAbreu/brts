@@ -29,6 +29,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.common.orchestration.BrtsInvocation;
+
 import org.brts.common.utils.ProcessUtils;
 
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +60,7 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 	}
 
 	@Override
-	protected void invoke(BrtsCliInvocation invocation) {
+	protected void invoke(BrtsInvocation invocation) {
 		StringBuilder line = new StringBuilder("$BRTS_CLI");
 		for (String token : invocation.toTokens()) {
 			line.append(' ').append(quote(token));

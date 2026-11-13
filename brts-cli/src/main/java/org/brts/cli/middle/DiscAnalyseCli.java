@@ -30,13 +30,16 @@ import java.util.List;
 
 import org.brts.cli.BaseOptions;
 import org.brts.cli.BrtsMain;
+import org.brts.cli.CliBatchRunner;
 import org.brts.cli.FeatureRunner;
-import org.brts.common.json.JsonMapperFactory;
-import org.brts.lowlevel.batch.BatchRunDescriptor;
-import org.brts.lowlevel.batch.BatchStep;
+import org.brts.common.orchestration.BrtsBatch;
+import org.brts.common.orchestration.BrtsBatchHooks;
+import org.brts.common.orchestration.BrtsBatchHooks.StepContext;
+import org.brts.common.orchestration.BrtsBatchResult;
+import org.brts.common.orchestration.BrtsImmediateInvocator;
+import org.brts.common.orchestration.BrtsInvocation;
 import org.brts.middle.analysis.DiscAnalyzer;
 import org.brts.middle.analysis.DiscAnalyzer.Diagnostic;
-import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
 import org.kohsuke.args4j.Option;
 
 import lombok.RequiredArgsConstructor;
@@ -108,42 +111,34 @@ public class DiscAnalyseCli {
 		}
 
 		private List<Diagnostic> executeBatch(DiscAnalyzer.Plan plan) throws Exception {
-			BatchRunDescriptor batch = JsonMapperFactory.get().readValue(plan.descriptor().toFile(),
-					BatchRunDescriptor.class);
-			List<Diagnostic> failures = new ArrayList<>();
-			for (int i = 0; i < batch.getSteps().size(); i++) {
-				BatchStep step = batch.getSteps().get(i);
-				if (!step.isInvocation()) {
-					if (step.getMessage() != null) {
-						System.out.println(step.getMessage());
+			BrtsBatch batch = CliBatchRunner.fromDescriptor(plan.batch());
+			BrtsImmediateInvocator invocator = getInvocator() == null ? BrtsMain::main : getInvocator();
+			BrtsBatchHooks hooks = new BrtsBatchHooks() {
+				@Override
+				public void executeStep(StepContext context, StepExecutor executor) {
+					BrtsInvocation invocation = context.step().invocation();
+					if (invocation == null) {
+						return;
 					}
-					continue;
+					List<String> args = new ArrayList<>(invocation.toTokens());
+					args.add(2, BaseOptions.OPTION_NO_EXIT_ON_FAILURE);
+					args.add(3, BaseOptions.OPTION_NO_BANNER);
+					invocator.invoke(args.toArray(String[]::new));
 				}
-				try {
-					executeParserStep(step);
-				} catch (Exception e) {
-					failures.add(new Diagnostic(step.describe(), "Step " + (i + 1) + "/" + batch.getSteps().size()
-							+ " failed: " + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage())));
-					break;
-				}
+			};
+			BrtsBatchResult result = new CliBatchRunner().run(batch, hooks);
+			List<Diagnostic> failures = new ArrayList<>();
+			for (BrtsBatchResult.Failure failure : result.failures()) {
+				StepContext context = failure.context();
+				BrtsInvocation invocation = context.step().invocation();
+				String file = invocation == null ? "batch step"
+						: invocation.level() + " "
+								+ String.join(" ", invocation.toTokens().subList(1, invocation.toTokens().size()));
+				Exception cause = failure.cause();
+				failures.add(new Diagnostic(file, "Step " + (context.index() + 1) + "/" + context.total() + " failed: "
+						+ (cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage())));
 			}
 			return failures;
-		}
-
-		private void executeParserStep(BatchStep step) {
-			if (!"low".equalsIgnoreCase(step.getLevel())) {
-				throw new IllegalArgumentException("Unsupported batch level: " + step.getLevel());
-			}
-			List<String> args = new ArrayList<>();
-			args.add(step.getLevel());
-			List<String> commandTokens = step.toCommandTokens();
-			args.add(commandTokens.getFirst());
-			args.add(BaseOptions.OPTION_NO_EXIT_ON_FAILURE);
-			args.add(BaseOptions.OPTION_NO_BANNER);
-			args.addAll(commandTokens.subList(1, commandTokens.size()));
-			// Directly constructed runners have not passed through LevelDispatcher's injection.
-			BrtsImmediateInvocator invocator = getInvocator() == null ? BrtsMain::main : getInvocator();
-			invocator.invoke(args.toArray(String[]::new));
 		}
 	}
 }

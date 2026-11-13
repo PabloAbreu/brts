@@ -25,8 +25,11 @@ package org.brts.middle.orchestration.launch;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 
+import org.brts.common.orchestration.BrtsInvocation;
 import org.brts.common.json.JsonMapperFactory;
+import org.brts.lowlevel.batch.BatchArgument;
 import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.batch.BatchStep;
 
@@ -46,8 +49,10 @@ public class JsonDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 	}
 
 	@Override
-	protected void invoke(BrtsCliInvocation invocation) {
-		descriptor.getSteps().add(invocation.toBatchStep());
+	protected void invoke(BrtsInvocation invocation) {
+		List<BatchArgument> arguments = invocation.arguments().stream()
+				.map(argument -> new BatchArgument(argument.flag(), argument.value())).toList();
+		descriptor.getSteps().add(BatchStep.invocation(invocation.level(), invocation.command(), arguments));
 	}
 
 	@Override

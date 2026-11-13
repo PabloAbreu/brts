@@ -1,7 +1,7 @@
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- * This file 'brts-middle-level/src/test/java/org/brts/middle/orchestration/launch/BrtsCliInvocationTest.java' is part of BRTS.
+ * This file 'brts-middle-level/src/test/java/org/brts/middle/orchestration/launch/BrtsCliInvocationsTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -27,13 +27,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.file.Path;
 
+import org.brts.common.orchestration.BrtsInvocation;
 import org.junit.jupiter.api.Test;
 
-class BrtsCliInvocationTest {
+class BrtsCliInvocationsTest {
 
 	@Test
 	void mkvToPlaylist_producesExpectedTokens() {
-		BrtsCliInvocation invocation = BrtsCliInvocation.mkvToPlaylist(Path.of("descriptor.json"),
+		BrtsInvocation invocation = BrtsCliInvocations.mkvToPlaylist(Path.of("descriptor.json"),
 				Path.of("/disc/BDMV").toAbsolutePath());
 
 		assertThat(invocation.toTokens()).containsExactly("low", "mkv-to-playlist", "--descriptor",
@@ -43,7 +44,7 @@ class BrtsCliInvocationTest {
 
 	@Test
 	void createTitleMenu_producesExpectedTokens() {
-		BrtsCliInvocation invocation = BrtsCliInvocation.createTitleMenu(Path.of("menu-descriptor.json"),
+		BrtsInvocation invocation = BrtsCliInvocations.createTitleMenu(Path.of("menu-descriptor.json"),
 				Path.of("/disc").toAbsolutePath(), Path.of("/media").toAbsolutePath());
 
 		assertThat(invocation.toTokens()).containsExactly("low", "create-title-menu", "--descriptor",
@@ -54,7 +55,7 @@ class BrtsCliInvocationTest {
 
 	@Test
 	void indexWrite_producesExpectedTokens() {
-		BrtsCliInvocation invocation = BrtsCliInvocation.indexWrite(Path.of("index.json"),
+		BrtsInvocation invocation = BrtsCliInvocations.indexWrite(Path.of("index.json"),
 				Path.of("/disc/BDMV").toAbsolutePath());
 
 		assertThat(invocation.toTokens()).containsExactly("low", "index-write", "--input",
@@ -64,7 +65,7 @@ class BrtsCliInvocationTest {
 
 	@Test
 	void mobjWrite_producesExpectedTokens() {
-		BrtsCliInvocation invocation = BrtsCliInvocation.mobjWrite(Path.of("MovieObject.json"),
+		BrtsInvocation invocation = BrtsCliInvocations.mobjWrite(Path.of("MovieObject.json"),
 				Path.of("/disc/BDMV").toAbsolutePath());
 
 		assertThat(invocation.toTokens()).containsExactly("low", "mobj-write", "--input",

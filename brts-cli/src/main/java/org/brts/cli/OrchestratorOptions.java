@@ -25,8 +25,8 @@ package org.brts.cli;
 
 import java.nio.file.Path;
 
+import org.brts.common.orchestration.BrtsImmediateInvocator;
 import org.brts.common.validation.WritableDirectory;
-import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
 import org.brts.middle.orchestration.launch.BashDeferredLaunchGenerator;
 import org.brts.middle.orchestration.launch.DeferredLaunchGenerator;
 import org.brts.middle.orchestration.launch.ImmediateLaunchGenerator;
