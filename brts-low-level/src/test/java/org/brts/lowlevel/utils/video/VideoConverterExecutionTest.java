@@ -47,6 +47,8 @@ import java.util.stream.Stream;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.utils.video.VideoConversionResult.Compliance;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -69,6 +71,27 @@ class VideoConverterExecutionTest {
 		try (var paths = Files.list(directory)) {
 			assertTrue(paths.noneMatch(path -> path.getFileName().toString().startsWith(".brts-video-")));
 		}
+	}
+
+	private Path assertRetainedOutput(IOException failure, VideoConversionParams params, String contents)
+			throws IOException {
+		String prefix = "Rejected encoder output retained for forensic analysis: ";
+		String diagnostic = failure.getMessage().lines().filter(line -> line.startsWith(prefix)).findFirst()
+				.orElseThrow(() -> new AssertionError(failure.getMessage()));
+		Path retained = Path.of(diagnostic.substring(prefix.length()));
+		assertTrue(retained.isAbsolute());
+		assertEquals(params.getOutputPath().getParent(), retained.getParent());
+		assertNotEquals(params.getOutputPath(), retained);
+		assertEquals(contents, Files.readString(retained));
+		String name = params.getOutputPath().getFileName().toString();
+		int dot = name.lastIndexOf('.');
+		String stem = dot > 0 ? name.substring(0, dot) : name;
+		String extension = dot > 0 ? name.substring(dot) : "";
+		assertTrue(retained.getFileName().toString().startsWith(stem + ".failed-"));
+		assertTrue(retained.getFileName().toString().endsWith(extension));
+		assertTrue(failure.getCause() instanceof IOException);
+		assertEquals("not real video", Files.readString(params.getInputPath()));
+		return retained;
 	}
 
 	@Test
@@ -189,8 +212,9 @@ class VideoConverterExecutionTest {
 					Files.writeString(Path.of(command.getLast()), "invalid output");
 					return process;
 				}));
-		assertThrows(IOException.class, () -> converter.convert(params));
+		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
 		assertEquals("original", Files.readString(params.getOutputPath()));
+		assertRetainedOutput(failure, params, "invalid output");
 		assertNoTemporaryFiles();
 	}
 
@@ -216,6 +240,7 @@ class VideoConverterExecutionTest {
 		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
 		assertTrue(failure.getMessage().contains("HDR10"));
 		assertFalse(Files.exists(params.getOutputPath()));
+		assertRetainedOutput(failure, params, "invalid HDR");
 		assertNoTemporaryFiles();
 	}
 
@@ -288,6 +313,7 @@ class VideoConverterExecutionTest {
 		assertEquals(2, probes.get(), "Rejection must come from post-encode output validation");
 		assertEquals("original", Files.readString(params.getOutputPath()));
 		assertEquals("not real video", Files.readString(params.getInputPath()));
+		assertRetainedOutput(failure, params, "invalid metadata");
 		assertNoTemporaryFiles();
 	}
 
@@ -331,7 +357,86 @@ class VideoConverterExecutionTest {
 		assertTrue(failure.getMessage().contains("Encoder warnings:"), failure.getMessage());
 		assertTrue(failure.getMessage().contains("chromaloc disabled"), failure.getMessage());
 		assertFalse(Files.exists(params.getOutputPath()));
+		assertRetainedOutput(failure, params, "encoded");
 		assertNoTemporaryFiles();
+	}
+
+	@Test
+	void frameRateMismatchRetainsDistinctArtifactsInConvertedFolderAcrossRetries() throws Exception {
+		var params = request(directory);
+		executable(params);
+		Path converted = Files.createDirectory(directory.resolve("converted"));
+		params.setOutputPath(converted.resolve("pid_1011.h264"));
+		params.setFrameRate(FrameRate.FPS_23976);
+		AtomicInteger attempts = new AtomicInteger();
+		List<Process> processes = List.of(completed(0, "", ""), completed(0, "", ""));
+		var converter = new VideoConverter((key, fallback) -> fallback, path -> sdr(1920, 1080, FrameRate.FPS_24),
+				new EncoderProcessRunner(command -> {
+					Files.writeString(Path.of(command.getLast()), "attempt " + attempts.incrementAndGet());
+					return processes.get(attempts.get() - 1);
+				}));
+		IOException first = assertThrows(IOException.class, () -> converter.convert(params));
+		assertTrue(first.getMessage().contains("frameRate expected=24000/1001 actual=24/1"), first.getMessage());
+		Path firstArtifact = assertRetainedOutput(first, params, "attempt 1");
+		IOException second = assertThrows(IOException.class, () -> converter.convert(params));
+		Path secondArtifact = assertRetainedOutput(second, params, "attempt 2");
+		assertNotEquals(firstArtifact, secondArtifact);
+		assertEquals("attempt 1", Files.readString(firstArtifact));
+		assertFalse(Files.exists(params.getOutputPath()));
+		try (var paths = Files.list(converted)) {
+			assertEquals(2, paths.count(), "Only the two retained artifacts should remain");
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = { "pid_1011.hevc", "pid_1011" })
+	void outputProbeFailureRetainsEncodedBytesAndOriginalCause(String outputName) throws Exception {
+		var params = request(directory);
+		executable(params);
+		params.setCodec(StreamCodingType.H265_HEVC);
+		params.setOutputPath(directory.resolve(outputName));
+		IOException probeFailure = new IOException("Cannot parse encoded stream");
+		Process process = completed(0, "", "");
+		var converter = new VideoConverter((key, fallback) -> fallback, path -> {
+			if (path.equals(params.getInputPath()))
+				return sdr(1920, 1080, FrameRate.FPS_24);
+			throw probeFailure;
+		}, new EncoderProcessRunner(command -> {
+			Files.writeString(Path.of(command.getLast()), "unprobeable output");
+			return process;
+		}));
+		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
+		assertEquals(probeFailure, failure.getCause());
+		assertTrue(failure.getMessage().contains(probeFailure.getMessage()));
+		assertRetainedOutput(failure, params, "unprobeable output");
+		assertFalse(Files.exists(params.getOutputPath()));
+		assertNoTemporaryFiles();
+	}
+
+	@Test
+	@EnabledOnOs(OS.LINUX)
+	void failedForensicRenameKeepsOriginalTemporaryAndValidationCause() throws Exception {
+		var params = request(directory);
+		executable(params);
+		// Valid destination basename, but the forensic suffix exceeds Linux NAME_MAX.
+		params.setOutputPath(directory.resolve("v".repeat(240) + ".h264"));
+		params.setFrameRate(FrameRate.FPS_23976);
+		AtomicReference<Path> temporary = new AtomicReference<>();
+		Process process = completed(0, "", "");
+		var converter = new VideoConverter((key, fallback) -> fallback, path -> sdr(1920, 1080, FrameRate.FPS_24),
+				new EncoderProcessRunner(command -> {
+					temporary.set(Path.of(command.getLast()));
+					Files.writeString(temporary.get(), "forensic fallback");
+					return process;
+				}));
+		IOException failure = assertThrows(IOException.class, () -> converter.convert(params));
+		assertTrue(failure.getMessage().contains("frameRate expected=24000/1001 actual=24/1"));
+		assertTrue(failure.getMessage().contains("retained for forensic analysis: " + temporary.get()));
+		assertEquals("forensic fallback", Files.readString(temporary.get()));
+		assertEquals(1, failure.getCause().getSuppressed().length);
+		assertTrue(failure.getCause().getSuppressed()[0] instanceof IOException);
+		assertFalse(Files.exists(params.getOutputPath()));
+		assertEquals("not real video", Files.readString(params.getInputPath()));
 	}
 
 	@ParameterizedTest

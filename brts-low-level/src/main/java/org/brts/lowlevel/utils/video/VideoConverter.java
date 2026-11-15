@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.BiFunction;
 
 import org.brts.common.model.StreamCodingType;
@@ -59,7 +60,9 @@ import lombok.extern.slf4j.Slf4j;
  * A converter is stateless between invocations, but callers must not mutate requests during prepare/convert or
  * concurrently convert to the same destination. prepare probes input and previews arguments without validating
  * executable availability. convert validates the binary, encodes to a sibling temporary file, checks basic output
- * metadata and only then publishes it. Output probing is NOT a full GOP/VBV/HRD conformance check.
+ * metadata and only then publishes it. Completed output rejected by probing or metadata validation is retained beside
+ * the destination under a unique failed filename for forensic analysis; these files require manual cleanup. Output
+ * probing is NOT a full GOP/VBV/HRD conformance check.
  */
 @Slf4j
 public final class VideoConverter {
@@ -171,6 +174,7 @@ public final class VideoConverter {
 			throw new IOException("Output parent directory does not exist: " + parent);
 		Path temporary = Files.createTempFile(parent, ".brts-video-",
 				plan.codec() == StreamCodingType.H264_AVC ? EXT_264 : ".hevc");
+		boolean retainTemporary = false;
 		try {
 			List<String> command = new ArrayList<>(plan.command());
 			command.set(0, executable);
@@ -185,10 +189,17 @@ public final class VideoConverter {
 			try {
 				validateOutput(plan, probe.probe(temporary), warnings);
 			} catch (IOException e) {
+				// Protect the evidence even if renaming it fails.
+				retainTemporary = true;
+				Path retained = retainRejectedOutput(temporary, plan.outputPath(), e);
+				log.warn("VideoConverter: output rejected for {}; retained for forensic analysis at {}: {}",
+						plan.outputPath(), retained, e.getMessage());
 				List<String> reported = warnings.stream().distinct().toList();
-				if (reported.isEmpty())
-					throw e;
-				throw new IOException(e.getMessage() + "\nEncoder warnings:\n- " + String.join("\n- ", reported), e);
+				String message = e.getMessage() + "\nRejected encoder output retained for forensic analysis: "
+						+ retained;
+				if (!reported.isEmpty())
+					message += "\nEncoder warnings:\n- " + String.join("\n- ", reported);
+				throw new IOException(message, e);
 			}
 			if (Thread.currentThread().isInterrupted())
 				throw new IOException("Video conversion interrupted before publishing output");
@@ -199,7 +210,25 @@ public final class VideoConverter {
 			return new VideoConversionResult(plan.outputPath(), plan, warnings,
 					warnings.isEmpty() ? Compliance.TARGETED : Compliance.BEST_EFFORT);
 		} finally {
-			Files.deleteIfExists(temporary);
+			if (!retainTemporary)
+				Files.deleteIfExists(temporary);
+		}
+	}
+
+	private static Path retainRejectedOutput(Path temporary, Path output, IOException failure) {
+		String name = output.getFileName().toString();
+		int dot = name.lastIndexOf('.');
+		String stem = dot > 0 ? name.substring(0, dot) : name;
+		String extension = dot > 0 ? name.substring(dot) : "";
+		Path retained = output.resolveSibling(stem + ".failed-" + UUID.randomUUID() + extension);
+		try {
+			// No REPLACE_EXISTING or ATOMIC_MOVE: never overwrite existing forensic evidence.
+			return Files.move(temporary, retained);
+		} catch (IOException e) {
+			failure.addSuppressed(e);
+			log.warn("VideoConverter: could not rename rejected output to {}; retaining original temporary file {}",
+					retained, temporary, e);
+			return temporary;
 		}
 	}
 

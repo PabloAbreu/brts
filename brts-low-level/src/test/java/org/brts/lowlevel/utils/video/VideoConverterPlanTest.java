@@ -44,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.brts.lowlevel.utils.video.VideoConversionParams.RateControl;
 import org.junit.jupiter.api.Test;
@@ -150,6 +151,27 @@ class VideoConverterPlanTest {
 		assertTrue(plan.warnings().stream().anyMatch(warning -> warning.contains("experimental")));
 	}
 
+	@ParameterizedTest
+	@CsvSource({ "H264_AVC,1920,1080,24000/1001", "H264_AVC,1920,1080,24/1", "H264_AVC,1280,720,60000/1001",
+			"H265_HEVC,1920,1080,30000/1001" })
+	void encodersReceiveExactDetectedInputFrameRate(StreamCodingType codec, int width, int height, String fps)
+			throws IOException {
+		FrameRate rate = FrameRate.parse(fps);
+		for (Engine engine : Engine.values()) {
+			var params = request(directory);
+			params.setEngine(engine);
+			params.setCodec(codec);
+			var plan = preview(sdr(width, height, rate)).prepare(params);
+			String option = engine == Engine.FFMPEG ? "-r" : "--fps";
+			assertEquals(fps, value(plan.command(), option), engine.toString());
+			assertEquals(1, plan.command().stream().filter(option::equals).count(), engine.toString());
+			assertTrue(plan.command().indexOf(option) < plan.command().indexOf("-i"), engine.toString());
+			assertEquals(rate, plan.sourceFrameRate());
+			assertEquals(rate, plan.frameRate());
+			assertEquals(1.0, plan.durationRatio(), 1e-12);
+		}
+	}
+
 	@Test
 	void ffmpegRetimesAtInputWithoutDroppingOrDuplicatingFrames() throws IOException {
 		var params = request(directory);
@@ -205,7 +227,7 @@ class VideoConverterPlanTest {
 		assertEquals("0,90,0,90", value(plan.command(), "--vpp-pad"));
 		assertEquals("raw", value(plan.command(), "--output-format"));
 		assertTrue(plan.command().contains("--avsw"));
-		assertFalse(plan.command().contains("--fps"));
+		assertEquals("24/1", value(plan.command(), "--fps"));
 		assertEquals("1920x1080", value(plan.command(), "--output-res"));
 		assertEquals("24", value(plan.command(), "--gop-len"));
 		assertEquals("40000", value(plan.command(), "--max-bitrate"));

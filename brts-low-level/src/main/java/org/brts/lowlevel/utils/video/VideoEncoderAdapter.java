@@ -249,7 +249,9 @@ final class HardwareVideoEncoder implements VideoEncoderAdapter {
 			s.warnings().add(engine + " resize/padding requires the native GPU VPP filters in the installed build");
 		// No software fallback, helper FFmpeg or backend auto-fallback in these adapters.
 		List<String> command = new ArrayList<>();
-		args(command, s.executable(), "--avsw", "--input-format", s.source().inputFormat(), "-i", s.input().toString());
+		// Supply exact detected timing as an input hint, not as a compressed-stream retiming mechanism.
+		args(command, s.executable(), "--avsw", "--input-format", s.source().inputFormat(), "--fps",
+				s.sourceRate().toString(), "-i", s.input().toString());
 		args(command, "--codec", s.hevc() ? "hevc" : "h264");
 		if (s.bitrate() != null)
 			args(command, s.rateControl() == RateControl.CBR ? "--cbr" : "--vbr", s.bitrate().toString());

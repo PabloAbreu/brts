@@ -164,7 +164,7 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 		}
 		ExtractionCache.Validated cache = request.extractionCache() == null ? null
 				: ExtractionCache.validate(request.extractionCache());
-		log.debug("Validated extraction cache for clip ID {}: {}", request.clipId(), cache);
+		log.debug("Validated extraction cache for clip ID {}", request.clipId());
 		if (cache != null) {
 			validateCacheRequest(cache, request, source, sourceClpi, outputRoot, retained);
 		}

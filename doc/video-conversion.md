@@ -141,6 +141,13 @@ Explicit target frame rate changes speed, retaining each decoded frame once:
 `plan.durationRatio()` is source fps / target fps. Audio adjustment is outside scope.
 Hardware adapters reject timing overrides, missing timing or changed rates because
 their `--fps` switch does not reliably retime compressed input. No helper is used.
+They explicitly receive the detected source rate as an exact rational input hint
+(for example, `--fps 24000/1001`) rather than relying solely on encoder detection.
+FFmpeg already receives explicit input timing through `-r` before `-i`, using the
+target rate when an intentional playback-speed change is requested. Hardware
+builds may ignore or only treat `--fps` as a hint with the `--avsw` compressed-input
+reader; output frame-rate validation remains strict. This does not select `--raw`,
+which denotes uncompressed pixels, not compressed elementary streams.
 
 ## Encoder policy and native options
 
