@@ -114,7 +114,7 @@ public class M2tsShrinkCli {
 		public Shrink(M2tsShrinkInputResolver resolver, M2tsShrinkPlanner planner) {
 			this(resolver, planner, descriptor -> {
 				try {
-					new BatchRunCli.Run().run(new String[] { "--descriptor", descriptor.toString() });
+					new BatchRunCli.Run().runDescriptor(descriptor, false);
 				} catch (IOException e) {
 					throw e;
 				} catch (Exception e) {

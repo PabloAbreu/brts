@@ -276,6 +276,23 @@ class BatchRunCliTest {
 	}
 
 	@Test
+	void programmaticEntryPointUsesSameFailFastResumeBehavior() throws Exception {
+		failOnBoom = true;
+		Path descriptor = writeDescriptor(record("a"), record("boom"), record("c"));
+
+		assertThatThrownBy(() -> runner.runDescriptor(descriptor, false)).hasMessageContaining("Step 2/3")
+				.hasMessageContaining("--resume");
+		assertThat(calls).containsExactly("a");
+		assertThat(runner.stateFile(descriptor.toAbsolutePath().normalize())).exists();
+
+		failOnBoom = false;
+		runner.runDescriptor(descriptor, true);
+
+		assertThat(calls).containsExactly("a", "boom", "c");
+		assertThat(runner.stateFile(descriptor.toAbsolutePath().normalize())).doesNotExist();
+	}
+
+	@Test
 	void resumeAllowsEditingFailedStepButNotCompletedOnes() throws Exception {
 		failOnBoom = true;
 		Path descriptor = writeDescriptor(record("a"), record("boom"));

@@ -50,6 +50,7 @@ import org.brts.lowlevel.batch.BatchRunDescriptor;
 import org.brts.lowlevel.batch.BatchStep;
 import org.kohsuke.args4j.Option;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -78,6 +79,7 @@ public class BatchRunCli {
 	}
 
 	@Slf4j
+@RequiredArgsConstructor 
 	public static class Run extends FeatureRunner<RunOptions> {
 
 		private final Supplier<Map<String, LevelDispatcher>> levels;
@@ -85,11 +87,6 @@ public class BatchRunCli {
 
 		public Run() {
 			this(BrtsMain::getLevels, Path.of(System.getProperty("java.io.tmpdir"), "brts-batch-run"));
-		}
-
-		Run(Supplier<Map<String, LevelDispatcher>> levels, Path stateDir) {
-			this.levels = levels;
-			this.stateDir = stateDir;
 		}
 
 		@Override
@@ -104,7 +101,12 @@ public class BatchRunCli {
 
 		@Override
 		protected void execute(RunOptions opts) throws Exception {
-			Path descriptorPath = opts.descriptor.toAbsolutePath().normalize();
+			runDescriptor(opts.descriptor, opts.resume);
+		}
+
+		/** Executes a descriptor through the resumable batch-run mechanism without reparsing CLI arguments. */
+		void runDescriptor(Path descriptorFile, boolean resume) throws Exception {
+			Path descriptorPath = descriptorFile.toAbsolutePath().normalize();
 			BatchRunDescriptor descriptor = JsonMapperFactory.get().readValue(descriptorPath.toFile(),
 					BatchRunDescriptor.class);
 			DescriptorValidator.validateOrThrow(descriptor, "batch-run descriptor " + descriptorPath);
@@ -115,7 +117,7 @@ public class BatchRunCli {
 					: descriptor.getPreflightSteps();
 			Path stateFile = stateFile(descriptorPath);
 			int start = 0;
-			if (opts.resume) {
+			if (resume) {
 				start = resumePoint(stateFile, descriptorPath, steps, preflightSteps);
 				log.info("Resuming {} from step {}/{}", descriptorPath, start + 1, steps.size());
 			}
@@ -127,7 +129,7 @@ public class BatchRunCli {
 					if (context.preflight()) {
 						return;
 					}
-					if (!opts.resume && context.index() == 0 && Files.exists(stateFile)) {
+					if (!resume && context.index() == 0 && Files.exists(stateFile)) {
 						try {
 							Files.delete(stateFile);
 							log.info("Discarded previous progress of {}", descriptorPath);
@@ -143,7 +145,7 @@ public class BatchRunCli {
 					}
 				}
 			};
-			BrtsBatchResult result = new CliBatchRunner(() -> dispatchers).run(batch, hooks, start, opts.resume);
+			BrtsBatchResult result = new CliBatchRunner(() -> dispatchers).run(batch, hooks, start, resume);
 			if (!result.failures().isEmpty()) {
 				BrtsBatchResult.Failure failure = result.failures().getFirst();
 				StepContext context = failure.context();
