@@ -38,6 +38,9 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class M2tsShrinkInputResolverTest {
 
@@ -79,6 +82,34 @@ class M2tsShrinkInputResolverTest {
 		}, new M2tsPidPacketCounter());
 		assertThatThrownBy(() -> mismatch.resolve(tempDir, "00001")).isInstanceOf(java.io.IOException.class)
 				.hasMessageContaining("coding type mismatch");
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(longs = { 0 })
+	void discoversMenuOnlyClipWithoutPositiveDuration(Long duration) throws Exception {
+		Path streams = Files.createDirectories(tempDir.resolve("BDMV/STREAM"));
+		Path clips = Files.createDirectories(tempDir.resolve("BDMV/CLIPINF"));
+		Files.write(streams.resolve("00001.m2ts"), packets(0x1400));
+		Files.writeString(clips.resolve("00001.clpi"), "fixture");
+		M2tsInfo info = new M2tsInfo();
+		M2tsStreamInfo menu = new M2tsStreamInfo();
+		menu.setPid(0x1400);
+		menu.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
+		info.setStreams(List.of(menu));
+		ClipInfo clip = new ClipInfo();
+		clip.setDuration(duration == null ? null : Timestamp.ofTicks(duration));
+		ClipStream clipMenu = new ClipStream();
+		clipMenu.setPid(0x1400);
+		clipMenu.setCodingType(StreamCodingType.INTERACTIVE_GRAPHICS);
+		clip.setStreams(List.of(clipMenu));
+		var resolver = new M2tsShrinkInputResolver(path -> info, path -> clip, new M2tsPidPacketCounter());
+
+		var metadata = resolver.discover(tempDir, "00001");
+
+		assertThat(metadata.inventory().duration90k()).isEqualTo(duration == null ? 0 : duration);
+		assertThat(metadata.inventory().tracks()).extracting(M2tsShrinkInventory.Track::codingType)
+				.containsExactly(StreamCodingType.INTERACTIVE_GRAPHICS);
 	}
 
 	private static M2tsInfo m2tsInfo() {

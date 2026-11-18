@@ -98,9 +98,8 @@ public final class M2tsShrinkInputResolver {
 		log.debug("Parsed M2TS stream info for file {}", m2ts);
 		ClipInfo clipInfo = clpiReader.parse(clpi);
 		log.debug("Parsed CLPI info for file {}", clpi);
-		if (clipInfo.getDuration() == null || clipInfo.getDuration().getTicks() <= 0) {
-			throw new IOException("CLPI has no positive duration: " + clpi);
-		}
+		// Menu-only clips may have no presentation duration. Discovery must still allow unchanged copies.
+		long duration90k = clipInfo.getDuration() == null ? 0 : clipInfo.getDuration().getTicks();
 		Map<Integer, M2tsStreamInfo> pmtStreams = new LinkedHashMap<>();
 		if (streamInfo.getStreams() != null) {
 			for (M2tsStreamInfo stream : streamInfo.getStreams()) {
@@ -134,8 +133,7 @@ public final class M2tsShrinkInputResolver {
 			return new M2tsShrinkInventory.Track(stream.getPid(), stream.getCodingType(), stream.getLanguage(),
 					stream.getBitrateKbps(), 0L);
 		}).toList();
-		return new Metadata(new M2tsShrinkInventory(m2ts, clpi, bytes, clipInfo.getDuration().getTicks(), tracks),
-				streamInfo);
+		return new Metadata(new M2tsShrinkInventory(m2ts, clpi, bytes, duration90k, tracks), streamInfo);
 	}
 
 	private static void requireReadableFile(Path path, String kind) throws IOException {

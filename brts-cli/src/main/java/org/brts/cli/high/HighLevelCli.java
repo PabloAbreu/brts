@@ -36,6 +36,8 @@ import org.brts.cli.JsonInputOption;
 import org.brts.cli.LevelDispatcher;
 import org.brts.cli.OrchestratorOptions;
 import org.brts.common.mkv.MkvSourceMediaParser;
+import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.validation.ExistingDirectory;
 import org.brts.highlevel.descriptor.HighLevelDiscDescriptor;
 import org.brts.highlevel.orchestration.HighLevelOrchestrator;
 import org.brts.highlevel.preview.TitleMenuPreviewRenderer;
@@ -45,6 +47,10 @@ import org.brts.middle.orchestration.MiddleLevelOrchestrator;
 import org.kohsuke.args4j.Option;
 
 import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Positive;
+import org.brts.highlevel.shrink.DiscShrinkDescriptor;
+import org.brts.highlevel.shrink.DiscShrinkOrchestrator;
+import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 
 /**
  * CLI for high-level disc authoring.
@@ -143,12 +149,68 @@ public class HighLevelCli {
 		}
 	}
 
+	public static class DiscShrinkOptions extends BaseOptions {
+
+		@ExistingDirectory
+		@Option(name = "--input", required = true, usage = "Source disc root containing BDMV")
+		Path input;
+
+		@Option(name = "--output", required = true, usage = "Separate target disc root")
+		Path output;
+
+		@JsonInputOption(name = "--descriptor", usage = "Optional stream-language preference JSON descriptor")
+		DiscShrinkDescriptor descriptor;
+
+		@Positive(message = "--target-bytes must be positive")
+		@Option(name = "--target-bytes", required = true, usage = "Hard upper limit for the entire output tree in bytes")
+		long targetBytes;
+
+		@Option(name = "--engine", usage = "Video conversion engine (FFMPEG, NVENCC, VCEENCC, QSVENCC)")
+		Engine engine;
+	}
+
+	public static class DiscShrink extends FeatureRunner<DiscShrinkOptions> {
+
+		@Override
+		public String getCommandName() {
+			return "disc-shrink";
+		}
+
+		@Override
+		public String getDescription() {
+			return "Reduce a disc-root to fit a hard whole-output size limit";
+		}
+
+		@Override
+		protected void execute(DiscShrinkOptions opts) throws Exception {
+			Engine engine = opts.engine != null ? opts.engine
+					: Engine.parse(
+							BrtsFileConfig.getInstance().propertyOrDefault("brts.video.converter.engine", "ffmpeg"));
+			DiscShrinkOrchestrator orchestrator = new DiscShrinkOrchestrator(descriptor -> {
+				try {
+					new org.brts.cli.low.BatchRunCli.Run().runDescriptor(descriptor, false);
+				} catch (java.io.IOException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new java.io.IOException("Disc-shrink conversion batch failed: " + descriptor, e);
+				}
+			});
+			var result = orchestrator.shrink(opts.input, opts.output,
+					opts.descriptor == null ? new DiscShrinkDescriptor() : opts.descriptor, opts.targetBytes, engine);
+			System.out.println("Disc shrink complete: " + result.actualBytes() + " bytes at " + result.output());
+			for (String diagnostic : result.diagnostics()) {
+				System.err.println("Warning: " + diagnostic);
+			}
+		}
+	}
+
 	private static final LevelDispatcher dispatcher;
 
 	static {
 		dispatcher = new LevelDispatcher("high");
 		dispatcher.register(new Build());
 		dispatcher.register(new Simulate());
+		dispatcher.register(new DiscShrink());
 	}
 
 	public static LevelDispatcher getLevelDispatcher() {

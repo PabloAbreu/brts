@@ -79,7 +79,7 @@ public class BatchRunCli {
 	}
 
 	@Slf4j
-@RequiredArgsConstructor 
+	@RequiredArgsConstructor
 	public static class Run extends FeatureRunner<RunOptions> {
 
 		private final Supplier<Map<String, LevelDispatcher>> levels;
@@ -105,7 +105,7 @@ public class BatchRunCli {
 		}
 
 		/** Executes a descriptor through the resumable batch-run mechanism without reparsing CLI arguments. */
-		void runDescriptor(Path descriptorFile, boolean resume) throws Exception {
+		public void runDescriptor(Path descriptorFile, boolean resume) throws Exception {
 			Path descriptorPath = descriptorFile.toAbsolutePath().normalize();
 			BatchRunDescriptor descriptor = JsonMapperFactory.get().readValue(descriptorPath.toFile(),
 					BatchRunDescriptor.class);
