@@ -29,6 +29,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -37,13 +38,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.brts.common.m2ts.TargetRootWorkspace;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
-import org.brts.common.m2ts.TargetRootWorkspace;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.m2ts.PreservingM2tsClipWriter;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
+import org.brts.lowlevel.model.mpls.PlayItemStream;
 import org.brts.lowlevel.model.mpls.SubPath;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.lowlevel.shrink.BatchWholeM2tsConverter;
@@ -57,7 +59,10 @@ import org.brts.lowlevel.shrink.WholeM2tsConverter;
 import org.brts.lowlevel.utils.video.VideoConversionParams.Engine;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** Executes a conservative whole-disc shrink campaign into a separate output root. */
+@Slf4j
 public final class DiscShrinkOrchestrator {
 	private static final Set<StreamCodingType> SUPPORTED = Set.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC,
 			StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS, StreamCodingType.DOLBY_TRUEHD,
@@ -105,28 +110,52 @@ public final class DiscShrinkOrchestrator {
 			throw new IOException("Output root changed while preparing disc shrink: " + destination);
 		}
 
+		log.info("Starting disc shrink: input={}, output={}, target={} bytes, engine={}", source, destination,
+				targetBytes, engine);
 		List<String> diagnostics = new ArrayList<>();
+		log.info("Scanning disc clips and playlists for reducible files");
 		Inventory inventory = inventory(source, diagnostics);
 		DiscShrinkPlanner.Plan plan = new DiscShrinkPlanner().plan(descriptor, inventory.playlists(), inventory.clips(),
 				inventory.fixedBytes(), targetBytes);
 		Set<String> reducibleIds = plan.clips().values().stream().filter(DiscShrinkPlanner.ClipPlan::reducible)
 				.map(DiscShrinkPlanner.ClipPlan::clipId).collect(Collectors.toSet());
+		log.info("Disc shrink plan: {} clips, {} reducible, {} kept unchanged; fixed={} bytes, target={} bytes",
+				plan.clips().size(), reducibleIds.size(), plan.clips().size() - reducibleIds.size(), plan.fixedBytes(),
+				targetBytes);
+		for (var clipPlan : plan.clips().values().stream()
+				.sorted(Comparator.comparing(DiscShrinkPlanner.ClipPlan::clipId)).toList()) {
+			if (clipPlan.reducible()) {
+				log.info(
+						"Reducible file {}.m2ts: source={} bytes, target={} bytes, retained audio PIDs={}, subtitle PIDs={}",
+						clipPlan.clipId(), clipPlan.sourceBytes(), clipPlan.targetBytes(), clipPlan.retainedAudioPids(),
+						clipPlan.retainedSubtitlePids());
+			} else {
+				log.info("Keeping {}.m2ts unchanged ({} bytes): {}", clipPlan.clipId(), clipPlan.sourceBytes(),
+						clipPlan.note());
+			}
+		}
+		log.info("Copying unchanged files to {}", destination);
 		copyTree(source, destination, reducibleIds);
+		log.info("Finished copying unchanged files");
 
 		plan.clips().values().stream().filter(p -> !p.reducible())
-				.sorted(java.util.Comparator.comparing(DiscShrinkPlanner.ClipPlan::clipId))
+				.sorted(Comparator.comparing(DiscShrinkPlanner.ClipPlan::clipId))
 				.forEach(p -> diagnostics.add("Clip " + p.clipId() + ": " + p.note()));
 		Set<String> changedClips = new HashSet<>();
 		Map<String, Set<Integer>> keptPids = new HashMap<>();
+		int clipIndex = 0;
 		for (String clipId : reducibleIds.stream().sorted().toList()) {
 			DiscShrinkPlanner.ClipPlan clipPlan = plan.clips().get(clipId);
 			Path sourceM2ts = source.resolve("BDMV/STREAM/" + clipId + ".m2ts");
 			Path sourceClpi = source.resolve("BDMV/CLIPINF/" + clipId + ".clpi");
 			Path outputM2ts = destination.resolve("BDMV/STREAM/" + clipId + ".m2ts");
 			Path outputClpi = destination.resolve("BDMV/CLIPINF/" + clipId + ".clpi");
+			log.info("Processing reducible file [{}/{}]: {} (source={} bytes, target={} bytes)", ++clipIndex,
+					reducibleIds.size(), sourceM2ts, clipPlan.sourceBytes(), clipPlan.targetBytes());
 			Set<Integer> keep = retainedPids(inventory.metadata().get(clipId).inventory(), clipPlan);
 			boolean pidFilter = hasRemovedAudioOrSubtitle(inventory.metadata().get(clipId).inventory(), keep);
 			if (!pidFilter && clipPlan.targetBytes() >= clipPlan.sourceBytes()) {
+				log.info("Copying {}.m2ts unchanged: already within budget and no streams to remove", clipId);
 				copyPair(sourceM2ts, sourceClpi, outputM2ts, outputClpi);
 				continue;
 			}
@@ -134,6 +163,7 @@ public final class DiscShrinkOrchestrator {
 				M2tsShrinkConfig config = new M2tsShrinkConfig();
 				config.setAudioPids(clipPlan.retainedAudioPids());
 				config.setSubtitlePids(clipPlan.retainedSubtitlePids());
+				log.info("Analyzing and preparing extraction for {}.m2ts", clipId);
 				M2tsShrinkInputResolver resolver = new M2tsShrinkInputResolver();
 				M2tsShrinkInventory counts = resolver.resolve(source, clipId);
 				M2tsShrinkCache.Prepared prepared = new M2tsShrinkCache(resolver).prepare(source, clipId, config,
@@ -141,8 +171,10 @@ public final class DiscShrinkOrchestrator {
 				M2tsShrinkPlan clipShrink = new M2tsShrinkPlanner().plan(counts, clipId, config,
 						Math.max(1, clipPlan.targetBytes()), engine);
 				if (clipShrink.decision() == M2tsShrinkPlan.Decision.AUDIO_PID_REMOVAL_FITS_ESTIMATE) {
+					log.info("Reducing {}.m2ts by removing unselected streams without video conversion", clipId);
 					writeFiltered(prepared, counts, clipPlan, outputM2ts, outputClpi);
 				} else {
+					log.info("Converting {}.m2ts using {} (decision={})", clipId, engine, clipShrink.decision());
 					WholeM2tsConverter converter = new BatchWholeM2tsConverter(engine, batchExecutor);
 					converter.convert(new WholeM2tsConverter.M2tsConversionRequest(counts, clipShrink, config,
 							destination, null, clipId, false, prepared.cache().reference()));
@@ -150,9 +182,13 @@ public final class DiscShrinkOrchestrator {
 				if (!Files.isRegularFile(outputM2ts) || !Files.isRegularFile(outputClpi)) {
 					throw new IOException("Conversion did not produce a complete M2TS/CLPI pair");
 				}
+				long outputBytes = Files.size(outputM2ts);
+				log.info("Finished {}.m2ts: source={} bytes, output={} bytes, saved={} bytes", clipId,
+						clipPlan.sourceBytes(), outputBytes, clipPlan.sourceBytes() - outputBytes);
 				changedClips.add(clipId);
 				keptPids.put(clipId, keep);
 			} catch (Exception e) {
+				log.warn("Could not reduce {}.m2ts; restoring original M2TS/CLPI pair: {}", clipId, e.getMessage());
 				// A failed writer may have published either or both files. Never retain a mixed pair.
 				Files.deleteIfExists(outputM2ts);
 				Files.deleteIfExists(outputClpi);
@@ -162,12 +198,16 @@ public final class DiscShrinkOrchestrator {
 		}
 
 		if (!changedClips.isEmpty()) {
+			log.info("Updating playlists for {} changed clips", changedClips.size());
 			writeFilteredPlaylists(destination, inventory.playlistModels(), changedClips, keptPids);
 		}
+		log.info("Cleaning temporary workspaces and measuring output disc size");
 		cleanupWorkspaces(destination);
 		long actualBytes = treeBytes(destination);
 		Result result = new Result(source, destination, targetBytes, actualBytes, actualBytes <= targetBytes,
 				List.copyOf(diagnostics));
+		log.info("Disc shrink result: {} clips changed, actual={} bytes, target={} bytes, within limit={}, output={}",
+				changedClips.size(), actualBytes, targetBytes, result.withinLimit(), destination);
 		if (!result.withinLimit()) {
 			throw new IOException("Disc shrink output exceeds --target-bytes: actual=" + actualBytes + ", limit="
 					+ targetBytes + "; output retained at " + destination);
@@ -188,9 +228,11 @@ public final class DiscShrinkOrchestrator {
 					.toList()) {
 				String clipId = file.getFileName().toString().substring(0, 5);
 				clipSizes.put(clipId, Files.size(file));
+				log.info("Inspecting clip {} ({} bytes)", file, clipSizes.get(clipId));
 				try {
 					metadata.put(clipId, discovery.discover(root, clipId));
 				} catch (IOException | RuntimeException e) {
+					log.warn("Keeping {} unchanged because discovery failed: {}", file, e.getMessage());
 					diagnostics
 							.add("Clip " + clipId + " was kept unchanged because discovery failed: " + e.getMessage());
 				}
@@ -205,10 +247,12 @@ public final class DiscShrinkOrchestrator {
 			for (Path file : files.filter(p -> p.getFileName().toString().matches("[0-9]{5}\\.mpls")).sorted()
 					.toList()) {
 				String id = file.getFileName().toString().substring(0, 5);
+				log.info("Inspecting playlist {}", file);
 				MoviePlaylist playlist;
 				try {
 					playlist = new MoviePlaylistParser().parse(file);
 				} catch (IOException | RuntimeException e) {
+					log.warn("Could not read playlist {}; all clips will be kept unchanged: {}", file, e.getMessage());
 					// Unknown references/IGS dependencies mean no clip can safely be rewritten.
 					unreadablePlaylist = true;
 					playlists.add(new DiscShrinkPlanner.Playlist(id, List.of()));
@@ -222,8 +266,10 @@ public final class DiscShrinkOrchestrator {
 				for (PlayItem item : playlist.getPlayItems() == null ? List.<PlayItem>of() : playlist.getPlayItems()) {
 					if (item.getClipName() != null) {
 						mainIds.add(item.getClipName());
-						if (item.getStreams() != null && item.getStreams().stream()
-								.anyMatch(s -> s.getCodingType() != null && s.getCodingType().isMenu())) {
+						// Out-of-mux IGS entries belong to the SubPath clip, not this main clip.
+						if (item.getStreams() != null && item.getStreams().stream().anyMatch(
+								s -> s.getCodingType() != null && s.getCodingType().isMenu() && (s.getStreamType() == 0
+										|| s.getStreamType() == PlayItemStream.STREAM_TYPE_IN_MUX))) {
 							embeddedIgs.add(item.getClipName());
 						}
 					}
@@ -370,6 +416,7 @@ public final class DiscShrinkOrchestrator {
 			}
 			if (modified) {
 				Path output = destination.resolve("BDMV/PLAYLIST/" + entry.getKey() + ".mpls");
+				log.info("Updating playlist {} to reference retained streams", output);
 				writer.write(entry.getValue(), output);
 			}
 		}
@@ -399,6 +446,9 @@ public final class DiscShrinkOrchestrator {
 						continue;
 					}
 					Files.createDirectories(target.getParent());
+					if (clipStream) {
+						log.info("Copying unchanged clip {}", relative);
+					}
 					Files.copy(path, target, StandardCopyOption.COPY_ATTRIBUTES);
 				} else {
 					throw new IOException("Unsupported filesystem entry in disc root: " + path);

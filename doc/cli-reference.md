@@ -79,6 +79,41 @@ The video rate is rounded down to 1–40000 kbps after planner safety, retained 
 bytes, a further 2% mux reserve and 192/184 transport expansion. This is a conservative budget,
 not a size guarantee: oversize output fails before publication, with no automatic bitrate retry.
 
+## Whole-disc shrinking
+
+`high disc-shrink --input SOURCE --output TARGET --target-bytes BYTES` copies a disc-root and
+reduces supported main-title M2TS clips to fit the limit. `--output` must be a separate,
+nonexistent or empty directory. Every regular file in the final output tree counts toward
+`--target-bytes`; the command reports an overrun and keeps the generated output for examination.
+The source is not modified. `--engine` accepts the same engines as `low m2ts-shrink`; when omitted,
+the configured `brts.video.converter.engine` is used.
+
+An optional `--descriptor` JSON file selects audio and subtitle languages independently. Global
+null lists retain all tracks. For a non-null list, matching ISO 639-2 codes are retained; streams
+with missing or `und` language metadata are retained conservatively. Playlist preferences override
+the corresponding global list; null override fields inherit and empty lists select no known
+language codes. All tracks matching a selected code are retained. For example:
+
+```json
+{
+	"audioLanguages": ["eng", "jpn"],
+	"subtitleLanguages": ["eng"],
+	"playlists": {
+		"00010": {
+			"audioLanguages": ["fra"],
+			"subtitleLanguages": []
+		}
+	}
+}
+```
+
+Every MPLS is inventoried, including playlists not referenced by the disc index; unreferenced
+clips use global preferences. Conflicting playlist selections for a shared clip fail preflight.
+Clips with embedded IGS and unsupported stream topologies are copied unchanged. Type-3 SubPath
+IGS assets are preserved, without preventing other clips in the playlist from being reduced.
+After execution, temporary extraction and mux workspaces are removed from the target tree. Video
+generation and BDMV/MPLS version are preserved; the operation does not convert UHD to FHD.
+
 ### Read-only extraction cache preflight
 
 The generated preflight invokes `low m2ts-extract --cache-reference JOB/cache-reference.json
@@ -178,6 +213,7 @@ library explicitly.
 |---|---|
 | `build` | Build a Blu-ray disc from a high-level template descriptor |
 | `title-menu-simulate` | Render a single JPEG preview frame of a high-level title menu |
+| `disc-shrink` | Reduce a disc-root to fit a hard whole-output size limit |
 
 `title-menu-simulate` requires `--descriptor` and `--output`. It previews the background at
 `--time-seconds` (default `0`), with `--selected-title` (default `1`) shown in
