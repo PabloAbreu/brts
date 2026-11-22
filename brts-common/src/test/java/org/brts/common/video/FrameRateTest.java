@@ -57,6 +57,18 @@ class FrameRateTest {
 	}
 
 	@Test
+	void nearIdenticalTimingKeepsExactFractionAndInheritsCode() {
+		FrameRate alias = FrameRate.of(2997, 125);
+		assertThat(alias).isNotEqualTo(FrameRate.FPS_23976);
+		assertThat(alias.toString()).isEqualTo("2997/125");
+		assertThat(alias.frameRateCode()).isEqualTo(1);
+		assertThat(alias.equivalentTo(FrameRate.FPS_23976)).isTrue();
+		assertThat(alias.equivalentTo(FrameRate.FPS_24)).isFalse();
+		assertThat(FrameRate.of(24, 1)).isSameAs(FrameRate.FPS_24);
+		assertThat(FrameRate.of(60000, 1001)).isSameAs(FrameRate.FPS_5994);
+	}
+
+	@Test
 	void uncodedRatesKeepTheirTimingWithoutInventingACode() {
 		assertThat(FrameRate.of(27, 1)).isEqualTo(new FrameRate(27, 1, -1));
 		assertThat(FrameRate.FPS_30.frameRateCode()).isEqualTo(-1);

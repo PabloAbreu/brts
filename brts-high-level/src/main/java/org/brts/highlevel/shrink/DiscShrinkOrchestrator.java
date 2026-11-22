@@ -43,6 +43,7 @@ import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
 import org.brts.common.model.StreamCodingType;
 import org.brts.lowlevel.m2ts.PreservingM2tsClipWriter;
+import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
@@ -142,6 +143,7 @@ public final class DiscShrinkOrchestrator {
 				.sorted(Comparator.comparing(DiscShrinkPlanner.ClipPlan::clipId))
 				.forEach(p -> diagnostics.add("Clip " + p.clipId() + ": " + p.note()));
 		Set<String> changedClips = new HashSet<>();
+		List<String> failedClips = new ArrayList<>();
 		Map<String, Set<Integer>> keptPids = new HashMap<>();
 		int clipIndex = 0;
 		for (String clipId : reducibleIds.stream().sorted().toList()) {
@@ -185,15 +187,28 @@ public final class DiscShrinkOrchestrator {
 				long outputBytes = Files.size(outputM2ts);
 				log.info("Finished {}.m2ts: source={} bytes, output={} bytes, saved={} bytes", clipId,
 						clipPlan.sourceBytes(), outputBytes, clipPlan.sourceBytes() - outputBytes);
+				if (outputBytes > clipPlan.targetBytes()) {
+					diagnostics
+							.add("Clip " + clipId + ".m2ts completed reduction but exceeded its planned budget: output="
+									+ outputBytes + " bytes, target=" + clipPlan.targetBytes() + " bytes, excess="
+									+ (outputBytes - clipPlan.targetBytes()) + " bytes");
+				}
 				changedClips.add(clipId);
 				keptPids.put(clipId, keep);
 			} catch (Exception e) {
-				log.warn("Could not reduce {}.m2ts; restoring original M2TS/CLPI pair: {}", clipId, e.getMessage());
+				log.warn(
+						"Could not reduce {}.m2ts; restoring original M2TS/CLPI pair. sourceM2ts={}, sourceClpi={}, outputM2ts={}, outputClpi={}, sourceBytes={}, targetBytes={}, engine={}, retainedPids={}, pidFilter={}",
+						clipId, sourceM2ts, sourceClpi, outputM2ts, outputClpi, clipPlan.sourceBytes(),
+						clipPlan.targetBytes(), engine, keep, pidFilter, e);
 				// A failed writer may have published either or both files. Never retain a mixed pair.
 				Files.deleteIfExists(outputM2ts);
 				Files.deleteIfExists(outputClpi);
 				copyPair(sourceM2ts, sourceClpi, outputM2ts, outputClpi);
-				diagnostics.add("Clip " + clipId + " was copied unchanged: " + e.getMessage());
+				failedClips.add(clipId + ".m2ts");
+				diagnostics.add("Clip " + clipId + ".m2ts reduction failed; original M2TS/CLPI pair restored: "
+						+ failureReason(e) + "; restored=" + clipPlan.sourceBytes() + " bytes, target="
+						+ clipPlan.targetBytes() + " bytes, over planned budget="
+						+ Math.max(0, clipPlan.sourceBytes() - clipPlan.targetBytes()) + " bytes");
 			}
 		}
 
@@ -210,9 +225,23 @@ public final class DiscShrinkOrchestrator {
 				changedClips.size(), actualBytes, targetBytes, result.withinLimit(), destination);
 		if (!result.withinLimit()) {
 			throw new IOException("Disc shrink output exceeds --target-bytes: actual=" + actualBytes + ", limit="
-					+ targetBytes + "; output retained at " + destination);
+					+ targetBytes + ", excess=" + (actualBytes - targetBytes) + " bytes; output retained at "
+					+ destination + "; clips changed=" + changedClips.size() + ", failed reductions="
+					+ failedClips.size() + (failedClips.isEmpty() ? "" : " (" + String.join(", ", failedClips) + ")")
+					+ ", planned fixed=" + plan.fixedBytes() + " bytes" + (diagnostics.isEmpty() ? ""
+							: "\nDisc shrink diagnostics:\n - " + String.join("\n - ", diagnostics)));
 		}
 		return result;
+	}
+
+	private static String failureReason(Throwable failure) {
+		List<String> reasons = new ArrayList<>();
+		Set<Throwable> seen = new HashSet<>();
+		for (Throwable cause = failure; cause != null && seen.add(cause); cause = cause.getCause()) {
+			reasons.add(cause.getClass().getSimpleName()
+					+ (cause.getMessage() == null || cause.getMessage().isBlank() ? "" : ": " + cause.getMessage()));
+		}
+		return String.join(" -> ", reasons);
 	}
 
 	private Inventory inventory(Path root, List<String> diagnostics) throws IOException {
@@ -295,6 +324,13 @@ public final class DiscShrinkOrchestrator {
 				continue;
 			}
 			var tracks = clipMetadata.inventory().tracks();
+			if (clipMetadata.atcDelta()) {
+				diagnostics.add("Clip " + clipId + ": ATC-delta preservation unsupported; copied unchanged");
+			}
+			if (clipMetadata.applicationType() != ClipInfo.APPLICATION_TYPE_MOVIE) {
+				diagnostics.add("Clip " + clipId + ": non-movie CLPI application type " + clipMetadata.applicationType()
+						+ " unsupported; copied unchanged");
+			}
 			boolean supported = !unreadablePlaylist && supportedTopology(clipMetadata);
 			boolean hasIgs = embeddedIgs.contains(clipId) || subPathIgs.contains(clipId)
 					|| tracks.stream().anyMatch(t -> t.codingType() != null && t.codingType().isMenu());
@@ -328,7 +364,8 @@ public final class DiscShrinkOrchestrator {
 		long videos = tracks.stream().filter(t -> t.codingType() != null && t.codingType().isVideo()).count();
 		boolean primary = tracks.stream().anyMatch(t -> t.pid() == 0x1011
 				&& (t.codingType() == StreamCodingType.H264_AVC || t.codingType() == StreamCodingType.H265_HEVC));
-		return metadata.inventory().duration90k() > 0 && primary && videos == 1
+		return metadata.applicationType() == ClipInfo.APPLICATION_TYPE_MOVIE && !metadata.atcDelta()
+				&& metadata.inventory().duration90k() > 0 && primary && videos == 1
 				&& tracks.stream().allMatch(
 						t -> t.codingType() != null && !t.codingType().isMenu() && SUPPORTED.contains(t.codingType()))
 				&& metadata.info().getStreams() != null

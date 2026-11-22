@@ -62,8 +62,8 @@ public final class BluRayVideoConstraints {
 	}
 
 	static boolean supports(StreamCodingType codec, int width, int height, FrameRate frameRate) {
-		return formats(codec).stream()
-				.anyMatch(f -> f.width() == width && f.height() == height && f.frameRates().contains(frameRate));
+		return formats(codec).stream().anyMatch(f -> f.width() == width && f.height() == height
+				&& f.frameRates().stream().anyMatch(frameRate::equivalentTo));
 	}
 
 	static Geometry geometry(StreamCodingType codec, VideoStreamInfo source, Integer width, Integer height,
@@ -75,8 +75,8 @@ public final class BluRayVideoConstraints {
 		int targetHeight = explicit ? height : source.height();
 		if (!explicit && !supports(codec, targetWidth, targetHeight, frameRate)) {
 			List<Format> candidates = formats(codec).stream()
-					.filter(f -> f.frameRates().contains(frameRate) && f.width() >= source.width()
-							&& f.height() >= source.height()
+					.filter(f -> f.frameRates().stream().anyMatch(frameRate::equivalentTo)
+							&& f.width() >= source.width() && f.height() >= source.height()
 							&& (f.width() == source.width() || f.height() == source.height()))
 					.toList();
 			if (candidates.size() != 1)

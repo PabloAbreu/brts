@@ -76,7 +76,7 @@ public final class M2tsShrinkInputResolver {
 	}
 
 	/** Bounded metadata discovery only; full transport counts are supplied by extraction during shrink planning. */
-	public record Metadata(M2tsShrinkInventory inventory, M2tsInfo info) {
+	public record Metadata(M2tsShrinkInventory inventory, M2tsInfo info, int applicationType, boolean atcDelta) {
 	}
 
 	public Metadata discover(Path discRoot, String clipId) throws IOException {
@@ -133,7 +133,8 @@ public final class M2tsShrinkInputResolver {
 			return new M2tsShrinkInventory.Track(stream.getPid(), stream.getCodingType(), stream.getLanguage(),
 					stream.getBitrateKbps(), 0L);
 		}).toList();
-		return new Metadata(new M2tsShrinkInventory(m2ts, clpi, bytes, duration90k, tracks), streamInfo);
+		return new Metadata(new M2tsShrinkInventory(m2ts, clpi, bytes, duration90k, tracks), streamInfo,
+				clipInfo.getApplicationType(), clipInfo.isAtcDelta());
 	}
 
 	private static void requireReadableFile(Path path, String kind) throws IOException {

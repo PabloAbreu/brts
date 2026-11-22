@@ -44,6 +44,7 @@ import java.util.List;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
@@ -90,7 +91,9 @@ class DiscShrinkOrchestratorTest {
 
 		assertThatThrownBy(() -> new DiscShrinkOrchestrator(path -> {
 		}).shrink(temp.resolve("source"), output, new DiscShrinkDescriptor(), 1, Engine.FFMPEG))
-				.isInstanceOf(java.io.IOException.class).hasMessageContaining("output retained");
+				.isInstanceOf(java.io.IOException.class).hasMessageContaining("output retained")
+				.hasMessageContaining("actual=15, limit=1, excess=14 bytes").hasMessageContaining("failed reductions=0")
+				.hasMessageContaining("planned fixed=15 bytes");
 		assertThat(output.resolve("BDMV/index.bdmv")).exists();
 	}
 
@@ -148,6 +151,61 @@ class DiscShrinkOrchestratorTest {
 	}
 
 	@ParameterizedTest
+	@ValueSource(ints = { 1, 2, 3, 4, 5, 6 })
+	void unsupportedClpiIsFixedBeforeAllocatingOtherClipBudget(int applicationType, @TempDir Path temp)
+			throws Exception {
+		Path source = sourcePair(temp);
+		Files.copy(source.resolve("BDMV/STREAM/00001.m2ts"), source.resolve("BDMV/STREAM/00002.m2ts"));
+		Files.copy(source.resolve("BDMV/CLIPINF/00001.clpi"), source.resolve("BDMV/CLIPINF/00002.clpi"));
+		Path output = temp.resolve("output");
+		boolean atcDelta = applicationType == ClipInfo.APPLICATION_TYPE_MOVIE;
+		long fixedBytes = Files.size(source.resolve("BDMV/STREAM/00001.m2ts"))
+				+ Files.size(source.resolve("BDMV/CLIPINF/00001.clpi"))
+				+ Files.size(source.resolve("BDMV/CLIPINF/00002.clpi"));
+		long eligibleBudget = 8;
+		var descriptor = new DiscShrinkDescriptor();
+		descriptor.setAudioLanguages(List.of());
+		var eligible = metadata(source, "00002", 900_000, ClipInfo.APPLICATION_TYPE_MOVIE, false).inventory();
+		var prepared = mock(M2tsShrinkCache.Prepared.class, RETURNS_DEEP_STUBS);
+		var clipPlan = mock(M2tsShrinkPlan.class);
+		when(clipPlan.decision()).thenReturn(M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED);
+		try (var resolvers = mockConstruction(M2tsShrinkInputResolver.class, (mock, context) -> {
+			when(mock.resolve(source, "00002")).thenReturn(eligible);
+		}); var caches = mockConstruction(M2tsShrinkCache.class, (mock, context) -> {
+			when(mock.prepare(eq(source), eq("00002"), any(), eq(output), any())).thenReturn(prepared);
+		}); var planners = mockConstruction(M2tsShrinkPlanner.class, (mock, context) -> {
+			when(mock.plan(eq(eligible), eq("00002"), any(), eq(eligibleBudget), eq(Engine.FFMPEG)))
+					.thenReturn(clipPlan);
+		}); var converters = mockConstruction(BatchWholeM2tsConverter.class, (mock, context) -> {
+			doAnswer(invocation -> {
+				Files.writeString(output.resolve("BDMV/STREAM/00002.m2ts"), "reduced");
+				Files.writeString(output.resolve("BDMV/CLIPINF/00002.clpi"), "new clpi");
+				return null;
+			}).when(mock).convert(any());
+		})) {
+			var result = new DiscShrinkOrchestrator(path -> {
+				throw new AssertionError("Conversion is mocked");
+			}, (root, id) -> metadata(root, id, 900_000,
+					id.equals("00001") ? applicationType : ClipInfo.APPLICATION_TYPE_MOVIE,
+					id.equals("00001") && atcDelta))
+					.shrink(source, output, descriptor, fixedBytes + eligibleBudget, Engine.FFMPEG);
+
+			assertOriginalPair(source, output);
+			assertThat(resolvers.constructed()).hasSize(1);
+			assertThat(caches.constructed()).hasSize(1);
+			assertThat(converters.constructed()).hasSize(1);
+			assertThat(planners.constructed()).hasSize(1);
+			verify(resolvers.constructed().getFirst()).resolve(source, "00002");
+			verify(planners.constructed().getFirst()).plan(eq(eligible), eq("00002"), any(), eq(eligibleBudget),
+					eq(Engine.FFMPEG));
+			assertThat(output.resolve("BDMV/STREAM/00002.m2ts")).hasContent("reduced");
+			assertThat(result.withinLimit()).isTrue();
+			assertThat(result.diagnostics()).anyMatch(s -> s.contains("Clip 00001")
+					&& s.contains(atcDelta ? "ATC-delta preservation unsupported" : "non-movie CLPI application type"));
+		}
+	}
+
+	@ParameterizedTest
 	@ValueSource(ints = { 0, 1, 2 })
 	void restoresBothOriginalFilesAfterFailedAttempt(int publishedFiles, @TempDir Path temp) throws Exception {
 		Path source = sourcePair(temp);
@@ -169,7 +227,129 @@ class DiscShrinkOrchestratorTest {
 			}, (root, id) -> metadata(root, 900_000)).shrink(source, output, descriptor, 10_000, Engine.FFMPEG);
 
 			assertOriginalPair(source, output);
-			assertThat(result.diagnostics()).anyMatch(s -> s.contains("copied unchanged: Unsupported conversion"));
+			assertThat(result.diagnostics()).anyMatch(s -> s.contains("00001.m2ts reduction failed")
+					&& s.contains("original M2TS/CLPI pair restored") && s.contains("Unsupported conversion"));
+		}
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void finalOverrunReportsFailedConversionsAndTheirBudgetImpact(boolean firstClipSucceeds, @TempDir Path temp)
+			throws Exception {
+		Path source = sourcePair(temp);
+		Files.copy(source.resolve("BDMV/STREAM/00001.m2ts"), source.resolve("BDMV/STREAM/00002.m2ts"));
+		Files.copy(source.resolve("BDMV/CLIPINF/00001.clpi"), source.resolve("BDMV/CLIPINF/00002.clpi"));
+		Path output = temp.resolve("output");
+		var descriptor = new DiscShrinkDescriptor();
+		descriptor.setAudioLanguages(List.of());
+		long fixedBytes = 2 * Files.size(source.resolve("BDMV/CLIPINF/00001.clpi"));
+		var prepared = mock(M2tsShrinkCache.Prepared.class, RETURNS_DEEP_STUBS);
+		var clipPlan = mock(M2tsShrinkPlan.class);
+		when(clipPlan.decision()).thenReturn(M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED);
+		try (var resolvers = mockConstruction(M2tsShrinkInputResolver.class, (mock, context) -> {
+			when(mock.resolve(eq(source), any())).thenAnswer(invocation -> metadata(source, invocation.getArgument(1),
+					900_000, ClipInfo.APPLICATION_TYPE_MOVIE, false).inventory());
+		}); var caches = mockConstruction(M2tsShrinkCache.class, (mock, context) -> {
+			when(mock.prepare(eq(source), any(), any(), eq(output), any())).thenReturn(prepared);
+		}); var planners = mockConstruction(M2tsShrinkPlanner.class, (mock, context) -> {
+			when(mock.plan(any(), any(), any(), anyLong(), eq(Engine.FFMPEG))).thenReturn(clipPlan);
+		}); var converters = mockConstruction(BatchWholeM2tsConverter.class, (mock, context) -> {
+			doAnswer(invocation -> {
+				if (firstClipSucceeds && context.getCount() == 1) {
+					Files.writeString(output.resolve("BDMV/STREAM/00001.m2ts"), "ok");
+					Files.copy(source.resolve("BDMV/CLIPINF/00001.clpi"), output.resolve("BDMV/CLIPINF/00001.clpi"));
+					return null;
+				}
+				throw new IOException("Disc-shrink conversion batch failed",
+						new IllegalStateException("Encoder failed"));
+			}).when(mock).convert(any());
+		})) {
+			assertThatThrownBy(() -> new DiscShrinkOrchestrator(path -> {
+				throw new AssertionError("Conversion is mocked");
+			}, (root, id) -> metadata(root, id, 900_000, ClipInfo.APPLICATION_TYPE_MOVIE, false)).shrink(source, output,
+					descriptor, fixedBytes + 8, Engine.FFMPEG)).isInstanceOf(IOException.class)
+					.hasMessageContaining("output retained at " + output)
+					.hasMessageContaining("excess=" + (firstClipSucceeds ? 9 : 22) + " bytes")
+					.hasMessageContaining("clips changed=" + (firstClipSucceeds ? 1 : 0))
+					.hasMessageContaining("failed reductions="
+							+ (firstClipSucceeds ? "1 (00002.m2ts)" : "2 (00001.m2ts, 00002.m2ts)"))
+					.hasMessageContaining("Clip 00002.m2ts reduction failed; original M2TS/CLPI pair restored")
+					.hasMessageContaining(
+							"IOException: Disc-shrink conversion batch failed -> IllegalStateException: Encoder failed")
+					.hasMessageContaining("restored=15 bytes, target=4 bytes, over planned budget=11 bytes");
+			assertThat(converters.constructed()).hasSize(2);
+			if (firstClipSucceeds) {
+				assertThat(output.resolve("BDMV/STREAM/00001.m2ts")).hasContent("ok");
+			} else {
+				assertOriginalPair(source, output);
+			}
+			assertThat(output.resolve("BDMV/STREAM/00002.m2ts")).hasContent("original stream");
+			assertThat(output.resolve("BDMV/CLIPINF/00002.clpi")).hasContent("original clpi");
+		}
+	}
+
+	@Test
+	void finalOverrunDistinguishesCompletedButOversizedReduction(@TempDir Path temp) throws Exception {
+		Path source = sourcePair(temp);
+		Path output = temp.resolve("output");
+		var descriptor = new DiscShrinkDescriptor();
+		descriptor.setAudioLanguages(List.of());
+		var counts = metadata(source, 900_000).inventory();
+		var prepared = mock(M2tsShrinkCache.Prepared.class, RETURNS_DEEP_STUBS);
+		var clipPlan = mock(M2tsShrinkPlan.class);
+		when(clipPlan.decision()).thenReturn(M2tsShrinkPlan.Decision.VIDEO_CONVERSION_REQUIRED);
+		try (var resolvers = mockConstruction(M2tsShrinkInputResolver.class, (mock, context) -> {
+			when(mock.resolve(source, "00001")).thenReturn(counts);
+		}); var caches = mockConstruction(M2tsShrinkCache.class, (mock, context) -> {
+			when(mock.prepare(eq(source), eq("00001"), any(), eq(output), any())).thenReturn(prepared);
+		}); var planners = mockConstruction(M2tsShrinkPlanner.class, (mock, context) -> {
+			when(mock.plan(eq(counts), eq("00001"), any(), anyLong(), eq(Engine.FFMPEG))).thenReturn(clipPlan);
+		}); var converters = mockConstruction(BatchWholeM2tsConverter.class, (mock, context) -> {
+			doAnswer(invocation -> {
+				Files.writeString(output.resolve("BDMV/STREAM/00001.m2ts"), "still oversized");
+				Files.copy(source.resolve("BDMV/CLIPINF/00001.clpi"), output.resolve("BDMV/CLIPINF/00001.clpi"));
+				return null;
+			}).when(mock).convert(any());
+		})) {
+			assertThatThrownBy(() -> new DiscShrinkOrchestrator(path -> {
+				throw new AssertionError("Conversion is mocked");
+			}, (root, id) -> metadata(root, 900_000)).shrink(source, output, descriptor, 20, Engine.FFMPEG))
+					.isInstanceOf(IOException.class).hasMessageContaining("clips changed=1, failed reductions=0")
+					.hasMessageContaining("Clip 00001.m2ts completed reduction but exceeded its planned budget")
+					.hasMessageContaining("output=15 bytes, target=7 bytes, excess=8 bytes")
+					.hasMessageNotContaining("pair restored");
+			assertThat(output.resolve("BDMV/STREAM/00001.m2ts")).hasContent("still oversized");
+		}
+	}
+
+	@Test
+	void finalOverrunIncludesDiscoveryDiagnostics(@TempDir Path temp) throws Exception {
+		Path source = sourcePair(temp);
+		Path output = temp.resolve("output");
+		assertThatThrownBy(() -> new DiscShrinkOrchestrator(path -> {
+			throw new AssertionError("Unmanageable clips must not be converted");
+		}, (root, id) -> {
+			throw new IOException("Unreadable CLPI");
+		}).shrink(source, output, new DiscShrinkDescriptor(), 20, Engine.FFMPEG)).isInstanceOf(IOException.class)
+				.hasMessageContaining("failed reductions=0")
+				.hasMessageContaining("Clip 00001 was kept unchanged because discovery failed: Unreadable CLPI");
+		assertOriginalPair(source, output);
+	}
+
+	@Test
+	void finalOverrunNamesReductionFailureWithoutExceptionMessage(@TempDir Path temp) throws Exception {
+		Path source = sourcePair(temp);
+		Path output = temp.resolve("output");
+		var descriptor = new DiscShrinkDescriptor();
+		descriptor.setAudioLanguages(List.of());
+		try (var resolvers = mockConstruction(M2tsShrinkInputResolver.class, (mock, context) -> {
+			when(mock.resolve(source, "00001")).thenThrow(new IllegalStateException());
+		})) {
+			assertThatThrownBy(() -> new DiscShrinkOrchestrator(path -> {
+			}, (root, id) -> metadata(root, 900_000)).shrink(source, output, descriptor, 20, Engine.FFMPEG))
+					.isInstanceOf(IOException.class).hasMessageContaining("failed reductions=1 (00001.m2ts)")
+					.hasMessageContaining("pair restored: IllegalStateException;").hasMessageNotContaining("null");
+			assertOriginalPair(source, output);
 		}
 	}
 
@@ -260,9 +440,10 @@ class DiscShrinkOrchestratorTest {
 				var tracks = new ArrayList<>(discovered.inventory().tracks());
 				tracks.add(
 						new M2tsShrinkInventory.Track(0x1400, StreamCodingType.INTERACTIVE_GRAPHICS, "fra", null, 0));
-				return new M2tsShrinkInputResolver.Metadata(new M2tsShrinkInventory(discovered.inventory().m2tsPath(),
-						discovered.inventory().clpiPath(), discovered.inventory().sourceBytes(), 900_000, tracks),
-						discovered.info());
+				return new M2tsShrinkInputResolver.Metadata(
+						new M2tsShrinkInventory(discovered.inventory().m2tsPath(), discovered.inventory().clpiPath(),
+								discovered.inventory().sourceBytes(), 900_000, tracks),
+						discovered.info(), discovered.applicationType(), discovered.atcDelta());
 			}).shrink(source, output, descriptor, 10_000, Engine.FFMPEG);
 
 			assertOriginalPair(source, output);
@@ -321,7 +502,12 @@ class DiscShrinkOrchestratorTest {
 	}
 
 	private static M2tsShrinkInputResolver.Metadata metadata(Path root, long duration) throws IOException {
-		Path m2ts = root.resolve("BDMV/STREAM/00001.m2ts");
+		return metadata(root, "00001", duration, ClipInfo.APPLICATION_TYPE_MOVIE, false);
+	}
+
+	private static M2tsShrinkInputResolver.Metadata metadata(Path root, String id, long duration, int applicationType,
+			boolean atcDelta) throws IOException {
+		Path m2ts = root.resolve("BDMV/STREAM/" + id + ".m2ts");
 		M2tsStreamInfo video = new M2tsStreamInfo();
 		video.setPid(0x1011);
 		video.setCodingType(StreamCodingType.H264_AVC);
@@ -331,10 +517,10 @@ class DiscShrinkOrchestratorTest {
 		M2tsInfo info = new M2tsInfo();
 		info.setStreams(List.of(video, audio));
 		return new M2tsShrinkInputResolver.Metadata(
-				new M2tsShrinkInventory(m2ts, root.resolve("BDMV/CLIPINF/00001.clpi"), Files.size(m2ts), duration,
+				new M2tsShrinkInventory(m2ts, root.resolve("BDMV/CLIPINF/" + id + ".clpi"), Files.size(m2ts), duration,
 						List.of(new M2tsShrinkInventory.Track(0x1011, StreamCodingType.H264_AVC, null, null, 0),
 								new M2tsShrinkInventory.Track(0x1100, StreamCodingType.DOLBY_AC3, "eng", null, 0))),
-				info);
+				info, applicationType, atcDelta);
 	}
 
 	@Test

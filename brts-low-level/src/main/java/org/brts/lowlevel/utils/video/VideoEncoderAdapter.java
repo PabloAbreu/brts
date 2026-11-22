@@ -233,10 +233,18 @@ final class HardwareVideoEncoder implements VideoEncoderAdapter {
 
 	@Override
 	public List<String> command(Settings s, Path output) {
-		if (s.source().frameRate() == null || !s.sourceRate().equals(s.source().frameRate())
+		// explicit frame rate input for hardware encoders
+		// since sometimes QSVENC cannot automatically detect the correct frame rate from the compressed stream
+		// this is not a frame rate conversion, just an explicit input hint
+		// to avoid the encoder wrongly assuming a different frame rate
+		if (s.source().frameRate() == null || !s.sourceRate().equivalentTo(s.source().frameRate())
 				|| !s.targetRate().equals(s.sourceRate()))
-			throw new IllegalArgumentException(engine + " cannot reliably retime compressed ES with --fps; "
-					+ "source timing must be present and retained (no helper executable is permitted)");
+			throw new IllegalArgumentException(engine
+					+ " cannot change the frame rate of this compressed video stream: " + "detected source FPS="
+					+ s.source().frameRate() + ", configured source FPS=" + s.sourceRate() + ", requested target FPS="
+					+ s.targetRate()
+					+ ". Use FFmpeg for FPS conversion, or configure the hardware encoder with the detected source FPS "
+					+ "as both source and target FPS.");
 		int requiredChromaLocation = s.primaries().equals("bt2020") ? 3 : 1;
 		if (s.source().chromaLocation() > 0 && s.source().chromaLocation() != requiredChromaLocation)
 			throw new IllegalArgumentException(engine + " cannot reliably resample source chroma location; use FFmpeg");

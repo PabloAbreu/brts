@@ -224,7 +224,7 @@ class M2tsShrinkCacheTest {
 				stream.getCodingType(), stream.getLanguage(), stream.getBitrateKbps(), 0)).toList();
 		return new M2tsShrinkInputResolver.Metadata(
 				new M2tsShrinkInventory(fixture.media, fixture.clpi, Files.size(fixture.media), 180_000, tracks),
-				fixture.info);
+				fixture.info, 1, false);
 	}
 
 	private Fixture fixture() throws IOException {

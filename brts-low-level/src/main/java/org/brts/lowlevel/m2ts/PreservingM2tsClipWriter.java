@@ -61,6 +61,7 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.parser.ClipInfoParser;
 import org.brts.common.video.FrameRate;
+import org.brts.lowlevel.utils.video.VideoStreamProbe;
 import org.brts.lowlevel.writer.ClipInfoWriter;
 
 import lombok.extern.slf4j.Slf4j;
@@ -130,6 +131,26 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		String binary = TsMuxerUtils.resolveTsMuxeRBinary();
 		M2tsInfo sourceInfo = cache == null ? new M2tsParser().parse(source) : cache.manifest().info();
 		ClipInfo originalClpi = new ClipInfoParser().parse(sourceClpi);
+		// Why this workflow rejects clips with ATC deltas
+		// There are three concrete limitations:
+
+		// 1/ BRTS reads only the flag, not its associated records.
+		// ClipInfoParser skips the remainder of the ClipInfo section, including that
+		// additional information: ClipInfoParser.java:117-132.
+
+		// 2/ The sequence structure is flattened.
+		// The parser reads ATC/STC sequences but retains only the first presentation
+		// start and last presentation end—not their identities, boundaries or
+		// relationships: ClipInfoParser.java:157-194.
+
+		// 3/ The writer produces a simplified replacement.
+		// It writes no ATC-delta records and emits exactly one ATC sequence and one STC
+		// sequence: ClipInfoWriter.java:122-162.
+
+		// Meanwhile, tsMuxeR creates a new packet-delivery schedule.
+		// PreservationTransportNormalizer shifts that generated ATS/PCR schedule by a constant,
+		// it does not reconstruct the source’s inter-clip arrival-clock relationships:
+		// (see PreservationTransportNormalizer)
 		require(originalClpi.getApplicationType() == ClipInfo.APPLICATION_TYPE_MOVIE && !originalClpi.isAtcDelta(),
 				"Only movie clips without ATC deltas are supported");
 		M2tsTimingManifest manifest = cache == null ? M2tsTiming.read(manifestPath) : cache.timing();
@@ -183,6 +204,8 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		PreservationVideoTimeline.validate(originalExtraction.resolve(timings.get(video.getPid()).fileName()),
 				timings.get(video.getPid()));
 		PreservationVideoGeometry.validateStableSequence(absoluteFile(video.getFile()), video.getStreamTypeByte());
+		boolean aliasRate = usesAliasFrameRate(originalExtraction.resolve(timings.get(video.getPid()).fileName()),
+				video);
 		List<Path> muxInputs = new ArrayList<>();
 		for (var stream : descriptor.getStreams()) {
 			Path input = absoluteFile(stream.getFile());
@@ -231,7 +254,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 				videoShift = shift;
 			// A constant shift cannot repair dropped samples, changed gaps or presentation cadence.
 			validatePresentation(original, muxed, shift, originalExtraction.resolve(original.fileName()),
-					stage.resolve("mux-check").resolve(muxed.fileName()));
+					stage.resolve("mux-check").resolve(muxed.fileName()), aliasRate);
 		}
 		for (long shift : shifts.values())
 			require(Math.abs(Math.subtractExact(shift, videoShift)) <= 90,
@@ -260,7 +283,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			validateTiming(result);
 			require(Objects.equals(original.firstPts90k(), result.firstPts90k()), "Final presentation origin changed");
 			validatePresentation(original, result, 0, originalExtraction.resolve(original.fileName()),
-					stage.resolve("final-check").resolve(result.fileName()));
+					stage.resolve("final-check").resolve(result.fileName()), aliasRate);
 			if (!original.codingType().isVideo())
 				require(Files.mismatch(originalExtraction.resolve(original.fileName()),
 						stage.resolve("final-check").resolve(result.fileName())) == -1,
@@ -302,9 +325,15 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		validateSourceBounds(originalClpi, sourceScan, timings.get(video.getPid()));
 		ClipInfo clip = new M2tsClpiRegenBuilder().build(normalized, descriptor.getOutputName(), regenOptions,
 				finalTiming);
+		long endTolerance = aliasRate
+				? 2 + (long) Math.ceil(timings.get(video.getPid()).pesTimings().size() * ALIAS_DRIFT_TICKS_PER_FRAME)
+				: 0;
 		require(Objects.equals(sourceScan.getTsRecordingStartPts(), clip.getTsRecordingStartPts())
-				&& Objects.equals(sourceScan.getTsRecordingEndPts(), clip.getTsRecordingEndPts()),
-				"Regenerated output/source media presentation bounds differ");
+				&& sourceScan.getTsRecordingEndPts() != null && clip.getTsRecordingEndPts() != null
+				&& Math.abs(sourceScan.getTsRecordingEndPts().getTicks()
+						- clip.getTsRecordingEndPts().getTicks()) <= endTolerance,
+				"Regenerated output/source media presentation bounds differ: source=" + clipBoundsDiagnostic(sourceScan)
+						+ ", output=" + clipBoundsDiagnostic(clip));
 		// All output access-unit PTS were independently proved identical above. Preserve
 		// the validated playlist contract, not the regenerator's duration convention.
 		// These fields are also the model's SequenceInfo presentation_start/end_time;
@@ -445,9 +474,31 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 		return type != null && SUPPORTED_PRESERVATION_CODECS.contains(type);
 	}
 
+	private static final double ALIAS_DRIFT_TICKS_PER_FRAME = 0.005;
+
+	/** True when the source ES declares an exact rate (e.g. 2997/125) that only aliases the nominal CLPI rate. */
+	private static boolean usesAliasFrameRate(Path sourceEs, M2tsDescriptor.StreamEntry video) {
+		try {
+			FrameRate nominal = FrameRate.parse(video.getFrameRateFps().toString());
+			FrameRate detected = VideoStreamProbe.probe(sourceEs).frameRate();
+			boolean alias = detected != null && !detected.equals(nominal) && detected.equivalentTo(nominal);
+			if (alias)
+				log.info("Source video rate {} aliases {}; tolerating sub-tick PES grid drift", detected, nominal);
+			return alias;
+		} catch (IOException | RuntimeException e) {
+			log.debug("Could not probe source video frame rate: {}", e.getMessage());
+			return false;
+		}
+	}
+
 	/** Both stream timings must have passed {@link #validateTiming(StreamTiming)} before comparison. */
 	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, Path sourceEs,
 			Path generatedEs) throws IOException {
+		validatePresentation(source, generated, shift, sourceEs, generatedEs, false);
+	}
+
+	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, Path sourceEs,
+			Path generatedEs, boolean tolerateAliasDrift) throws IOException {
 		log.debug("Validating presentation for PID: {}", source.pid());
 		require(source.codingType() == generated.codingType(), "Presentation codec changed");
 		if (source.codingType() == StreamCodingType.DOLBY_AC3) {
@@ -458,15 +509,28 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 			PreservationVideoTimeline.validate(sourceEs, source);
 			PreservationVideoTimeline.validate(generatedEs, generated);
 		}
-		validatePresentation(source, generated, shift, source.codingType().isVideo());
+		validatePresentation(source, generated, shift, source.codingType().isVideo(),
+				tolerateAliasDrift && source.codingType().isVideo());
 	}
 
 	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, boolean video)
 			throws IOException {
+		validatePresentation(source, generated, shift, video, false);
+	}
+
+	/** Alias rates such as 2997/125 vs 24000/1001 differ by ~0.004 tick/frame, so grids may drift slightly. */
+	static void validatePresentation(StreamTiming source, StreamTiming generated, long shift, boolean video,
+			boolean tolerateAliasDrift) throws IOException {
 		List<Long> originalPts = source.pesTimings().stream().map(p -> p.pts90k()).sorted().toList();
 		List<Long> generatedPts = generated.pesTimings().stream().map(p -> Math.addExact(p.pts90k(), shift)).sorted()
 				.toList();
-		require(originalPts.equals(generatedPts), "PES presentation grid changed for PID " + source.pid()
+		boolean sameGrid = originalPts.equals(generatedPts);
+		if (!sameGrid && tolerateAliasDrift && originalPts.size() == generatedPts.size()) {
+			sameGrid = true;
+			for (int i = 0; i < originalPts.size() && sameGrid; i++)
+				sameGrid = Math.abs(originalPts.get(i) - generatedPts.get(i)) <= 2 + i * ALIAS_DRIFT_TICKS_PER_FRAME;
+		}
+		require(sameGrid, "PES presentation grid changed for PID " + source.pid()
 				+ "; constant-shift preservation cannot be proved");
 		if (!video) {
 			List<Long> originalDts = source.pesTimings().stream().map(p -> p.dts90k()).toList();

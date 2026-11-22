@@ -68,7 +68,7 @@ import org.bytedeco.javacpp.Pointer;
  * picture-timing SEI is absent. Later SPS changes are outside this first-header snapshot. Streams requiring more than
  * the probe budget fail rather than being guessed.
  */
-final class VideoStreamProbe {
+public final class VideoStreamProbe {
 
 	private static final Set<String> INPUT_FORMATS = Set.of("h264", "hevc", "mpegvideo", "vc1");
 	private static final int IO_BUFFER_SIZE = 32 * 1024;
@@ -79,7 +79,7 @@ final class VideoStreamProbe {
 	private VideoStreamProbe() {
 	}
 
-	static VideoStreamInfo probe(Path path) throws IOException {
+	public static VideoStreamInfo probe(Path path) throws IOException {
 		if (path == null || !Files.isRegularFile(path)) {
 			throw new IOException("Video probe requires a regular elementary-stream file: " + path);
 		}

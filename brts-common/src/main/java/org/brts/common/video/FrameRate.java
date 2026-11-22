@@ -37,6 +37,8 @@ public record FrameRate(int numerator, int denominator, int frameRateCode) {
 	public static final FrameRate FPS_5994 = new FrameRate(60000, 1001, 7);
 	public static final FrameRate FPS_60 = new FrameRate(60, 1, -1);
 
+	private static final double FPS_TOLERANCE = 0.0006;
+
 	private static final List<FrameRate> supportedRates = List.of(FPS_23976, FPS_24, FPS_25, FPS_2997, FPS_30, FPS_50,
 			FPS_5994, FPS_60);
 
@@ -62,7 +64,16 @@ public record FrameRate(int numerator, int denominator, int frameRateCode) {
 		for (FrameRate rate : supportedRates())
 			if (rate.numerator == normalized.numerator && rate.denominator == normalized.denominator)
 				return rate;
+		// Aliases such as 2997/125 keep their exact timing (PES grids depend on it) but inherit the coded rate.
+		for (FrameRate rate : supportedRates())
+			if (Math.abs(rate.asDouble() - normalized.asDouble()) < FPS_TOLERANCE)
+				return new FrameRate(normalized.numerator, normalized.denominator, rate.frameRateCode);
 		return normalized;
+	}
+
+	/** True when both rates denote the same nominal rate even if their exact fractions differ slightly. */
+	public boolean equivalentTo(FrameRate other) {
+		return other != null && Math.abs(asDouble() - other.asDouble()) < FPS_TOLERANCE;
 	}
 
 	public static FrameRate fromCode(int frameRateCode) {
@@ -81,7 +92,7 @@ public record FrameRate(int numerator, int denominator, int frameRateCode) {
 			return of(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
 		double fps = Double.parseDouble(value.trim());
 		for (FrameRate rate : supportedRates())
-			if (Math.abs(rate.asDouble() - fps) < 0.0006)
+			if (Math.abs(rate.asDouble() - fps) < FPS_TOLERANCE)
 				return rate;
 		throw new IllegalArgumentException("Unsupported frame rate: " + value);
 	}

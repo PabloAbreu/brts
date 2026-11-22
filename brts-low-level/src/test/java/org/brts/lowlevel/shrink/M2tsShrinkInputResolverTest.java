@@ -65,6 +65,26 @@ class M2tsShrinkInputResolverTest {
 		assertThat(inventory.track(0x1100).sourcePacketCount()).isEqualTo(2);
 	}
 
+	@ParameterizedTest
+	@ValueSource(booleans = { false, true })
+	void discoveryExposesClpiPreservationEligibility(boolean atcDelta) throws Exception {
+		Path streams = Files.createDirectories(tempDir.resolve("BDMV/STREAM"));
+		Path clips = Files.createDirectories(tempDir.resolve("BDMV/CLIPINF"));
+		Files.write(streams.resolve("00001.m2ts"), packets(0x1011, 0x1100));
+		Files.writeString(clips.resolve("00001.clpi"), "fixture");
+		ClipInfo clip = clipInfo();
+		clip.setApplicationType(
+				atcDelta ? ClipInfo.APPLICATION_TYPE_MOVIE : ClipInfo.APPLICATION_TYPE_TIME_BASED_SLIDESHOW);
+		clip.setAtcDelta(atcDelta);
+		var resolver = new M2tsShrinkInputResolver(path -> m2tsInfo(), path -> clip, new M2tsPidPacketCounter());
+
+		var metadata = resolver.discover(tempDir, "00001");
+
+		assertThat(metadata.applicationType()).isEqualTo(clip.getApplicationType());
+		assertThat(metadata.atcDelta()).isEqualTo(atcDelta);
+		assertThat(metadata.inventory().tracks()).hasSize(2);
+	}
+
 	@Test
 	void rejectsInvalidIdentifierMissingMateAndMetadataMismatch() throws Exception {
 		var resolver = new M2tsShrinkInputResolver(path -> m2tsInfo(), path -> clipInfo(), new M2tsPidPacketCounter());
