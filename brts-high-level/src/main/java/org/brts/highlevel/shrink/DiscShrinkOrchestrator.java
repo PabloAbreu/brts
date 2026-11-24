@@ -361,7 +361,7 @@ public final class DiscShrinkOrchestrator {
 
 	private static boolean supportedTopology(M2tsShrinkInputResolver.Metadata metadata) {
 		var tracks = metadata.inventory().tracks();
-		long videos = tracks.stream().filter(t -> t.codingType() != null && t.codingType().isVideo()).count();
+		long videos = retainedVideoTracks(tracks).size();
 		boolean primary = tracks.stream().anyMatch(t -> t.pid() == 0x1011
 				&& (t.codingType() == StreamCodingType.H264_AVC || t.codingType() == StreamCodingType.H265_HEVC));
 		return metadata.applicationType() == ClipInfo.APPLICATION_TYPE_MOVIE && !metadata.atcDelta()
@@ -375,9 +375,20 @@ public final class DiscShrinkOrchestrator {
 				&& (metadata.info().getProgramPidMap() == null || metadata.info().getProgramPidMap().size() <= 1);
 	}
 
+	/**
+	 * Video tracks kept by m2ts-shrink: all of them, except the HEVC Dolby Vision companion (PID 0x1015) that
+	 * accompanies a primary HEVC stream (PID 0x1011), which is dropped. Same heuristic as m2ts-shrink.
+	 */
+	private static List<M2tsShrinkInventory.Track> retainedVideoTracks(List<M2tsShrinkInventory.Track> tracks) {
+		var videos = tracks.stream().filter(t -> t.codingType() != null && t.codingType().isVideo()).toList();
+		boolean dolbyVisionCompanion = videos.size() == 2
+				&& videos.stream().anyMatch(t -> t.pid() == 0x1011 && t.codingType() == StreamCodingType.H265_HEVC)
+				&& videos.stream().anyMatch(t -> t.pid() == 0x1015 && t.codingType() == StreamCodingType.H265_HEVC);
+		return dolbyVisionCompanion ? videos.stream().filter(t -> t.pid() != 0x1015).toList() : videos;
+	}
+
 	private static Set<Integer> retainedPids(M2tsShrinkInventory inventory, DiscShrinkPlanner.ClipPlan plan) {
-		Set<Integer> result = inventory.tracks().stream()
-				.filter(t -> t.codingType() != null && t.codingType().isVideo()).map(M2tsShrinkInventory.Track::pid)
+		Set<Integer> result = retainedVideoTracks(inventory.tracks()).stream().map(M2tsShrinkInventory.Track::pid)
 				.collect(Collectors.toSet());
 		result.addAll(plan.retainedAudioPids());
 		result.addAll(plan.retainedSubtitlePids());
@@ -401,8 +412,7 @@ public final class DiscShrinkOrchestrator {
 		descriptor.setMaximumOutputBytes(plan.targetBytes());
 		Set<Integer> pids = new HashSet<>(plan.retainedAudioPids());
 		pids.addAll(plan.retainedSubtitlePids());
-		inventory.tracks().stream().filter(t -> t.codingType() != null && t.codingType().isVideo())
-				.map(M2tsShrinkInventory.Track::pid).forEach(pids::add);
+		retainedVideoTracks(inventory.tracks()).stream().map(M2tsShrinkInventory.Track::pid).forEach(pids::add);
 		Map<Integer, M2tsTimingManifest.StreamTiming> timing = cache.timing().streams().stream()
 				.collect(Collectors.toMap(M2tsTimingManifest.StreamTiming::pid, s -> s));
 		var info = cache.manifest().info();
