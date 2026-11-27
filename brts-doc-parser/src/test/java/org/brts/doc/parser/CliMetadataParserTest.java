@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Test;
 class CliMetadataParserTest {
 
 	// update this when adding a feature
-	private static final int TOTAL_NUMBER_OF_FEATURES = 47;
+	private static final int TOTAL_NUMBER_OF_FEATURES = 48;
 
 	@Test
 	void extractsRegisteredCommandsOptionsAndTypedInputGraph() throws Exception {
