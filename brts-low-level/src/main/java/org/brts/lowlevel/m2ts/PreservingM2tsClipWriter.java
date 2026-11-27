@@ -78,11 +78,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class PreservingM2tsClipWriter implements M2tsClipWriter {
-	private static final Set<StreamCodingType> SUPPORTED_PRESERVATION_CODECS = Set.of(StreamCodingType.H264_AVC,
-			StreamCodingType.H265_HEVC, StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS,
-			StreamCodingType.DOLBY_TRUEHD, StreamCodingType.DTS, StreamCodingType.DTS_HD,
-			StreamCodingType.DTS_HD_MASTER_AUDIO, StreamCodingType.DTS_EXPRESS, StreamCodingType.PRESENTATION_GRAPHICS);
-
 	@Override
 	public void write(M2tsDescriptor descriptor, Path m2tsPath, Path clipPath) throws IOException {
 		validateFields(descriptor);
@@ -471,7 +466,7 @@ public final class PreservingM2tsClipWriter implements M2tsClipWriter {
 	}
 
 	static boolean isSupportedPreservationCodec(StreamCodingType type) {
-		return type != null && SUPPORTED_PRESERVATION_CODECS.contains(type);
+		return type != null && M2tsStreamSupport.SUPPORTED_SHRINK_TYPES.contains(type);
 	}
 
 	private static final double ALIAS_DRIFT_TICKS_PER_FRAME = 0.005;

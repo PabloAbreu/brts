@@ -42,6 +42,7 @@ import org.brts.common.m2ts.TargetRootWorkspace;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
 import org.brts.common.model.StreamCodingType;
+import org.brts.lowlevel.m2ts.M2tsStreamSupport;
 import org.brts.lowlevel.m2ts.PreservingM2tsClipWriter;
 import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
@@ -65,11 +66,6 @@ import lombok.extern.slf4j.Slf4j;
 /** Executes a conservative whole-disc shrink campaign into a separate output root. */
 @Slf4j
 public final class DiscShrinkOrchestrator {
-	private static final Set<StreamCodingType> SUPPORTED = Set.of(StreamCodingType.H264_AVC, StreamCodingType.H265_HEVC,
-			StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS, StreamCodingType.DOLBY_TRUEHD,
-			StreamCodingType.DTS, StreamCodingType.DTS_HD, StreamCodingType.DTS_HD_MASTER_AUDIO,
-			StreamCodingType.DTS_EXPRESS, StreamCodingType.PRESENTATION_GRAPHICS);
-
 	private final WholeM2tsConverter.BatchExecutor batchExecutor;
 	private final M2tsShrinkCache.Discovery discovery;
 
@@ -366,12 +362,13 @@ public final class DiscShrinkOrchestrator {
 				&& (t.codingType() == StreamCodingType.H264_AVC || t.codingType() == StreamCodingType.H265_HEVC));
 		return metadata.applicationType() == ClipInfo.APPLICATION_TYPE_MOVIE && !metadata.atcDelta()
 				&& metadata.inventory().duration90k() > 0 && primary && videos == 1
-				&& tracks.stream().allMatch(
-						t -> t.codingType() != null && !t.codingType().isMenu() && SUPPORTED.contains(t.codingType()))
+				&& tracks.stream()
+						.allMatch(t -> t.codingType() != null && !t.codingType().isMenu()
+								&& M2tsStreamSupport.SUPPORTED_SHRINK_TYPES.contains(t.codingType()))
 				&& metadata.info().getStreams() != null
 				&& metadata.info().getStreams().stream()
 						.allMatch(s -> s.getCodingType() != null && !s.getCodingType().isMenu()
-								&& SUPPORTED.contains(s.getCodingType()))
+								&& M2tsStreamSupport.SUPPORTED_SHRINK_TYPES.contains(s.getCodingType()))
 				&& (metadata.info().getProgramPidMap() == null || metadata.info().getProgramPidMap().size() <= 1);
 	}
 
@@ -544,7 +541,7 @@ public final class DiscShrinkOrchestrator {
 			return;
 		}
 		try (var paths = Files.walk(path)) {
-			for (Path entry : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+			for (Path entry : paths.sorted(Comparator.reverseOrder()).toList()) {
 				Files.delete(entry);
 			}
 		}

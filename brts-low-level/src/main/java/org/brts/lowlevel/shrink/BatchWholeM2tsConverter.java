@@ -43,6 +43,7 @@ import org.brts.common.m2ts.ExtractionCache;
 import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.SourceFingerprint;
 import org.brts.common.m2ts.TargetRootWorkspace;
+import org.brts.lowlevel.m2ts.M2tsStreamSupport;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsTimingManifest;
@@ -60,11 +61,6 @@ import org.brts.common.video.FrameRate;
 /** Engine-independent, metadata-only batch preparation. Execution belongs to the calling layer. */
 @Slf4j
 public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
-	private static final Set<StreamCodingType> SUPPORTED_RETAINED_TYPES = Set.of(StreamCodingType.H264_AVC,
-			StreamCodingType.H265_HEVC, StreamCodingType.DOLBY_AC3, StreamCodingType.DOLBY_AC3_PLUS,
-			StreamCodingType.DOLBY_TRUEHD, StreamCodingType.DTS, StreamCodingType.DTS_HD,
-			StreamCodingType.DTS_HD_MASTER_AUDIO, StreamCodingType.DTS_EXPRESS, StreamCodingType.PRESENTATION_GRAPHICS);
-
 	@FunctionalInterface
 	public interface MetadataReader {
 		M2tsInfo read(Path source) throws IOException;
@@ -158,7 +154,8 @@ public final class BatchWholeM2tsConverter implements WholeM2tsConverter {
 			if (track.codingType() == null || track.codingType().isMenu()) {
 				throw new IllegalArgumentException("Unknown/interactive streams are unsupported");
 			}
-			if (retained.contains(track.pid()) && !SUPPORTED_RETAINED_TYPES.contains(track.codingType())) {
+			if (retained.contains(track.pid())
+					&& !M2tsStreamSupport.SUPPORTED_SHRINK_TYPES.contains(track.codingType())) {
 				throw new IllegalArgumentException("Unsupported retained codec: " + track.codingType());
 			}
 		}
