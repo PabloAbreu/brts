@@ -91,3 +91,9 @@ More details (formatting, CLI packaging, local debug launcher) in
 - [doc/descriptors.md](doc/descriptors.md) — JSON descriptor formats with examples
 - [doc/building.md](doc/building.md) — build, test, formatting, packaging, debug launcher
 - [doc/roadmap.md](doc/roadmap.md) — planned features and explicit non-goals
+
+
+## AI Usage and disclaimer
+
+This project was created for me as a way to discover Github Copilot capabilities and limitations.
+So BRTS contains lots of code lines and even full files that I did not write and that I've barely read.

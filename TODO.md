@@ -2,12 +2,12 @@
 
 ## work in progress
 
- - shrink
- - video conversion
+ - shrink (simple cases work for now)
+ - video conversion (needs testing, support for DV)
 
 ## features
 
- - support for version 0300 (4k)
+ - support for version 0300 in authoring (4k)
    * muxers/writers
    * h265
    * menu resolution

@@ -254,3 +254,4 @@ brts low batch-run --descriptor /tmp/out/orchestrate.json --resume
 ```
 
 See [descriptors.md](descriptors.md) for the JSON formats referenced above.
+See the generated markdown in [brts-doc-generator/target/generated-docs/](../brts-doc-generator/target/generated-docs/index.md) for a full generated list of CLI entrypoints.
