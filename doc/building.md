@@ -5,7 +5,9 @@
 
 BRTS depends on https://github.com/PabloAbreu/jebml .
 
-So you need to clone and build that first, because its artifacts are not available on maven central.
+~~So you need to clone and build that first, because its artifacts are not available on maven central.~~
+
+That custom jebml is published on https://maven.pkg.github.com/PabloAbreu/jebml and fetched by this project's poms.
 
 
 ## Build system
