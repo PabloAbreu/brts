@@ -1,10 +1,7 @@
-package org.brts.lowlevel.popupmenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/TrackDisplayNameResolver.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/TrackDisplayNameResolver.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,23 +9,29 @@ package org.brts.lowlevel.popupmenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.popupmenu;
+
 import java.util.Locale;
+import java.util.Map;
 
 import org.brts.common.m2ts.AudioChannelLayoutConverter;
 import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.template.TemplateRenderer;
+import org.brts.common.utils.BrtsFileConfig;
+import org.brts.common.utils.BrtsI18NLabels;
 
 /**
  * Resolves a human-readable display name for a track, suitable for popup menu button labels.
@@ -40,6 +43,9 @@ import org.brts.common.model.StreamCodingType;
  * </ol>
  */
 public final class TrackDisplayNameResolver {
+	static final String TEMPLATE_PROPERTY = "popupMenu.trackDisplayName.template";
+	static final String DEFAULT_TEMPLATE = "${language} - ${codec}<#if channels?has_content> ${channels}</#if>";
+	private static final String UNNAMED_TRACK = "unnamed";
 
 	private TrackDisplayNameResolver() {
 	}
@@ -51,35 +57,39 @@ public final class TrackDisplayNameResolver {
 	 * @return a human-readable display name, never null
 	 */
 	public static String resolve(SourceMediaInfo.SourceTrack track) {
-		if (track.getTrackName() != null && !track.getTrackName().isBlank()) {
+		if (hasMeaningfulTrackName(track.getTrackName())) {
 			return track.getTrackName();
 		}
 		return synthesize(track);
 	}
 
+	private static boolean hasMeaningfulTrackName(String trackName) {
+		return trackName != null && !trackName.isBlank() && !UNNAMED_TRACK.equalsIgnoreCase(trackName.trim());
+	}
+
 	private static String synthesize(SourceMediaInfo.SourceTrack track) {
-		StringBuilder sb = new StringBuilder();
+		String template = BrtsFileConfig.getInstance().propertyOrDefault(TEMPLATE_PROPERTY, DEFAULT_TEMPLATE);
+		return synthesize(track, template);
+	}
 
-		// Language
-		String lang = track.getLanguage();
-		if (lang != null && !lang.isBlank() && !"und".equals(lang)) {
-			sb.append(capitalizeLanguage(lang));
-		} else {
-			sb.append("Track ").append(track.getTrackNumber());
-		}
-
-		// Codec name
+	static String synthesize(SourceMediaInfo.SourceTrack track, String template) {
 		StreamCodingType ct = track.getCodingType();
-		if (ct != null) {
-			sb.append(" - ").append(codecDisplayName(ct));
-		}
+		String codec = ct != null ? codecDisplayName(ct) : "";
+		String channels = ct != null && ct.isAudio() && track.getChannels() != null
+				? AudioChannelLayoutConverter.channelsDisplayName(track.getChannels())
+				: "";
+		Map<String, Object> model = Map.of("language", languageDisplayName(track), "codec", codec, "channels", channels,
+				"trackNumber", track.getTrackNumber());
+		return TemplateRenderer.render(template, model);
+	}
 
-		// Channel layout for audio
-		if (ct != null && ct.isAudio() && track.getChannels() != null) {
-			sb.append(" ").append(AudioChannelLayoutConverter.channelsDisplayName(track.getChannels()));
+	private static String languageDisplayName(SourceMediaInfo.SourceTrack track) {
+		String languageCode = track.getLanguage();
+		if (languageCode == null || languageCode.isBlank() || "und".equalsIgnoreCase(languageCode.trim())) {
+			return "Track " + track.getTrackNumber();
 		}
-
-		return sb.toString();
+		String normalizedCode = languageCode.trim().toLowerCase(Locale.ROOT);
+		return BrtsI18NLabels.getLanguageName(normalizedCode, capitalizeLanguage(normalizedCode));
 	}
 
 	private static String capitalizeLanguage(String iso639) {

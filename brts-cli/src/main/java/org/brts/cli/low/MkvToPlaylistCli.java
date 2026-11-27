@@ -1,10 +1,7 @@
-package org.brts.cli.low;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/low/MkvToPlaylistCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/low/MkvToPlaylistCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,18 +9,24 @@ package org.brts.cli.low;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.cli.low;
+
+import java.io.File;
+import java.nio.file.Paths;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.mkv.MkvToPlaylistConverter;
@@ -32,15 +35,12 @@ import org.brts.lowlevel.pgs.PgsRenderConfig;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Paths;
-
 /**
  * CLI for converting an MKV file into a Blu-ray clip triplet (M2TS + CLPI + MPLS).
  */
 public class MkvToPlaylistCli {
 
-	public static class ConvertOptions extends org.brts.cli.BaseOptions {
+	public static class ConvertOptions extends BaseOptions {
 
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the mkv-to-playlist JSON descriptor")
 		MkvToPlaylistDescriptor descriptor;
@@ -66,7 +66,7 @@ public class MkvToPlaylistCli {
 		protected void execute(ConvertOptions opts) throws Exception {
 			MkvToPlaylistDescriptor descriptor = opts.descriptor;
 			MkvToPlaylistConverter.Config config = new MkvToPlaylistConverter.Config(Paths.get(descriptor.getInput()),
-					opts.outputDir.toPath(), descriptor.getClipName());
+					opts.outputDir.toPath(), descriptor.getClipName(), descriptor.getPlaylistName());
 
 			config.setAudioTrackFilter(descriptor.getAudioTracks());
 			config.setSubtitleTrackFilter(descriptor.getSubtitleTracks());

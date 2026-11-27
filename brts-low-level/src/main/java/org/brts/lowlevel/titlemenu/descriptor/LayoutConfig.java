@@ -1,10 +1,7 @@
-package org.brts.lowlevel.titlemenu.descriptor;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/descriptor/LayoutConfig.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/descriptor/LayoutConfig.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.titlemenu.descriptor;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.titlemenu.descriptor;
 
 import org.brts.common.menu.TextStyle;
 import org.brts.common.utils.BrtsFileConfig;
@@ -45,7 +44,10 @@ public class LayoutConfig {
 	/** Layout algorithm to use. Defaults to the configured title-menu layout type. */
 	private LayoutType type;
 
-	/** Number of columns for button arrangement. Defaults to 1 for TEXT_LIST, 2 for THUMBNAIL_GRID. */
+	/**
+	 * Number of columns for button arrangement. For TEXT_LIST this is the preferred minimum and more columns may be
+	 * added to fit the available height. For THUMBNAIL_GRID it is fixed. Defaults to 1 and 2 respectively.
+	 */
 	private Integer columns;
 
 	/** Top margin in pixels. */
@@ -132,7 +134,7 @@ public class LayoutConfig {
 		}
 	}
 
-	/** Returns the effective number of columns, applying defaults based on layout type. */
+	/** Returns the preferred minimum (TEXT_LIST) or fixed (THUMBNAIL_GRID) number of columns. */
 	public int effectiveColumns() {
 		if (columns != null)
 			return columns;

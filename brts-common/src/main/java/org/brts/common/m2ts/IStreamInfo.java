@@ -1,10 +1,7 @@
-package org.brts.common.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/IStreamInfo.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/IStreamInfo.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,21 @@ package org.brts.common.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.m2ts;
+
+import org.brts.common.video.FrameRate;
 
 public interface IStreamInfo {
 	int VIDEO_FORMAT_480I = 1;
@@ -30,10 +31,7 @@ public interface IStreamInfo {
 	int VIDEO_FORMAT_720P = 3;
 	int VIDEO_FORMAT_1080I = 4;
 	int VIDEO_FORMAT_1080P = 6;
-
-	int VIDEO_FRAME_RATE_23_976 = 1;
-	int VIDEO_FRAME_RATE_24 = 2;
-	int VIDEO_FRAME_RATE_29_97 = 4;
+	int VIDEO_FORMAT_2160P = 8;
 
 	default void setVfr(int vfr) {
 
@@ -61,11 +59,12 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-		case 1 -> "480i";
-		case 2 -> "480p";
-		case 3 -> "720p";
-		case 4 -> "1080i";
-		case 6 -> "1080p";
+		case VIDEO_FORMAT_480I -> "480i";
+		case VIDEO_FORMAT_480P -> "480p";
+		case VIDEO_FORMAT_720P -> "720p";
+		case VIDEO_FORMAT_1080I -> "1080i";
+		case VIDEO_FORMAT_1080P -> "1080p";
+		case VIDEO_FORMAT_2160P -> "2160p";
 		default -> "unknown video format " + getVideoFormat();
 		};
 	}
@@ -75,9 +74,10 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-		case 1, 2 -> 720;
-		case 3 -> 1280;
-		case 4, 6 -> 1920;
+		case VIDEO_FORMAT_480I, VIDEO_FORMAT_480P -> 720;
+		case VIDEO_FORMAT_720P -> 1280;
+		case VIDEO_FORMAT_1080I, VIDEO_FORMAT_1080P -> 1920;
+		case VIDEO_FORMAT_2160P -> 3840;
 		default -> null;
 		};
 	}
@@ -87,9 +87,10 @@ public interface IStreamInfo {
 			return null;
 		}
 		return switch (getVideoFormat()) {
-		case 1, 2 -> 480;
-		case 3 -> 720;
-		case 4, 6 -> 1080;
+		case VIDEO_FORMAT_480I, VIDEO_FORMAT_480P -> 480;
+		case VIDEO_FORMAT_720P -> 720;
+		case VIDEO_FORMAT_1080I, VIDEO_FORMAT_1080P -> 1080;
+		case VIDEO_FORMAT_2160P -> 2160;
 		default -> null;
 		};
 	}
@@ -102,23 +103,19 @@ public interface IStreamInfo {
 	}
 
 	static Double fpsFromFrameRate(int frameRate) {
-		return switch (frameRate) {
-		case 1 -> 23.976;
-		case 2 -> 24.0;
-		case 4 -> 29.97;
-		default -> null;
-		};
+		try {
+			// Preserve customary decimal aliases used by descriptors and stream metadata.
+			return Math.round(FrameRate.fromCode(frameRate).asDouble() * 1000.0) / 1000.0;
+		} catch (IllegalArgumentException e) {
+			return null;
+		}
 	}
 
 	static int frameRateFromFps(Double fps) {
-		if (fps == null || fps == 23.976) {
-			return 1;
-		} else if (fps == 24.0) {
-			return 2;
-		} else if (fps == 29.97) {
-			return 4;
-		} else {
+		FrameRate rate = fps == null ? FrameRate.FPS_23976 : FrameRate.parse(fps.toString());
+		if (rate.frameRateCode() < 0) {
 			throw new IllegalArgumentException("Unsupported frame rate: " + fps);
 		}
+		return rate.frameRateCode();
 	}
 }

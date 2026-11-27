@@ -1,10 +1,7 @@
-package org.brts.common.model;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/model/StreamCodingType.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/model/StreamCodingType.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.model;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.model;
 
 /**
  * Codec types found on a Blu-ray stream. Each constant maps to the Blu-ray stream_coding_type byte value.
@@ -67,11 +66,18 @@ public enum StreamCodingType {
 	}
 
 	public static StreamCodingType fromByte(int b) {
+		return fromByte(b, true);
+	}
+
+	public static StreamCodingType fromByte(int b, boolean throwIfNotFound) {
 		for (StreamCodingType t : values()) {
 			if (t.codingTypeByte == b)
 				return t;
 		}
-		throw new IllegalArgumentException("Unknown stream coding type byte: 0x" + Integer.toHexString(b));
+		if (throwIfNotFound) {
+			throw new IllegalArgumentException("Unknown stream coding type byte: 0x" + Integer.toHexString(b));
+		}
+		return null;
 	}
 
 	public boolean isVideo() {
@@ -80,7 +86,7 @@ public enum StreamCodingType {
 
 	public boolean isAudio() {
 		return this == LPCM || this == DOLBY_AC3 || this == DTS || this == DOLBY_TRUEHD || this == DOLBY_AC3_PLUS
-				|| this == DTS_HD || this == DTS_HD_MASTER_AUDIO;
+				|| this == DTS_HD || this == DTS_HD_MASTER_AUDIO || this == DTS_EXPRESS;
 	}
 
 	public boolean isDolbyAudio() {

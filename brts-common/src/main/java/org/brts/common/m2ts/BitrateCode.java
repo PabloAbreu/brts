@@ -1,10 +1,7 @@
-package org.brts.common.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/BitrateCode.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/BitrateCode.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.m2ts;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -30,27 +29,30 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum BitrateCode {
 
-	// all these values are partly given by IA, partly by reverse engineering real
-	// Blu-ray PMT data.
-	// They seem to be consistent across multiple discs
-	AC3_128kbps(0x20, 128, 2), //
-	AC3_192kbps(0x29, 192, 2), //
-	AC3_320kbps(0x34, 320, 2), //
-	AC3_320kbps_alias(0x35, 320, 2), //
-	// not sure about this one
-	AC3_448kbps(0x3C, 448, 6), //
-	AC3_384kbps(0x18, 384, 2), //
-	EAC3_896kbps(0x40, 896, 8), //
-	AC3_640kbps(0x48, 640, 6), //
-	AC3_640kbps_alias(0x46, 640, 6), // not sure about this one
-	EAC3_1024kbps(0x50, 1024, 8), //
-	TRUE_HD(0x48, -1, 8);// sometimes it's just 6 channels. bitrate is not constant
+	// ATSC A/52 AC-3 bit_rate_code values 0 through 18, in kbps.
+	AC3_32kbps(0, 32),
+	AC3_40kbps(1, 40),
+	AC3_48kbps(2, 48),
+	AC3_56kbps(3, 56),
+	AC3_64kbps(4, 64),
+	AC3_80kbps(5, 80),
+	AC3_96kbps(6, 96),
+	AC3_112kbps(7, 112),
+	AC3_128kbps(8, 128),
+	AC3_160kbps(9, 160),
+	AC3_192kbps(10, 192),
+	AC3_224kbps(11, 224),
+	AC3_256kbps(12, 256),
+	AC3_320kbps(13, 320),
+	AC3_384kbps(14, 384),
+	AC3_448kbps(15, 448),
+	AC3_512kbps(16, 512),
+	AC3_576kbps(17, 576),
+	AC3_640kbps(18, 640);
 
 	private @Getter final int code;
 
 	private @Getter final int bitrateKbps;
-
-	private @Getter final int channels;
 
 	public static BitrateCode fromCode(int code) {
 		for (BitrateCode bc : values()) {
@@ -61,7 +63,6 @@ public enum BitrateCode {
 		return null; // unknown bitrate code
 	}
 
-	// when i find several codes for a given bitrate, i'll update this heuristic
 	public static BitrateCode fromBitrate(int bitrateKbps) {
 		for (BitrateCode bc : values()) {
 			if (bc.bitrateKbps == bitrateKbps) {

@@ -1,10 +1,7 @@
-package org.brts.middle.preview;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/preview/DisplaySetPreviewFrame.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/preview/DisplaySetPreviewFrame.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.preview;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.preview;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -283,33 +282,7 @@ public class DisplaySetPreviewFrame extends JFrame {
 	 * @param model the fully loaded preview model
 	 */
 	public static void showAndWait(DisplaySetPreviewModel model) {
-		log.info("Opening DS Preview: {}×{}, {} pages", model.getScreenWidth(), model.getScreenHeight(),
-				model.getPages().size());
-
-		final Object lock = new Object();
-
-		SwingUtilities.invokeLater(() -> {
-			DisplaySetPreviewFrame frame = new DisplaySetPreviewFrame(model);
-			frame.addWindowListener(new WindowAdapter() {
-				@Override
-				public void windowClosed(WindowEvent e) {
-					synchronized (lock) {
-						lock.notifyAll();
-					}
-				}
-			});
-			frame.setVisible(true);
-		});
-
-		synchronized (lock) {
-			try {
-				lock.wait();
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-			}
-		}
-
-		log.info("DS Preview window closed");
+		UIUtils.showAndWait(model, () -> new DisplaySetPreviewFrame(model));
 	}
 
 }

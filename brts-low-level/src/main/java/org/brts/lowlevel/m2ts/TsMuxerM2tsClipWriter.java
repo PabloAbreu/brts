@@ -1,10 +1,7 @@
-package org.brts.lowlevel.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/m2ts/TsMuxerM2tsClipWriter.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/m2ts/TsMuxerM2tsClipWriter.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.m2ts;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -82,8 +81,13 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 		log.debug("Started tsMuxeR process with PID {}", process.pid());
 		ProcessUtils.StringStreamGobbler outputGobbler = new ProcessUtils.StringStreamGobbler(process.getInputStream());
 		ProcessUtils.StringStreamGobbler errorGobbler = new ProcessUtils.StringStreamGobbler(process.getErrorStream());
+		outputGobbler.start();
+		errorGobbler.start();
+		boolean completed = false;
 		try {
 			int result = process.waitFor();
+			outputGobbler.join();
+			errorGobbler.join();
 			log.debug("tsMuxeR ended with exit code {}", result);
 			String errors = errorGobbler.getOutput();
 			if (!errors.isBlank()) {
@@ -94,13 +98,21 @@ public class TsMuxerM2tsClipWriter implements M2tsClipWriter {
 				log.info("tsMuxeR output:\n{}", output);
 			Path generatedM2ts = workDir.resolve("BDMV/STREAM/00000.m2ts");
 			Path generatedClpi = workDir.resolve("BDMV/CLIPINF/00000.clpi");
+			if (result != 0 || !Files.isRegularFile(generatedM2ts) || !Files.isRegularFile(generatedClpi)
+					|| Files.size(generatedM2ts) == 0 || Files.size(generatedClpi) == 0) {
+				throw new IOException("tsMuxeR failed (exit " + result + "); artifacts retained at " + workDir);
+			}
 			FileUtils.move(generatedM2ts, m2tsPath);
 			clipPath.getParent().toFile().mkdirs();
 			FileUtils.move(generatedClpi, clipPath);
+			completed = true;
 		} catch (InterruptedException e) {
-			log.error("tsMuxeR process was interrupted", e);
+			process.destroyForcibly();
+			Thread.currentThread().interrupt();
+			throw new IOException("tsMuxeR interrupted; artifacts retained at " + workDir, e);
 		} finally {
-			// FileUtils.deleteDir(workDir);
+			if (completed)
+				FileUtils.deleteDir(workDir);
 		}
 	}
 }

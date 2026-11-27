@@ -1,10 +1,7 @@
-package org.brts.highlevel.orchestration;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-high-level/src/main/java/org/brts/highlevel/orchestration/HighLevelOrchestrator.java' is part of BRTS.
+ * This file 'brts-high-level/src/main/java/org/brts/highlevel/orchestration/HighLevelOrchestrator.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.highlevel.orchestration;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.highlevel.orchestration;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -33,6 +32,8 @@ import java.util.Map;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.highlevel.descriptor.HighLevelDiscDescriptor;
+import org.brts.highlevel.style.StyleTemplate;
+import org.brts.highlevel.style.StyleTemplateLoader;
 import org.brts.highlevel.template.DiscTemplate;
 import org.brts.highlevel.template.MovieDiscTemplate;
 import org.brts.highlevel.template.TvSeriesDiscTemplate;
@@ -54,10 +55,17 @@ public class HighLevelOrchestrator {
 
 	private final MiddleLevelOrchestrator middleOrchestrator;
 
+	private final StyleTemplateLoader styleTemplateLoader;
+
 	private final ObjectMapper mapper = JsonMapperFactory.get();
 
 	public HighLevelOrchestrator(MiddleLevelOrchestrator middleOrchestrator) {
+		this(middleOrchestrator, new StyleTemplateLoader());
+	}
+
+	public HighLevelOrchestrator(MiddleLevelOrchestrator middleOrchestrator, StyleTemplateLoader styleTemplateLoader) {
 		this.middleOrchestrator = middleOrchestrator;
+		this.styleTemplateLoader = styleTemplateLoader;
 		this.templates = Map.of("MOVIE", new MovieDiscTemplate(), "TV_SERIES", new TvSeriesDiscTemplate());
 	}
 
@@ -76,7 +84,12 @@ public class HighLevelOrchestrator {
 		}
 
 		log.info("Expanding high-level descriptor (type={}) …", type);
-		DiscDescriptor middleDescriptor = template.expand(descriptor);
+		StyleTemplate style = descriptor.getStyleTemplate() == null ? null
+				: styleTemplateLoader.load(descriptor.getStyleTemplate());
+		DiscDescriptor middleDescriptor = template.expand(descriptor, style);
+		if (middleDescriptor.getOutputFolder() == null) {
+			middleDescriptor.setOutputFolder(outputDir.toAbsolutePath().toString());
+		}
 
 		// Write the middle-level disc descriptor for traceability
 		Path middleDir = outputDir.resolve("middle-level");

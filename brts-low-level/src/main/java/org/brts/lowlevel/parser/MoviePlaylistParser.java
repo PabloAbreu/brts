@@ -1,10 +1,7 @@
-package org.brts.lowlevel.parser;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/parser/MoviePlaylistParser.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/parser/MoviePlaylistParser.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.parser;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.parser;
 
 import org.brts.common.exception.ParseException;
 import org.brts.common.io.BinaryReader;
@@ -79,6 +78,7 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		r.skip(playlistOffset - r.getPosition());
 
 		MoviePlaylist playlist = new MoviePlaylist();
+		playlist.setVersion(version);
 
 		long plLength = r.readUnsignedInt();
 		r.skip(2); // reserved (2 bytes, no playbackType byte in this position)
@@ -106,6 +106,32 @@ public class MoviePlaylistParser implements BinaryParser<MoviePlaylist> {
 		// Detect whether this playlist represents a menu
 		playlist.setMenu(detectMenu(playlist));
 
+		// info trace for chapters, in the format expected by tsmuxer : 00:00:00.000;00:05:14.230;00:12:35.800
+		if (playlist.getPlayMarks() != null && !playlist.getPlayMarks().isEmpty()) {
+			StringBuilder chapterTrace = new StringBuilder();
+			for (PlayMark mark : playlist.getPlayMarks()) {
+				int playItemRef = mark.getPlayItemRef();
+				// find the play item in the list to substract the start time of the play item from the mark's timecode
+				PlayItem playItem = playItemRef >= 0 && playItemRef < playlist.getPlayItems().size()
+						? playlist.getPlayItems().get(playItemRef)
+						: null;
+
+				if (playItem != null) {
+					// delta in ms converted from 45 kHz ticks
+					long delta = (mark.getMarkTimeTicks() - playItem.getInTimeTicks()) / 45;
+					if (chapterTrace.length() > 0) {
+						chapterTrace.append(";");
+					}
+					// now convert delta to hh:mm:ss.SSS format
+					long hours = delta / 3600_000;
+					long minutes = (delta % 3600_000) / 60_000;
+					long seconds = (delta % 60_000) / 1000;
+					long millis = delta % 1000;
+					chapterTrace.append(String.format("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis));
+				}
+			}
+			log.info("Chapters: " + chapterTrace.toString());
+		}
 		return playlist;
 	}
 

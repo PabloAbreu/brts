@@ -1,10 +1,7 @@
-package org.brts.lowlevel.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/m2ts/M2tsWriter.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/m2ts/M2tsWriter.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.m2ts;
 
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -36,8 +35,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.brts.common.m2ts.BitrateCode;
 import org.brts.common.m2ts.M2tsParser;
+import org.brts.common.m2ts.BitrateCode;
 import org.brts.common.m2ts.model.M2tsChapter;
 import org.brts.common.m2ts.model.M2tsDescriptor;
 import org.brts.common.model.StreamCodingType;
@@ -91,6 +90,11 @@ public class M2tsWriter {
 	private static final int SOURCE_PKT_SIZE = 192;
 
 	private static final int SYNC_BYTE = 0x47;
+
+	/** Descriptor tag, independent of the PMT stream_type namespace. */
+	private static final int ATSC_AC3_AUDIO_DESCRIPTOR_TAG = 0x81;
+
+	private static final int AC3_BSID = 8;
 
 	// Blu-ray default PIDs
 	private static final int PMT_PID = 0x0100; // 256
@@ -600,31 +604,11 @@ public class M2tsWriter {
 			desc[9] = 0x3F;
 			return desc;
 		} else if (type.isDolbyAudio()) {
-			// this code mirrors what is parsed in M2tsParser
-			byte[] desc = new byte[12];
-			desc[0] = 0x05;// registration_descriptor tag
-			desc[1] = 0x04;// length of AC-3
-			desc[2] = 'A';
-			desc[3] = 'C';
-			desc[4] = '-';
-			desc[5] = '3';
-			desc[6] = (byte) 0x81; // 0x81 is Dolby Audio
-			desc[7] = 0x04;// size of following audio descriptor
-			desc[8] = (byte) streamTypeByte;
-			Integer br = s.getBitrateKbps();
-			BitrateCode bc = type == StreamCodingType.DOLBY_TRUEHD ? BitrateCode.TRUE_HD
-					: (br != null && br > 0 ? BitrateCode.fromBitrate(br) : null);
-			if (bc == null) {
-				log.warn("Unknown bitrate {} kbps for stream PID {}, cannot set audio_type in descriptor", br,
-						s.getPid());
-				bc = BitrateCode.AC3_192kbps;
-			}
-			desc[9] = (byte) bc.getCode();
-			Integer channels = s.getChannels();
-			desc[10] = (byte) (channels != null && channels == 8 ? 0x0E : 0x04); // default
-																					// to
-																					// stereo
-			desc[11] = 0;
+			// Registration and ATSC audio metadata are independent descriptors.
+			byte[] registration = { 0x05, 0x04, 'A', 'C', '-', '3' };
+			byte[] audio = buildAtscAc3AudioDescriptor(s, type);
+			byte[] desc = Arrays.copyOf(registration, registration.length + audio.length);
+			System.arraycopy(audio, 0, desc, registration.length, audio.length);
 			return desc;
 		} else if (type.isMenu() || type.isSubtitle()) {
 			// HDMV registration descriptor for IG menus (0x91) and PG subtitles (0x90)
@@ -652,6 +636,45 @@ public class M2tsWriter {
 			return desc;
 		}
 		return new byte[0];
+	}
+
+	/**
+	 * Encodes ATSC A/52 metadata for AC-3 only. Whole-stream E-AC-3/TrueHD attributes do not describe an AC-3 core.
+	 * Service policy: BSID 8, complete main, surround unspecified, full_service_flag off.
+	 */
+	private byte[] buildAtscAc3AudioDescriptor(M2tsDescriptor.StreamEntry s, StreamCodingType type) {
+		if (type != StreamCodingType.DOLBY_AC3) {
+			log.warn("Omitting ATSC AC-3 audio descriptor for PID {} ({}): AC-3 core metadata unavailable", s.getPid(),
+					type);
+			return new byte[0];
+		}
+		int sampleRateCode = s.getSampleRateHz() == null ? -1 : switch (s.getSampleRateHz()) {
+		case 48000 -> 0;
+		case 44100 -> 1;
+		case 32000 -> 2;
+		default -> -1;
+		};
+		BitrateCode bitrate = s.getBitrateKbps() == null ? null : BitrateCode.fromBitrate(s.getBitrateKbps());
+		int bitRateCode = bitrate == null ? -1 : bitrate.getCode();
+		// Conventional layouts, not Blu-ray audio_channel_layout codes. LFE is not signalled by this descriptor.
+		int channelCode = s.getChannels() == null ? -1 : switch (s.getChannels()) {
+		case 1 -> 1; // 1/0
+		case 2 -> 2; // 2/0
+		case 3 -> 3; // 3/0
+		case 4 -> 6; // 2/2
+		case 5, 6 -> 7; // 3/2, with no indication of LFE presence
+		default -> -1;
+		};
+		if (sampleRateCode < 0 || bitRateCode < 0 || channelCode < 0) {
+			log.warn(
+					"Omitting ATSC AC-3 audio descriptor for PID {}: unsupported or missing metadata "
+							+ "(sample rate {} Hz, bitrate {} kbps, channels {})",
+					s.getPid(), s.getSampleRateHz(), s.getBitrateKbps(), s.getChannels());
+			return new byte[0];
+		}
+		return new byte[] { (byte) ATSC_AC3_AUDIO_DESCRIPTOR_TAG, 0x04, (byte) ((sampleRateCode << 5) | AC3_BSID),
+				(byte) (bitRateCode << 2), (byte) (channelCode << 1), 0x00 }; // Deprecated langcod, not an audio format
+																				// field.
 	}
 
 	private void writePcrPacket(OutputStream out, int pid, long pcr27, Map<Integer, Integer> cc, long ats27)

@@ -1,10 +1,7 @@
-package org.brts.lowlevel.titlemenu.layout;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/layout/ThumbnailGridLayout.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/layout/ThumbnailGridLayout.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.titlemenu.layout;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.titlemenu.layout;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -207,11 +206,14 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 			// Generate IGS button images (transparent with highlight borders for selected/activated)
 			TextStyle titleStyle = resolveItemStyle(title.getStyle(), globalStyle);
 			BufferedImage normalImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					titleStyle, TextStyle.parseColor(titleStyle.getNormalColor()), false);
+					titleStyle, TextStyle.parseColor(titleStyle.getNormalColor()), false,
+					titleStyle.getStateOverlays() == null ? null : titleStyle.getStateOverlays().getNormal());
 			BufferedImage selectedImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					titleStyle, TextStyle.parseColor(titleStyle.getSelectedColor()), true);
+					titleStyle, TextStyle.parseColor(titleStyle.getSelectedColor()), true,
+					titleStyle.getStateOverlays() == null ? null : titleStyle.getStateOverlays().getSelected());
 			BufferedImage activatedImg = renderThumbnailButton(cellW, cellH, title.getDisplayName(), showLabels,
-					titleStyle, TextStyle.parseColor(titleStyle.getActivatedColor()), true);
+					titleStyle, TextStyle.parseColor(titleStyle.getActivatedColor()), true,
+					titleStyle.getStateOverlays() == null ? null : titleStyle.getStateOverlays().getActivated());
 
 			LayoutResult.PositionedButton btn = new LayoutResult.PositionedButton();
 			btn.setTitleIndex(i);
@@ -223,6 +225,8 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 			btn.setActivatedImage(activatedImg);
 			btn.setWidth(cellW);
 			btn.setHeight(cellH);
+			btn.setGridRow(row);
+			btn.setGridColumn(col);
 			positioned.add(btn);
 		}
 
@@ -245,7 +249,7 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 	 * into the background). For selected/activated states a highlight border is drawn.
 	 */
 	private BufferedImage renderThumbnailButton(int width, int height, String label, boolean showLabel, TextStyle style,
-			int colorArgb, boolean drawBorder) {
+			int colorArgb, boolean drawBorder, ImageReference overlay) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -264,6 +268,8 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 		}
 
 		// Draw label below thumbnail
+		org.brts.common.menu.ButtonOverlayRenderer.LabelBounds bounds = new org.brts.common.menu.ButtonOverlayRenderer.LabelBounds(
+				0, 0, 0, 0);
 		if (showLabel && label != null && !label.isEmpty()) {
 			Font font = new Font(style.getFontName(), style.getFontStyle(),
 					style.getFontSize() != null ? style.getFontSize() - 4 : 24);
@@ -273,12 +279,15 @@ public class ThumbnailGridLayout implements TitleMenuLayout {
 
 			int labelY = height - LABEL_HEIGHT + fm.getAscent();
 			int labelX = Math.max(0, (width - GlyphFallbackText.width(g, label, font, fallbackFont)) / 2);
+			bounds = new org.brts.common.menu.ButtonOverlayRenderer.LabelBounds(labelX, labelY,
+					GlyphFallbackText.width(g, label, font, fallbackFont), fm.getHeight());
 
 			g.setColor(new Color(colorArgb, true));
 			GlyphFallbackText.drawString(g, GlyphFallbackText.split(label, font, fallbackFont), labelX, labelY);
 		}
 
 		g.dispose();
+		org.brts.common.menu.ButtonOverlayRenderer.apply(img, overlay, bounds);
 		return img;
 	}
 

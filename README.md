@@ -25,6 +25,16 @@ existing Blu-ray files back into JSON for inspection and debugging.
 See [TODO.md](TODO.md) for the current backlog and
 [CLI documentation generation](doc/cli-documentation-generation.md) for the release metadata and reference pipeline.
 
+## Intended audience
+
+In its current form, BRTS is intended for developers and advanced users.
+
+The user is expected to
+ - install a JDK, compile and run Java code
+ - have a basic understanding of the Blu-ray disc structure
+ - be comfortable reading and editing JSON files
+ - use the command line
+
 ## Structure
 
 The project is a Maven multi-module build with four authoring layers plus a
@@ -44,6 +54,9 @@ brts-cli           command-line entry point exposing all three levels
 
 Lower layers never depend on higher layers. Details in
 [doc/architecture.md](doc/architecture.md).
+
+The low-level Java API also includes [video conversion](doc/video-conversion.md)
+from compressed elementary streams using FFmpeg, NVEncC, VCEEncC or QSVEncC.
 
 ## Usage
 
@@ -78,3 +91,9 @@ More details (formatting, CLI packaging, local debug launcher) in
 - [doc/descriptors.md](doc/descriptors.md) — JSON descriptor formats with examples
 - [doc/building.md](doc/building.md) — build, test, formatting, packaging, debug launcher
 - [doc/roadmap.md](doc/roadmap.md) — planned features and explicit non-goals
+
+
+## AI Usage and disclaimer
+
+This project was created for me as a way to discover Github Copilot capabilities and limitations.
+So BRTS contains lots of code lines and even full files that I did not write and that I've barely read.

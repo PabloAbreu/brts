@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/TsMuxerUtils.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/TsMuxerUtils.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import java.io.File;
 
@@ -89,7 +88,7 @@ public class TsMuxerUtils {
 		case VC1 -> "V_MS/VFW/WVC1";
 		case DOLBY_AC3 -> "A_AC3";
 		case DOLBY_AC3_PLUS -> "A_AC3";
-		case DOLBY_TRUEHD -> "A_TRUEHD";
+		case DOLBY_TRUEHD -> "A_AC3";
 		case DTS, DTS_HD, DTS_HD_MASTER_AUDIO, DTS_EXPRESS -> "A_DTS";
 		case LPCM -> "A_LPCM";
 		case PRESENTATION_GRAPHICS -> "S_HDMV/PGS";

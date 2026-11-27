@@ -1,10 +1,7 @@
-package org.brts.cli.low;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/low/NavSimulCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/low/NavSimulCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,36 +9,40 @@ package org.brts.cli.low;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import org.brts.cli.FeatureRunner;
-import org.brts.lowlevel.bdmv.NavigationCommandSimulator;
-import org.brts.lowlevel.bdmv.NavigationCommandSimulator.SimulationResult;
-import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
-import org.kohsuke.args4j.Option;
+package org.brts.cli.low;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.brts.cli.BaseOptions;
+import org.brts.cli.FeatureRunner;
+import org.brts.lowlevel.bdmv.NavigationCommandSimulator;
+import org.brts.lowlevel.bdmv.NavigationCommandSimulator.SimulationResult;
+import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
+import org.kohsuke.args4j.Option;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+
 /**
  * CLI for the HDMV navigation command simulator.
  */
 public class NavSimulCli {
 
-	public static class Options extends org.brts.cli.BaseOptions {
+	public static class Options extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "JSON file containing an array of NavigationCommand objects")
 		File input;

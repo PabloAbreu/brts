@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/ProcessUtils.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/ProcessUtils.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -36,11 +35,16 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import lombok.RequiredArgsConstructor;
+import lombok.val;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Convenience utilities for managing external processes, including consuming their output and error streams.
  */
+@Slf4j
 public class ProcessUtils {
+
+	private static final String AUTO = "auto";
 
 	/**
 	 * Swallows an InputStream in a separate thread, passing each line to the given consumer. Useful for consuming
@@ -109,7 +113,38 @@ public class ProcessUtils {
 	 * @return the configured command to launch BRTS
 	 */
 	public static String getBrtsCommand() {
-		return BrtsFileConfig.getInstance().propertyOrDefault("brts.command", "brts");
+		String command = BrtsFileConfig.getInstance().propertyOrDefault("brts.command", AUTO);
+		// when set to AUTO, try to find brts on our own
+		if (AUTO.equalsIgnoreCase(command)) {
+			// first, try system PATH
+			String fullPath = findFullPath("brts");
+			if (fullPath != null) {
+				System.out.println("Found brts in system PATH: " + fullPath);
+				command = fullPath;
+			} else {
+				// now reconstruct the command used to launch the current Java process
+				List<String> jvmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+				val javaHome = System.getProperty("java.home");
+				val os = System.getProperty("os.name");
+				val javaCommand = System.getProperty("sun.java.command");
+				log.trace("JVM arguments: {}", jvmArgs);
+				log.trace("Java home: {}", javaHome);
+				log.trace("Reconstructing from Java command: {}", javaCommand);
+				if (javaCommand != null && !javaCommand.isEmpty()) {
+					Path java = Path.of(javaHome, "bin", os.startsWith("Windows") ? "java.exe" : "java");
+					// this code only manages the jar case
+					// when using a class folder, just override brts.command in brts.conf
+					command = java.toString() + " " + String.join(" ", jvmArgs) + " -jar " + javaCommand.split(" ")[0];
+					log.trace("	Reconstructed command: {}", command);
+				}
+				// if javaCommand is still null or empty, fallback to "brts"
+				// it might be defined as an alias
+				if (command == null || command.isEmpty()) {
+					command = "brts";
+				}
+			}
+		}
+		return command;
 	}
 
 }

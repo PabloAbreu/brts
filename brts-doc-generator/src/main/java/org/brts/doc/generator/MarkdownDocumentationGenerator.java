@@ -1,10 +1,7 @@
-package org.brts.doc.generator;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-doc-generator/src/main/java/org/brts/doc/generator/MarkdownDocumentationGenerator.java' is part of BRTS.
+ * This file 'brts-doc-generator/src/main/java/org/brts/doc/generator/MarkdownDocumentationGenerator.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.doc.generator;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.doc.generator;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +30,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.brts.doc.metadata.AnnotationMetadata;
 import org.brts.doc.metadata.CliMetadata;
@@ -45,6 +46,8 @@ import org.brts.doc.metadata.display.DisplayedAttribute;
 
 public final class MarkdownDocumentationGenerator implements DocumentationGenerator {
 
+	private static final Pattern INLINE_JAVADOC_TAG = Pattern.compile("\\{@(code|link)\\s+([^}]+)}");
+
 	private final AnnotationDisplayRegistry annotationDisplayRegistry;
 
 	public MarkdownDocumentationGenerator() {
@@ -57,9 +60,6 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 
 	@Override
 	public void generate(CliMetadata metadata, Path outputDirectory) throws IOException {
-		if (!"1.0".equals(metadata.schemaVersion())) {
-			throw new IllegalArgumentException("Unsupported CLI metadata schema version: " + metadata.schemaVersion());
-		}
 		Files.createDirectories(outputDirectory);
 		Files.createDirectories(outputDirectory.resolve("commands"));
 		Files.createDirectories(outputDirectory.resolve("types"));
@@ -73,14 +73,15 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 			}
 		}
 		for (TypeMetadata type : metadata.types().values()) {
-			write(outputDirectory.resolve("types").resolve(typeFile(type.qualifiedName())), typePage(type));
+			write(outputDirectory.resolve("types").resolve(typeFile(type.qualifiedName())),
+					typePage(type, metadata.types()));
 		}
 	}
 
 	private String rootIndex(CliMetadata metadata) {
 		StringBuilder page = new StringBuilder("# BRTS CLI Reference\n\n");
-		page.append("Application version: `").append(metadata.applicationVersion()).append("`  \n");
-		page.append("Metadata schema: `").append(metadata.schemaVersion()).append("`\n\n## Command levels\n\n");
+		page.append("Application version: `").append(metadata.applicationVersion())
+				.append("`\n\n## Command levels\n\n");
 		for (LevelMetadata level : metadata.levels()) {
 			page.append("- [").append(level.name()).append("](commands/").append(slug(level.name()))
 					.append("/index.md) (").append(level.commands().size()).append(" commands)\n");
@@ -137,11 +138,11 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 		return page.toString();
 	}
 
-	private String typePage(TypeMetadata type) {
+	private String typePage(TypeMetadata type, Map<String, TypeMetadata> types) {
 		StringBuilder page = new StringBuilder("# `").append(type.qualifiedName()).append("`\n\n")
 				.append("[CLI reference](../index.md)\n\n");
 		if (type.description() != null) {
-			page.append(type.description()).append("\n\n");
+			page.append(renderDescription(type.description(), type, types)).append("\n\n");
 		}
 		page.append("- Kind: `").append(type.kind()).append("`\n");
 		if (type.superType() != null) {
@@ -165,7 +166,7 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 			for (FieldMetadata field : type.fields()) {
 				page.append("### `").append(field.jsonName()).append("`\n\n");
 				if (field.description() != null) {
-					page.append(field.description()).append("\n\n");
+					page.append(renderDescription(field.description(), type, types)).append("\n\n");
 				}
 				page.append("- Java field: `").append(field.name()).append("`\n- Type: `")
 						.append(simplifyType(field.javaType())).append("`\n- Required: `").append(field.required())
@@ -179,6 +180,51 @@ public final class MarkdownDocumentationGenerator implements DocumentationGenera
 			}
 		}
 		return page.toString();
+	}
+
+	private String renderDescription(String description, TypeMetadata currentType, Map<String, TypeMetadata> types) {
+		Matcher matcher = INLINE_JAVADOC_TAG.matcher(description);
+		StringBuilder rendered = new StringBuilder();
+		int previousEnd = 0;
+		while (matcher.find()) {
+			rendered.append(description, previousEnd, matcher.start());
+			String tagContent = matcher.group(2).strip();
+			String replacement = "code".equals(matcher.group(1)) ? renderCodeReference(tagContent, currentType)
+					: renderTypeReference(tagContent, types);
+			rendered.append(replacement);
+			previousEnd = matcher.end();
+		}
+		return rendered.append(description, previousEnd, description.length()).toString();
+	}
+
+	private String renderCodeReference(String fieldName, TypeMetadata currentType) {
+		for (FieldMetadata field : currentType.fields()) {
+			if (field.name().equals(fieldName) || field.jsonName().equals(fieldName)) {
+				return "<a href=\"#" + escapeHtml(slug(field.jsonName())) + "\"><code>" + escapeHtml(fieldName)
+						+ "</code></a>";
+			}
+		}
+		return "<code>" + escapeHtml(fieldName) + "</code>";
+	}
+
+	private String renderTypeReference(String tagContent, Map<String, TypeMetadata> types) {
+		int separator = tagContent.indexOf(' ');
+		String target = separator < 0 ? tagContent : tagContent.substring(0, separator);
+		String label = separator < 0 ? target.substring(target.lastIndexOf('.') + 1)
+				: tagContent.substring(separator).strip();
+		String simpleName = target.substring(target.lastIndexOf('.') + 1);
+		for (TypeMetadata type : types.values()) {
+			if (type.qualifiedName().equals(target) || type.qualifiedName().endsWith("." + simpleName)
+					|| type.qualifiedName().equals(simpleName)) {
+				return "<a href=\"" + escapeHtml(typeFile(type.qualifiedName())) + "\">" + escapeHtml(label) + "</a>";
+			}
+		}
+		return escapeHtml(label);
+	}
+
+	private String escapeHtml(String value) {
+		return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+				.replace("'", "&#39;");
 	}
 
 	private void appendAnnotations(StringBuilder page, List<AnnotationMetadata> annotations) {

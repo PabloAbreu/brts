@@ -1,10 +1,7 @@
-package org.brts.common.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/M2tsExtractor.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/M2tsExtractor.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,23 +9,26 @@ package org.brts.common.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.common.m2ts;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Set;
 
 import org.brts.common.m2ts.model.M2tsInfo;
+import org.brts.common.m2ts.model.M2tsTimingManifest;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,7 +41,8 @@ import lombok.extern.slf4j.Slf4j;
  * The output files are raw elementary streams (i.e. the MPEG-2 TS packetisation and PES headers are removed).
  * Downstream tools like FFmpeg can consume them directly.
  * <p>
- * This class delegates to {@link M2tsDemuxer} for packet iteration and {@link FilePacketHandler} for file output.
+ * Legacy extraction delegates to {@link M2tsDemuxer} and {@link FilePacketHandler}. The opt-in timing overload uses
+ * strict transport/PES validation and emits timed SUP records for PGS, plus a source-clock timing manifest.
  *
  * <h2>Usage</h2>
  *
@@ -85,6 +86,46 @@ public class M2tsExtractor {
 		try (FilePacketHandler handler = new FilePacketHandler(info, outputDir, pidFilter)) {
 			demuxer.demux(source, info, handler, pidFilter);
 		}
+	}
+
+	/**
+	 * Opt-in source-clock preservation. Raw audio/video filenames remain unchanged; PGS files contain SUP records. A
+	 * successful preserving extraction publishes {@code timing.json} in the output directory. Invalid/truncated PES,
+	 * timestamps or transport cause an IOException and no timing manifest is published. Partial elementary stream files
+	 * may remain for diagnosis. The false branch is exactly the legacy API.
+	 */
+	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter, boolean preserveTiming)
+			throws IOException {
+		extract(source, info, outputDir, pidFilter, preserveTiming, null);
+	}
+
+	/** Checks optional source identity before any extraction writes, including legacy raw extraction. */
+	public void extract(Path source, M2tsInfo info, Path outputDir, Set<Integer> pidFilter, boolean preserveTiming,
+			String expectedSourceSha256) throws IOException {
+		if (preserveTiming)
+			extractTiming(source, info, outputDir, pidFilter, expectedSourceSha256);
+		else {
+			if (expectedSourceSha256 != null)
+				SourceFingerprint.verify(source, expectedSourceSha256);
+			extract(source, info, outputDir, pidFilter);
+		}
+	}
+
+	/**
+	 * Extracts with strict source-clock preservation and returns the published timing contract, including counts for
+	 * every source PID. Null or empty {@code pids} selects all streams, as in the existing extraction APIs. An optional
+	 * expected SHA-256 is verified before writes and checked again during extraction; null avoids hashing the source.
+	 */
+	public M2tsTimingManifest extractTiming(Path source, M2tsInfo info, Path outputDir, Set<Integer> pids,
+			String expectedSourceSha256) throws IOException {
+		if (expectedSourceSha256 != null)
+			SourceFingerprint.verify(source, expectedSourceSha256);
+		return new TimingPreservingExtractor().extract(source, info, outputDir, pids, expectedSourceSha256);
+	}
+
+	/** Extracts all streams, optionally preserving source timing. */
+	public void extract(Path source, M2tsInfo info, Path outputDir, boolean preserveTiming) throws IOException {
+		extract(source, info, outputDir, null, preserveTiming);
 	}
 
 }

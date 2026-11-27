@@ -5,6 +5,7 @@
             <pattern>%d{HH:mm:ss.SSS} - %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+    <logger name="org.brts.highlevel.shrink.DiscShrinkOrchestrator" level="INFO"/>
     <root level="WARN">
         <appender-ref ref="CONSOLE"/>
     </root>

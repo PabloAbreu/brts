@@ -1,10 +1,7 @@
-package org.brts.cli;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/FeatureRunner.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/FeatureRunner.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,41 +9,37 @@ package org.brts.cli;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.cli;
+
 import java.io.File;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
 import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.validation.DescriptorValidationException;
 import org.brts.common.validation.DescriptorValidator;
-import org.brts.middle.orchestration.launch.BrtsImmediateInvocator;
+import org.brts.common.orchestration.BrtsImmediateInvocator;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
-import org.kohsuke.args4j.Option;
-import org.kohsuke.args4j.spi.MethodSetter;
-import org.kohsuke.args4j.spi.Setters;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -67,11 +60,20 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 	 * {@link BaseOptions#isNoBanner()}). Used before args4j parsing has taken place, e.g. by {@code BrtsMain}.
 	 */
 	public static boolean isBannerSuppressed(String[] args) {
+		return hasArgument(args, BaseOptions.OPTION_NO_BANNER);
+	}
+
+	/** Detects the failure policy before parsing, including when parsing fails before reaching the flag. */
+	public static boolean isExitOnFailureSuppressed(String[] args) {
+		return hasArgument(args, BaseOptions.OPTION_NO_EXIT_ON_FAILURE);
+	}
+
+	private static boolean hasArgument(String[] args, String flag) {
 		if (args == null) {
 			return false;
 		}
 		for (String arg : args) {
-			if (BaseOptions.OPTION_NO_BANNER.equals(arg)) {
+			if (flag.equals(arg)) {
 				return true;
 			}
 		}
@@ -138,11 +140,13 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 
 	/**
 	 * Parses command-line arguments into the options bean and invokes {@link #execute}. On parse errors, prints usage
-	 * to {@code stderr} and exits.
+	 * to {@code stderr} and exits, unless {@code --no-exit-on-failure} requests exception propagation.
 	 */
 	public void run(String[] args) throws Exception {
 
-		if (args.length == 1 && "--help".equals(args[0])) {
+		boolean noExitOnFailure = isExitOnFailureSuppressed(args);
+		if (hasArgument(args, "--help") && java.util.Arrays.stream(args).allMatch(arg -> "--help".equals(arg)
+				|| BaseOptions.OPTION_NO_BANNER.equals(arg) || BaseOptions.OPTION_NO_EXIT_ON_FAILURE.equals(arg))) {
 			printUsage(System.err);
 			return;
 		}
@@ -159,6 +163,9 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 				System.err.println(getCommandName() + " failed. Details:\n");
 				e.printStackTrace();
 			}
+			if (noExitOnFailure) {
+				throw e;
+			}
 			System.exit(1);
 		}
 
@@ -168,6 +175,9 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 			System.err.println(getCommandName() + ": " + e.getMessage());
 			if (opts.isErrorDetails()) {
 				e.printStackTrace();
+			}
+			if (noExitOnFailure) {
+				throw e;
 			}
 			System.exit(1);
 		}
@@ -189,96 +199,6 @@ public abstract class FeatureRunner<O extends BaseOptions> {
 	 */
 	protected void validateOptions(O opts) {
 		DescriptorValidator.validateOrThrow(opts, "arguments for '" + getCommandName() + "'");
-	}
-
-	private static class FeatureRunnerCmdLineParser extends CmdLineParser {
-
-		public FeatureRunnerCmdLineParser(Object bean) {
-			super(bean);
-			// no manage custom annotations
-			// support for @JsonInputOption
-			parseJsonInputOption(bean);
-		}
-
-		@RequiredArgsConstructor
-		private static class JsonInputOptionAsOption implements Option {
-
-			private final JsonInputOption o;
-
-			@Override
-			public String name() {
-				return o.name();
-			}
-
-			@Override
-			public String usage() {
-				return o.usage();
-			}
-
-			@Override
-			public boolean required() {
-				return o.required();
-			}
-
-			@Override
-			public String[] aliases() {
-				return o.aliases();
-			}
-
-			@Override
-			public String metaVar() {
-				return o.metaVar();
-			}
-
-			@Override
-			public boolean help() {
-				return o.help();
-			}
-
-			@Override
-			public boolean hidden() {
-				return o.hidden();
-			}
-
-			@Override
-			public String[] depends() {
-				return o.depends();
-			}
-
-			@Override
-			public String[] forbids() {
-				return o.forbids();
-			}
-
-			@Override
-			public Class<JsonInputOptionHandler> handler() {
-				return JsonInputOptionHandler.class;
-			}
-
-			@Override
-			public Class<? extends java.lang.annotation.Annotation> annotationType() {
-				return Option.class;
-			}
-
-		}
-
-		protected void parseJsonInputOption(Object bean) {
-			// recursively process all the methods/fields.
-			for (Class<?> c = bean.getClass(); c != null; c = c.getSuperclass()) {
-				for (Method m : c.getDeclaredMethods()) {
-					JsonInputOption o = m.getAnnotation(JsonInputOption.class);
-					if (o != null)
-						addOption(new MethodSetter(this, bean, m), new JsonInputOptionAsOption(o));
-				}
-
-				for (Field f : c.getDeclaredFields()) {
-					JsonInputOption o = f.getAnnotation(JsonInputOption.class);
-					if (o != null)
-						addOption(Setters.create(f, bean), new JsonInputOptionAsOption(o));
-				}
-			}
-		}
-
 	}
 
 	/**

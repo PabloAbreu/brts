@@ -1,10 +1,7 @@
-package org.brts.lowlevel.writer;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/writer/ClipInfoWriter.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/writer/ClipInfoWriter.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.writer;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.writer;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -36,11 +35,14 @@ import org.brts.lowlevel.model.clpi.ClipInfo;
 import org.brts.lowlevel.model.clpi.ClipStream;
 import org.brts.lowlevel.model.clpi.EpMap;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Writer for CLPI (Clip Information) binary files.
  * <p>
  * Generates a standards-compliant {@code XXXXX.clpi} file from a {@link ClipInfo} model. The output is compatible with
- * players that implement the Blu-ray Read-Only spec v2.x/3.x.
+ * players that implement the Blu-ray Read-Only spec v2.x/3.x. Version 0200 is used unless the model explicitly requests
+ * 0300. Version 0300 preserves HEVC color/HDR attributes; writing version 0100 is not supported.
  * <p>
  * Header layout (40 bytes):
  *
@@ -52,21 +54,30 @@ import org.brts.lowlevel.model.clpi.EpMap;
  *
  * The ClipInfo section always starts immediately at byte 40.
  */
+@Slf4j
 public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 	private static final String MAGIC = "HDMV";
 
-	private static final String VERSION = "0200";
+	private static final String DEFAULT_VERSION = "0200";
+
+	private static final String VERSION_300 = "0300";
 
 	/** Fixed header size: 8 magic/version + 20 offsets + 12 reserved. */
 	private static final int HEADER_SIZE = 40;
 
 	@Override
 	public void write(ClipInfo model, OutputStream output) throws IOException {
+		log.info("Writing CLPI file for clip: {}", model.getClipName());
+		String version = model.getVersion() != null ? model.getVersion() : DEFAULT_VERSION;
+		if (!DEFAULT_VERSION.equals(version) && !VERSION_300.equals(version)) {
+			throw new IllegalArgumentException(
+					"Unsupported CLPI write version: '" + version + "'; expected 0200 or 0300");
+		}
 		// Build each section independently, then assemble with correct offsets
 		byte[] clipInfoSection = buildClipInfoSection(model);
 		byte[] sequenceSection = buildSequenceInfoSection(model);
-		byte[] programSection = buildProgramInfoSection(model);
+		byte[] programSection = buildProgramInfoSection(model, version);
 		byte[] cpiSection = buildCpiSection(model);
 		byte[] clipMarkSection = buildClipMarkSection();
 		byte[] extensionSection = buildExtensionSection();
@@ -83,7 +94,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 		// File header (40 bytes)
 		w.writeAscii(MAGIC);
-		w.writeAscii(VERSION);
+		w.writeAscii(version);
 		w.writeInt(sequenceOffset);
 		w.writeInt(programOffset);
 		w.writeInt(cpiOffset);
@@ -97,6 +108,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		w.writeBytes(cpiSection);
 		w.writeBytes(clipMarkSection);
 		w.writeBytes(extensionSection);
+		log.info("Finished writing CLPI file for clip: {}", model.getClipName());
 	}
 
 	private byte[] buildExtensionSection() {
@@ -149,7 +161,7 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		return w.toByteArray();
 	}
 
-	private byte[] buildProgramInfoSection(ClipInfo m) throws IOException {
+	private byte[] buildProgramInfoSection(ClipInfo m, String version) throws IOException {
 		ByteArrayBinaryWriter w = new ByteArrayBinaryWriter();
 
 		ByteArrayBinaryWriter wi = new ByteArrayBinaryWriter();
@@ -171,13 +183,27 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 
 			wi.writeByte(s.getCodingType().getCodingTypeByte());
 			if (s.getCodingType().isVideo()) {
-				// does not manage HEVC for now
 				int vf = (s.getVideoFormat() != null ? s.getVideoFormat() : 0);
 				int fr = (s.getFrameRate() != null ? s.getFrameRate() : 0);
 				wi.writeByte((vf << 4) | fr);
-				// we ignore the "OCFlag", whatever that is
-				wi.writeByte((s.getAspectRatio() != null ? s.getAspectRatio() : 0) << 4);
-				wi.writeShort(0);// 17 bits reserved, counting the last 1 from the previous byte
+				int aspectAndFlags = (s.getAspectRatio() != null ? s.getAspectRatio() : 0) << 4;
+				boolean version300 = VERSION_300.equals(version);
+				boolean hevc300 = version300 && s.getCodingType() == StreamCodingType.H265_HEVC;
+				if (version300 && Boolean.TRUE.equals(s.getOcFlag())) {
+					aspectAndFlags |= 0x02;
+				}
+				if (hevc300 && Boolean.TRUE.equals(s.getCrFlag())) {
+					aspectAndFlags |= 0x01;
+				}
+				wi.writeByte(aspectAndFlags);
+				if (hevc300) {
+					int dynamicRange = unsignedNibble(s.getDynamicRangeType(), "dynamicRangeType", s.getPid());
+					int colorSpace = unsignedNibble(s.getColorSpace(), "colorSpace", s.getPid());
+					wi.writeByte((dynamicRange << 4) | colorSpace);
+					wi.writeByte(Boolean.TRUE.equals(s.getHdrPlusFlag()) ? 0x80 : 0);
+				} else {
+					wi.writeShort(0); // reserved
+				}
 				// pad with '0' and 4 zeroes (seen in actual files, not sure if
 				// required or just reserved)
 			} else if (s.getCodingType().isAudio()) {
@@ -208,6 +234,17 @@ public class ClipInfoWriter implements BlurayFileWriter<ClipInfo> {
 		w.writeBytes(wi.toSizePrefixedByteArray());
 		w.padToFour();
 		return w.toByteArray();
+	}
+
+	private int unsignedNibble(Integer value, String field, int pid) {
+		if (value == null) {
+			return 0;
+		}
+		if (value < 0 || value > 15) {
+			throw new IllegalArgumentException("CLPI 0300 " + field + " for PID 0x" + Integer.toHexString(pid)
+					+ " must be between 0 and 15, got " + value);
+		}
+		return value;
 	}
 
 	private byte[] buildCpiSection(ClipInfo m) throws IOException {

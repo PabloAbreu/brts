@@ -1,10 +1,7 @@
-package org.brts.lowlevel.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/m2ts/MkvPacketHandler.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/m2ts/MkvPacketHandler.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,19 +9,22 @@ package org.brts.lowlevel.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.m2ts;
+
 import org.brts.common.m2ts.M2tsPacketHandler;
+import org.brts.common.m2ts.PesTimestampParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
@@ -182,10 +182,7 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 				&& payload[payloadOff + 2] == 0x01) {
 
 			// Extract PTS if present (PTS_DTS_flags in bits 7-6 of byte 7)
-			int flags = (payload[payloadOff + 7] & 0xFF) >> 6;
-			if (flags >= 2) { // PTS present
-				pts = parsePts(payload, payloadOff + 9);
-			}
+			pts = PesTimestampParser.parsePts(payload, payloadOff, payloadLen);
 
 			int pesHeaderLen = (payload[payloadOff + 8] & 0xFF) + 9;
 			payloadOff += pesHeaderLen;
@@ -401,16 +398,6 @@ public class MkvPacketHandler implements M2tsPacketHandler {
 		case TEXT_SUBTITLE -> "S_HDMV/TEXTST";
 		case INTERACTIVE_GRAPHICS -> null; // menus not supported
 		};
-	}
-
-	private static long parsePts(byte[] buf, int off) {
-		long pts = 0;
-		pts |= ((long) (buf[off] & 0x0E)) << 29;
-		pts |= ((long) (buf[off + 1] & 0xFF)) << 22;
-		pts |= ((long) (buf[off + 2] & 0xFE)) << 14;
-		pts |= ((long) (buf[off + 3] & 0xFF)) << 7;
-		pts |= ((long) (buf[off + 4] & 0xFE)) >> 1;
-		return pts;
 	}
 
 	// -------------------------------------------------------------------------

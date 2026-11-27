@@ -1,10 +1,7 @@
-package org.brts.lowlevel.model.clpi;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/model/clpi/ClipStream.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/model/clpi/ClipStream.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.model.clpi;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.model.clpi;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -45,7 +44,7 @@ public class ClipStream {
 	// --- Video-specific ---
 
 	/**
-	 * Video format (0x01=480i, 0x02=576i, 0x03=480p, 0x04=1080i, 0x05=720p, 0x06=1080p, 0x07=576p).
+	 * Video format (0x01=480i, 0x02=576i, 0x03=480p, 0x04=1080i, 0x05=720p, 0x06=1080p, 0x07=576p, 0x08=2160p).
 	 */
 	private Integer videoFormat;
 
@@ -56,6 +55,21 @@ public class ClipStream {
 
 	/** Aspect ratio (0x02=4:3, 0x03=16:9). */
 	private Integer aspectRatio;
+
+	/** Video OC flag, preserved for version 0300. Null encodes as false. */
+	private Boolean ocFlag;
+
+	/** HEVC CR flag, preserved for version 0300. Null encodes as false. */
+	private Boolean crFlag;
+
+	/** HEVC dynamic range type, raw unsigned four-bit value (0..15). Null encodes as zero. */
+	private Integer dynamicRangeType;
+
+	/** HEVC color space, raw unsigned four-bit value (0..15). Null encodes as zero. */
+	private Integer colorSpace;
+
+	/** HEVC HDR plus flag, preserved for version 0300. Null encodes as false. */
+	private Boolean hdrPlusFlag;
 
 	// --- Audio-specific ---
 

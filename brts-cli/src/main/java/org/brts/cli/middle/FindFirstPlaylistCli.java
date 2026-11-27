@@ -1,10 +1,7 @@
-package org.brts.cli.middle;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/middle/FindFirstPlaylistCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/middle/FindFirstPlaylistCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,22 +9,29 @@ package org.brts.cli.middle;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.cli.middle;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Optional;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.model.bdmv.IndexBdmv;
 import org.brts.lowlevel.model.bdmv.MovieObjects;
-import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.parser.IndexBdmvParser;
 import org.brts.lowlevel.parser.MovieObjectsParser;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
@@ -36,17 +40,12 @@ import org.brts.middle.scan.FirstPlaylistFinderConfig;
 import org.brts.middle.scan.FirstPlaylistResult;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Optional;
-
 /**
  * CLI for the middle-level "find-first-playlist" command.
  */
 public class FindFirstPlaylistCli {
 
-	static class Options extends org.brts.cli.BaseOptions {
+	static class Options extends BaseOptions {
 
 		@Option(name = "--bdmv-dir", required = true, usage = "Path to the BDMV directory containing index.bdmv and MovieObject.bdmv")
 		File bdmvDir;

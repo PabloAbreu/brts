@@ -1,10 +1,7 @@
-package org.brts.common.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/M2tsParser.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/M2tsParser.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,26 +9,31 @@ package org.brts.common.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.common.m2ts;
+
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -118,6 +120,7 @@ public class M2tsParser {
 		boolean patParsed = false;
 		Set<Integer> pmtPids = new LinkedHashSet<>();
 		Set<Integer> parsedPmtPids = new HashSet<>();
+		Map<Integer, PmtSectionAssembler> pmtSections = new LinkedHashMap<>();
 		int sitPid = -1;
 		boolean sitParsed = false;
 		// Track PCR PID once the first PMT is parsed
@@ -149,6 +152,7 @@ public class M2tsParser {
 			// --- TS packet starts at offset 4 ---
 			if ((sp[4] & 0xFF) != SYNC_BYTE) {
 				log.warn("Lost sync at source packet {}", i);
+				pmtSections.clear();
 				continue;
 			}
 
@@ -163,8 +167,10 @@ public class M2tsParser {
 			int adaptationFieldControl = (b3 >> 4) & 0x03;
 			// 01 = payload only, 10 = adaptation only, 11 = adaptation + payload
 
-			if (transportError)
+			if (transportError) {
+				pmtSections.remove(pid);
 				continue;
+			}
 
 			// ---------------------------------------------------------------
 			// PAT
@@ -193,17 +199,22 @@ public class M2tsParser {
 			// ---------------------------------------------------------------
 			// PMT (any program found in the PAT)
 			// ---------------------------------------------------------------
-			if (pmtPids.contains(pid) && payloadUnitStart && !parsedPmtPids.contains(pid)) {
-				PmtParseResult pmt = parsePmt(sp);
-				if (pmt != null) {
-					parsedPmtPids.add(pid);
-					if (pcrPid < 0) {
-						pcrPid = pmt.pcrPid;
-						info.setPcrPid(pcrPid);
+			if (pmtPids.contains(pid) && !parsedPmtPids.contains(pid)) {
+				PmtSectionAssembler assembler = pmtSections.computeIfAbsent(pid, key -> new PmtSectionAssembler());
+				for (byte[] section : assembler.accept(sp)) {
+					PmtParseResult pmt = parsePmt(section);
+					if (pmt != null) {
+						parsedPmtPids.add(pid);
+						pmtSections.remove(pid);
+						if (pcrPid < 0) {
+							pcrPid = pmt.pcrPid;
+							info.setPcrPid(pcrPid);
+						}
+						streamMap.putAll(pmt.streams);
+						log.debug("PMT 0x{} parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pid),
+								Integer.toHexString(pmt.pcrPid), pmt.streams.size());
+						break;
 					}
-					streamMap.putAll(pmt.streams);
-					log.debug("PMT 0x{} parsed: PCR PID=0x{}, {} streams", Integer.toHexString(pid),
-							Integer.toHexString(pmt.pcrPid), pmt.streams.size());
 				}
 				continue;
 			}
@@ -308,6 +319,104 @@ public class M2tsParser {
 	// PMT parser
 	// -------------------------------------------------------------------------
 
+	/** Reassembles one PID's PSI sections, excluding TS headers, pointer fields and stuffing. */
+	private static class PmtSectionAssembler {
+		// ISO/IEC 13818-1 limits PMT section_length to 1021 bytes, plus its three-byte header.
+		private final byte[] section = new byte[1024];
+		private int size;
+		private int expected = 3;
+		private int continuity = -1;
+		private byte[] previousPacket;
+
+		private void discardSection() {
+			size = 0;
+			expected = 3;
+		}
+
+		private void reset() {
+			discardSection();
+			continuity = -1;
+			previousPacket = null;
+		}
+
+		List<byte[]> accept(byte[] packet) {
+			List<byte[]> completed = new ArrayList<>();
+			int control = (packet[7] >> 4) & 3;
+			if (control == 0 || (packet[7] & 0xC0) != 0) {
+				reset();
+				return completed;
+			}
+			int offset = 8;
+			if (control == 2 || control == 3) {
+				int length = packet[offset] & 0xFF;
+				if (offset + 1 + length > packet.length) {
+					reset();
+					return completed;
+				}
+				if (length > 0 && (packet[offset + 1] & 0x80) != 0)
+					reset(); // discontinuity_indicator also applies to adaptation-only packets
+				offset += 1 + length;
+			}
+			if (control == 2)
+				return completed; // no payload, so do not advance the payload continuity counter
+			if (offset >= packet.length) {
+				reset();
+				return completed;
+			}
+
+			int counter = packet[7] & 0x0F;
+			if (counter == continuity && previousPacket != null
+					&& Arrays.equals(packet, 4, packet.length, previousPacket, 4, previousPacket.length))
+				return completed; // retransmission; ATS may differ
+			if (continuity >= 0 && counter != ((continuity + 1) & 0x0F))
+				discardSection();
+			continuity = counter;
+			previousPacket = packet.clone();
+
+			if ((packet[5] & 0x40) != 0) {
+				int pointer = packet[offset++] & 0xFF;
+				int start = offset + pointer;
+				if (start >= packet.length) {
+					discardSection();
+					return completed;
+				}
+				if (size > 0)
+					append(packet, offset, start, completed);
+				discardSection(); // a new section starts here even if the old one was incomplete
+				offset = start;
+				while (offset < packet.length && (packet[offset] & 0xFF) != 0xFF)
+					offset = append(packet, offset, packet.length, completed);
+			} else if (size > 0) {
+				append(packet, offset, packet.length, completed);
+			}
+			return completed;
+		}
+
+		/** Consumes at most one section; only PUSI establishes where further sections can begin. */
+		private int append(byte[] packet, int offset, int end, List<byte[]> completed) {
+			while (offset < end) {
+				int count = Math.min(end - offset, expected - size);
+				System.arraycopy(packet, offset, section, size, count);
+				size += count;
+				offset += count;
+				if (size == 3 && expected == 3) {
+					int length = ((section[1] & 0x0F) << 8) | (section[2] & 0xFF);
+					if (length < 13 || length > 1021) {
+						discardSection();
+						return end;
+					}
+					expected = 3 + length;
+				}
+				if (size == expected) {
+					completed.add(Arrays.copyOf(section, size));
+					discardSection();
+					return offset;
+				}
+			}
+			return offset;
+		}
+	}
+
 	private static class PmtParseResult {
 
 		int pcrPid;
@@ -320,40 +429,22 @@ public class M2tsParser {
 
 	private static final int descriptor_tag_registration = 0x05;
 
+	private static final int descriptor_tag_ATSC_AC_3_AUDIO = 0x81;
+
 	private static final String descriptor_tag_registration_HDMV = "HDMV";
 
 	private static final String descriptor_tag_registration_AC_3 = "AC-3";
 
-	private static final int descriptor_tag_registration_HDMV_mystery_byte = 0xFF;// this
-																					// thing
-																					// seems
-																					// to
-																					// be
-																					// FF
-																					// all
-																					// the
-																					// time,
-																					// even
-																					// for
-																					// audio
+	// this thing seems to be FF all the time, even for audio
+	private static final int descriptor_tag_registration_HDMV_mystery_byte = 0xFF;
 
 	/**
-	 * Parses a PMT (Program Map Table) TS packet. Returns null if the packet does not contain a recognisable PMT.
+	 * Parses a complete PMT section, starting at table_id. Returns null for malformed sections, never partial streams.
 	 */
 	private PmtParseResult parsePmt(byte[] sp) {
-		int tsOff = 4;
-		int b3 = sp[tsOff + 3] & 0xFF;
-		int adaptCtrl = (b3 >> 4) & 0x03;
-
-		int payloadStart = tsOff + 4;
-		if (adaptCtrl == 3) {
-			int afLen = sp[payloadStart] & 0xFF;
-			payloadStart += 1 + afLen;
-		}
-
-		int pointer = sp[payloadStart] & 0xFF;
-		payloadStart += 1 + pointer;
-
+		if (sp.length < 16)
+			return null;
+		int payloadStart = 0;
 		int tableId = sp[payloadStart] & 0xFF;
 		if (tableId != 0x02)
 			return null; // not a PMT
@@ -365,38 +456,56 @@ public class M2tsParser {
 		// ES loop start
 		int esStart = payloadStart + 12 + programInfoLength;
 		int esEnd = payloadStart + 3 + sectionLength - 4; // exclude CRC
+		if (sectionLength < 13 || sectionLength > 1021 || 3 + sectionLength != sp.length || esStart > esEnd) {
+			log.warn("Invalid PMT section/program info length: {}/{}", sectionLength, programInfoLength);
+			return null;
+		}
 
 		PmtParseResult result = new PmtParseResult();
 		result.pcrPid = pcrPid;
 
-		for (int pos = esStart; pos + 4 < esEnd && pos + 4 < sp.length;) {
+		for (int pos = esStart; pos < esEnd;) {
+			if (pos + 5 > esEnd) {
+				log.warn("Truncated PMT ES header at offset {}", pos);
+				return null;
+			}
 			int streamType = sp[pos] & 0xFF;
 			int esPid = ((sp[pos + 1] & 0x1F) << 8) | (sp[pos + 2] & 0xFF);
 			int esInfoLen = ((sp[pos + 3] & 0x0F) << 8) | (sp[pos + 4] & 0xFF);
+			int descEnd = pos + 5 + esInfoLen;
+			if (descEnd > esEnd || descEnd > sp.length) {
+				log.warn("Truncated PMT ES info for PID {}: length {} at offset {}", esPid, esInfoLen, pos);
+				return null;
+			}
 
 			M2tsStreamInfo streamInfo = new M2tsStreamInfo();
 			streamInfo.setPid(esPid);
 			streamInfo.setStreamTypeByte(streamType);
 			streamInfo.setCodingType(mapStreamType(streamType));
 
-			// Parse descriptors in ES info to find language
+			// Parse each independent descriptor within this ES info region.
 			int descPos = pos + 5;
-			int descEnd = pos + 5 + esInfoLen;
-			log.debug("Stream " + esPid + ". esInfoLen " + esInfoLen);
+			log.debug("Stream {}. esInfoLen {}", esPid, esInfoLen);
 			if (esInfoLen > 0) {
-				log.debug("descriptors hex bytes "
-						+ StringUtils.bytesToHex(sp, descPos, Math.min(esInfoLen, sp.length - descPos)));
+				log.debug("descriptors hex bytes {}", StringUtils.bytesToHex(sp, descPos, esInfoLen));
 			}
-			while (descPos + 1 < descEnd && descPos + 1 < sp.length) {
+			while (descPos < descEnd) {
+				if (descPos + 2 > descEnd) {
+					log.warn("Truncated descriptor header for PID {} at offset {}", esPid, descPos);
+					return null;
+				}
 				int descTag = sp[descPos] & 0xFF;
 				int descLen = sp[descPos + 1] & 0xFF;
-				if (descPos + 2 + descLen > sp.length)
-					break; // malformed descriptor
+				if (descPos + 2 + descLen > descEnd) {
+					log.warn("Truncated descriptor 0x{} for PID {} at offset {}: length {}",
+							Integer.toHexString(descTag), esPid, descPos, descLen);
+					return null;
+				}
 				switch (descTag) {
 				case descriptor_tag_registration -> {
 					// Registration descriptor (e.g. "HDMV" for Blu-ray)
 					if (descLen >= 4) {
-						String reg = new String(sp, descPos + 2, 4, java.nio.charset.StandardCharsets.US_ASCII);
+						String reg = new String(sp, descPos + 2, 4, StandardCharsets.US_ASCII);
 						log.debug("  Registration descriptor: {}", reg);
 						if (!reg.isBlank())
 							streamInfo.setRegistration(reg);
@@ -413,24 +522,21 @@ public class M2tsParser {
 									int todo = ((sp[descPos + 8] & 0xFF) << 8) | (sp[descPos + 9] & 0xFF);
 									if (streamInfo.getCodingType().isVideo()) {
 										int vfr = sp[descPos + 8] & 0xFF;
+										log.trace("  Video VFR value: {}", vfr);
 										streamInfo.setVfr(vfr);
 									} else if (todo == 0x31FF && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(2304);// based upon
-																		// one LPCM
-																		// example
+										// based upon one LPCM example
+										streamInfo.setBitrateKbps(2304);
 										streamInfo.setSampleRateHz(48000);
 										streamInfo.setChannels(2);
 									} else if (todo == 0x317F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(1536);// based upon
-																		// one 16-bit
-																		// LPCM
-																		// example
+										// based upon one 16-bit LPCM example
+										streamInfo.setBitrateKbps(1536);
 										streamInfo.setSampleRateHz(48000);
 										streamInfo.setChannels(2);
 									} else if (todo == 0x617F && codec == StreamCodingType.LPCM.getCodingTypeByte()) {
-										streamInfo.setBitrateKbps(4608);// based upon
-																		// one LPCM
-																		// example
+										// based upon one LPCM example
+										streamInfo.setBitrateKbps(4608);
 									} else {
 										log.warn(
 												"  TODO developers: reverse engineer that. HDMV registration has some original bytes: 0x{}",
@@ -443,55 +549,16 @@ public class M2tsParser {
 							// found on one track 04 64 00 29 BF after the 8-byte HDMV
 							// no idea what that means
 						} else if (descriptor_tag_registration_AC_3.equals(reg)) {
-							if (descLen == 4 && esInfoLen >= 12) {
-								int audioType = sp[descPos + 6] & 0xFF;
-								if (audioType != StreamCodingType.DOLBY_AC3.getCodingTypeByte()) {
-									log.warn("  AC-3 registration stream type 0x{} does not match expected AC3",
-											Integer.toHexString(audioType));
-								}
+							// Registration ends here; tag 0x81 is a separate descriptor.
+							if (descLen != 4) {
+								log.warn("Unexpected AC-3 registration descriptor length {} for PID {}", descLen,
+										esPid);
 							}
-							int subLength = sp[descPos + 7] & 0xFF;
-							if (subLength == 4) {
-								@SuppressWarnings("unused")
-								int audioCodingType = sp[descPos + 8] & 0xFF;
-								// IA suggests that:
-								// 0x06 AC‑3 (Dolby Digital) primary audio
-								// 0x0A E‑AC‑3 (Dolby Digital Plus) primary audio
-								// 0x0B AC‑3 secondary audio
-								// 0x0E E‑AC‑3 secondary audio
-								// 0x82 DTS primary audio
-								// 0x83 DTS‑HD primary audio
-								// 0x84 DTS‑HD Master Audio
-								// 0x80 LPCM primary audio
-								// 0x81 LPCM secondary audio
-								// but i've seen E-AC-3 with code 0x06 on some
-								// blu-rays...
-								// 0x08 seems to be AC-3 too. So confidence is low on
-								// that mapping.
-								BitrateCode bitrateCode = BitrateCode.fromCode(sp[descPos + 9] & 0xFF);
-								if (bitrateCode == null) {
-									log.warn("  Unknown bitrate code 0x{} in AC-3 registration descriptor",
-											Integer.toHexString(sp[descPos + 9] & 0xFF));
-								} else {
-									streamInfo.setBitrateKbps(bitrateCode.getBitrateKbps());
-									streamInfo.setChannels(bitrateCode.getChannels());
-								}
-								// no idea what that data means
-								// found on some blu-rays:
-								// 06 35 04 00 : AC-3 320 kbps, 2 channels, 48 kHz
-								// 06 40 0E 00 : E-AC-3 896 kbps, 8 channels, 48 kHz
-								// 06 29 04 00 : AC-3 192 kbps, 2 channels, 48 kHz .
-								// 08 29 04 00 too
-								@SuppressWarnings("unused")
-								int todooo = sp[descPos + 10] & 0xFF;
-								// 0x04 seems to be 2, and 0X0E seems to be 8
-								// channels, but that is based on very limited data
-								// and may be wrong.
-							}
-
 						}
 					}
 				}
+				case descriptor_tag_ATSC_AC_3_AUDIO ->
+					parseAtscAc3AudioDescriptor(sp, descPos + 2, descLen, streamInfo);
 				case descriptor_tag_ISO_639_LANGUAGE -> {
 					// ISO 639 language descriptor
 					if (descLen >= 3) {
@@ -503,6 +570,8 @@ public class M2tsParser {
 				}
 				default -> {
 					// Other descriptors can be handled here if needed
+					log.debug("  Unknown descriptor with tag 0x{} and length {}", Integer.toHexString(descTag),
+							descLen);
 				}
 				}
 				descPos += 2 + descLen;
@@ -513,6 +582,53 @@ public class M2tsParser {
 		}
 
 		return result;
+	}
+
+	/** Decodes the fixed three-byte ATSC A/52 AC-3 audio stream descriptor header. */
+	private void parseAtscAc3AudioDescriptor(byte[] data, int offset, int length, M2tsStreamInfo streamInfo) {
+		if (length < 3) {
+			log.warn("ATSC AC-3 audio descriptor too short for PID {}: {} bytes", streamInfo.getPid(), length);
+			return;
+		}
+		int sampleRateCode = (data[offset] & 0xE0) >> 5;
+		int bsid = data[offset] & 0x1F;
+		int bitRateCode = (data[offset + 1] & 0xFC) >> 2;
+		int surroundMode = data[offset + 1] & 0x03;
+		int bsmod = (data[offset + 2] & 0xE0) >> 5;
+		int numChannels = (data[offset + 2] & 0x1E) >> 1;
+		boolean fullService = (data[offset + 2] & 1) != 0;
+
+		Integer sampleRate = switch (sampleRateCode) {
+		case 0 -> 48000;
+		case 1 -> 44100;
+		case 2 -> 32000;
+		default -> null; // Reserved or a choice of sample rates, not an exact value.
+		};
+		if (sampleRate != null)
+			streamInfo.setSampleRateHz(sampleRate);
+
+		// Bit 5 denotes an upper bound, which must not be reported as an exact bitrate.
+		BitrateCode bitrate = BitrateCode.fromCode(bitRateCode);
+		if (bitrate != null)
+			streamInfo.setBitrateKbps(bitrate.getBitrateKbps());
+
+		// These describe full-bandwidth channels; no LFE presence is signalled here.
+		Integer channels = switch (numChannels) {
+		case 0, 2 -> 2; // Dual mono or stereo.
+		case 1, 8 -> 1;
+		case 3, 4 -> 3;
+		case 5, 6 -> 4;
+		case 7 -> 5;
+		default -> null; // Upper bounds (9..13) or reserved (14..15).
+		};
+		if (channels != null)
+			streamInfo.setChannels(channels);
+
+		log.debug(
+				"ATSC AC-3 PID {}: sample_rate_code={}, bsid={}, bit_rate_code={}, surround_mode={}, "
+						+ "bsmod={}, num_channels={}, full_service={}",
+				streamInfo.getPid(), sampleRateCode, bsid, bitRateCode, surroundMode, bsmod, numChannels, fullService);
+		// Optional trailing fields start with deprecated langcod; they are not audio format fields.
 	}
 
 	// -------------------------------------------------------------------------
@@ -601,23 +717,7 @@ public class M2tsParser {
 	 * types.
 	 */
 	public static StreamCodingType mapStreamType(int streamTypeByte) {
-		return switch (streamTypeByte) {
-		case 0x02 -> StreamCodingType.MPEG2_VIDEO;
-		case 0x1B -> StreamCodingType.H264_AVC;
-		case 0x24 -> StreamCodingType.H265_HEVC;
-		case 0xEA -> StreamCodingType.VC1;
-		case 0x80 -> StreamCodingType.LPCM;
-		case 0x81 -> StreamCodingType.DOLBY_AC3;
-		case 0x82 -> StreamCodingType.DTS;
-		case 0x83 -> StreamCodingType.DOLBY_TRUEHD;
-		case 0x84 -> StreamCodingType.DOLBY_AC3_PLUS;
-		case 0x85 -> StreamCodingType.DTS_HD;
-		case 0x86 -> StreamCodingType.DTS_HD_MASTER_AUDIO;
-		case 0x90 -> StreamCodingType.PRESENTATION_GRAPHICS;
-		case 0x91 -> StreamCodingType.INTERACTIVE_GRAPHICS;
-		case 0x92 -> StreamCodingType.TEXT_SUBTITLE;
-		default -> null;
-		};
+		return StreamCodingType.fromByte(streamTypeByte, false);
 	}
 
 	// -------------------------------------------------------------------------

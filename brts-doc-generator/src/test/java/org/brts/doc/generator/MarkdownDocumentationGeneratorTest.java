@@ -1,10 +1,7 @@
-package org.brts.doc.generator;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-doc-generator/src/test/java/org/brts/doc/generator/MarkdownDocumentationGeneratorTest.java' is part of BRTS.
+ * This file 'brts-doc-generator/src/test/java/org/brts/doc/generator/MarkdownDocumentationGeneratorTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.doc.generator;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.doc.generator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -54,7 +53,7 @@ class MarkdownDocumentationGeneratorTest {
 				false, false, List.of(), List.of(), false,
 				List.of(new AnnotationMetadata("org.kohsuke.args4j.Option", Map.of("name", "--descriptor")),
 						new AnnotationMetadata("jakarta.validation.Valid", Map.of())),
-				payloadType);
+				payloadType, List.of());
 		CommandMetadata command = new CommandMetadata("mid", "build", "mid build", "Build a disc", "Runner", "Options",
 				List.of(option));
 		Map<String, Object> patternAttributes = new LinkedHashMap<>();
@@ -64,22 +63,35 @@ class MarkdownDocumentationGeneratorTest {
 		FieldMetadata field = new FieldMetadata("name", "discName", "java.lang.String", "Disc name", true,
 				List.of(new AnnotationMetadata("jakarta.validation.constraints.Pattern", patternAttributes)), null,
 				List.of());
-		TypeMetadata type = new TypeMetadata(payloadType, "object", "Build input", null, List.of(), List.of(), null,
+		String description = "<p>\nBuild input references {@code discName}, {@code name}, and {@code unknownField};\n"
+				+ "see {@link org.brts.example.BuildDescriptor}, {@link Shared}, and {@link MissingType}.\n</p>\n"
+				+ "<ul>\n<li>Use {@link org.brts.example.BuildDescriptor} with {@code discName}.</li>\n</ul>";
+		TypeMetadata type = new TypeMetadata(payloadType, "object", description, null, List.of(), List.of(), null,
 				Map.of(), List.of(field));
 		Map<String, TypeMetadata> types = new LinkedHashMap<>();
 		types.put(payloadType, type);
-		CliMetadata metadata = new CliMetadata("1.0", "1.2.3", List.of(new LevelMetadata("mid", List.of(command))),
-				types, List.of());
+		types.put("org.brts.example.Shared", new TypeMetadata("org.brts.example.Shared", "object", null, null,
+				List.of(), List.of(), null, Map.of(), List.of()));
+		types.put("org.brts.other.Shared", new TypeMetadata("org.brts.other.Shared", "object", null, null, List.of(),
+				List.of(), null, Map.of(), List.of()));
+		CliMetadata metadata = new CliMetadata("1.2.3", List.of(new LevelMetadata("mid", List.of(command))), types,
+				List.of());
 
 		new MarkdownDocumentationGenerator().generate(metadata, output);
 
-		assertThat(output.resolve("index.md")).content().contains("BRTS CLI Reference", "1.2.3",
-				"commands/mid/index.md");
+		assertThat(output.resolve("index.md")).content()
+				.contains("BRTS CLI Reference", "1.2.3", "commands/mid/index.md").doesNotContain("Metadata schema");
 		assertThat(output.resolve("commands/mid/build.md")).content().contains("# `mid build`", "--descriptor",
 				"../../types/org-brts-example-builddescriptor.md", "  - `@Valid`");
 		assertThat(output.resolve("commands/mid/build.md")).content().doesNotContain("org.kohsuke.args4j");
 		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().contains("Build input",
-				"`discName`", "Disc name", "  - `@Pattern` - regexp: `[A-Za-z0-9 _]+`");
+				"<a href=\"#discname\"><code>discName</code></a>", "<a href=\"#discname\"><code>name</code></a>",
+				"<code>unknownField</code>", "<a href=\"org-brts-example-builddescriptor.md\">BuildDescriptor</a>",
+				"<a href=\"org-brts-example-shared.md\">Shared</a>", "MissingType.", "<li>Use ", "</li>", "Disc name",
+				"  - `@Pattern` - regexp: `[A-Za-z0-9 _]+`");
+		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().doesNotContain("{@code",
+				"{@link", "org-brts-other-shared.md", "[`discName`](#discname)",
+				"[BuildDescriptor](org-brts-example-builddescriptor.md)");
 		assertThat(output.resolve("types/org-brts-example-builddescriptor.md")).content().doesNotContain("payload",
 				"groups");
 		assertThat(Files.list(output.resolve("commands/mid"))).hasSize(2);

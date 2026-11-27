@@ -1,10 +1,7 @@
-package org.brts.lowlevel.roundtrip;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/test/java/org/brts/lowlevel/roundtrip/BdjoRoundTripTest.java' is part of BRTS.
+ * This file 'brts-low-level/src/test/java/org/brts/lowlevel/roundtrip/BdjoRoundTripTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,18 +9,21 @@ package org.brts.lowlevel.roundtrip;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.roundtrip;
+
+import org.brts.common.exception.ParseException;
 import org.brts.lowlevel.bdmv.BdjoWriter;
 import org.brts.lowlevel.model.bdmv.Bdjo;
 import org.brts.lowlevel.parser.BdjoParser;
@@ -31,10 +31,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Round-trip tests for {@code .bdjo}: write via {@link BdjoWriter}, re-parse via {@link BdjoParser}, and verify the
@@ -60,6 +62,40 @@ class BdjoRoundTripTest {
 	void version_written() throws Exception {
 		byte[] bytes = writeToBytes(buildMinimalBdjo());
 		assertThat(new String(bytes, 4, 4)).isEqualTo("0200");
+	}
+
+	@Test
+	void version_0300_writtenAndParsed() throws Exception {
+		Bdjo original = buildBdjoWithOneApp();
+		original.setVersion("0300");
+
+		byte[] bytes = writeToBytes(original);
+		assertThat(new String(bytes, 0, 8, StandardCharsets.US_ASCII)).isEqualTo("BDJO0300");
+
+		Bdjo reparsed = parser.parse(new ByteArrayInputStream(bytes));
+		assertThat(reparsed.getVersion()).isEqualTo("0300");
+		assertThat(reparsed.getApplications()).hasSize(1);
+		assertThat(reparsed.getApplications().get(0).getInitialClass()).isEqualTo("com.example.MyXlet");
+	}
+
+	@Test
+	void unsupportedParserVersion_isRejected() throws Exception {
+		byte[] bytes = writeToBytes(buildMinimalBdjo());
+		System.arraycopy("0400".getBytes(StandardCharsets.US_ASCII), 0, bytes, 4, 4);
+
+		assertThatThrownBy(() -> parser.parse(new ByteArrayInputStream(bytes))).isInstanceOf(ParseException.class)
+				.hasMessageContaining("Unsupported BDJO version: '0400'");
+	}
+
+	@Test
+	void unsupportedWriterVersion_isRejectedBeforeOutput() {
+		Bdjo bdjo = buildMinimalBdjo();
+		bdjo.setVersion("0400");
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+		assertThatThrownBy(() -> writer.write(bdjo, output)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Unsupported BDJO write version").hasMessageContaining("0200 or 0300");
+		assertThat(output.size()).isZero();
 	}
 
 	@Test

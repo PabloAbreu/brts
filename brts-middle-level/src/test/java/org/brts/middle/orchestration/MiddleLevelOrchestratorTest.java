@@ -1,10 +1,7 @@
-package org.brts.middle.orchestration;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/test/java/org/brts/middle/orchestration/MiddleLevelOrchestratorTest.java' is part of BRTS.
+ * This file 'brts-middle-level/src/test/java/org/brts/middle/orchestration/MiddleLevelOrchestratorTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.orchestration;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.orchestration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -190,6 +189,42 @@ class MiddleLevelOrchestratorTest {
 	}
 
 	@Test
+	void orchestrate_populatesPopupTitleChoicesAndCurrentTitlePerClip() throws IOException {
+		when(titleBuilder.build(any(TitleDescriptor.class))).thenAnswer(invocation -> {
+			TitleDescriptor title = invocation.getArgument(0);
+			return createMockTitleResult(String.format("%05d", title.getTitleId()), 2, 2);
+		});
+
+		DiscDescriptor disc = new DiscDescriptor();
+		disc.setDiscName("TestDisc");
+		disc.setOutputFolder(tempDir.toString());
+		disc.setPopupMenu(new PopupMenuConfig());
+
+		TitleDescriptor first = new TitleDescriptor();
+		first.setTitleId(1);
+		first.setDisplayName("Opening Episode");
+		first.setSourceMkv("/media/opening.mkv");
+		TitleDescriptor second = new TitleDescriptor();
+		second.setTitleId(2);
+		second.setSourceMkv("/media/finale.mkv");
+		disc.setTitles(List.of(first, second));
+
+		orchestrator.orchestrate(disc, tempDir);
+
+		MkvToPlaylistDescriptor firstDescriptor = mapper.readValue(
+				tempDir.resolve("descriptors/00001-mkv-descriptor.json").toFile(), MkvToPlaylistDescriptor.class);
+		MkvToPlaylistDescriptor secondDescriptor = mapper.readValue(
+				tempDir.resolve("descriptors/00002-mkv-descriptor.json").toFile(), MkvToPlaylistDescriptor.class);
+
+		assertThat(firstDescriptor.getPopupMenu().getTitles()).extracting(PopupMenuConfig.TitleEntry::getDisplayName)
+				.containsExactly("Opening Episode", "finale");
+		assertThat(firstDescriptor.getPopupMenu().getTitles()).extracting(PopupMenuConfig.TitleEntry::getTitleNumber)
+				.containsExactly(1, 2);
+		assertThat(firstDescriptor.getPopupMenu().getCurrentTitleNumber()).isEqualTo(1);
+		assertThat(secondDescriptor.getPopupMenu().getCurrentTitleNumber()).isEqualTo(2);
+	}
+
+	@Test
 	void orchestrate_stylePrecedence_popupMenuOverridesPopupStyleAndGlobalStyle() throws IOException {
 		when(titleBuilder.build(any(TitleDescriptor.class))).thenReturn(createMockTitleResult("00001", 2, 1));
 
@@ -284,7 +319,8 @@ class MiddleLevelOrchestratorTest {
 		assertThat(descriptor.getPopupMenu().getBackgrounds().getSubtitles()).hasSize(1);
 
 		BackgroundLayer sharedLayer = descriptor.getPopupMenu().getBackgrounds().getShared().get(0);
-		assertThat(sharedLayer.getSource().getSyntheticImage().getSrcPath()).isEqualTo("assets/popup-menu-banner.svg");
+		assertThat(sharedLayer.getSource().getSyntheticImage().getSrcPath())
+				.isEqualTo("assets/styles/sci-fi/popup-menu-banner.svg");
 		assertThat(sharedLayer.getLayout().getMode()).isEqualTo(BackgroundLayoutMode.FULL_WIDTH_BOTTOM);
 	}
 }

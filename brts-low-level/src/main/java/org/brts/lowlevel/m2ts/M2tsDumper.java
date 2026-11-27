@@ -1,10 +1,7 @@
-package org.brts.lowlevel.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/m2ts/M2tsDumper.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/m2ts/M2tsDumper.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,20 +9,23 @@ package org.brts.lowlevel.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.m2ts;
+
 import org.brts.common.m2ts.M2tsDemuxer;
 import org.brts.common.m2ts.M2tsPacketHandler;
+import org.brts.common.m2ts.PesTimestampParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
@@ -113,24 +113,13 @@ public class M2tsDumper {
 				groupCount = 1;
 				groupAts = ats;
 				groupPesLength = -1;
+				groupPts = -1;
+				groupDts = -1;
 
 				if (payloadUnitStart && detectPesStart(payload, offset, length)) {
 					groupPesLength = ((payload[offset + 4] & 0xFF) << 8) | (payload[offset + 5] & 0xFF);
-					if (length >= 12) {
-						groupPts = -1;
-						groupDts = -1;
-						long pts = parsePts(payload, offset + 6);
-						long dts = parseDts(payload, offset + 6);
-						if (pts >= 0) {
-							groupPts = pts;
-						}
-						if (dts >= 0) {
-							groupDts = dts;
-						}
-					}
-				} else {
-					groupPts = -1;
-					groupDts = -1;
+					groupPts = PesTimestampParser.parsePts(payload, offset, length);
+					groupDts = PesTimestampParser.parseDts(payload, offset, length);
 				}
 			} else {
 				groupCount++;
@@ -176,28 +165,6 @@ public class M2tsDumper {
 
 		private boolean detectPesStart(byte[] payload, int offset, int length) {
 			return length >= 6 && payload[offset] == 0x00 && payload[offset + 1] == 0x00 && payload[offset + 2] == 0x01;
-		}
-
-		private long parsePts(byte[] payload, int offset) {
-			int ptsDtsFlags = payload[offset + 1] & 0xC0;
-			if ((ptsDtsFlags & 0x80) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 3);
-			}
-			return -1;
-		}
-
-		private long parseDts(byte[] payload, int offset) {
-			int ptsDtsFlags = payload[offset + 1] & 0xC0;
-			if ((ptsDtsFlags & 0x40) != 0) {
-				return parsePtsOrDtsTimestamp(payload, offset + 8);
-			}
-			return -1;
-		}
-
-		private static long parsePtsOrDtsTimestamp(byte[] data, int offset) {
-			return ((long) (data[offset] & 0x0E) << 29) | ((data[offset + 1] & 0xFF) << 22)
-					| ((data[offset + 2] & 0xFE) << 14) | ((data[offset + 3] & 0xFF) << 7)
-					| ((data[offset + 4] & 0xFE) >> 1);
 		}
 
 	}

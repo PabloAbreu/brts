@@ -1,10 +1,7 @@
-package org.brts.lowlevel.pgs;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/pgs/PgsRenderConfig.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/pgs/PgsRenderConfig.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.pgs;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.pgs;
 
 import org.brts.common.utils.BrtsValue;
 
@@ -41,10 +40,18 @@ import lombok.Setter;
 public class PgsRenderConfig {
 
 	/** Screen width in pixels. */
-	private int screenWidth = 1920;
+	private Integer screenWidth;
+
+	public int effectiveScreenWidth() {
+		return screenWidth != null ? screenWidth : 1920;
+	}
 
 	/** Screen height in pixels. */
-	private int screenHeight = 1080;
+	private Integer screenHeight;
+
+	public int effectiveScreenHeight() {
+		return screenHeight != null ? screenHeight : 1080;
+	}
 
 	/** Font family name. */
 	@BrtsValue

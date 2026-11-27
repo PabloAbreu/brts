@@ -1,10 +1,7 @@
-package org.brts.common.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/M2tsDemuxer.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/M2tsDemuxer.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.m2ts;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -96,7 +95,7 @@ public class M2tsDemuxer {
 
 		Set<Integer> activePids = resolveActivePids(info, pidFilter, keepTables);
 
-		log.info("Demuxing M2TS: {} ({} active PIDs)", source.getFileName(), activePids.size());
+		log.info("Demuxing M2TS: {} (active PIDs : {})", source, activePids);
 
 		try (InputStream in = new BufferedInputStream(Files.newInputStream(source))) {
 			byte[] sp = new byte[SOURCE_PACKET_SIZE];
@@ -141,7 +140,7 @@ public class M2tsDemuxer {
 				if (transportError || !activePids.contains(pid)) {
 					// log only if unknown PID
 					if (pid != 0x1FFF && pid != 0 && pid != 0x100 && pid != 0x1F && pid != 0x1001)
-						log.debug("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex,
+						log.trace("Skipped packet at index {} (PID {}, transportError={}, adaptCtrl={})", packetIndex,
 								pid, transportError, adaptCtrl);
 					packetIndex++;
 					continue;
@@ -155,7 +154,7 @@ public class M2tsDemuxer {
 						// FIXME call that for PCR in other cases too
 						handler.onPayload(pid, sp, 0, SOURCE_PACKET_SIZE, false, packetIndex, ats);
 					} else
-						log.debug("Skipped adaptation field only packet at index {}", packetIndex);
+						log.trace("Skipped adaptation field only packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}
@@ -165,7 +164,7 @@ public class M2tsDemuxer {
 					payloadOff += 1 + afLen;
 
 					if (payloadOff >= SOURCE_PACKET_SIZE) {
-						log.debug("Skipped adaptation field + payload packet at index {}", packetIndex);
+						log.trace("Skipped adaptation field + payload packet at index {}", packetIndex);
 						packetIndex++;
 						continue;
 					}
@@ -173,7 +172,7 @@ public class M2tsDemuxer {
 				// adaptCtrl == 1: payload only (payloadOff stays as-is)
 
 				if (payloadOff >= SOURCE_PACKET_SIZE) {
-					log.debug("Skipped payloadOff too big packet at index {}", packetIndex);
+					log.trace("Skipped payloadOff too big packet at index {}", packetIndex);
 					packetIndex++;
 					continue;
 				}

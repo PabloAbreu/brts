@@ -1,10 +1,7 @@
-package org.brts.lowlevel.m2ts;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/m2ts/PlaylistToMkvExtractor.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/m2ts/PlaylistToMkvExtractor.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.m2ts;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.m2ts;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -36,6 +35,7 @@ import org.brts.common.m2ts.M2tsParser;
 import org.brts.common.m2ts.model.M2tsInfo;
 import org.brts.common.m2ts.model.M2tsStreamInfo;
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.paths.BrPath.StreamPath;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
 import org.brts.lowlevel.model.mpls.PlayItem;
 import org.brts.lowlevel.model.mpls.PlayItemStream;
@@ -70,7 +70,7 @@ public class PlaylistToMkvExtractor {
 	/**
 	 * Extracts the given playlist into an MKV file, retaining all audio and subtitle streams.
 	 */
-	public void extract(Path streamDir, MoviePlaylist playlist, Path outputMkv) throws IOException {
+	public void extract(StreamPath streamDir, MoviePlaylist playlist, Path outputMkv) throws IOException {
 		extract(streamDir, playlist, outputMkv, null, null);
 	}
 
@@ -84,7 +84,7 @@ public class PlaylistToMkvExtractor {
 	 * @param subtitlePids subtitle PIDs to retain; {@code null} or empty = all subs
 	 * @throws IOException on I/O error
 	 */
-	public void extract(Path streamDir, MoviePlaylist playlist, Path outputMkv, Set<Integer> audioPids,
+	public void extract(StreamPath streamDir, MoviePlaylist playlist, Path outputMkv, Set<Integer> audioPids,
 			Set<Integer> subtitlePids) throws IOException {
 
 		List<PlayItem> items = playlist.getPlayItems();
@@ -101,7 +101,7 @@ public class PlaylistToMkvExtractor {
 				selectedPids.stream().map(p -> "0x" + Integer.toHexString(p)).collect(Collectors.joining(", ")));
 
 		// --- Build a merged M2tsInfo from the first clip for track setup -----
-		Path firstClip = resolveClipPath(streamDir, items.get(0).getClipName());
+		Path firstClip = streamDir.m2ts(items.get(0).getClipName());
 		M2tsInfo firstInfo = parser.parse(firstClip);
 
 		// Filter the M2tsInfo to only contain selected PIDs
@@ -112,7 +112,7 @@ public class PlaylistToMkvExtractor {
 
 			for (int i = 0; i < items.size(); i++) {
 				PlayItem item = items.get(i);
-				Path clipPath = resolveClipPath(streamDir, item.getClipName());
+				Path clipPath = streamDir.m2ts(item.getClipName());
 
 				log.info("  Demuxing play item {}/{}: {} (in={} out={})", i + 1, items.size(), item.getClipName(),
 						item.getInTimeTicks(), item.getOutTimeTicks());
@@ -166,10 +166,6 @@ public class PlaylistToMkvExtractor {
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
-
-	private Path resolveClipPath(Path streamDir, String clipName) {
-		return streamDir.resolve(clipName + ".m2ts");
-	}
 
 	/**
 	 * Returns a copy of the given info with only the streams matching {@code pids}.

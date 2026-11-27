@@ -1,10 +1,7 @@
-package org.brts.lowlevel.bdmv;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/test/java/org/brts/lowlevel/bdmv/NavigationCommandUtilsTest.java' is part of BRTS.
+ * This file 'brts-low-level/src/test/java/org/brts/lowlevel/bdmv/NavigationCommandUtilsTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.bdmv;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.bdmv;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -85,6 +84,21 @@ class NavigationCommandUtilsTest {
 	@Test
 	void zeroTrackCounts_produceEmptyProgram() {
 		assertThat(NavigationCommandUtils.buildAudioSubtitleSelectionProgram(0, 0)).isEmpty();
+	}
+
+	@Test
+	void initializeAudioSubtitleChoices_writesOnlyDeclaredChoices() {
+		List<NavigationCommand> program = new ArrayList<>(NavigationCommandUtils.initializeAudioSubtitleChoices(2, 0));
+		NavigationCommandSimulator.SimulationResult result = new NavigationCommandSimulator(null, new HashMap<>(),
+				10_000).run(program);
+
+		assertThat(result.finalGprState()).containsEntry(NavigationCommandUtils.GPR_AUDIO_CHOICE, 2L)
+				.containsEntry(NavigationCommandUtils.GPR_SUB_CHOICE, 0L);
+	}
+
+	@Test
+	void initializeAudioSubtitleChoices_withoutDefaults_isEmpty() {
+		assertThat(NavigationCommandUtils.initializeAudioSubtitleChoices(0, -1)).isEmpty();
 	}
 
 }

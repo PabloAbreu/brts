@@ -1,10 +1,7 @@
-package org.brts.cli;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/LevelDispatcher.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/LevelDispatcher.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.cli;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.cli;
 
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -71,6 +70,9 @@ public class LevelDispatcher {
 		if (runner == null) {
 			System.err.println("Unknown " + levelName + " command: " + command);
 			printHelp(System.err);
+			if (FeatureRunner.isExitOnFailureSuppressed(args)) {
+				throw new IllegalArgumentException("Unknown " + levelName + " command: " + command);
+			}
 			System.exit(1);
 		}
 
@@ -83,7 +85,8 @@ public class LevelDispatcher {
 	public void printHelp(PrintStream out) {
 		out.println("BRTS " + levelName + " commands:");
 		int maxLen = runners.keySet().stream().mapToInt(String::length).max().orElse(0);
-		for (FeatureRunner<?> runner : runners.values()) {
+		for (FeatureRunner<?> runner : runners.values().stream()
+				.sorted((a, b) -> a.getCommandName().compareTo(b.getCommandName())).toList()) {
 			out.printf("  %-" + (maxLen + 2) + "s %s%n", runner.getCommandName(), runner.getDescription());
 		}
 		out.println();

@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/BrtsFileConfig.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/BrtsFileConfig.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -337,8 +336,15 @@ public class BrtsFileConfig {
 		}
 	}
 
+	// returns a sorted (for predictable order) unmodifiable (for stability) collection of keys
+	private Collection<String> keySet() {
+		List<String> keys = new ArrayList<>(resolvedProperties.keySet());
+		Collections.sort(keys);
+		return keys;// not really R/O, but modif has no impact on the internal map
+	}
+
 	private void resolveEnvironmentVariables() {
-		for (String key : resolvedProperties.keySet()) {
+		for (String key : keySet()) {
 			String envVarName = getEnvVarName(key);
 			String envValue = System.getenv(envVarName);
 			if (envValue != null)
@@ -347,7 +353,7 @@ public class BrtsFileConfig {
 	}
 
 	private void resolveSystemProperties() {
-		for (String key : resolvedProperties.keySet()) {
+		for (String key : keySet()) {
 			String systemValue = System.getProperty(key);
 			if (systemValue != null)
 				addProperty(key, systemValue, "system property");
@@ -355,6 +361,7 @@ public class BrtsFileConfig {
 	}
 
 	private void addProperty(String key, String value, String origin) {
+		log.trace("adding property: key='{}', value='{}', origin='{}'", key, value, origin);
 		resolvedProperties.compute(key, (k, existing) -> {
 			if (existing == null)
 				return new Entry(k, value, origin);

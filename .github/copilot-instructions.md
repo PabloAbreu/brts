@@ -35,6 +35,7 @@ This file centralizes project context so coding agents can act quickly without b
 ### SHOULD
 - Keep changes localized to the smallest relevant module.
 - Avoid adding dependencies to `brts-common` unless they are broadly required by downstream modules.
+- Avoid creating reusable logic in CLI feature runner; keep it specific to CLI orchestration and argument handling : reusable logic should reside in `brts-common` or appropriate lower-level modules.
 
 ## Build, Test, and Run
 - Full build: `mvn clean package`

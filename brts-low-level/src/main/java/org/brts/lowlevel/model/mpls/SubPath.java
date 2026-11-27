@@ -1,10 +1,7 @@
-package org.brts.lowlevel.model.mpls;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/model/mpls/SubPath.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/model/mpls/SubPath.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.model.mpls;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.model.mpls;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -43,10 +42,12 @@ public class SubPath {
 	 * <ul>
 	 * <li>2 — Primary audio of Browse-able slideshow</li>
 	 * <li>3 — Interactive graphics presentation menu</li>
-	 * <li>4 — Text subtitle</li>
+	 * <li>4 — Text subtitle (or audio commentary ?)</li>
 	 * <li>6 — Secondary video with secondary audio</li>
 	 * <li>7 — Secondary audio of a Play item</li>
+	 * <li>10 — UHD: Secondary video HDR (Dolby Vision)</li>
 	 * </ul>
+	 * 4,6,7 are really not sure.
 	 */
 	private int subPathType;
 

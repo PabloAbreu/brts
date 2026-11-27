@@ -1,10 +1,7 @@
-package org.brts.common.m2ts.model;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/m2ts/model/M2tsDescriptor.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/m2ts/model/M2tsDescriptor.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,22 +9,26 @@ package org.brts.common.m2ts.model;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.common.m2ts.model;
+
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.List;
+
+import org.brts.common.m2ts.ExtractionCache;
 
 /**
  * JSON descriptor used to drive the M2TS muxer.
@@ -61,6 +62,27 @@ public class M2tsDescriptor {
 	 * the target directory.
 	 */
 	private String outputName;
+
+	/** Opt-in preservation contract: all four fields below must be supplied together. No Java mux fallback. */
+	private String sourceM2ts;
+
+	/** Original CLPI, used to validate the retained stream contract. */
+	private String sourceClpi;
+
+	/** Optional SHA-256 of the original M2TS for explicit content verification. */
+	private String sourceM2tsSha256;
+
+	/** Optional SHA-256 of the original CLPI for explicit content verification. */
+	private String sourceClpiSha256;
+
+	/** Absolute-clock extraction manifest produced by m2ts-extract --preserve-timing. */
+	private String timingManifest;
+
+	/** Optional pinned, immutable extraction cache; legacy descriptors re-extract the original source. */
+	private ExtractionCache.Reference extractionCacheReference;
+
+	/** Hard final M2TS size limit. Oversize staged files are never published. */
+	private Long maximumOutputBytes;
 
 	/** Elementary stream entries to mux. */
 	private List<StreamEntry> streams;

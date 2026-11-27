@@ -1,10 +1,7 @@
-package org.brts.highlevel.template;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-high-level/src/main/java/org/brts/highlevel/template/TvSeriesDiscTemplate.java' is part of BRTS.
+ * This file 'brts-high-level/src/main/java/org/brts/highlevel/template/TvSeriesDiscTemplate.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,19 +9,22 @@ package org.brts.highlevel.template;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.highlevel.template;
+
 import org.brts.highlevel.descriptor.TvSeriesDiscDescriptor;
+import org.brts.highlevel.style.StyleTemplate;
 import org.brts.lowlevel.titlemenu.descriptor.BackgroundSource;
 import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.TitleDescriptor;
@@ -53,7 +53,7 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 	}
 
 	@Override
-	public DiscDescriptor expand(TvSeriesDiscDescriptor descriptor) throws IOException {
+	public DiscDescriptor expand(TvSeriesDiscDescriptor descriptor, StyleTemplate style) throws IOException {
 		log.info("Expanding TV_SERIES template: {} S{:02d}", descriptor.getSeriesName(), descriptor.getSeasonNumber());
 
 		List<String> episodePaths = resolveEpisodePaths(descriptor);
@@ -61,14 +61,25 @@ public class TvSeriesDiscTemplate implements DiscTemplate<TvSeriesDiscDescriptor
 
 		DiscDescriptor disc = new DiscDescriptor();
 		disc.setDiscName(descriptor.getDiscTitle());
-		disc.setHasTopMenu(descriptor.isGenerateEpisodeMenu());
+		disc.setOutputFolder(descriptor.getOutputDirectory());
+		if (style != null) {
+			style.applyTo(disc);
+		}
 
-		if (descriptor.isGenerateEpisodeMenu() && descriptor.getMenuBackgroundVideoPath() != null) {
+		boolean hasBackground = descriptor.getMenuBackgroundVideoPath() != null
+				|| (style != null && style.hasTitleMenuBackground());
+		if (descriptor.isGenerateEpisodeMenu() && hasBackground) {
 			TitleMenuConfig menuConfig = new TitleMenuConfig();
-			BackgroundSource bgSource = new BackgroundSource();
-			bgSource.setVideoPath(descriptor.getMenuBackgroundVideoPath());
-			menuConfig.setBackgroundSource(bgSource);
+			if (descriptor.getMenuBackgroundVideoPath() != null) {
+				BackgroundSource bgSource = new BackgroundSource();
+				bgSource.setVideoPath(descriptor.getMenuBackgroundVideoPath());
+				menuConfig.setBackgroundSource(bgSource);
+			}
+			if (style != null) {
+				style.applyTo(menuConfig);
+			}
 			disc.setTitleMenuConfig(menuConfig);
+			disc.setHasTopMenu(true);
 		}
 
 		List<TitleDescriptor> titles = new ArrayList<>();

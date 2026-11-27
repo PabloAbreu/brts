@@ -1,10 +1,7 @@
-package org.brts.lowlevel.popupmenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuBackgroundRenderer.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuBackgroundRenderer.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.popupmenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.popupmenu;
 
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
@@ -45,7 +44,7 @@ import org.brts.lowlevel.popupmenu.PopupMenuConfig.PageBackgrounds;
 final class PopupMenuBackgroundRenderer {
 
 	enum PageRole {
-		ROOT, AUDIO, SUBTITLES
+		ROOT, AUDIO, SUBTITLES, TITLES
 	}
 
 	List<IgsMenuAssembler.PositionedDecoration> render(PageBackgrounds backgrounds, PageRole role, boolean includesRoot,
@@ -62,6 +61,7 @@ final class PopupMenuBackgroundRenderer {
 		switch (role) {
 		case AUDIO -> addAll(layers, backgrounds.getAudio());
 		case SUBTITLES -> addAll(layers, backgrounds.getSubtitles());
+		case TITLES -> addAll(layers, backgrounds.getTitles());
 		case ROOT -> {
 			// Root-specific layers were included above.
 		}

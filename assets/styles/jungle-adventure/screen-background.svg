@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0f2618"/>
+      <stop offset="22%" stop-color="#153a22"/>
+      <stop offset="68%" stop-color="#1b4f2e"/>
+      <stop offset="100%" stop-color="#0f2116"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="30%" r="45%">
+      <stop offset="0%" stop-color="#ffe7a0" stop-opacity="0.95"/>
+      <stop offset="35%" stop-color="#f9c74f" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#f9c74f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mist" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a6d59d" stop-opacity="0.2"/>
+      <stop offset="50%" stop-color="#d5f4d7" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#a6d59d" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#sunGlow)"/>
+
+  <g opacity="0.9">
+    <ellipse cx="1350" cy="230" rx="370" ry="150" fill="#d9f7b4" opacity="0.08"/>
+    <ellipse cx="480" cy="260" rx="420" ry="150" fill="#d9f7b4" opacity="0.08"/>
+  </g>
+
+  <g opacity="0.7">
+    <path d="M0 740 C220 660, 400 670, 620 720 C820 768, 980 705, 1180 698 C1360 692, 1560 748, 1920 676 L1920 1080 L0 1080 Z" fill="#0d2a18"/>
+    <path d="M0 820 C230 750, 440 778, 640 820 C860 864, 1035 838, 1280 792 C1490 752, 1705 776, 1920 816 L1920 1080 L0 1080 Z" fill="#143d29"/>
+    <path d="M0 900 C260 850, 500 905, 720 930 C910 952, 1110 890, 1345 894 C1550 898, 1720 952, 1920 918 L1920 1080 L0 1080 Z" fill="#0d241b"/>
+  </g>
+
+  <g opacity="0.72">
+    <path d="M100 760 L180 620 L250 760 Z" fill="#133c2c"/>
+    <path d="M180 760 L280 530 L360 760 Z" fill="#1b533a"/>
+    <path d="M420 760 L560 570 L650 760 Z" fill="#143c2e"/>
+    <path d="M620 760 L760 600 L850 760 Z" fill="#1b4b34"/>
+    <path d="M1200 760 L1335 600 L1460 760 Z" fill="#173c2d"/>
+    <path d="M1460 760 L1600 560 L1725 760 Z" fill="#1b4d34"/>
+  </g>
+
+  <g opacity="0.6" fill="none" stroke="url(#mist)" stroke-width="18" stroke-linecap="round">
+    <path d="M140 300 C420 230, 660 260, 900 230 C1160 198, 1460 225, 1740 200"/>
+    <path d="M120 360 C360 310, 620 330, 960 300 C1260 272, 1520 316, 1820 280"/>
+  </g>
+
+  <g opacity="0.7">
+    <path d="M0 100 L1920 100 L1920 250 L0 250 Z" fill="#0a2017" opacity="0.24"/>
+    <path d="M0 1080 L1920 1080 L1920 1080 Z" fill="none"/>
+  </g>
+
+  <g fill="#9ad98c" opacity="0.52">
+    <path d="M200 250 C240 230, 268 230, 284 252 C250 255, 230 276, 200 250 Z"/>
+    <path d="M280 280 C310 250, 340 246, 356 278 C322 286, 298 304, 280 280 Z"/>
+    <path d="M1630 220 C1668 196, 1702 195, 1722 224 C1688 230, 1664 246, 1630 220 Z"/>
+    <path d="M1710 270 C1742 238, 1778 240, 1798 270 C1760 278, 1738 294, 1710 270 Z"/>
+  </g>
+</svg>

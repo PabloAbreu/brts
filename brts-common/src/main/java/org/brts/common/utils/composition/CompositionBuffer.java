@@ -1,10 +1,7 @@
-package org.brts.common.utils.composition;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/composition/CompositionBuffer.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/composition/CompositionBuffer.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils.composition;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils.composition;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,7 +31,6 @@ import java.util.Map;
 import org.brts.common.utils.BrtsFileConfig;
 import org.brts.common.utils.composition.sources.synth.SyntheticImageGenerator;
 import org.brts.common.utils.composition.sources.video.VideoFrames;
-import org.bytedeco.javacpp.Loader;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -59,14 +57,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class CompositionBuffer {
-	static {
-		try {
-			String v = Loader.Detector.getPlatform();
-			System.out.println("\n\nOpenCV platform: " + v + "\n\n");
-		} catch (Throwable t) {
-			log.warn("Failed to load OpenCV native libraries: {}", t.getMessage());
-		}
-	}
 
 	private final @Getter ImagesComposition configuration;
 
@@ -89,7 +79,17 @@ public class CompositionBuffer {
 	}
 
 	private SyntheticImageGenerator getSyntheticGenerator(ImageReference ref) {
-		return mediaRepository.getSyntheticImageGenerator(ref.getSyntheticImage());
+		ImageReference.SyntheticImageSource source = ref.getSyntheticImage();
+		if ((source.getData() == null || source.getData().isBlank()) && source.getSrcPath() != null
+				&& !source.getSrcPath().isBlank()) {
+			ImageReference.SyntheticImageSource resolved = new ImageReference.SyntheticImageSource();
+			resolved.setType(source.getType());
+			resolved.setData(source.getData());
+			resolved.setFrameRate(source.getFrameRate());
+			resolved.setSrcPath(resolvePath(source.getSrcPath()).toString());
+			return mediaRepository.getSyntheticImageGenerator(resolved);
+		}
+		return mediaRepository.getSyntheticImageGenerator(source);
 	}
 
 	public CompositionBuffer(ImagesComposition configuration, MediaRepository mediaRepository,

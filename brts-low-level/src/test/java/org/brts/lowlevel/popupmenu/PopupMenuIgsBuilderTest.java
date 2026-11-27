@@ -1,10 +1,7 @@
-package org.brts.lowlevel.popupmenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/test/java/org/brts/lowlevel/popupmenu/PopupMenuIgsBuilderTest.java' is part of BRTS.
+ * This file 'brts-low-level/src/test/java/org/brts/lowlevel/popupmenu/PopupMenuIgsBuilderTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.popupmenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.popupmenu;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,6 +33,7 @@ import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import org.brts.common.json.JsonMapperFactory;
 import org.brts.common.utils.composition.ImageReference;
 import org.brts.lowlevel.igs.model.IgsButton;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -44,10 +44,91 @@ import org.brts.lowlevel.popupmenu.PopupMenuConfig.BackgroundLayout;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig.BackgroundLayoutMode;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig.PageBackgrounds;
 import org.brts.lowlevel.popupmenu.PopupMenuConfig.TrackEntry;
+import org.brts.lowlevel.popupmenu.PopupMenuConfig.TitleEntry;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class PopupMenuIgsBuilderTest {
+
+	@Test
+	void buildsHorizontalSubmenuRowsAbovePersistentRoot() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS);
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		List<IgsPage> pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		assertThat(pages).hasSize(3);
+		List<IgsButton> root = buttons(pages.get(0));
+		assertThat(root).hasSize(3).noneMatch(IgsButton::isAutoAction);
+		assertThat(root).extracting(IgsButton::getYPos).containsOnly(root.get(0).getYPos());
+		for (int pageId = 1; pageId < pages.size(); pageId++) {
+			IgsPage page = pages.get(pageId);
+			List<IgsButton> pageButtons = buttons(page);
+			List<IgsButton> submenu = pageButtons.subList(3, 5);
+			assertThat(pageButtons).extracting(IgsButton::getId).containsExactly(1, 2, 3, 4, 5);
+			assertThat(pageButtons.subList(0, 3)).allMatch(IgsButton::isAutoAction);
+			for (int i = 0; i < root.size(); i++) {
+				assertThat(pageButtons.get(i).getXPos()).isEqualTo(root.get(i).getXPos());
+				assertThat(pageButtons.get(i).getYPos()).isEqualTo(root.get(i).getYPos());
+				assertThat(pageButtons.get(i).getNavigationCommands().get(0).getOperand2()).isEqualTo(i + 1);
+				assertThat(pageButtons.get(i).getNavigationCommands().get(1).getOperand2()).isZero();
+			}
+			int rowHeight = submenu.stream().mapToInt(button -> object(displaySet, button).getHeight()).max()
+					.orElseThrow();
+			assertThat(submenu).noneMatch(IgsButton::isAutoAction);
+			assertThat(submenu).extracting(IgsButton::getYPos).containsOnly(root.get(0).getYPos() - 16 - rowHeight);
+			assertThat(submenu.get(1).getXPos())
+					.isEqualTo(submenu.get(0).getXPos() + object(displaySet, submenu.get(0)).getWidth() + 16);
+			assertThat(submenu).extracting(IgsButton::getUpperButtonIdRef).containsExactly(4, 5);
+			assertThat(submenu).extracting(IgsButton::getLowerButtonIdRef).containsOnly(pageId);
+			assertThat(submenu).extracting(IgsButton::getLeftButtonIdRef).containsExactly(5, 4);
+			assertThat(submenu).extracting(IgsButton::getRightButtonIdRef).containsExactly(5, 4);
+			assertThat(submenu).allSatisfy(button -> assertThat(button.getNavigationCommands()).singleElement()
+					.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("SET_STREAM")));
+			assertThat(page.getDefaultSelectedButtonIdRef()).isEqualTo(4);
+		}
+	}
+
+	@ParameterizedTest
+	@EnumSource(PopupMenuConfig.Layout.class)
+	void layoutValuesRoundTripThroughDescriptorMapper(PopupMenuConfig.Layout layout) throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(layout);
+		PopupMenuConfig restored = JsonMapperFactory.get().readValue(JsonMapperFactory.get().writeValueAsString(config),
+				PopupMenuConfig.class);
+		assertThat(restored.getLayout()).isEqualTo(layout);
+		assertThat(new PopupMenuIgsBuilder().build(restored)).isNotNull();
+	}
+
+	@Test
+	void nullLayoutRetainsVerticalFallbackAndOmittedLayoutRetainsDefault() throws IOException {
+		assertThat(JsonMapperFactory.get().readValue("{}", PopupMenuConfig.class).getLayout())
+				.isEqualTo(PopupMenuConfig.Layout.VERTICAL_LIST);
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(null);
+		List<IgsPage> pages = new PopupMenuIgsBuilder().build(config).getCompositionSegment()
+				.getInteractiveComposition().getPages();
+		assertThat(buttons(pages.get(0))).extracting(IgsButton::getXPos)
+				.containsOnly(buttons(pages.get(0)).get(0).getXPos());
+		assertThat(buttons(pages.get(1)).subList(3, 5)).extracting(IgsButton::getLeftButtonIdRef).containsOnly(1);
+	}
+
+	@Test
+	void horizontalSubmenuLayoutKeepsSingleGroupInOneBottomRow() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 1);
+		config.setLayout(PopupMenuConfig.Layout.HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS);
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		List<IgsPage> pages = displaySet.getCompositionSegment().getInteractiveComposition().getPages();
+		assertThat(pages).hasSize(1);
+		List<IgsButton> row = buttons(pages.get(0));
+		assertThat(row).hasSize(3).noneMatch(IgsButton::isAutoAction);
+		assertThat(row).extracting(IgsButton::getYPos)
+				.containsOnly(1080 - 80 - object(displaySet, row.get(0)).getHeight());
+		assertThat(row).extracting(IgsButton::getLeftButtonIdRef).containsExactly(3, 1, 2);
+		assertThat(row).extracting(IgsButton::getRightButtonIdRef).containsExactly(2, 3, 1);
+		assertThat(pages.get(0).getDefaultSelectedButtonIdRef()).isEqualTo(1);
+	}
 
 	@Test
 	void buildsPersistentRootOnAudioAndSubtitlePages() throws IOException {
@@ -98,6 +179,84 @@ class PopupMenuIgsBuilderTest {
 	}
 
 	@Test
+	void buildsTitleOnlyMenuDirectlyAndKeepsCurrentTitleMutedAndInert() throws IOException {
+		PopupMenuConfig config = new PopupMenuConfig();
+		config.setTitles(titles(1, 2));
+		config.setCurrentTitleNumber(1);
+
+		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
+		IgsPage page = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0);
+		List<IgsButton> pageButtons = buttons(page);
+
+		assertThat(pageButtons).hasSize(3);
+		assertThat(pageButtons.get(0).getNavigationCommands()).isEmpty();
+		assertThat(pageButtons.get(1).getNavigationCommands()).singleElement()
+				.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("JUMP_TITLE"));
+		assertThat(pageButtons.get(1).getNavigationCommands().get(0).getOperand1()).isEqualTo(2);
+		assertThat(pageButtons.get(2).getNavigationCommands()).singleElement()
+				.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("POPUP_OFF"));
+
+		int normalObjectId = pageButtons.get(0).getNormalStartObjectIdRef();
+		int selectedObjectId = pageButtons.get(0).getSelectedStartObjectIdRef();
+		int activatedObjectId = pageButtons.get(0).getActivatedStartObjectIdRef();
+		assertThat(displaySet.getObjects().get(normalObjectId).getRleData())
+				.containsExactly(displaySet.getObjects().get(selectedObjectId).getRleData());
+		assertThat(displaySet.getObjects().get(normalObjectId).getRleData())
+				.containsExactly(displaySet.getObjects().get(activatedObjectId).getRleData());
+	}
+
+	@Test
+	void addsTitlesAsRootCategoryWhenCombinedWithTrackGroups() throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setTitles(titles(1, 2, 3));
+		config.setCurrentTitleNumber(2);
+
+		List<IgsPage> pages = new PopupMenuIgsBuilder().build(config).getCompositionSegment()
+				.getInteractiveComposition().getPages();
+		List<IgsButton> rootButtons = buttons(pages.get(0));
+		List<IgsButton> titlePageButtons = buttons(pages.get(3));
+
+		assertThat(pages).hasSize(4);
+		assertThat(rootButtons).hasSize(4);
+		assertThat(rootButtons.get(2).getNavigationCommands().get(0).getOperand2()).isEqualTo(5);
+		assertThat(titlePageButtons).hasSize(7);
+		assertThat(titlePageButtons.subList(0, 4)).allMatch(IgsButton::isAutoAction);
+		assertThat(titlePageButtons.get(4).getNavigationCommands()).singleElement()
+				.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("JUMP_TITLE"));
+		assertThat(titlePageButtons.get(4).getNavigationCommands().get(0).getOperand1()).isEqualTo(1);
+		assertThat(titlePageButtons.get(5).getNavigationCommands()).isEmpty();
+		assertThat(titlePageButtons.get(6).getNavigationCommands()).singleElement()
+				.satisfies(command -> assertThat(command.getMnemonic()).isEqualTo("JUMP_TITLE"));
+		assertThat(titlePageButtons.get(2).getNavigationCommands().get(0).getOperand2()).isEqualTo(3);
+	}
+
+	@Test
+	void validatesCurrentTitleWhenTitleEntriesAreConfigured() {
+		PopupMenuConfig config = new PopupMenuConfig();
+		config.setTitles(titles(1, 2));
+
+		assertThatThrownBy(() -> new PopupMenuIgsBuilder().build(config)).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("currentTitleNumber is required");
+	}
+
+	@Test
+	void rendersTitleSpecificBackgroundOnDirectTitlePage() throws IOException {
+		PopupMenuConfig config = new PopupMenuConfig();
+		config.setTitles(titles(1, 2));
+		config.setCurrentTitleNumber(1);
+		PageBackgrounds backgrounds = new PageBackgrounds();
+		backgrounds.setTitles(List.of(svgLayer("#303030", 30)));
+		config.setBackgrounds(backgrounds);
+
+		IgsPage page = new PopupMenuIgsBuilder().build(config).getCompositionSegment().getInteractiveComposition()
+				.getPages().get(0);
+
+		assertThat(buttons(page)).hasSize(4);
+		assertThat(buttons(page).get(0).getXPos()).isEqualTo(30);
+		assertThat(buttons(page).get(0).getNavigationCommands()).isEmpty();
+	}
+
+	@Test
 	void rendersInheritedBackgroundsBeforeSelectableButtons() throws IOException {
 		PopupMenuConfig config = configWithTracks(2, 2);
 		PageBackgrounds backgrounds = new PageBackgrounds();
@@ -126,9 +285,11 @@ class PopupMenuIgsBuilderTest {
 		assertThat(displaySet.getObjects()).hasSize(47);
 	}
 
-	@Test
-	void fitsBackgroundAroundRenderedSelectableBounds() throws IOException {
-		PopupMenuConfig config = configWithTracks(2, 1);
+	@ParameterizedTest
+	@EnumSource(PopupMenuConfig.Layout.class)
+	void fitsBackgroundAroundRenderedSelectableBounds(PopupMenuConfig.Layout layout) throws IOException {
+		PopupMenuConfig config = configWithTracks(2, 2);
+		config.setLayout(layout);
 		BackgroundLayer layer = svgLayer("#101010", 0);
 		layer.getLayout().setMode(BackgroundLayoutMode.SELECTABLE_BOUNDS);
 		layer.getLayout().setMarginTop(7);
@@ -140,7 +301,7 @@ class PopupMenuIgsBuilderTest {
 		config.setBackgrounds(backgrounds);
 
 		IgsDisplaySet displaySet = new PopupMenuIgsBuilder().build(config);
-		IgsPage page = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(0);
+		IgsPage page = displaySet.getCompositionSegment().getInteractiveComposition().getPages().get(1);
 		List<IgsButton> pageButtons = buttons(page);
 		IgsButton decoration = pageButtons.get(0);
 		List<IgsButton> selectable = pageButtons.subList(1, pageButtons.size());
@@ -248,7 +409,7 @@ class PopupMenuIgsBuilderTest {
 		ImageReference bannerSource = new ImageReference();
 		ImageReference.SyntheticImageSource bannerSvg = new ImageReference.SyntheticImageSource();
 		bannerSvg.setType("svg");
-		bannerSvg.setSrcPath("../assets/popup-menu-banner.svg");
+		bannerSvg.setSrcPath("../assets/styles/sci-fi/popup-menu-banner.svg");
 		bannerSource.setSyntheticImage(bannerSvg);
 
 		BackgroundLayout bannerLayout = new BackgroundLayout();
@@ -263,7 +424,7 @@ class PopupMenuIgsBuilderTest {
 		ImageReference cardSource = new ImageReference();
 		ImageReference.SyntheticImageSource cardSvg = new ImageReference.SyntheticImageSource();
 		cardSvg.setType("svg");
-		cardSvg.setSrcPath("../assets/popup-panel-card.svg");
+		cardSvg.setSrcPath("../assets/styles/sci-fi/popup-panel-card.svg");
 		cardSource.setSyntheticImage(cardSvg);
 
 		BackgroundLayout cardLayout = new BackgroundLayout();
@@ -327,6 +488,15 @@ class PopupMenuIgsBuilderTest {
 			TrackEntry entry = new TrackEntry();
 			entry.setStreamIndex(index);
 			entry.setDisplayName(prefix + " " + index);
+			return entry;
+		}).toList();
+	}
+
+	private static List<TitleEntry> titles(int... titleNumbers) {
+		return java.util.Arrays.stream(titleNumbers).mapToObj(titleNumber -> {
+			TitleEntry entry = new TitleEntry();
+			entry.setTitleNumber(titleNumber);
+			entry.setDisplayName("Title " + titleNumber);
 			return entry;
 		}).toList();
 	}

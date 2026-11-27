@@ -1,10 +1,7 @@
-package org.brts.middle.orchestration.launch;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/orchestration/launch/BashDeferredLaunchGenerator.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/orchestration/launch/BashDeferredLaunchGenerator.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,23 +9,27 @@ package org.brts.middle.orchestration.launch;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.middle.orchestration.launch;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.brts.common.orchestration.BrtsInvocation;
 
 import org.brts.common.utils.ProcessUtils;
 
@@ -49,7 +50,7 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 		lines.add("# 'java' must be in your PATH");
 		lines.add("set -euo pipefail");
 		lines.add("");
-		lines.add("BRTS_CLI=\"" + ProcessUtils.getBrtsCommand() + "\"");
+		lines.add("BRTS_CLI=" + quote(ProcessUtils.getBrtsCommand()));
 		lines.add("");
 	}
 
@@ -59,14 +60,26 @@ public class BashDeferredLaunchGenerator extends AbstractDeferredLaunchGenerator
 	}
 
 	@Override
-	protected void invoke(BrtsCliInvocation invocation) {
-		lines.add("$BRTS_CLI " + String.join(" ", invocation.toTokens()));
+	protected void invoke(BrtsInvocation invocation) {
+		StringBuilder line = new StringBuilder("$BRTS_CLI");
+		for (String token : invocation.toTokens()) {
+			line.append(' ').append(quote(token));
+		}
+		lines.add(line.toString());
 		lines.add("");
 	}
 
 	@Override
 	public void message(String text) {
-		lines.add("echo \"" + text + "\"");
+		lines.add("echo " + quote(text));
+	}
+
+	/**
+	 * Single-quotes a token for safe use in POSIX shells, escaping any embedded single quotes so paths and values
+	 * containing spaces or special characters are passed through unchanged.
+	 */
+	private static String quote(String token) {
+		return "'" + token.replace("'", "'\\''") + "'";
 	}
 
 	@Override

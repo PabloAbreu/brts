@@ -1,10 +1,7 @@
-package org.brts.middle.preview;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/preview/DisplaySetPanel.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/preview/DisplaySetPanel.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.preview;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.preview;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -67,12 +66,6 @@ import lombok.extern.slf4j.Slf4j;
 public class DisplaySetPanel extends JPanel {
 
 	public static final int STATUS_BAR_HEIGHT = 24;
-
-	private static final int CHECKER_SIZE = 32;
-
-	private static final Color CHECKER_LIGHT = new Color(0x55, 0x55, 0x55);
-
-	private static final Color CHECKER_DARK = new Color(0x33, 0x33, 0x33);
 
 	private static final Color NORMAL_HIGHLIGHT = new Color(0x00, 0x77, 0xAA, 0x80);
 
@@ -209,17 +202,7 @@ public class DisplaySetPanel extends JPanel {
 	}
 
 	private void drawCheckerboard(Graphics2D g2, Rectangle vp) {
-		AffineTransform saved = g2.getTransform();
-		g2.setTransform(new AffineTransform());
-
-		for (int y = vp.y; y < vp.y + vp.height; y += CHECKER_SIZE * 2) {
-			for (int x = vp.x; x < vp.x + vp.width; x += CHECKER_SIZE * 2) {
-				// copy pre-rendered tile for better performance
-				g2.drawImage(checkerboardTile, x, y, null);
-			}
-		}
-
-		g2.setTransform(saved);
+		CheckerboardRenderer.paint(g2, vp, checkerboardTile);
 	}
 
 	private void renderPage(Graphics2D g2) {
@@ -609,15 +592,7 @@ public class DisplaySetPanel extends JPanel {
 	// ── Checkerboard tile ───────────────────────────────────────────────────
 
 	private void buildCheckerboardTile() {
-		int size = CHECKER_SIZE * 2;
-		checkerboardTile = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);
-		Graphics2D tg = checkerboardTile.createGraphics();
-		tg.setColor(CHECKER_LIGHT);
-		tg.fillRect(0, 0, size, size);
-		tg.setColor(CHECKER_DARK);
-		tg.fillRect(0, CHECKER_SIZE, CHECKER_SIZE, CHECKER_SIZE);
-		tg.fillRect(CHECKER_SIZE, 0, CHECKER_SIZE, CHECKER_SIZE);
-		tg.dispose();
+		checkerboardTile = CheckerboardRenderer.buildTile();
 	}
 
 }

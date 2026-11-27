@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/test/java/org/brts/common/utils/BrtsFileConfigTest.java' is part of BRTS.
+ * This file 'brts-common/src/test/java/org/brts/common/utils/BrtsFileConfigTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,6 +54,12 @@ class BrtsFileConfigTest {
 		System.setProperty(NO_KEY, "FALSE");
 		System.setProperty(BLANK_KEY, " ");
 		System.setProperty(INVALID_KEY, "maybe");
+		// log them all to be sure
+		log.debug(
+				"Set test system properties: TRUE_KEY='{}', YES_KEY='{}', ONE_KEY='{}', FALSE_KEY='{}', ZERO_KEY='{}', NO_KEY='{}', BLANK_KEY='{}', INVALID_KEY='{}'",
+				System.getProperty(TRUE_KEY), System.getProperty(YES_KEY), System.getProperty(ONE_KEY),
+				System.getProperty(FALSE_KEY), System.getProperty(ZERO_KEY), System.getProperty(NO_KEY),
+				System.getProperty(BLANK_KEY), System.getProperty(INVALID_KEY));
 		// force re-resolution in case another test class already resolved the singleton in this fork
 		BrtsFileConfig.resetForTests();
 		BrtsFileConfig.registerForTests(

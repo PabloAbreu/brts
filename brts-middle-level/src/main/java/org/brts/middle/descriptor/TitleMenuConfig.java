@@ -1,10 +1,7 @@
-package org.brts.middle.descriptor;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/descriptor/TitleMenuConfig.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/descriptor/TitleMenuConfig.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.descriptor;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.descriptor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +33,9 @@ import org.brts.lowlevel.titlemenu.descriptor.LayoutType;
 import org.brts.middle.menu.descriptor.AudioMenuItem;
 import org.brts.middle.menu.descriptor.SubtitleMenuItem;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import jakarta.validation.constraints.AssertTrue;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -106,5 +108,22 @@ public class TitleMenuConfig {
 
 	/** Subtitle track selection items for the embedded settings submenu (0 = subtitles off). */
 	private List<SubtitleMenuItem> subtitleItems = new ArrayList<>();
+
+	@JsonIgnore
+	@AssertTrue(message = "title menu audioItems may contain at most one defaultStream")
+	public boolean isAudioDefaultStreamConsistent() {
+		return countDefaults(audioItems) <= 1;
+	}
+
+	@JsonIgnore
+	@AssertTrue(message = "title menu subtitleItems may contain at most one defaultStream")
+	public boolean isSubtitleDefaultStreamConsistent() {
+		return countDefaults(subtitleItems) <= 1;
+	}
+
+	private static long countDefaults(List<? extends org.brts.middle.menu.descriptor.StreamMenuItem> items) {
+		return items == null ? 0
+				: items.stream().filter(org.brts.middle.menu.descriptor.StreamMenuItem::isDefaultStream).count();
+	}
 
 }

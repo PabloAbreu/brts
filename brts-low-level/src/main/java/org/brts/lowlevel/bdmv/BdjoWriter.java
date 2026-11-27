@@ -1,10 +1,7 @@
-package org.brts.lowlevel.bdmv;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/bdmv/BdjoWriter.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/bdmv/BdjoWriter.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.bdmv;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.bdmv;
 
 import org.brts.common.io.ByteArrayBinaryWriter;
 import org.brts.common.io.BinaryWriter;
@@ -44,7 +43,7 @@ import java.util.List;
  * <pre>
  * Header (48 bytes):
  *   magic                              : 4 bytes  ("BDJO")
- *   version                            : 4 bytes  (from model, e.g. "0200")
+	 *   version                            : 4 bytes  (from model: "0200" or "0300")
  *   TerminalInfoStartAddress           : 4 bytes
  *   AppCacheInfoStartAddress           : 4 bytes
  *   AccessiblePlaylistsStartAddress    : 4 bytes
@@ -62,10 +61,19 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 
 	private static final String DEFAULT_VERSION = "0200";
 
+	private static final String VERSION_300 = "0300";
+
 	private static final int HEADER_SIZE = 48;
 
 	@Override
 	public void write(Bdjo model, OutputStream output) throws IOException {
+		String version = model.getVersion() != null && !model.getVersion().isBlank() ? model.getVersion()
+				: DEFAULT_VERSION;
+		if (!DEFAULT_VERSION.equals(version) && !VERSION_300.equals(version)) {
+			throw new IllegalArgumentException(
+					"Unsupported BDJO write version: '" + version + "'; expected 0200 or 0300");
+		}
+
 		// Build each section
 		byte[] terminalInfo = buildTerminalInfoSection(model.getTerminalInfo());
 		byte[] appCacheInfo = buildAppCacheInfoSection(model.getAppCacheInfo());
@@ -81,9 +89,6 @@ public class BdjoWriter implements BlurayFileWriter<Bdjo> {
 		int appMgmtTableAddr = accessiblePlaylistsAddr + accessiblePlaylists.length;
 		int keyInterestTableAddr = appMgmtTableAddr + appMgmtTable.length;
 		int fileAccessInfoAddr = keyInterestTableAddr + keyInterestTable.length;
-
-		String version = model.getVersion() != null && !model.getVersion().isBlank() ? model.getVersion()
-				: DEFAULT_VERSION;
 
 		@SuppressWarnings("resource")
 		BinaryWriter w = new BinaryWriter(output);

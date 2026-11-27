@@ -1,10 +1,7 @@
-package org.brts.middle.menu.render;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/menu/render/ButtonImageRenderer.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/menu/render/ButtonImageRenderer.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.menu.render;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.menu.render;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -41,6 +40,8 @@ import javax.imageio.ImageIO;
 
 import org.brts.common.menu.GlyphFallbackText;
 import org.brts.common.menu.TextStyle;
+import org.brts.common.menu.ButtonOverlayRenderer;
+import org.brts.common.utils.composition.ImageReference;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -148,11 +149,14 @@ public class ButtonImageRenderer {
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
 		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, normalColor,
-				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style,
+				style.getStateOverlays() == null ? null : style.getStateOverlays().getNormal(), textWidth);
 		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, selectedColor,
-				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+				iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style,
+				style.getStateOverlays() == null ? null : style.getStateOverlays().getSelected(), textWidth);
 		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm,
-				activatedColor, iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style);
+				activatedColor, iconBw, iconW, iconH, contentWidth, contentHeight, padX, padY, style,
+				style.getStateOverlays() == null ? null : style.getStateOverlays().getActivated(), textWidth);
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
@@ -161,7 +165,7 @@ public class ButtonImageRenderer {
 
 	private static BufferedImage renderSingleState(int width, int height, String text, Font font, Font fallbackFont,
 			FontMetrics fm, int textColorArgb, BufferedImage iconBw, int iconW, int iconH, int contentWidth,
-			int contentHeight, int padX, int padY, TextStyle style) {
+			int contentHeight, int padX, int padY, TextStyle style, ImageReference overlay, int textWidth) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -182,9 +186,9 @@ public class ButtonImageRenderer {
 		}
 
 		// 4. Text
+		int textY = padY + fm.getAscent() + (contentHeight - fm.getHeight()) / 2;
 		if (text != null && !text.isEmpty()) {
 			List<GlyphFallbackText.Run> runs = GlyphFallbackText.split(text, font, fallbackFont);
-			int textY = padY + fm.getAscent() + (contentHeight - fm.getHeight()) / 2;
 
 			// Shadow
 			if (Boolean.TRUE.equals(style.getShadow())) {
@@ -206,6 +210,8 @@ public class ButtonImageRenderer {
 		}
 
 		g.dispose();
+		ButtonOverlayRenderer.apply(img, overlay,
+				new ButtonOverlayRenderer.LabelBounds(cx, textY, textWidth, fm.getHeight()));
 		return img;
 	}
 

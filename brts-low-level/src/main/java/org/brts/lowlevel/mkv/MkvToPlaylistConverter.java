@@ -1,10 +1,7 @@
-package org.brts.lowlevel.mkv;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/mkv/MkvToPlaylistConverter.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/mkv/MkvToPlaylistConverter.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.mkv;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.mkv;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -45,6 +44,8 @@ import org.brts.common.mkv.SourceMediaInfo;
 import org.brts.common.model.StreamCodingType;
 import org.brts.common.model.Timestamp;
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
 import org.brts.lowlevel.m2ts.M2tsClipWriter;
 import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
 import org.brts.lowlevel.m2ts.M2tsWriter;
@@ -107,6 +108,8 @@ public class MkvToPlaylistConverter {
 
 		private final String clipName;
 
+		private final String playlistName;
+
 		private Set<Integer> audioTrackFilter;
 
 		private Set<Integer> subtitleTrackFilter;
@@ -125,9 +128,9 @@ public class MkvToPlaylistConverter {
 		/** Complete popup presentation template from a descriptor. */
 		private PopupMenuConfig popupMenuConfig;
 
-		public Config(Path mkvFile, Path outputDir, String clipName) {
-			this(mkvFile, outputDir, clipName, null, null, null, null, null, PopupMenuConfig.Layout.VERTICAL_LIST,
-					null);
+		public Config(Path mkvFile, Path outputDir, String clipName, String playlistName) {
+			this(mkvFile, outputDir, clipName, playlistName, null, null, null, null, null,
+					PopupMenuConfig.Layout.VERTICAL_LIST, null);
 		}
 
 	}
@@ -150,6 +153,7 @@ public class MkvToPlaylistConverter {
 		Path mkvFile = config.getMkvFile();
 		Path outputDir = config.getOutputDir();
 		String clipName = config.getClipName();
+		String playlistName = config.getPlaylistName();
 
 		// 1. Parse MKV metadata
 		log.info("Parsing MKV: {}", mkvFile);
@@ -214,11 +218,9 @@ public class MkvToPlaylistConverter {
 				textSubTrackNos);
 
 		// 9. Write M2TS+CLPI
-		Path streamDir = outputDir.resolve("STREAM");
-		Path m2tsPath = streamDir.resolve(clipName + ".m2ts");
-
-		Path clipinfDir = outputDir.resolve("CLIPINF");
-		Path clpiPath = clipinfDir.resolve(clipName + ".clpi");
+		BdmvPath bdmvPath = BrPath.bdmv(outputDir);
+		Path m2tsPath = bdmvPath.stream(clipName);
+		Path clpiPath = bdmvPath.clipinf(clipName);
 
 		M2tsClipWriter writer = M2tsClipWriterFactory.createWriter();
 		writer.write(descriptor, m2tsPath, clpiPath);
@@ -239,7 +241,7 @@ public class MkvToPlaylistConverter {
 
 		// 10. Write MPLS
 		Path playlistDir = outputDir.resolve("PLAYLIST");
-		Path mplsPath = playlistDir.resolve(clipName + ".mpls");
+		Path mplsPath = playlistDir.resolve(playlistName + ".mpls");
 		log.info("Writing MPLS: {}", mplsPath);
 		MoviePlaylist playlist = buildPlaylist(clipName, clipInfo, mediaInfo.getDurationMs(), popupResult,
 				popupMenuClipName);
@@ -351,7 +353,7 @@ public class MkvToPlaylistConverter {
 
 	// ── Popup Menu Config builder ───────────────────────────────────────────
 
-	private PopupMenuConfig buildPopupMenuConfig(String popupClipName,
+	static PopupMenuConfig buildPopupMenuConfig(String popupClipName,
 			List<SourceMediaInfo.SourceTrack> selectedTracks) {
 
 		List<PopupMenuConfig.TrackEntry> audioEntries = new ArrayList<>();
@@ -388,18 +390,29 @@ public class MkvToPlaylistConverter {
 		config.setOutputClipName(popupClipName);
 		config.setAudioTracks(audioEntries);
 		config.setSubtitleTracks(subtitleEntries);
+		SourceMediaInfo.SourceTrack video = selectedTracks.stream().filter(t -> t.getCodingType().isVideo()).findFirst()
+				.orElseThrow();
+
+		if (video.getWidthPixels() != null && video.getHeightPixels() != null) {
+			config.setScreenWidth(video.getWidthPixels());
+			config.setScreenHeight(video.getHeightPixels());
+		}
 		return config;
 	}
 
-	private PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
+	static PopupMenuConfig buildPopupMenuConfig(String popupClipName, List<SourceMediaInfo.SourceTrack> selectedTracks,
 			TextStyle popupMenuStyle, PopupMenuConfig.Layout popupMenuLayout, PopupMenuConfig template) {
 		PopupMenuConfig config = buildPopupMenuConfig(popupClipName, selectedTracks);
 		if (config != null && template != null) {
-			config.setScreenWidth(template.getScreenWidth());
-			config.setScreenHeight(template.getScreenHeight());
+			if (template.getScreenWidth() != null)
+				config.setScreenWidth(template.getScreenWidth());
+			if (template.getScreenHeight() != null)
+				config.setScreenHeight(template.getScreenHeight());
 			config.setStyle(template.getStyle());
 			config.setLayout(template.getLayout());
 			config.setBackgrounds(template.getBackgrounds());
+			config.setTitles(template.getTitles());
+			config.setCurrentTitleNumber(template.getCurrentTitleNumber());
 		}
 		if (config != null && template == null) {
 			if (popupMenuStyle != null) {

@@ -1,10 +1,7 @@
-package org.brts.cli.low;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/low/M2tsCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/low/M2tsCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,44 +9,53 @@ package org.brts.cli.low;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
-import org.brts.cli.FeatureRunner;
-import org.brts.common.m2ts.M2tsExtractor;
-import org.brts.common.m2ts.M2tsParser;
-import org.brts.common.m2ts.model.M2tsDescriptor;
-import org.brts.common.m2ts.model.M2tsInfo;
-import org.brts.common.m2ts.model.M2tsStreamInfo;
-import org.brts.common.model.StreamCodingType;
-import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
-import org.brts.lowlevel.igs.IgsDemuxer;
-import org.brts.lowlevel.igs.IgsMuxer;
-import org.brts.lowlevel.m2ts.M2tsDumpFormatter;
-import org.brts.lowlevel.m2ts.M2tsDumpTableFormatter;
-import org.brts.lowlevel.m2ts.M2tsDumper;
-import org.brts.lowlevel.m2ts.M2tsIgsMuxer;
-import org.brts.lowlevel.m2ts.M2tsWriter;
-import org.brts.lowlevel.model.clpi.ClipInfo;
-import org.brts.lowlevel.writer.ClipInfoWriter;
-import org.kohsuke.args4j.Option;
+package org.brts.cli.low;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import org.brts.cli.BaseOptions;
+import org.brts.cli.FeatureRunner;
+import org.brts.common.m2ts.ExtractionCache;
+import org.brts.common.m2ts.M2tsExtractor;
+import org.brts.common.m2ts.M2tsParser;
+import org.brts.common.m2ts.SourceFingerprint;
+import org.brts.common.m2ts.model.M2tsDescriptor;
+import org.brts.common.m2ts.model.M2tsInfo;
+import org.brts.common.m2ts.model.M2tsStreamInfo;
+import org.brts.common.model.StreamCodingType;
+import org.brts.common.utils.BrtsFileConfig;
+import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
+import org.brts.lowlevel.clpi.M2tsVideoMetadataProbe;
+import org.brts.lowlevel.clpi.M2tsVideoMetadataProbeFactory;
+import org.brts.lowlevel.igs.IgsDemuxer;
+import org.brts.lowlevel.igs.IgsMuxer;
+import org.brts.lowlevel.m2ts.M2tsClipWriterFactory;
+import org.brts.lowlevel.m2ts.M2tsDumpFormatter;
+import org.brts.lowlevel.m2ts.M2tsDumpTableFormatter;
+import org.brts.lowlevel.m2ts.M2tsDumper;
+import org.brts.lowlevel.m2ts.M2tsIgsMuxer;
+import org.brts.lowlevel.model.clpi.ClipInfo;
+import org.brts.lowlevel.writer.ClipInfoWriter;
+import org.kohsuke.args4j.Option;
 
 /**
  * CLI for M2TS (Blu-ray MPEG-2 Transport Stream) operations.
@@ -60,7 +66,7 @@ public class M2tsCli {
 	// m2ts-info
 	// =========================================================================
 
-	public static class InfoOptions extends org.brts.cli.BaseOptions {
+	public static class InfoOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to inspect")
 		File input;
@@ -94,10 +100,56 @@ public class M2tsCli {
 	}
 
 	// =========================================================================
+	// m2ts-probe
+	// =========================================================================
+
+	public static class ProbeOptions extends BaseOptions {
+
+		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to probe")
+		File input;
+
+		@Option(name = "--output", usage = "Output JSON file path (default: stdout)")
+		File output;
+
+	}
+
+	/** Combined transport metadata and bounded decoded video metadata, keyed by transport PID. */
+	public record ProbeResult(M2tsInfo info, Map<Integer, M2tsVideoMetadataProbe.Metadata> videoMetadataByPid) {
+	}
+
+	public static class Probe extends FeatureRunner<ProbeOptions> {
+
+		@Override
+		public String getCommandName() {
+			return "m2ts-probe";
+		}
+
+		@Override
+		public String getDescription() {
+			return "Probe M2TS transport and decoded video metadata";
+		}
+
+		@Override
+		protected void execute(ProbeOptions opts) throws Exception {
+			Path inputPath = opts.input.toPath();
+			M2tsInfo info = new M2tsParser().parse(inputPath);
+			Map<Integer, StreamCodingType> videos = M2tsVideoMetadataProbeFactory.videoStreamsByPid(info);
+			Map<Integer, M2tsVideoMetadataProbe.Metadata> videoMetadata = videos.isEmpty() ? Map.of()
+					: M2tsVideoMetadataProbeFactory.createDefault(BrtsFileConfig.getInstance()::getProperty)
+							.probe(inputPath, videos);
+			writeJson(opts.output, new ProbeResult(info, videoMetadata));
+			if (opts.output != null) {
+				System.out.println("M2TS probe → " + opts.output);
+			}
+		}
+
+	}
+
+	// =========================================================================
 	// m2ts-extract
 	// =========================================================================
 
-	public static class ExtractOptions extends org.brts.cli.BaseOptions {
+	public static class ExtractOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts source file")
 		File input;
@@ -110,6 +162,24 @@ public class M2tsCli {
 
 		@Option(name = "--igs-demux", usage = "Also demux IGS streams into sub-folders with bitmaps and metadata")
 		boolean igsDemux;
+
+		@Option(name = "--preserve-timing", usage = "Preserve source timing in timing.json and extract PGS as timed SUP")
+		boolean preserveTiming;
+
+		@Option(name = "--cache-reference", usage = "JSON file holding a pinned extraction cache reference (requires --validate-cache-only and --preserve-timing)")
+		Path cacheReference;
+
+		@Option(name = "--validate-cache-only", usage = "Validate the referenced cache and input/output identities without parsing, extracting or writing")
+		boolean validateCacheOnly;
+
+		@Option(name = "--source-sha256", usage = "Expected SHA-256 of the source M2TS; checked before extraction writes")
+		String sourceSha256;
+
+		@Option(name = "--source-clpi", usage = "Original CLPI to verify before extraction (requires --source-clpi-sha256)")
+		File sourceClpi;
+
+		@Option(name = "--source-clpi-sha256", usage = "Expected SHA-256 of --source-clpi")
+		String sourceClpiSha256;
 
 	}
 
@@ -130,6 +200,31 @@ public class M2tsCli {
 			Path inputPath = opts.input.toPath();
 			Path outputDir = opts.outputDir.toPath();
 
+			if (opts.validateCacheOnly || opts.cacheReference != null) {
+				if (!opts.validateCacheOnly || opts.cacheReference == null || !opts.preserveTiming)
+					throw new IllegalArgumentException(
+							"--cache-reference, --validate-cache-only and --preserve-timing are required together");
+				if (opts.pids != null || opts.igsDemux || opts.sourceSha256 != null || opts.sourceClpi != null
+						|| opts.sourceClpiSha256 != null)
+					throw new IllegalArgumentException(
+							"Cache validation does not permit --pids, --igs-demux or source fingerprint options");
+				var reference = loadJson(opts.cacheReference.toFile(), ExtractionCache.Reference.class);
+				var cache = ExtractionCache.validate(reference);
+				if (!inputPath.toRealPath().equals(Path.of(cache.manifest().source().path()))
+						|| !outputDir.toRealPath().equals(cache.directory()))
+					throw new IllegalArgumentException(
+							"Cache validation --input/--output must match the cached source/directory");
+				System.out.println("Extraction cache validated → " + cache.directory());
+				return;
+			}
+
+			if ((opts.sourceClpi == null) != (opts.sourceClpiSha256 == null))
+				throw new IllegalArgumentException("--source-clpi and --source-clpi-sha256 must be supplied together");
+			if (opts.sourceSha256 != null)
+				SourceFingerprint.verify(inputPath, opts.sourceSha256);
+			if (opts.sourceClpi != null)
+				SourceFingerprint.verify(opts.sourceClpi.toPath(), opts.sourceClpiSha256);
+
 			M2tsParser parser = new M2tsParser();
 			M2tsInfo info = parser.parse(inputPath);
 
@@ -141,7 +236,7 @@ public class M2tsCli {
 						.collect(Collectors.toCollection(HashSet::new));
 			}
 
-			new M2tsExtractor().extract(inputPath, info, outputDir, pidFilter);
+			new M2tsExtractor().extract(inputPath, info, outputDir, pidFilter, opts.preserveTiming, opts.sourceSha256);
 			System.out.println("Extraction complete → " + outputDir);
 
 			// Optionally demux IGS streams
@@ -167,7 +262,7 @@ public class M2tsCli {
 	// igs-demux
 	// =========================================================================
 
-	public static class IgsDemuxOptions extends org.brts.cli.BaseOptions {
+	public static class IgsDemuxOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a raw .igs elementary stream file")
 		File input;
@@ -201,7 +296,7 @@ public class M2tsCli {
 	// igs-mux
 	// =========================================================================
 
-	public static class IgsMuxOptions extends org.brts.cli.BaseOptions {
+	public static class IgsMuxOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to a demuxed IGS directory (with igs_manifest.json)")
 		File inputDir;
@@ -235,7 +330,7 @@ public class M2tsCli {
 	// m2ts-create
 	// =========================================================================
 
-	public static class CreateOptions extends org.brts.cli.BaseOptions {
+	public static class CreateOptions extends BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -276,20 +371,16 @@ public class M2tsCli {
 			Path clpiDir = opts.clpiDir != null ? opts.clpiDir.toPath() : outputDir;
 			Path clpiPath = clpiDir.resolve(outputName + ".clpi");
 
-			// --- Write M2TS ---
-			M2tsWriter writer = new M2tsWriter();
-			writer.write(descriptor, m2tsPath);
-			System.out.println("M2TS written → " + m2tsPath);
-
-			// --- Build and write matching CLPI ---
-			int applicationType = ClipInfo.APPLICATION_TYPE_MOVIE;
-			// if only one stream and it's a IGS, set application type to interactive graphics
-			if (descriptor.getStreams().size() == 1 && descriptor.getStreams().get(0)
-					.getStreamTypeByte() == StreamCodingType.INTERACTIVE_GRAPHICS.getCodingTypeByte()) {
-				applicationType = ClipInfo.APPLICATION_TYPE_INTERACTIVE_GRAPHICS;
+			// --- Write M2TS and matching CLPI ---
+			boolean preservation = descriptor.getSourceM2ts() != null || descriptor.getSourceClpi() != null
+					|| descriptor.getTimingManifest() != null || descriptor.getMaximumOutputBytes() != null
+					|| descriptor.getExtractionCacheReference() != null;
+			if (preservation) {
+				new org.brts.lowlevel.m2ts.PreservingM2tsClipWriter().write(descriptor, m2tsPath, clpiPath);
+			} else {
+				M2tsClipWriterFactory.createWriter().write(descriptor, m2tsPath, clpiPath);
 			}
-			ClipInfo clipInfo = writer.buildClipInfo(descriptor, outputName, applicationType);
-			new ClipInfoWriter().write(clipInfo, clpiPath);
+			System.out.println("M2TS written → " + m2tsPath);
 			System.out.println("CLPI written → " + clpiPath);
 		}
 
@@ -299,7 +390,7 @@ public class M2tsCli {
 	// m2ts-igs-mux
 	// =========================================================================
 
-	public static class M2tsIgsMuxOptions extends org.brts.cli.BaseOptions {
+	public static class M2tsIgsMuxOptions extends BaseOptions {
 
 		@Option(name = "--descriptor", required = true, usage = "Path to the .m2ts-descriptor.json file describing the mux")
 		File descriptor;
@@ -356,7 +447,7 @@ public class M2tsCli {
 	// m2ts-dump
 	// =========================================================================
 
-	public static class DumpOptions extends org.brts.cli.BaseOptions {
+	public static class DumpOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .m2ts file to dump")
 		File input;

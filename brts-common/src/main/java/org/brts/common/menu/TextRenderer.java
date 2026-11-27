@@ -1,10 +1,7 @@
-package org.brts.common.menu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/menu/TextRenderer.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/menu/TextRenderer.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.menu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.menu;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -36,6 +35,8 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
+
+import org.brts.common.utils.composition.ImageReference;
 
 /**
  * Renders text labels as ARGB images for the three IGS button states (normal, selected, activated).
@@ -97,11 +98,11 @@ public final class TextRenderer {
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
 		BufferedImage normalImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, normalColor,
-				padX, padY, style);
+				padX, padY, style, overlay(style, 0));
 		BufferedImage selectedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm, selectedColor,
-				padX, padY, style);
+				padX, padY, style, overlay(style, 1));
 		BufferedImage activatedImg = renderSingleState(imgWidth, imgHeight, text, font, fallbackFont, fm,
-				activatedColor, padX, padY, style);
+				activatedColor, padX, padY, style, overlay(style, 2));
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
@@ -150,11 +151,11 @@ public final class TextRenderer {
 		int activatedColor = TextStyle.parseColor(style.getActivatedColor());
 
 		BufferedImage normalImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm, normalColor,
-				padX, padY, style);
+				padX, padY, style, overlay(style, 0));
 		BufferedImage selectedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm,
-				selectedColor, padX, padY, style);
+				selectedColor, padX, padY, style, overlay(style, 1));
 		BufferedImage activatedImg = renderMultilineState(imgWidth, imgHeight, lines, font, fallbackFont, fm,
-				activatedColor, padX, padY, style);
+				activatedColor, padX, padY, style, overlay(style, 2));
 
 		return new ButtonImages(normalImg, selectedImg, activatedImg, imgWidth, imgHeight);
 	}
@@ -193,11 +194,11 @@ public final class TextRenderer {
 		if (naturalWidth <= maxContentWidth) {
 			g.dispose();
 			BufferedImage normalImg = renderSingleState(width, height, text, font, fallbackFont, fm, normalColor, padX,
-					padY, style);
+					padY, style, overlay(style, 0));
 			BufferedImage selectedImg = renderSingleState(width, height, text, font, fallbackFont, fm, selectedColor,
-					padX, padY, style);
+					padX, padY, style, overlay(style, 1));
 			BufferedImage activatedImg = renderSingleState(width, height, text, font, fallbackFont, fm, activatedColor,
-					padX, padY, style);
+					padX, padY, style, overlay(style, 2));
 			return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
 		}
 
@@ -205,18 +206,29 @@ public final class TextRenderer {
 				maxContentWidth);
 		g.dispose();
 		BufferedImage normalImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, normalColor, padX,
-				padY, style);
+				padY, style, overlay(style, 0));
 		BufferedImage selectedImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, selectedColor,
-				padX, padY, style);
+				padX, padY, style, overlay(style, 1));
 		BufferedImage activatedImg = renderMultilineState(width, height, lines, font, fallbackFont, fm, activatedColor,
-				padX, padY, style);
+				padX, padY, style, overlay(style, 2));
 		return new ButtonImages(normalImg, selectedImg, activatedImg, width, height);
 	}
 
 	// ── Internal ────────────────────────────────────────────────────────────
 
+	private static ImageReference overlay(TextStyle style, int state) {
+		ButtonStateOverlays overlays = style.getStateOverlays();
+		if (overlays == null)
+			return null;
+		return switch (state) {
+		case 0 -> overlays.getNormal();
+		case 1 -> overlays.getSelected();
+		default -> overlays.getActivated();
+		};
+	}
+
 	private static BufferedImage renderSingleState(int width, int height, String text, Font font, Font fallbackFont,
-			FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style) {
+			FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style, ImageReference overlay) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -252,13 +264,17 @@ public final class TextRenderer {
 			g.setColor(new Color(textColorArgb, true));
 			GlyphFallbackText.drawString(g, runs, cx, textY);
 		}
+		int textWidth = text != null && !text.isEmpty() ? GlyphFallbackText.width(g, text, font, fallbackFont) : 0;
 
 		g.dispose();
+		ButtonOverlayRenderer.apply(img, overlay,
+				new ButtonOverlayRenderer.LabelBounds(cx, textY, textWidth, fm.getHeight()));
 		return img;
 	}
 
 	private static BufferedImage renderMultilineState(int width, int height, List<String> lines, Font font,
-			Font fallbackFont, FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style) {
+			Font fallbackFont, FontMetrics fm, int textColorArgb, int padX, int padY, TextStyle style,
+			ImageReference overlay) {
 		BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = img.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -289,6 +305,13 @@ public final class TextRenderer {
 		}
 
 		g.dispose();
+		String lastLine = lines.get(lines.size() - 1);
+		// The final visible line determines the underline width for wrapped/truncated labels.
+		Graphics2D measure = img.createGraphics();
+		int lastWidth = GlyphFallbackText.width(measure, lastLine, font, fallbackFont);
+		measure.dispose();
+		ButtonOverlayRenderer.apply(img, overlay, new ButtonOverlayRenderer.LabelBounds(cx,
+				padY + fm.getAscent() + (lines.size() - 1) * fm.getHeight(), lastWidth, fm.getHeight()));
 		return img;
 	}
 

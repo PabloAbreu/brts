@@ -1,10 +1,7 @@
-package org.brts.cli.low;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/low/BdjoCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/low/BdjoCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,27 +9,30 @@ package org.brts.cli.low;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.cli.low;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.lowlevel.bdmv.BdjoWriter;
 import org.brts.lowlevel.model.bdmv.Bdjo;
 import org.brts.lowlevel.parser.BdjoParser;
 import org.kohsuke.args4j.Option;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 
 /**
  * CLI for low-level {@code BDMV/BDJO/XXXXX.bdjo} operations.
@@ -49,7 +49,7 @@ public class BdjoCli {
 	// Parse command: binary .bdjo → JSON
 	// -------------------------------------------------------------------------
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the binary .bdjo file to parse")
 		File input;
@@ -89,7 +89,7 @@ public class BdjoCli {
 	// Write command: JSON → binary .bdjo
 	// -------------------------------------------------------------------------
 
-	static class WriteOptions extends org.brts.cli.BaseOptions {
+	static class WriteOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the JSON model file (as produced by bdjo-parse)")
 		File input;

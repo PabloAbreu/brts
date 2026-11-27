@@ -16,7 +16,7 @@
             "imageId": "credits",
             "syntheticImage": {
                 "type": "svg",
-                "srcPath" : "/data/work/brts/test_output/credits.svg"
+                "srcPath" : "brts-common/src/test/resources/credits.svg"
             }
         }
     ],

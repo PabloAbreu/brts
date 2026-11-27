@@ -1,10 +1,7 @@
-package org.brts.lowlevel.popupmenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuGenerator.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuGenerator.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,23 +9,29 @@ package org.brts.lowlevel.popupmenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.popupmenu;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.brts.common.utils.FileUtils;
+import org.brts.common.utils.paths.BrPath;
+import org.brts.common.utils.paths.BrPath.BdmvPath;
+import org.brts.common.utils.paths.BrPath.ClipinfPath;
+import org.brts.common.utils.paths.BrPath.StreamPath;
 import org.brts.lowlevel.clpi.M2tsClpiRegenBuilder;
 import org.brts.lowlevel.igs.IgsMuxer;
 import org.brts.lowlevel.igs.model.IgsDisplaySet;
@@ -65,10 +68,10 @@ public class PopupMenuGenerator {
 	public Result generate(PopupMenuConfig config, Path outputDir) throws IOException {
 		String clipName = config.getOutputClipName();
 
-		Path streamDir = outputDir.resolve("STREAM");
-		Path clipDir = outputDir.resolve("CLIPINF");
-		Files.createDirectories(streamDir);
-		Files.createDirectories(clipDir);
+		BdmvPath bdmv = BrPath.bdmv(outputDir);
+		bdmv.createFolderStructure();
+		StreamPath stream = bdmv.stream();
+		ClipinfPath clipinfo = bdmv.clipinf();
 
 		// 1. Build IGS display set
 		PopupMenuIgsBuilder igsBuilder = new PopupMenuIgsBuilder();
@@ -87,8 +90,8 @@ public class PopupMenuGenerator {
 		try {
 			Path igsEsFile = workDir.resolve("popup.igs");
 			Files.write(igsEsFile, igsEs);
-			Path igsM2ts = streamDir.resolve(clipName + ".m2ts");
-			Path igsClpi = clipDir.resolve(clipName + ".clpi");
+			Path igsM2ts = stream.m2ts(clipName);
+			Path igsClpi = clipinfo.clpi(clipName);
 
 			M2tsIgsMuxer m2tsigsMuxer = new M2tsIgsMuxer();
 			m2tsigsMuxer.mux(igsEsFile, igsM2ts);

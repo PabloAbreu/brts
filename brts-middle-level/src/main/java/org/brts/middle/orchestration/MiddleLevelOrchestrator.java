@@ -1,10 +1,7 @@
-package org.brts.middle.orchestration;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-middle-level/src/main/java/org/brts/middle/orchestration/MiddleLevelOrchestrator.java' is part of BRTS.
+ * This file 'brts-middle-level/src/main/java/org/brts/middle/orchestration/MiddleLevelOrchestrator.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.middle.orchestration;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.middle.orchestration;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,6 +56,7 @@ import org.brts.middle.descriptor.DiscDescriptor;
 import org.brts.middle.descriptor.PopupMenuMode;
 import org.brts.middle.descriptor.TitleDescriptor;
 import org.brts.middle.descriptor.TitleMenuConfig;
+import org.brts.middle.menu.descriptor.StreamMenuItem;
 import org.brts.middle.orchestration.launch.DeferredLaunchGenerator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -134,6 +134,9 @@ public class MiddleLevelOrchestrator {
 		boolean generateStreamSelectionProgram = menuConfig != null
 				&& ((menuConfig.getAudioItems() != null && !menuConfig.getAudioItems().isEmpty())
 						|| (menuConfig.getSubtitleItems() != null && !menuConfig.getSubtitleItems().isEmpty()));
+		int defaultAudioStream = menuConfig == null ? 0 : resolveDefaultStream(menuConfig.getAudioItems(), "audio", 0);
+		int defaultSubtitleStream = menuConfig == null ? -1
+				: resolveDefaultStream(menuConfig.getSubtitleItems(), "subtitle", -1);
 
 		// Resolve disc-wide popup style: popupStyle merged over global style (null-safe)
 		TextStyle resolvedPopupStyle = resolvePopupStyle(disc);
@@ -149,6 +152,8 @@ public class MiddleLevelOrchestrator {
 						"Duplicate title ID " + title.getTitleId() + " for title '" + title.getSourceMkv() + "'");
 			}
 			SimpleTitleBuilder.TitleBuildResult result = titleBuilder.build(title);
+			validateDefaultStream(defaultAudioStream, countAudioTracks(result.mediaInfo(), title), "audio", 1);
+			validateDefaultStream(defaultSubtitleStream, countSubtitleTracks(result.mediaInfo(), title), "subtitle", 0);
 
 			String clipName = result.clipDescriptor().getClipName();
 
@@ -170,6 +175,13 @@ public class MiddleLevelOrchestrator {
 					popupMenuConfig.setScreenHeight(disc.getPopupMenu().getScreenHeight());
 					popupMenuConfig.setBackgrounds(disc.getPopupMenu().getBackgrounds());
 				}
+				popupMenuConfig.setTitles(disc.getTitles().stream().map(discTitle -> {
+					PopupMenuConfig.TitleEntry popupTitle = new PopupMenuConfig.TitleEntry();
+					popupTitle.setTitleNumber(discTitle.getTitleId());
+					popupTitle.setDisplayName(resolveDisplayName(discTitle));
+					return popupTitle;
+				}).toList());
+				popupMenuConfig.setCurrentTitleNumber(title.getTitleId());
 				popupMenuConfig.setOutputClipName(popupClipName);
 				if (resolvedPopupStyle != null) {
 					popupMenuConfig.setStyle(resolvedPopupStyle);
@@ -217,7 +229,10 @@ public class MiddleLevelOrchestrator {
 
 			// Top Menu and First Play both play the menu playlist
 			topMenuMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
-			firstPlayMovieObject.setNavigationCommands(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
+			List<NavigationCommand> firstPlayCommands = new ArrayList<>(
+					NavigationCommandUtils.initializeAudioSubtitleChoices(defaultAudioStream, defaultSubtitleStream));
+			firstPlayCommands.addAll(NavigationCommandUtils.playPlaylist(menuPlaylistNumber));
+			firstPlayMovieObject.setNavigationCommands(firstPlayCommands);
 
 			launchGenerator.comment("Title menu");
 			launchGenerator.createTitleMenu(menuDescriptorFile.toPath(), discPath, baseDir);
@@ -256,6 +271,33 @@ public class MiddleLevelOrchestrator {
 
 		Path scriptPath = launchGenerator.write(outputDir);
 		log.info("Wrote orchestration script to {}", scriptPath);
+	}
+
+	private int resolveDefaultStream(List<? extends StreamMenuItem> items, String kind, int noDefault) {
+		if (items == null || items.isEmpty()) {
+			return noDefault;
+		}
+		StreamMenuItem selected = null;
+		for (StreamMenuItem item : items) {
+			if (item.isDefaultStream()) {
+				if (selected != null) {
+					throw new IllegalArgumentException(
+							"Title menu " + kind + " items may contain at most one defaultStream");
+				}
+				selected = item;
+			}
+		}
+		return selected == null ? noDefault : selected.getStreamNumber();
+	}
+
+	private void validateDefaultStream(int streamNumber, int trackCount, String kind, int minimum) {
+		if ((kind.equals("audio") && streamNumber == 0) || (kind.equals("subtitle") && streamNumber < 0)) {
+			return;
+		}
+		if (streamNumber < minimum || streamNumber > trackCount) {
+			throw new IllegalArgumentException("Default " + kind + " stream " + streamNumber
+					+ " is outside the available range " + minimum + ".." + trackCount);
+		}
 	}
 
 	// ── Title Menu Descriptor Builder ───────────────────────────────────────
@@ -398,6 +440,7 @@ public class MiddleLevelOrchestrator {
 		}
 
 		if (!generate) {
+			log.info("Popup menu not generated for title: {}", title.getTitleId());
 			return null;
 		}
 

@@ -1,10 +1,7 @@
-package org.brts.lowlevel.popupmenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuConfig.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/popupmenu/PopupMenuConfig.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.popupmenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.popupmenu;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +35,7 @@ import lombok.Setter;
 /**
  * Configuration for popup menu generation.
  * <p>
- * Describes the audio and subtitle tracks to present as selectable buttons in the popup menu IGS overlay.
+ * Describes the audio/subtitle tracks and disc titles to present in the popup menu IGS overlay.
  */
 @Getter
 @Setter
@@ -44,7 +43,12 @@ public class PopupMenuConfig {
 
 	/** Built-in button arrangements supported by popup menus. */
 	public enum Layout {
-		VERTICAL_LIST, HORIZONTAL_BOTTOM
+		/** Persistent root column to the left of vertical submenu lists (default). */
+		VERTICAL_LIST,
+		/** Bottom root row with vertical submenu lists above it. */
+		HORIZONTAL_BOTTOM,
+		/** Bottom root row with a single centered horizontal submenu row above it. */
+		HORIZONTAL_BOTTOM_HORIZONTAL_SUBMENUS
 	}
 
 	/** Ordered list of audio tracks for the popup menu. */
@@ -53,14 +57,28 @@ public class PopupMenuConfig {
 	/** Ordered list of subtitle tracks for the popup menu. */
 	private List<TrackEntry> subtitleTracks;
 
+	/** Ordered list of disc titles available from this popup menu. */
+	private List<TitleEntry> titles;
+
+	/** Blu-ray title number currently playing; its entry is shown muted without a navigation command. */
+	private Integer currentTitleNumber;
+
 	/** 5-digit clip name for the IGS M2TS output (e.g. "00800"). */
 	private String outputClipName;
 
 	/** Screen width in pixels. */
-	private int screenWidth = 1920;
+	private Integer screenWidth;
+
+	public int effectiveScreenWidth() {
+		return screenWidth != null ? screenWidth : 1920;
+	}
 
 	/** Screen height in pixels. */
-	private int screenHeight = 1080;
+	private Integer screenHeight;
+
+	public int effectiveScreenHeight() {
+		return screenHeight != null ? screenHeight : 1080;
+	}
 
 	/**
 	 * Optional text style for popup menu buttons. When {@code null}, defaults are resolved from {@code textStyle.*}
@@ -92,6 +110,9 @@ public class PopupMenuConfig {
 
 		/** Layers displayed on subtitle-selection pages. */
 		private List<BackgroundLayer> subtitles = new ArrayList<>();
+
+		/** Layers displayed on title-selection pages. */
+		private List<BackgroundLayer> titles = new ArrayList<>();
 	}
 
 	/** One decorative image layer and its destination layout. */
@@ -172,6 +193,18 @@ public class PopupMenuConfig {
 		/** ISO 639-2 language code (e.g. "eng", "fra"). */
 		private String language;
 
+	}
+
+	/** A title entry available from the popup title-selection submenu. */
+	@Getter
+	@Setter
+	public static class TitleEntry {
+
+		/** Blu-ray title number used by the {@code JUMP_TITLE} navigation command. */
+		private int titleNumber;
+
+		/** Human-readable display name for the title button. */
+		private String displayName;
 	}
 
 }

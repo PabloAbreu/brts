@@ -1,10 +1,7 @@
-package org.brts.cli.low;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/low/PlaylistCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/low/PlaylistCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.cli.low;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.cli.low;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,6 +31,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.cli.JsonInputOption;
 import org.brts.lowlevel.model.mpls.MoviePlaylist;
@@ -41,12 +41,14 @@ import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.kohsuke.args4j.Option;
 
+import jakarta.validation.Valid;
+
 /**
  * CLI for low-level MPLS (Movie Playlist) operations.
  */
 public class PlaylistCli {
 
-	public static class ParseOptions extends org.brts.cli.BaseOptions {
+	public static class ParseOptions extends BaseOptions {
 
 		@Option(name = "--input", required = true, usage = "Path to the .mpls file to parse")
 		File input;
@@ -71,6 +73,8 @@ public class PlaylistCli {
 		@Override
 		protected void execute(ParseOptions opts) throws Exception {
 			MoviePlaylist playlist = new MoviePlaylistParser().parse(opts.input.toPath());
+			// add the playlist name to the output.
+			playlist.setPlaylistName(opts.input.getName().replaceFirst("\\.mpls$", ""));
 			writeJson(opts.output, playlist);
 			if (opts.output != null) {
 				System.out.println("Parsed MPLS → " + opts.output);
@@ -79,8 +83,9 @@ public class PlaylistCli {
 
 	}
 
-	public static class WriteOptions extends org.brts.cli.BaseOptions {
+	public static class WriteOptions extends BaseOptions {
 
+		@Valid
 		@JsonInputOption(name = "--descriptor", required = true, usage = "Path to the playlist JSON descriptor")
 		MoviePlaylist descriptor;
 
@@ -112,7 +117,7 @@ public class PlaylistCli {
 
 	}
 
-	static class FindPlaylistOptions extends org.brts.cli.BaseOptions {
+	static class FindPlaylistOptions extends BaseOptions {
 
 		@Option(name = "--clip", required = true, usage = "M2TS clip name to search for (e.g. 12345)")
 		String clip;

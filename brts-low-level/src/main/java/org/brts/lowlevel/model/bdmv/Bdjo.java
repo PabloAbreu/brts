@@ -1,10 +1,7 @@
-package org.brts.lowlevel.model.bdmv;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/model/bdmv/Bdjo.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/model/bdmv/Bdjo.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.model.bdmv;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.model.bdmv;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -48,7 +47,7 @@ import java.util.List;
 @Setter
 public class Bdjo {
 
-	/** BDJO version string (e.g. "0200"). */
+	/** BDJO version string ("0200" or "0300"). */
 	private String version = "0200";
 
 	/** Terminal information section. */

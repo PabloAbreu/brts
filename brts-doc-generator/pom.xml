@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.brts</groupId>
 		<artifactId>brts-parent</artifactId>
-		<version>0.0.2-SNAPSHOT</version>
+		<version>0.0.3</version>
 	</parent>
 
 	<artifactId>brts-doc-generator</artifactId>
@@ -51,6 +49,20 @@
 							</arguments>
 						</configuration>
 					</execution>
+					<execution>
+						<id>generate-bash-completion</id>
+						<phase>prepare-package</phase>
+						<goals><goal>java</goal></goals>
+						<configuration>
+							<mainClass>org.brts.doc.generator.BashCompletionGeneratorMain</mainClass>
+							<arguments>
+								<argument>--input</argument>
+								<argument>${maven.multiModuleProjectDirectory}/brts-doc-parser/target/generated-metadata/cli-metadata.json</argument>
+								<argument>--output</argument>
+								<argument>${project.build.directory}/generated-completion/brts.bash</argument>
+							</arguments>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<plugin>
@@ -63,6 +75,14 @@
 						<goals><goal>single</goal></goals>
 						<configuration>
 							<descriptors><descriptor>src/assembly/markdown-docs.xml</descriptor></descriptors>
+						</configuration>
+					</execution>
+					<execution>
+						<id>package-bash-completion</id>
+						<phase>package</phase>
+						<goals><goal>single</goal></goals>
+						<configuration>
+							<descriptors><descriptor>src/assembly/bash-completion.xml</descriptor></descriptors>
 						</configuration>
 					</execution>
 				</executions>

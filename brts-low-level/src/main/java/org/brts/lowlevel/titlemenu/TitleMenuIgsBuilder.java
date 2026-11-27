@@ -1,10 +1,7 @@
-package org.brts.lowlevel.titlemenu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/TitleMenuIgsBuilder.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/titlemenu/TitleMenuIgsBuilder.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.titlemenu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.titlemenu;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -42,7 +41,6 @@ import org.brts.lowlevel.igs.model.IgsPage;
 import org.brts.lowlevel.igs.model.IgsPalette;
 import org.brts.lowlevel.igs.model.IgsWindowDefinition;
 import org.brts.lowlevel.model.bdmv.MovieObjects.NavigationCommand;
-import org.brts.lowlevel.titlemenu.descriptor.LayoutConfig;
 import org.brts.lowlevel.titlemenu.descriptor.NavigationOverride;
 import org.brts.lowlevel.titlemenu.descriptor.TitleEntry;
 import org.brts.lowlevel.titlemenu.descriptor.TitleMenuDescriptor;
@@ -221,34 +219,19 @@ public class TitleMenuIgsBuilder {
 	// ── D-pad navigation wiring ─────────────────────────────────────────────
 
 	private void wireNeighbours(List<IgsBog> bogs, List<PositionedButton> buttons, TitleMenuDescriptor descriptor) {
-		LayoutConfig config = descriptor.getLayout();
-		int columns = config.effectiveColumns();
 		int count = buttons.size();
 		List<TitleEntry> titles = descriptor.getTitles();
 
 		for (int i = 0; i < bogs.size(); i++) {
 			IgsButton btn = bogs.get(i).getButtons().get(0);
+			PositionedButton positioned = buttons.get(i);
 
-			// Grid-based auto-wiring
-			int col = i % columns;
-			int row = i / columns;
-			int rows = (int) Math.ceil((double) count / columns);
-
-			// Up: same column, previous row (wrap to last row)
-			int upRow = (row - 1 + rows) % rows;
-			int upIdx = Math.min(upRow * columns + col, count - 1);
-
-			// Down: same column, next row (wrap to first row)
-			int downRow = (row + 1) % rows;
-			int downIdx = Math.min(downRow * columns + col, count - 1);
-
-			// Left: previous column (wrap to last column in same row)
-			int leftCol = (col - 1 + columns) % columns;
-			int leftIdx = Math.min(row * columns + leftCol, count - 1);
-
-			// Right: next column (wrap to first column in same row)
-			int rightCol = (col + 1) % columns;
-			int rightIdx = Math.min(row * columns + rightCol, count - 1);
+			List<Integer> sameColumn = matchingButtonIndices(buttons, positioned.getGridColumn(), true);
+			List<Integer> sameRow = matchingButtonIndices(buttons, positioned.getGridRow(), false);
+			int upIdx = adjacentIndex(sameColumn, i, -1);
+			int downIdx = adjacentIndex(sameColumn, i, 1);
+			int leftIdx = adjacentIndex(sameRow, i, -1);
+			int rightIdx = adjacentIndex(sameRow, i, 1);
 
 			// Apply explicit overrides from descriptor
 			if (i < titles.size()) {
@@ -270,6 +253,29 @@ public class TitleMenuIgsBuilder {
 			btn.setLeftButtonIdRef(leftIdx + BUTTON_BASE_ID);
 			btn.setRightButtonIdRef(rightIdx + BUTTON_BASE_ID);
 		}
+	}
+
+	private static List<Integer> matchingButtonIndices(List<PositionedButton> buttons, int coordinate,
+			boolean matchColumn) {
+		List<Integer> indices = new ArrayList<>();
+		for (int i = 0; i < buttons.size(); i++) {
+			PositionedButton button = buttons.get(i);
+			if ((matchColumn ? button.getGridColumn() : button.getGridRow()) == coordinate) {
+				indices.add(i);
+			}
+		}
+		indices.sort((left, right) -> {
+			PositionedButton leftButton = buttons.get(left);
+			PositionedButton rightButton = buttons.get(right);
+			return Integer.compare(matchColumn ? leftButton.getGridRow() : leftButton.getGridColumn(),
+					matchColumn ? rightButton.getGridRow() : rightButton.getGridColumn());
+		});
+		return indices;
+	}
+
+	private static int adjacentIndex(List<Integer> indices, int currentIndex, int offset) {
+		int position = indices.indexOf(currentIndex);
+		return indices.get(Math.floorMod(position + offset, indices.size()));
 	}
 
 	private static int clamp(int value, int min, int max) {

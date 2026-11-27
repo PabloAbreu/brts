@@ -1,10 +1,7 @@
-package org.brts.cli.middle;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-cli/src/main/java/org/brts/cli/middle/ScanPlaylistsCli.java' is part of BRTS.
+ * This file 'brts-cli/src/main/java/org/brts/cli/middle/ScanPlaylistsCli.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,18 +9,24 @@ package org.brts.cli.middle;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.cli.middle;
+
+import java.io.File;
+import java.nio.file.Path;
+
+import org.brts.cli.BaseOptions;
 import org.brts.cli.FeatureRunner;
 import org.brts.middle.scan.DiscContentType;
 import org.brts.middle.scan.PlaylistScanConfig;
@@ -31,15 +34,12 @@ import org.brts.middle.scan.PlaylistScanResult;
 import org.brts.middle.scan.PlaylistScanner;
 import org.kohsuke.args4j.Option;
 
-import java.io.File;
-import java.nio.file.Path;
-
 /**
  * CLI for the middle-level "scan-playlists" command.
  */
 public class ScanPlaylistsCli {
 
-	static class Options extends org.brts.cli.BaseOptions {
+	static class Options extends BaseOptions {
 
 		@Option(name = "--playlist-dir", required = true, usage = "Path to the BDMV/PLAYLIST directory containing .mpls files")
 		File playlistDir;

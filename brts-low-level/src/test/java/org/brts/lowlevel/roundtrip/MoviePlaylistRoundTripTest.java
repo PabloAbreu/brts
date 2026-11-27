@@ -1,10 +1,7 @@
-package org.brts.lowlevel.roundtrip;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/test/java/org/brts/lowlevel/roundtrip/MoviePlaylistRoundTripTest.java' is part of BRTS.
+ * This file 'brts-low-level/src/test/java/org/brts/lowlevel/roundtrip/MoviePlaylistRoundTripTest.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,26 +9,33 @@ package org.brts.lowlevel.roundtrip;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
 
+package org.brts.lowlevel.roundtrip;
+
 import org.brts.common.model.StreamCodingType;
+import org.brts.common.test.sampledata.RequiresSamples;
+import org.brts.common.test.sampledata.Samples;
 import org.brts.lowlevel.model.mpls.*;
 import org.brts.lowlevel.parser.MoviePlaylistParser;
 import org.brts.lowlevel.writer.MoviePlaylistWriter;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -169,6 +173,20 @@ class MoviePlaylistRoundTripTest {
 		assertThat(spi.getOutTimeTicks()).isEqualTo(900_000L);
 		assertThat(spi.getSyncPlayItemId()).isEqualTo(0);
 		assertThat(spi.getSyncStartPtsTicks()).isEqualTo(0L);
+	}
+
+	@Test
+	@RequiresSamples("PB/BDMV/PLAYLIST/00600.mpls")
+	void roundTrip_realPlaylistFile_fieldsPreserved(@TempDir Path tempDir) throws IOException {
+		Path inputFile = Samples.sample("PB/BDMV/PLAYLIST/00600.mpls");
+		Path roundTripFile = tempDir.resolve("00600-roundtrip.mpls");
+
+		MoviePlaylist original = parser.parse(inputFile);
+		writer.write(original, roundTripFile);
+		MoviePlaylist reparsed = parser.parse(roundTripFile);
+
+		assertThat(roundTripFile).exists().isRegularFile();
+		assertThat(reparsed).usingRecursiveComparison().isEqualTo(original);
 	}
 
 	// ─── Menu detection tests ───────────────────────────────────────────────

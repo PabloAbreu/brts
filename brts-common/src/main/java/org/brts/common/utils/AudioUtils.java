@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/AudioUtils.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/AudioUtils.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import static org.bytedeco.ffmpeg.global.avcodec.*;
 import static org.bytedeco.ffmpeg.global.avformat.*;
@@ -45,6 +44,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AudioUtils {
 
+	/** Blu-ray audio sample rate in hertz: 48 kHz. */
+	public static final int SAMPLE_RATE_48000_HZ = 48_000;
+
+	/** Blu-ray audio sample rate in hertz: 96 kHz. */
+	public static final int SAMPLE_RATE_96000_HZ = 96_000;
+
+	/** Blu-ray audio sample rate in hertz: 192 kHz. */
+	public static final int SAMPLE_RATE_192000_HZ = 192_000;
+
+	/** CLPI {@code audio_sample_rate} code for 48 kHz. */
+	public static final int BLURAY_AUDIO_SAMPLE_RATE_CODE_48000_HZ = 0x01;
+
+	/** CLPI {@code audio_sample_rate} code for 96 kHz. */
+	public static final int BLURAY_AUDIO_SAMPLE_RATE_CODE_96000_HZ = 0x04;
+
+	/** CLPI {@code audio_sample_rate} code for 192 kHz. */
+	public static final int BLURAY_AUDIO_SAMPLE_RATE_CODE_192000_HZ = 0x05;
+
 	/**
 	 * Result of probing an audio file.
 	 *
@@ -63,6 +80,24 @@ public class AudioUtils {
 
 	/** Sentinel returned when the probe fails completely. */
 	private static final AudioInfo PROBE_FAILED = new AudioInfo(-1.0, 0, 0, 0, 0);
+
+	/**
+	 * Maps a sample rate in hertz to the Blu-ray {@code audio_sample_rate} code used in CLPI. Unrecognised or absent
+	 * sample rates default to the 48 kHz code.
+	 *
+	 * @param sampleRateHz sample rate in hertz, or {@code null} if unknown
+	 * @return the Blu-ray audio sample-rate code
+	 */
+	public static int sampleRateHzToBlurayAudioSampleRateCode(Integer sampleRateHz) {
+		if (sampleRateHz == null)
+			return BLURAY_AUDIO_SAMPLE_RATE_CODE_48000_HZ;
+		return switch (sampleRateHz) {
+		case SAMPLE_RATE_48000_HZ -> BLURAY_AUDIO_SAMPLE_RATE_CODE_48000_HZ;
+		case SAMPLE_RATE_96000_HZ -> BLURAY_AUDIO_SAMPLE_RATE_CODE_96000_HZ;
+		case SAMPLE_RATE_192000_HZ -> BLURAY_AUDIO_SAMPLE_RATE_CODE_192000_HZ;
+		default -> BLURAY_AUDIO_SAMPLE_RATE_CODE_48000_HZ;
+		};
+	}
 
 	/**
 	 * Probes an audio file and returns format/codec information.

@@ -14,8 +14,10 @@ BRTS generates machine-readable CLI metadata and Markdown documentation as part 
 
 - The documentation generator JAR.
 - `brts-doc-generator-<version>-markdown-docs.zip`, attached with classifier `markdown-docs`.
+- `brts-doc-generator-<version>-bash-completion.zip`, attached with classifier `bash-completion`.
 
 The unpacked Markdown tree is available under `brts-doc-generator/target/generated-docs`.
+The generated Bash completion script is `brts-doc-generator/target/generated-completion/brts.bash`.
 
 ## Generate release documentation
 
@@ -31,9 +33,9 @@ mvn -pl brts-doc-generator -am package
 
 ## Metadata contents
 
-The JSON document contains a schema version, application version, ordered CLI levels and commands, complete command
-paths, inherited and hidden options, args4j attributes, validation annotations, warnings, and a qualified-name type
-registry for typed JSON inputs.
+The JSON document contains the application version, ordered CLI levels and commands, complete command paths, inherited
+and hidden options, args4j attributes, validation annotations, warnings, and a qualified-name type registry for typed
+JSON inputs.
 
 Jackson annotations determine effective JSON property names, ignored fields, and polymorphic subtype relationships.
 They are not copied into the exported annotation list. Missing source Javadocs produce warnings and null descriptions;
@@ -55,4 +57,17 @@ java -cp <generator-and-dependencies> org.brts.doc.generator.DocumentationGenera
   --output generated-docs
 ```
 
-Consumers must reject unsupported metadata schema versions. The current schema version is `1.0`.
+The Bash completion entry point is `org.brts.doc.generator.BashCompletionGeneratorMain`:
+
+```bash
+java -cp <generator-and-dependencies> org.brts.doc.generator.BashCompletionGeneratorMain \
+  --input cli-metadata.json \
+  --output brts.bash
+```
+
+To enable completion for the current shell, source `brts.bash`, or add a source command for its installed location to
+`~/.bashrc`. The generated function completes command levels, commands, visible options and aliases, enum choices, and
+filesystem paths for `File`/`Path` options. Options annotated with `org.brts.cli.JsonInputOption` complete only existing
+regular files ending in `.json` (case-sensitive) and directories for navigation, including aliases and attached
+`--option=value` arguments. This uses the filename extension, not MIME detection or JSON content validation.
+Hidden options are intentionally omitted. Other option values are left to normal shell completion.

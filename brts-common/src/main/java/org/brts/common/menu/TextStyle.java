@@ -1,10 +1,7 @@
-package org.brts.common.menu;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/menu/TextStyle.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/menu/TextStyle.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.menu;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.menu;
 
 import java.awt.Font;
 
@@ -85,6 +84,9 @@ public class TextStyle {
 
 	/** Text colour in the activated (pressed) state. */
 	private @BrtsValue String activatedColor;
+
+	/** Optional per-state images drawn over the button after its text/icon. */
+	private ButtonStateOverlays stateOverlays;
 
 	// ── Text effects ────────────────────────────────────────────────────────
 
@@ -203,6 +205,8 @@ public class TextStyle {
 		result.normalColor = coalesce(overlay.normalColor, base.normalColor);
 		result.selectedColor = coalesce(overlay.selectedColor, base.selectedColor);
 		result.activatedColor = coalesce(overlay.activatedColor, base.activatedColor);
+		result.stateOverlays = overlay.stateOverlays != null ? overlay.stateOverlays.mergeOver(base.stateOverlays)
+				: base.stateOverlays;
 		result.shadow = coalesce(overlay.shadow, base.shadow);
 		result.shadowColor = coalesce(overlay.shadowColor, base.shadowColor);
 		result.outline = coalesce(overlay.outline, base.outline);

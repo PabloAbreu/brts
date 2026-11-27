@@ -1,10 +1,7 @@
-package org.brts.common.utils;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-common/src/main/java/org/brts/common/utils/BrtsI18N.java' is part of BRTS.
+ * This file 'brts-common/src/main/java/org/brts/common/utils/BrtsI18N.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.common.utils;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.common.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -119,6 +118,10 @@ public class BrtsI18N {
 	}
 
 	public String getMessage(String languageCode, String key) {
+		return getMessage(languageCode, key, null);
+	}
+
+	public String getMessage(String languageCode, String key, String fallback) {
 		// return the localized message for the given key, based on the current language
 		// setting
 		// this is a placeholder implementation; you would replace this with actual
@@ -138,12 +141,13 @@ public class BrtsI18N {
 
 		// this one should never happen
 		if (labels == null)
-			return " -- missing labels -- ";
+			return fallback != null ? fallback : " -- missing labels -- ";
 		// uncomplete translation ?
 		// when not found we also could have returned the english label instead of the
 		// message
 		// but that would have made it harder to detect missing translations, so we
 		// return a clear message instead
-		return labels.getOrDefault(key, " - missing label for key " + key + " and language " + languageCode + " - ");
+		return labels.getOrDefault(key, fallback != null ? fallback
+				: " - missing label for key " + key + " and language " + languageCode + " - ");
 	}
 }

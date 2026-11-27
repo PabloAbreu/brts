@@ -1,10 +1,7 @@
-package org.brts.doc.parser;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-doc-parser/src/main/java/org/brts/doc/parser/CliMetadataParser.java' is part of BRTS.
+ * This file 'brts-doc-parser/src/main/java/org/brts/doc/parser/CliMetadataParser.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.doc.parser;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.doc.parser;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -61,8 +60,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 public final class CliMetadataParser {
 
-	public static final String SCHEMA_VERSION = "1.0";
-
 	private final SourceDocumentationIndex documentation;
 	private final AnnotationMetadataExtractor annotations = new AnnotationMetadataExtractor();
 	private final Map<String, TypeMetadata> types = new LinkedHashMap<>();
@@ -83,8 +80,7 @@ public final class CliMetadataParser {
 		while (!pendingTypes.isEmpty()) {
 			inspectType(pendingTypes.removeFirst());
 		}
-		return new CliMetadata(SCHEMA_VERSION, applicationVersion, levels, Collections.unmodifiableMap(types),
-				List.copyOf(warnings));
+		return new CliMetadata(applicationVersion, levels, Collections.unmodifiableMap(types), List.copyOf(warnings));
 	}
 
 	private CommandMetadata command(String level, FeatureRunner<?> runner) {
@@ -105,6 +101,9 @@ public final class CliMetadataParser {
 
 	private OptionMetadata option(Field field, Class<?> optionsType, Option option, JsonInputOption jsonOption) {
 		String inputTypeRef = null;
+		List<String> enumValues = field.getType().isEnum()
+				? Arrays.stream(field.getType().getEnumConstants()).map(value -> ((Enum<?>) value).name()).toList()
+				: List.of();
 		if (jsonOption != null) {
 			inputTypeRef = referenceName(field.getGenericType());
 			enqueueReferencedTypes(field.getGenericType());
@@ -117,7 +116,8 @@ public final class CliMetadataParser {
 				option != null ? option.hidden() : jsonOption.hidden(),
 				List.of(option != null ? option.depends() : jsonOption.depends()),
 				List.of(option != null ? option.forbids() : jsonOption.forbids()),
-				field.getDeclaringClass() != optionsType, annotations.extract(field.getAnnotations()), inputTypeRef);
+				field.getDeclaringClass() != optionsType, annotations.extract(field.getAnnotations()), inputTypeRef,
+				enumValues);
 	}
 
 	private void inspectType(Class<?> type) {

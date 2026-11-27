@@ -1,10 +1,7 @@
-package org.brts.lowlevel.parser;
-
 /*-
  * ===_LICENSE_BEGIN_===
  * BRTS — Blu-ray Tools Suite for authoring Blu-ray discs
- *
- * This file '/data/work/brts/brts-low-level/src/main/java/org/brts/lowlevel/parser/ClipInfoParser.java' is part of BRTS.
+ * This file 'brts-low-level/src/main/java/org/brts/lowlevel/parser/ClipInfoParser.java' is part of BRTS.
  * ==============================
  * Copyright (C) 2026 Pablo ABREU
  * ==============================
@@ -12,17 +9,19 @@ package org.brts.lowlevel.parser;
  * it under the terms of the GNU Lesser General Public License as
  * published by the Free Software Foundation, either version 3 of the
  * License, or (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Lesser Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU General Lesser Public
  * License along with this program.  If not, see
  * <http://www.gnu.org/licenses/lgpl-3.0.html>.
  * ===_LICENSE_END_===
  */
+
+package org.brts.lowlevel.parser;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,9 +72,11 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 	@Override
 	public ClipInfo parse(Path path) throws IOException {
+		log.info("Parsing CLPI file: {}", path);
 		ClipInfo parsed = BinaryParser.super.parse(path);
 		// get "00001" from "path/to/00001.clpi"
 		parsed.setClipName(path.getFileName().toString().replaceFirst("\\.clpi$", ""));
+		log.info("Parsed CLPI file successfully: {}", path);
 		return parsed;
 	}
 
@@ -102,6 +103,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 
 		// --- ClipInfo section (always at byte 40) ---
 		ClipInfo clipInfo = new ClipInfo();
+		clipInfo.setVersion(version);
 		long clipInfoSectionLength = r.readUnsignedInt();
 		log.debug("sequenceInfoOffset={}, programInfoOffset={}, cpiOffset={}, clipInfoSectionLength={}",
 				hex(sequenceInfoOffset), hex(programInfoOffset), hex(cpiOffset), hex(clipInfoSectionLength));
@@ -134,7 +136,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 		// --- ProgramInfo section ---
 		currentPos = r.getPosition();
 		r.skip(programInfoOffset - currentPos);
-		List<ClipStream> streams = readProgramInfo(r);
+		List<ClipStream> streams = readProgramInfo(r, version);
 		clipInfo.setStreams(streams);
 
 		// --- CPI (EP_map) section ---
@@ -189,8 +191,7 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 	// ProgramInfo
 	// -------------------------------------------------------------------------
 
-	@SuppressWarnings("unused")
-	private List<ClipStream> readProgramInfo(BinaryReader r) throws IOException {
+	private List<ClipStream> readProgramInfo(BinaryReader r, String version) throws IOException {
 		long sectionLength = r.readUnsignedInt();
 		log.debug("readProgramInfo.sectionLength {}. position is {}", hex(sectionLength), hex(r.getPosition()));
 		r.skip(1); // reserved
@@ -225,12 +226,31 @@ public class ClipInfoParser implements BinaryParser<ClipInfo> {
 				stream.setCodingType(codingType);
 
 				if (codingType.isVideo()) {
+					boolean version300 = VERSION_300.equals(version);
+					if (version300 && streamInfoSize < 5) {
+						throw new ParseException("CLPI 0300 video attributes for PID " + hex(stream.getPid())
+								+ " at offset " + hex(r.getPosition() - 1) + " have length " + streamInfoSize
+								+ "; expected at least 5 bytes");
+					}
 					int vfr = r.readUnsignedByte();
 					stream.setVideoFormat((vfr >> 4) & 0x0F);
 					stream.setFrameRate(vfr & 0x0F);
 					int ar = r.readUnsignedByte();
 					stream.setAspectRatio((ar >> 4) & 0x0F);
-					r.skip(streamInfoSize - 3); // reserved
+					if (version300) {
+						stream.setOcFlag((ar & 0x02) != 0);
+						int rangeAndColor = r.readUnsignedByte();
+						int hdrFlags = r.readUnsignedByte();
+						if (codingType == StreamCodingType.H265_HEVC) {
+							stream.setCrFlag((ar & 0x01) != 0);
+							stream.setDynamicRangeType((rangeAndColor >> 4) & 0x0F);
+							stream.setColorSpace(rangeAndColor & 0x0F);
+							stream.setHdrPlusFlag((hdrFlags & 0x80) != 0);
+						}
+						r.skip(streamInfoSize - 5); // ISRC and padding
+					} else {
+						r.skip(streamInfoSize - 3); // reserved
+					}
 				} else if (codingType.isAudio()) {
 					int channelSample = r.readUnsignedByte();
 					stream.setAudioChannelLayout((channelSample >> 4) & 0x0F);
