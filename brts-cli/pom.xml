@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.brts</groupId>
 		<artifactId>brts-parent</artifactId>
-		<version>0.0.3-SNAPSHOT</version>
+		<version>0.0.3</version>
 	</parent>
 
 	<artifactId>brts-cli</artifactId>
@@ -56,7 +56,7 @@
 			<classifier>tests</classifier>
 			<type>test-jar</type>
 			<scope>test</scope>
-			<version>0.0.3-SNAPSHOT</version>
+			<version>0.0.3</version>
 		</dependency>
 	</dependencies>
 
